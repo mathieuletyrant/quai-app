@@ -1,7 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Redacted } from "effect"
 import { testScript } from "../../src/flows/TestScript.ts"
-import { probesFor } from "../../src/stack/Health.ts"
 import { download, incident, playback } from "./helpers.ts"
 
 describe("test script", () => {
@@ -25,19 +23,5 @@ describe("test script", () => {
 
   it("time since for incidents", () => {
     expect(testScript(incident, 1_000, "t")[0]!.push.activity.values.since).toBe(1_000)
-  })
-})
-
-describe("health probes", () => {
-  it("one per configured service, none for the others", () => {
-    const probes = probesFor({
-      radarr: { url: "http://radarr:7878", apiKey: Redacted.make("k") },
-      sonarr: null,
-      qbittorrent: { url: "http://qb:8080", username: null, password: null },
-      jellyfin: null,
-      internalUrl: null
-    })
-    expect(probes.map((p) => p.name)).toEqual(["radarr", "qbittorrent"])
-    expect(probes[0]!.request.headers["x-api-key"]).toBe("k")
   })
 })

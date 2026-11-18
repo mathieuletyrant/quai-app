@@ -3,6 +3,7 @@ import { Effect, Layer, Redacted } from "effect"
 import { ensureWebhook } from "../../src/stack/ArrWebhooks.ts"
 import { Jellyfin } from "../../src/stack/Jellyfin.ts"
 import { QBittorrent, sessionCookie } from "../../src/stack/QBittorrent.ts"
+import { progressEvent } from "../../src/integrations/qbittorrent.ts"
 import { TestClock } from "effect/testing"
 import { StackConfig } from "../../src/stack/StackConfig.ts"
 import { fakeHttp, type Seen } from "../fakeHttp.ts"
@@ -31,7 +32,7 @@ describe("qBittorrent", () => {
     }, seen)
     return Effect.gen(function*() {
       const qb = yield* QBittorrent
-      const events = yield* qb.progress(["8f1c0e3a9b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e", "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"])
+      const events = (yield* qb.torrents(["8f1c0e3a9b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e", "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"])).map(progressEvent)
       expect(events).toEqual([
         {
           type: "download.progress",
@@ -73,7 +74,7 @@ describe("qBittorrent login", () => {
       return loggedIn ? { json: [] } : { status: 403 }
     }, seen)
     return Effect.gen(function*() {
-      yield* (yield* QBittorrent).progress(["a"])
+      yield* (yield* QBittorrent).torrents(["a"])
       expect(seen.at(-1)!.headers["cookie"]).toBe("QBT_SID_8080=v5session")
     }).pipe(Effect.provide(QBittorrent.layer.pipe(Layer.provide([config, http]))))
   })
@@ -85,10 +86,10 @@ describe("qBittorrent login", () => {
     return Effect.gen(function*() {
       const qb = yield* QBittorrent
       const logins = () => seen.filter((r) => r.url.pathname === "/api/v2/auth/login").length
-      const first = yield* Effect.flip(qb.progress(["a"]))
+      const first = yield* Effect.flip(qb.torrents(["a"]))
       expect(first.message).toBe("wrong username or password")
       const pollAfter = (seconds: number) =>
-        Effect.andThen(TestClock.adjust(`${seconds} seconds`), Effect.flip(qb.progress(["a"])))
+        Effect.andThen(TestClock.adjust(`${seconds} seconds`), Effect.flip(qb.torrents(["a"])))
       yield* pollAfter(15)
       expect(logins()).toBe(1)
       yield* pollAfter(15)
@@ -114,16 +115,16 @@ describe("Jellyfin", () => {
   it.effect("finds a movie by its TMDB id, not by its title", () =>
     run(Effect.gen(function*() {
       const jellyfin = yield* Jellyfin
-      expect(yield* jellyfin.find({ _tag: "Movie", mediaKey: "m", tmdbId: 693134, title: "Dune" }))
+      expect(yield* jellyfin.find({ _tag: "Movie", tmdbId: 693134, title: "Dune" }))
         .toBe("f9e8d7c6b5a4938271605f4e3d2c1b0a")
-      expect(yield* jellyfin.find({ _tag: "Movie", mediaKey: "m", tmdbId: 1, title: "Dune" })).toBeNull()
+      expect(yield* jellyfin.find({ _tag: "Movie", tmdbId: 1, title: "Dune" })).toBeNull()
     })))
 
   it.effect("episodes count once they have a file, not when they are only listed", () =>
     run(Effect.gen(function*() {
       const jellyfin = yield* Jellyfin
       const check = (episodes: Array<{ season: number; episode: number }>) =>
-        jellyfin.find({ _tag: "Episodes", mediaKey: "s", tvdbId: 371980, title: "Severance", episodes })
+        jellyfin.find({ _tag: "Episodes", tvdbId: 371980, title: "Severance", episodes })
       expect(yield* check([{ season: 2, episode: 1 }, { season: 2, episode: 2 }])).toBe("5e7e7a1c2b3d4f5061728394a5b6c7d8")
       expect(yield* check([{ season: 2, episode: 3 }])).toBeNull()
     })))

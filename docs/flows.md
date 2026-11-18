@@ -72,6 +72,26 @@ the activity's current step offers the button, sends it to the service, and refr
 
 Next in the catalog: "Other release" and "Retry" for downloads (spec v1, Live Activities).
 
+## Integrations
+
+On the server, each service is one module in `apps/server/src/integrations/`: everything Quai
+knows about it sits together, so its events and actions are readable at a glance.
+
+| Integration | Webhook (`/webhooks/<service>`) | Polling (only when a flow needs it) | Actions |
+| --- | --- | --- | --- |
+| `radarr` | `media.added`, `download.grabbed`, `download.imported` | — | — |
+| `sonarr` | same, for episodes | — | — |
+| `qbittorrent` | — | download progress, every 15 s, while a download runs | — |
+| `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
+| `quai` (health) | — | `service.down` / `service.up`, every minute, while a service flow is on | — |
+
+An integration is a plain value (`Integration` in `Integration.ts`): an optional `webhook` that
+reads payloads into catalog events, `pollers` (`every`, `needed`, `run`), and `actions` keyed by
+action type. The `Hub` runs it all: webhooks hand their events to it, a 15-second heartbeat runs
+the pollers that are due and needed, and a button press runs the action then refreshes that
+service at once. Adding a service: write its integration, list it in `All.ts`, add its events and
+actions to the catalog in `packages/api`.
+
 ## Engine rules
 
 1. One activity per flow and subject (`flowId|subjectKey`). Several flows can follow the same

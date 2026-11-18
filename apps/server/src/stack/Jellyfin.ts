@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Redacted, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
-import type { AvailabilityCheck } from "./Availability.ts"
+import type { MediaLookup } from "../flows/Events.ts"
 import { StackError } from "./Errors.ts"
 import { StackConfig } from "./StackConfig.ts"
 
@@ -78,8 +78,8 @@ const providerId = (item: typeof Item.Type, provider: string) =>
   Object.entries(item.ProviderIds ?? {}).find(([k]) => k.toLowerCase() === provider)?.[1]
 
 export class Jellyfin extends Context.Service<Jellyfin, {
-  /** Whether what the check names can be played in Jellyfin; with the item id when it can. */
-  readonly find: (check: AvailabilityCheck) => Effect.Effect<string | null, StackError>
+  /** Whether the title can be played in Jellyfin; with the item id when it can. */
+  readonly find: (lookup: MediaLookup) => Effect.Effect<string | null, StackError>
   /** What plays right now, on every device. */
   readonly playing: Effect.Effect<ReadonlyArray<Playing>, StackError>
   /** Sends a remote control command to a session (the Live Activity's buttons). */
@@ -121,14 +121,14 @@ export class Jellyfin extends Context.Service<Jellyfin, {
             Effect.mapError((cause) => new StackError({ service: "jellyfin", message: `could not send ${command}`, cause }))
           ),
         playing: Effect.map(get("/Sessions", { ActiveWithinSeconds: "120" }, Sessions), playingFrom),
-        find: (check: AvailabilityCheck) =>
+        find: (lookup: MediaLookup) =>
           Effect.gen(function*() {
-            if (check._tag === "Movie") {
-              const { Items } = yield* search("Movie", check.title)
-              return Items.find((i) => providerId(i, "tmdb") === String(check.tmdbId))?.Id ?? null
+            if (lookup._tag === "Movie") {
+              const { Items } = yield* search("Movie", lookup.title)
+              return Items.find((i) => providerId(i, "tmdb") === String(lookup.tmdbId))?.Id ?? null
             }
-            const { Items } = yield* search("Series", check.title)
-            const series = Items.find((i) => providerId(i, "tvdb") === String(check.tvdbId))
+            const { Items } = yield* search("Series", lookup.title)
+            const series = Items.find((i) => providerId(i, "tvdb") === String(lookup.tvdbId))
             if (series === undefined) return null
             const episodes = yield* get(`/Shows/${series.Id}/Episodes`, {}, EpisodesResult)
             const present = new Set(
@@ -136,7 +136,7 @@ export class Jellyfin extends Context.Service<Jellyfin, {
                 `${e.ParentIndexNumber}:${e.IndexNumber}`
               )
             )
-            return check.episodes.every((e: { readonly season: number; readonly episode: number }) => present.has(`${e.season}:${e.episode}`)) ? series.Id : null
+            return lookup.episodes.every((e: { readonly season: number; readonly episode: number }) => present.has(`${e.season}:${e.episode}`)) ? series.Id : null
           })
       }
     })

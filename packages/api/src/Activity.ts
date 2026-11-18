@@ -19,6 +19,10 @@ export const EventType = Schema.Literals([
 ]).annotate({ identifier: "EventType" })
 export type EventType = typeof EventType.Type
 
+/** Where events come from and where actions go: one integration per service on the server. */
+export const ServiceName = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "quai"]).annotate({ identifier: "ServiceName" })
+export type ServiceName = typeof ServiceName.Type
+
 /** Buttons a step can offer on the Live Activity (docs/flows.md, Actions). */
 export const ActionType = Schema.Literals(["playback.playPause", "playback.stop"]).annotate({ identifier: "ActionType" })
 export type ActionType = typeof ActionType.Type
@@ -125,7 +129,8 @@ export type ActivityContent = typeof ActivityContent.Type
 export const CatalogAction = Schema.Struct({
   type: ActionType,
   subject: FlowSubject,
-  label: Schema.String
+  label: Schema.String,
+  service: ServiceName
 }).annotate({ identifier: "CatalogAction" })
 
 /** A catalog entry, for the console's step picker. */
@@ -134,5 +139,7 @@ export const CatalogEvent = Schema.Struct({
   subject: FlowSubject,
   label: Schema.String,
   /** Data events update the current step; they can't enter a step. */
-  data: Schema.Boolean
+  data: Schema.Boolean,
+  /** The services that produce it. */
+  services: Schema.Array(ServiceName)
 }).annotate({ identifier: "CatalogEvent" })

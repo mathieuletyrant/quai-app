@@ -1,6 +1,5 @@
 import { Clock, Context, Effect, Layer, Redacted, Ref, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
-import type { FlowEvent } from "../flows/Events.ts"
 import { StackError } from "./Errors.ts"
 import { StackConfig } from "./StackConfig.ts"
 
@@ -21,19 +20,6 @@ export type Torrent = typeof Torrent.Type
  */
 export const loginBackoffMs = (failures: number) => Math.min(30_000 * 2 ** (failures - 1), 5 * 60_000)
 
-/** qBittorrent's "unknown" ETA (100 days). */
-const infiniteEta = 8_640_000
-
-export const progressEvent = (torrent: Torrent): FlowEvent => ({
-  type: "download.progress",
-  downloadId: torrent.hash.toLowerCase(),
-  values: {
-    progress: torrent.progress,
-    bytesPerSecond: torrent.dlspeed,
-    ...(torrent.eta >= infiniteEta || torrent.eta < 0 ? {} : { remainingSeconds: torrent.eta })
-  }
-})
-
 /**
  * The session cookie: `SID` up to qBittorrent 4, `QBT_SID_<port>` since 5 (one per instance).
  * Set-Cookie may come as one string or several.
@@ -49,7 +35,7 @@ export const sessionCookie = (header: string | ReadonlyArray<string> | undefined
 
 export class QBittorrent extends Context.Service<QBittorrent, {
   /** Progress of the given torrents, by hash. Unknown hashes are left out. */
-  readonly progress: (hashes: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<FlowEvent>, StackError>
+  readonly torrents: (hashes: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<Torrent>, StackError>
 }>()("quai/QBittorrent") {
   static readonly layer = Layer.effect(
     QBittorrent,
@@ -61,7 +47,7 @@ export class QBittorrent extends Context.Service<QBittorrent, {
       const fail = (message: string) => (cause: unknown) => new StackError({ service: "qbittorrent", message, cause })
 
       if (config === null) {
-        return { progress: () => Effect.fail(new StackError({ service: "qbittorrent", message: "not configured" })) }
+        return { torrents: () => Effect.fail(new StackError({ service: "qbittorrent", message: "not configured" })) }
       }
 
       const attemptLogin = Effect.gen(function*() {
@@ -114,13 +100,13 @@ export class QBittorrent extends Context.Service<QBittorrent, {
         }).pipe(Effect.mapError(fail("could not read torrents")))
 
       return {
-        progress: (hashes: ReadonlyArray<string>) =>
+        torrents: (hashes: ReadonlyArray<string>) =>
           hashes.length === 0 ? Effect.succeed([]) : Effect.gen(function*() {
             // A 403 means the session expired (or never existed): log in once and retry.
             const first = yield* info(hashes)
             const torrents = first ?? (yield* Effect.andThen(login, info(hashes)))
             if (torrents === null) return yield* Effect.fail(new StackError({ service: "qbittorrent", message: "access refused" }))
-            return torrents.map(progressEvent)
+            return torrents
           })
       }
     })

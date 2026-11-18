@@ -1,22 +1,26 @@
-import type { ActionType, EventType, Flow, FlowSubject } from "./Activity.ts"
+import type { ActionType, EventType, Flow, FlowSubject, ServiceName } from "./Activity.ts"
 
-/** Every event a flow can use, with its subject and how the console names it. */
+/**
+ * Every event a flow can use, with its subject, the services that produce it, and how the console
+ * names it. On the server, each service's integration (apps/server/src/integrations) emits them.
+ */
 export const catalog: ReadonlyArray<{
   readonly type: EventType
   readonly subject: FlowSubject
   readonly label: string
   readonly data: boolean
+  readonly services: ReadonlyArray<ServiceName>
 }> = [
-  { type: "media.added", subject: "media", label: "Added (Radarr, Seerr)", data: false },
-  { type: "media.grabbed", subject: "media", label: "Release grabbed (Radarr, Sonarr)", data: false },
-  { type: "media.imported", subject: "media", label: "Imported (Radarr, Sonarr)", data: false },
-  { type: "media.available", subject: "media", label: "Available in Jellyfin", data: false },
-  { type: "download.progress", subject: "media", label: "Download progress (qBittorrent)", data: true },
-  { type: "playback.started", subject: "playback", label: "Playback started (Jellyfin)", data: false },
-  { type: "playback.progress", subject: "playback", label: "Playback position (Jellyfin)", data: true },
-  { type: "playback.stopped", subject: "playback", label: "Playback stopped (Jellyfin)", data: false },
-  { type: "service.down", subject: "service", label: "Service down for 5 min", data: false },
-  { type: "service.up", subject: "service", label: "Service back", data: false }
+  { type: "media.added", subject: "media", label: "Added (Radarr)", data: false, services: ["radarr"] },
+  { type: "media.grabbed", subject: "media", label: "Release grabbed (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "media.imported", subject: "media", label: "Imported (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "media.available", subject: "media", label: "Available in Jellyfin", data: false, services: ["jellyfin"] },
+  { type: "download.progress", subject: "media", label: "Download progress (qBittorrent)", data: true, services: ["qbittorrent"] },
+  { type: "playback.started", subject: "playback", label: "Playback started (Jellyfin)", data: false, services: ["jellyfin"] },
+  { type: "playback.progress", subject: "playback", label: "Playback position (Jellyfin)", data: true, services: ["jellyfin"] },
+  { type: "playback.stopped", subject: "playback", label: "Playback stopped (Jellyfin)", data: false, services: ["jellyfin"] },
+  { type: "service.down", subject: "service", label: "Service down for 5 min", data: false, services: ["quai"] },
+  { type: "service.up", subject: "service", label: "Service back", data: false, services: ["quai"] }
 ]
 
 /** Every button a step can offer. */
@@ -24,9 +28,10 @@ export const actionCatalog: ReadonlyArray<{
   readonly type: ActionType
   readonly subject: FlowSubject
   readonly label: string
+  readonly service: ServiceName
 }> = [
-  { type: "playback.playPause", subject: "playback", label: "Play / Pause" },
-  { type: "playback.stop", subject: "playback", label: "Stop" }
+  { type: "playback.playPause", subject: "playback", label: "Play / Pause", service: "jellyfin" },
+  { type: "playback.stop", subject: "playback", label: "Stop", service: "jellyfin" }
 ]
 
 export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((a) => a.type === type)!.subject

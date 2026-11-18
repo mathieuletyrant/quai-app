@@ -13,6 +13,7 @@ const activity = (over: Partial<Activity> = {}): Activity => ({
   tone: "active",
   values: {},
   downloadId: null,
+  lookup: null,
   enteredAt: 0,
   movedAt: 0,
   lastEventAt: 0,

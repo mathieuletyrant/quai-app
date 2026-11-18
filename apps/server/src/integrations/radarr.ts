@@ -1,6 +1,7 @@
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { movieKey } from "../flows/Events.ts"
+import type { Integration } from "./Integration.ts"
 
 const Movie = Schema.Struct({
   title: Schema.String,
@@ -22,7 +23,13 @@ const titleOf = (movie: typeof Movie.Type) => movie.title
 export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> => {
   const movie = payload.movie
   if (movie === undefined) return []
-  const subject = { kind: "media" as const, key: movieKey(movie.tmdbId), title: titleOf(movie), mediaType: "movie" as const }
+  const subject = {
+    kind: "media" as const,
+    key: movieKey(movie.tmdbId),
+    title: titleOf(movie),
+    mediaType: "movie" as const,
+    lookup: { _tag: "Movie" as const, tmdbId: movie.tmdbId, title: movie.title }
+  }
   switch (payload.eventType) {
     case "MovieAdded":
       return [{ type: "media.added", subject }]
@@ -39,13 +46,10 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
 
 export const decodeRadarrWebhook = Schema.decodeUnknownEffect(RadarrWebhook)
 
-/** What Quai needs to check in Jellyfin once Radarr has imported the file. */
-export const radarrAvailability = (payload: RadarrWebhook) =>
-  payload.eventType === "Download" && payload.movie !== undefined
-    ? {
-      _tag: "Movie" as const,
-      mediaKey: movieKey(payload.movie.tmdbId),
-      tmdbId: payload.movie.tmdbId,
-      title: payload.movie.title
-    }
-    : null
+/** Radarr pushes: added, grabbed and imported come by webhook. It has no actions yet. */
+export const radarr: Integration = {
+  service: "radarr",
+  webhook: { read: (body) => Effect.map(decodeRadarrWebhook(body), radarrEvents) },
+  pollers: [],
+  actions: {}
+}

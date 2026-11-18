@@ -22,6 +22,7 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
     tone: "active",
     values: {},
     downloadId: null,
+    lookup: null,
     enteredAt: now,
     movedAt: now,
     lastEventAt: now,

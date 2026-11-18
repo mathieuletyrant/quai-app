@@ -1,5 +1,5 @@
 import { type Flow, type FlowStep, isDataEvent } from "@quai/api"
-import type { FlowEvent, Subject, Values } from "./Events.ts"
+import type { FlowEvent, MediaLookup, Subject, Values } from "./Events.ts"
 
 /** Timings from the spec (docs/flows.md, Limits). */
 export const Timing = {
@@ -19,6 +19,8 @@ export interface Activity {
   readonly tone: Tone
   readonly values: Values
   readonly downloadId: string | null
+  /** How to find the title in the media server, once a service told. */
+  readonly lookup: MediaLookup | null
   /** When the current step began. */
   readonly enteredAt: number
   /** Last forward movement: step change or progress increase. */
@@ -76,6 +78,8 @@ const matches = (flow: Flow, subject: Subject) => {
 
 /** Without an end event, reaching the last step ends the activity; with one, only that event does. */
 const endsAtStep = (flow: Flow, index: number) => flow.endOn === undefined && index === flow.steps.length - 1
+
+const lookupOf = (subject: Subject) => subject.kind === "media" ? subject.lookup ?? null : null
 
 const put = (activities: Map<string, Activity>, activity: Activity) => activities.set(activity.key, activity)
 
@@ -156,6 +160,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
         tone: "active",
         values: event.values ?? {},
         downloadId: event.downloadId ?? null,
+        lookup: lookupOf(subject),
         enteredAt: now,
         movedAt: now,
         lastEventAt: now,
@@ -183,6 +188,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       tone: ends ? "done" : "active",
       values: event.values ?? {},
       downloadId: event.downloadId ?? current.downloadId,
+      lookup: lookupOf(subject) ?? current.lookup,
       enteredAt: now,
       movedAt: now,
       lastEventAt: now,

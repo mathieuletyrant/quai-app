@@ -1,6 +1,7 @@
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { seriesKey } from "../flows/Events.ts"
+import type { Integration } from "./Integration.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
@@ -49,7 +50,13 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
     kind: "media" as const,
     key: sonarrKey(series.tvdbId, payload.downloadId),
     title: episodeLabel(series.title, payload.episodes ?? []),
-    mediaType: "series" as const
+    mediaType: "series" as const,
+    lookup: {
+      _tag: "Episodes" as const,
+      tvdbId: series.tvdbId,
+      title: series.title,
+      episodes: (payload.episodes ?? []).map((e) => ({ season: e.seasonNumber, episode: e.episodeNumber }))
+    }
   }
   switch (payload.eventType) {
     case "Grab":
@@ -63,13 +70,10 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
 
 export const decodeSonarrWebhook = Schema.decodeUnknownEffect(SonarrWebhook)
 
-export const sonarrAvailability = (payload: SonarrWebhook) =>
-  payload.eventType === "Download" && payload.series !== undefined && payload.downloadId !== undefined
-    ? {
-      _tag: "Episodes" as const,
-      mediaKey: sonarrKey(payload.series.tvdbId, payload.downloadId),
-      tvdbId: payload.series.tvdbId,
-      title: payload.series.title,
-      episodes: (payload.episodes ?? []).map((e) => ({ season: e.seasonNumber, episode: e.episodeNumber }))
-    }
-    : null
+/** Sonarr pushes: grabbed and imported come by webhook. It has no actions yet. */
+export const sonarr: Integration = {
+  service: "sonarr",
+  webhook: { read: (body) => Effect.map(decodeSonarrWebhook(body), sonarrEvents) },
+  pollers: [],
+  actions: {}
+}

@@ -1,8 +1,27 @@
 import type { EventType } from "@quai/api"
 
+/**
+ * How to find a title in the media server: set by the service that imported it, read by the one
+ * that says it's ready. Travels with the activity.
+ */
+export type MediaLookup =
+  | { readonly _tag: "Movie"; readonly tmdbId: number; readonly title: string }
+  | {
+    readonly _tag: "Episodes"
+    readonly tvdbId: number
+    readonly title: string
+    readonly episodes: ReadonlyArray<{ readonly season: number; readonly episode: number }>
+  }
+
 /** What one activity follows. `key` is unique per subject: `movie:tmdb:1`, `playback:<session>:<item>`, `service:radarr`. */
 export type Subject =
-  | { readonly kind: "media"; readonly key: string; readonly title: string; readonly mediaType: "movie" | "series" }
+  | {
+    readonly kind: "media"
+    readonly key: string
+    readonly title: string
+    readonly mediaType: "movie" | "series"
+    readonly lookup?: MediaLookup
+  }
   | { readonly kind: "playback"; readonly key: string; readonly title: string; readonly device: string }
   | { readonly kind: "service"; readonly key: string; readonly title: string }
 

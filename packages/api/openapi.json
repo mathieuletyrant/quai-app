@@ -1066,14 +1066,28 @@
           },
           "label": {
             "type": "string"
+          },
+          "service": {
+            "$ref": "#/components/schemas/ServiceName"
           }
         },
         "required": [
           "type",
           "subject",
-          "label"
+          "label",
+          "service"
         ],
         "additionalProperties": false
+      },
+      "ServiceName": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr",
+          "qbittorrent",
+          "jellyfin",
+          "quai"
+        ]
       },
       "CatalogEvent": {
         "type": "object",
@@ -1089,13 +1103,20 @@
           },
           "data": {
             "type": "boolean"
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServiceName"
+            }
           }
         },
         "required": [
           "type",
           "subject",
           "label",
-          "data"
+          "data",
+          "services"
         ],
         "additionalProperties": false
       },
