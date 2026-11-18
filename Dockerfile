@@ -1,5 +1,7 @@
 # Generic Quai image: server + console. No host assumed (Umbrel, Unraid, plain Docker…).
-FROM node:22-alpine AS build
+# The build stage runs on the builder's own platform: its output is plain JavaScript, so only the
+# small final stage is made per architecture, without emulating the whole build.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /repo
 RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
