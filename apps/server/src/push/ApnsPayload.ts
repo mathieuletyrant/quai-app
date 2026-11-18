@@ -48,10 +48,3 @@ export const apnsBody = (push: Push, now: number): object => {
       }
   }
 }
-
-/**
- * Every push goes at high priority. Low priority (5) lets iOS hold and coalesce updates as it
- * pleases, which showed a download at 43 % while it was at 63 %. The 15 s throttle and the app's
- * NSSupportsLiveActivitiesFrequentUpdates keep the high-priority budget in check.
- */
-export const apnsPriority = (_push: Push, _previousStep: string | null): 5 | 10 => 10

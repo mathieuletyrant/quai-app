@@ -21,4 +21,8 @@ struct DownloadActivityAttributes: ActivityAttributes {
     /// Uniqueness key from the server: `movie:tmdb:<id>`, or a series plus its torrent.
     var mediaKey: String
     var title: String
+    /// The steps this iPhone chose to see, in order (Settings → Live Activities). Nil: all of them.
+    var steps: [Step]?
+
+    var shownSteps: [Step] { steps ?? Step.allCases }
 }

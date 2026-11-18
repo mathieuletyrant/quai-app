@@ -7,6 +7,13 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    NavigationLink {
+                        LiveActivitySettingsView()
+                    } label: {
+                        Label("Live Activities", systemImage: "rectangle.badge.checkmark")
+                    }
+                }
                 Section("Server") {
                     LabeledContent("Address", value: connection.serverURL?.absoluteString ?? "—")
                     LabeledContent("Push server", value: Connection.apnsEnvironment == .development ? "Development (Xcode)" : "Production")

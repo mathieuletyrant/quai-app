@@ -31,7 +31,13 @@ export const emptyState: EngineState = { activities: new Map() }
 /** A push the engine wants sent. The notifier turns it into APNs requests, per device. */
 export type Push =
   | { readonly _tag: "Start"; readonly attributes: DownloadAttributes; readonly content: DownloadContentState }
-  | { readonly _tag: "Update"; readonly mediaKey: string; readonly content: DownloadContentState }
+  | {
+    readonly _tag: "Update"
+    readonly mediaKey: string
+    /** Lets an iPhone that hides the earlier steps start the activity from this update. */
+    readonly title: string
+    readonly content: DownloadContentState
+  }
   | {
     readonly _tag: "End"
     readonly mediaKey: string
@@ -130,7 +136,7 @@ const update = (activity: Activity, now: number): Push =>
       content: activity.content,
       dismissAt: now + Timing.lingerAfterAvailableMs
     }
-    : { _tag: "Update", mediaKey: activity.attributes.mediaKey, content: activity.content }
+    : { _tag: "Update", mediaKey: activity.attributes.mediaKey, title: activity.attributes.title, content: activity.content }
 
 const progress = (state: EngineState, event: Extract<MediaEvent, { _tag: "Progress" }>, now: number): Step => {
   const current = [...state.activities.values()].find((a) => a.downloadId === event.downloadId)

@@ -83,6 +83,36 @@ final class Connection {
         activities = []
     }
 
+    // MARK: Preferences
+
+    func preferences() async throws -> Components.Schemas.DevicePreferences {
+        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        switch try await client.getPreferences() {
+        case let .ok(ok): return try ok.body.json
+        case .unauthorized: throw ConnectionError.server(401)
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+    }
+
+    func save(_ preferences: Components.Schemas.DevicePreferences) async throws {
+        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        switch try await client.savePreferences(body: .json(preferences)) {
+        case .ok: return
+        case .unauthorized: throw ConnectionError.server(401)
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+    }
+
+    /// Asks the server for a ~45 s demo activity on this iPhone only, through the real push path.
+    func sendTestActivity() async throws {
+        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        switch try await client.sendTestActivity() {
+        case .noContent: return
+        case .unauthorized: throw ConnectionError.server(401)
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+    }
+
     // MARK: Activities
 
     func refresh() async {
