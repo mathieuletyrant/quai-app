@@ -106,7 +106,6 @@ final class Connection {
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
-    }
 
     // MARK: Activities
 
