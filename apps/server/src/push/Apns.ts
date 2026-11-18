@@ -131,7 +131,7 @@ export class Apns extends Context.Service<Apns, {
       const inline = yield* Config.option(Config.Redacted("QUAI_APNS_KEY"))
       const keyId = yield* Config.option(Config.String("QUAI_APNS_KEY_ID"))
       const teamId = yield* Config.option(Config.String("QUAI_APNS_TEAM_ID"))
-      const topic = yield* Config.String("QUAI_APNS_TOPIC").pipe(Config.withDefault("cc.cheztomy.Quai"))
+      const topic = yield* Config.String("QUAI_APNS_TOPIC").pipe(Config.withDefault("com.mathieuletyrant.quai"))
       // A key file that isn't there yet (not dropped in the data folder) means "no pushes", not a crash.
       const keyPem = Option.isSome(inline)
         ? Option.some(inline.value)

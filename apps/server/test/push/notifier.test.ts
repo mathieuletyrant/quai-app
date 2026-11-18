@@ -27,7 +27,7 @@ describe("push to APNs", () => {
       const dev = yield* fakeApns
       const prod = yield* fakeApns
       const apns = yield* Apns.make(
-        { keyPem: Redacted.make(keyPem), keyId: "KEY123", teamId: "TEAM456", topic: "cc.cheztomy.Quai" },
+        { keyPem: Redacted.make(keyPem), keyId: "KEY123", teamId: "TEAM456", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: prod.url }
       )
       yield* Effect.gen(function*() {
@@ -43,7 +43,7 @@ describe("push to APNs", () => {
 
         const start = dev.hits[0]!
         expect(start.headers["apns-push-type"]).toBe("liveactivity")
-        expect(start.headers["apns-topic"]).toBe("cc.cheztomy.Quai.push-type.liveactivity")
+        expect(start.headers["apns-topic"]).toBe("com.mathieuletyrant.quai.push-type.liveactivity")
         expect(start.headers["apns-priority"]).toBe("10")
         expect(start.body.aps).toMatchObject({
           event: "start",
@@ -89,7 +89,7 @@ describe("push to APNs", () => {
     Effect.gen(function*() {
       const dev = yield* fakeApns
       const apns = yield* Apns.make(
-        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "cc.cheztomy.Quai" },
+        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: dev.url }
       )
       yield* Effect.gen(function*() {

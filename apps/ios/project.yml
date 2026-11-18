@@ -1,14 +1,14 @@
 # `xcodegen generate` builds Quai.xcodeproj from this file (the project is not committed).
 name: Quai
 options:
-  bundleIdPrefix: cc.cheztomy
+  bundleIdPrefix: com.mathieuletyrant
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: "" # set once the Apple developer account exists (milestone 1)
+    DEVELOPMENT_TEAM: "FFGWB5G2PN"
     MARKETING_VERSION: "0.0.1"
     CURRENT_PROJECT_VERSION: "1"
 packages:
@@ -30,7 +30,7 @@ targets:
     platform: iOS
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: cc.cheztomy.Quai
+        PRODUCT_BUNDLE_IDENTIFIER: com.mathieuletyrant.quai
     sources:
       - Quai
       - Shared
@@ -43,7 +43,7 @@ targets:
         UILaunchScreen: {}
         # The console's QR code is a quai://pair link.
         CFBundleURLTypes:
-          - CFBundleURLName: cc.cheztomy.Quai.pair
+          - CFBundleURLName: com.mathieuletyrant.quai.pair
             CFBundleURLSchemes: [quai]
         # The server is often plain HTTP on the home network (umbrel.local).
         NSAppTransportSecurity:
@@ -71,7 +71,7 @@ targets:
     platform: iOS
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: cc.cheztomy.Quai.Widgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.mathieuletyrant.quai.widgets
     sources:
       - QuaiWidgets
       - Shared

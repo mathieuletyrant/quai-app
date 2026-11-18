@@ -74,11 +74,10 @@ jobs:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - id: secrets
         run: |
-          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_KEY_P8" ] && [ -n "$TEAM_ID" ]; then
+          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_KEY_P8" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "App Store Connect secrets not set: skipping TestFlight." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -96,7 +95,6 @@ jobs:
         run: |
           key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
           printf '%s' "$ASC_KEY_P8" > "$key"
-          sed -i '' "s/DEVELOPMENT_TEAM: \"\"/DEVELOPMENT_TEAM: \"$TEAM_ID\"/" project.yml
           sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$VERSION\"/; s/CURRENT_PROJECT_VERSION: \"[^\"]*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
           xcodegen generate
           auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")

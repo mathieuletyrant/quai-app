@@ -43,7 +43,7 @@ describe("end to end", () => {
     Effect.gen(function*() {
       const apnsServer = yield* fakeApns
       const apns = yield* Apns.make(
-        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "cc.cheztomy.Quai" },
+        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: apnsServer.url, production: apnsServer.url }
       )
 

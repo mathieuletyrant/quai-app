@@ -3,7 +3,7 @@ import Security
 
 /// The device token is a secret: it lives in the Keychain, never in UserDefaults.
 enum Keychain {
-    private static let service = "cc.cheztomy.Quai"
+    private static let service = "com.mathieuletyrant.quai"
 
     static func read(_ account: String) -> String? {
         let query: [String: Any] = [
