@@ -2,6 +2,7 @@ import { HttpApi } from "effect/http-api"
 import { SystemGroup } from "./System.ts"
 
 export * from "./Activity.ts"
+export * from "./Download.ts"
 export * from "./System.ts"
 
 /** The single contract: implemented by apps/server, imported by apps/console, exported as OpenAPI for apps/ios. */
