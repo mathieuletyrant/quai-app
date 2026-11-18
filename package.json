@@ -1,0 +1,17 @@
+{
+  "name": "quai",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "check": "pnpm -r check",
+    "test": "pnpm -r test",
+    "dev:server": "pnpm --filter @quai/server dev",
+    "dev:console": "pnpm --filter @quai/console dev",
+    "gen:openapi": "pnpm --filter @quai/api gen:openapi"
+  }
+}

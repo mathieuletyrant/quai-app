@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+.env
+*.p8
+data/
+
+# iOS
+apps/ios/*.xcodeproj/
+apps/ios/build/
+apps/ios/DerivedData/
+xcuserdata/

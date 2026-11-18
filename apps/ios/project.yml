@@ -1,0 +1,81 @@
+# Projet décrit en YAML : `xcodegen generate` produit Quai.xcodeproj (non versionné).
+name: Quai
+options:
+  bundleIdPrefix: cc.cheztomy
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: "" # à renseigner (jalon 1 : compte développeur)
+    MARKETING_VERSION: "0.0.1"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  swift-openapi-generator:
+    url: https://github.com/apple/swift-openapi-generator
+    from: 1.10.0
+  swift-openapi-runtime:
+    url: https://github.com/apple/swift-openapi-runtime
+    from: 1.8.0
+  swift-openapi-urlsession:
+    url: https://github.com/apple/swift-openapi-urlsession
+    from: 1.1.0
+targets:
+  Quai:
+    type: application
+    platform: iOS
+    sources:
+      - Quai
+      - Shared
+    info:
+      path: Quai/Info.plist
+      properties:
+        CFBundleDisplayName: Quai
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        UILaunchScreen: {}
+    entitlements:
+      path: Quai/Quai.entitlements
+      properties:
+        aps-environment: development
+    dependencies:
+      - target: QuaiWidgets
+      - package: swift-openapi-runtime
+        product: OpenAPIRuntime
+      - package: swift-openapi-urlsession
+        product: OpenAPIURLSession
+    buildToolPlugins:
+      - plugin: OpenAPIGenerator
+        package: swift-openapi-generator
+  QuaiWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - QuaiWidgets
+      - Shared
+    info:
+      path: QuaiWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Quai
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+  QuaiTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [QuaiTests]
+    dependencies:
+      - target: Quai
+schemes:
+  Quai:
+    build:
+      targets: { Quai: all }
+    test:
+      targets: [QuaiTests]
+  # Lance l'app directement sur une Live Activity de démo, sans serveur.
+  Quai Démo:
+    build:
+      targets: { Quai: all }
+    run:
+      environmentVariables:
+        QUAI_DEMO_ACTIVITY: "download"

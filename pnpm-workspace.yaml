@@ -1,0 +1,17 @@
+packages:
+  - packages/*
+  - apps/server
+  - apps/console
+
+# Effect 4 : version figée partout (HTTP, HttpApi et SQL sont « unstable »).
+catalog:
+  effect: 4.1.4
+  "@effect/platform-node": 4.1.4
+  "@effect/sql-sqlite-node": 4.1.4
+  "@effect/vitest": 4.1.4
+  vitest: 5.1.1
+  typescript: 7.0.2
+  "@types/node": 22.20.5
+
+onlyBuiltDependencies:
+  - esbuild

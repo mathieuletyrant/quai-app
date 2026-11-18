@@ -1,0 +1,9 @@
+# Exemple d'installation : Quai doit être sur le même réseau Docker que les *arr.
+services:
+  quai:
+    image: ghcr.io/mathieuletyrant/quai:latest
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./quai-data:/data
