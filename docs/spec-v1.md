@@ -205,4 +205,5 @@ These pieces are designed but wait for v2, in this order:
 - [ ] **Jellyfin**: official Webhook plugin or polling sessions? Polling avoids a plugin to install.
 - [ ] **French subtitles**: trust Bazarr's history, or read the file's tracks in Jellyfin?
 - [ ] **Concurrent activity limit**: from how many downloads to group them into one activity?
+- [ ] **Sharing beyond the household**: pushes to the distributed app can only be signed with its owner's APNs key, so another person's Quai server can't reach it. Either a hosted push relay (it holds the key, each server registers and is rate-limited; it sees titles, as Live Activity payloads are clear text), or everyone builds their own app with their own developer account. Until then, Quai is for the household only.
 - [ ] **Distribution**: first from Xcode over USB, then TestFlight. Public App Store: not before living with the app.
