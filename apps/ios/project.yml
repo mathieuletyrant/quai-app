@@ -41,6 +41,9 @@ targets:
       path: Quai/Info.plist
       properties:
         CFBundleDisplayName: Quai
+        # XcodeGen writes 1.0 (1) otherwise; the CI sets these two per release.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         UILaunchScreen: {}
@@ -83,6 +86,8 @@ targets:
       path: QuaiWidgets/Info.plist
       properties:
         CFBundleDisplayName: Quai
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
   QuaiTests:
