@@ -40,6 +40,12 @@ export class Notifier extends Context.Service<Notifier, {
             ? yield* devices.startRecipients
             : yield* devices.activityRecipients(mediaKey)
           yield* deliver(push, recipients, priority)
+          const progress = push._tag !== "Start" && push.content.progress !== undefined
+            ? ` ${Math.round(push.content.progress * 100)} %`
+            : ""
+          yield* Effect.logInfo(
+            `push ${push._tag} ${mediaKey} ${push.content.step}${progress} → ${recipients.length} iPhone(s)`
+          )
         })
 
       return { send: (pushes) => Effect.forEach(pushes, one, { discard: true }) }

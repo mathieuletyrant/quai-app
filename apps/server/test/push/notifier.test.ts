@@ -69,10 +69,10 @@ describe("push to APNs", () => {
         expect(dev.hits[1]!.body.aps).toMatchObject({ event: "update", "content-state": { step: "downloading" } })
         expect(prod.hits).toHaveLength(1)
 
-        // Progress within a step is low priority.
+        // Progress goes at high priority too: low priority let iOS hold updates back.
         yield* TestClock.adjust("20 seconds")
         yield* notifier.send(yield* engine.handle({ _tag: "Progress", downloadId: "h", progress: 0.5, bytesPerSecond: 1, remainingSeconds: 9 }))
-        expect(dev.hits[2]!.headers["apns-priority"]).toBe("5")
+        expect(dev.hits[2]!.headers["apns-priority"]).toBe("10")
 
         yield* notifier.send(yield* engine.handle({ _tag: "Available", mediaKey: "movie:tmdb:1" }))
         expect(dev.hits[3]!.body.aps.event).toBe("end")

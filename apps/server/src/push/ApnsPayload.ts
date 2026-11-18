@@ -50,8 +50,8 @@ export const apnsBody = (push: Push, now: number): object => {
 }
 
 /**
- * Step changes go out at high priority; progress ticks at low priority, which Apple doesn't count
- * against the activity's update budget.
+ * Every push goes at high priority. Low priority (5) lets iOS hold and coalesce updates as it
+ * pleases, which showed a download at 43 % while it was at 63 %. The 15 s throttle and the app's
+ * NSSupportsLiveActivitiesFrequentUpdates keep the high-priority budget in check.
  */
-export const apnsPriority = (push: Push, previousStep: string | null): 5 | 10 =>
-  push._tag === "Update" && previousStep === push.content.step && !push.content.stalled ? 5 : 10
+export const apnsPriority = (_push: Push, _previousStep: string | null): 5 | 10 => 10
