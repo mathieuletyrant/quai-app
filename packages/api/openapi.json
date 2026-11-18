@@ -15,43 +15,11 @@
         "security": [],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Health",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "version": {
-                      "type": "string"
-                    },
-                    "uptimeSeconds": {
-                      "anyOf": [
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "Infinity",
-                            "-Infinity",
-                            "NaN"
-                          ]
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "version",
-                    "uptimeSeconds"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Health"
                 }
               }
             }
@@ -69,24 +37,11 @@
         "security": [],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "PairedDevice",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "deviceId": {
-                      "type": "string"
-                    },
-                    "token": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "deviceId",
-                    "token"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PairedDevice"
                 }
               }
             }
@@ -106,39 +61,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "code": {
-                    "type": "string"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "apnsEnvironment": {
-                    "type": "string",
-                    "enum": [
-                      "development",
-                      "production"
-                    ]
-                  },
-                  "pushToStartToken": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "required": [
-                  "code",
-                  "name",
-                  "apnsEnvironment",
-                  "pushToStartToken"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/PairDevice"
               }
             }
           },
@@ -177,33 +100,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "pushToStartToken": {
-                    "anyOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "null"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/UpdateDevice"
               }
             }
           },
@@ -242,20 +139,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "mediaKey": {
-                    "type": "string"
-                  },
-                  "pushToken": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "mediaKey",
-                  "pushToken"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/ActivityToken"
               }
             }
           },
@@ -283,109 +167,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "attributes": {
-                        "type": "object",
-                        "properties": {
-                          "mediaKey": {
-                            "type": "string"
-                          },
-                          "title": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "mediaKey",
-                          "title"
-                        ],
-                        "additionalProperties": false
-                      },
-                      "content": {
-                        "type": "object",
-                        "properties": {
-                          "step": {
-                            "type": "string",
-                            "enum": [
-                              "searching",
-                              "downloading",
-                              "importing",
-                              "available"
-                            ]
-                          },
-                          "progress": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "Infinity",
-                                  "-Infinity",
-                                  "NaN"
-                                ]
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "bytesPerSecond": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "Infinity",
-                                  "-Infinity",
-                                  "NaN"
-                                ]
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "remainingSeconds": {
-                            "anyOf": [
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "Infinity",
-                                  "-Infinity",
-                                  "NaN"
-                                ]
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "stalled": {
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "step",
-                          "progress",
-                          "bytesPerSecond",
-                          "remainingSeconds",
-                          "stalled"
-                        ],
-                        "additionalProperties": false
-                      }
-                    },
-                    "required": [
-                      "attributes",
-                      "content"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/RunningActivity"
                   }
                 }
               }
@@ -414,28 +196,11 @@
         "security": [],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "PairingCode",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "code": {
-                      "type": "string"
-                    },
-                    "expiresAt": {
-                      "type": "string"
-                    },
-                    "link": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "code",
-                    "expiresAt",
-                    "link"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/PairingCode"
                 }
               }
             }
@@ -481,47 +246,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "apnsEnvironment": {
-                        "type": "string",
-                        "enum": [
-                          "development",
-                          "production"
-                        ]
-                      },
-                      "canStartActivities": {
-                        "type": "boolean"
-                      },
-                      "pairedAt": {
-                        "type": "string"
-                      },
-                      "lastSeenAt": {
-                        "anyOf": [
-                          {
-                            "type": "string"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "name",
-                      "apnsEnvironment",
-                      "canStartActivities",
-                      "pairedAt",
-                      "lastSeenAt"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/DeviceSummary"
                   }
                 }
               }
@@ -582,6 +307,64 @@
         ],
         "additionalProperties": false
       },
+      "DeviceSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "apnsEnvironment": {
+            "$ref": "#/components/schemas/ApnsEnvironment"
+          },
+          "canStartActivities": {
+            "type": "boolean"
+          },
+          "pairedAt": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "apnsEnvironment",
+          "canStartActivities",
+          "pairedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApnsEnvironment": {
+        "type": "string",
+        "enum": [
+          "development",
+          "production"
+        ]
+      },
+      "PairingCode": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "expiresAt",
+          "link"
+        ],
+        "additionalProperties": false
+      },
       "effect_HttpApiError_UnauthorizedEncoded": {
         "type": "object",
         "properties": {
@@ -595,6 +378,100 @@
         "required": [
           "_tag"
         ],
+        "additionalProperties": false
+      },
+      "RunningActivity": {
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/DownloadAttributes"
+          },
+          "content": {
+            "$ref": "#/components/schemas/DownloadContentState"
+          }
+        },
+        "required": [
+          "attributes",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "DownloadContentState": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/DownloadStep"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "bytesPerSecond": {
+            "type": "number"
+          },
+          "remainingSeconds": {
+            "type": "number"
+          },
+          "stalled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "stalled"
+        ],
+        "additionalProperties": false
+      },
+      "DownloadStep": {
+        "type": "string",
+        "enum": [
+          "searching",
+          "downloading",
+          "importing",
+          "available"
+        ]
+      },
+      "DownloadAttributes": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "ActivityToken": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "pushToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "pushToken"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateDevice": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "pushToStartToken": {
+            "type": "string"
+          }
+        },
         "additionalProperties": false
       },
       "InvalidPairingCodeEncoded": {
@@ -613,6 +490,68 @@
         "required": [
           "_tag",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "PairedDevice": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceId",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "PairDevice": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "apnsEnvironment": {
+            "$ref": "#/components/schemas/ApnsEnvironment"
+          },
+          "pushToStartToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "apnsEnvironment"
+        ],
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "uptimeSeconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "uptimeSeconds"
         ],
         "additionalProperties": false
       }

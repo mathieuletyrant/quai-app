@@ -20,7 +20,7 @@ describe("download activity", () => {
       expect(added).toEqual([{
         _tag: "Start",
         attributes: { mediaKey: dune, title: "Dune" },
-        content: { step: "searching", progress: null, bytesPerSecond: null, remainingSeconds: null, stalled: false }
+        content: { step: "searching", stalled: false }
       }])
 
       yield* TestClock.adjust("1 minute")
@@ -28,7 +28,7 @@ describe("download activity", () => {
       expect(grabbed).toEqual([{
         _tag: "Update",
         mediaKey: dune,
-        content: { step: "downloading", progress: 0, bytesPerSecond: null, remainingSeconds: null, stalled: false }
+        content: { step: "downloading", progress: 0, stalled: false }
       }])
 
       yield* TestClock.adjust("20 seconds")

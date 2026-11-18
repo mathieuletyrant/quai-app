@@ -11,7 +11,7 @@ interface DeviceRow {
   readonly name: string
   readonly apnsEnvironment: "development" | "production"
   readonly canStartActivities: boolean
-  readonly lastSeenAt: DateTime.Utc | null
+  readonly lastSeenAt?: DateTime.Utc | undefined
 }
 
 interface Pairing {
@@ -20,8 +20,8 @@ interface Pairing {
   readonly qrSvg: string
 }
 
-const ago = (date: DateTime.Utc | null) => {
-  if (date === null) return "never seen"
+const ago = (date: DateTime.Utc | undefined) => {
+  if (date === undefined) return "never seen"
   const minutes = Math.round((Date.now() - DateTime.toEpochMillis(date)) / 60_000)
   return minutes < 1 ? "seen just now" : minutes < 60 ? `seen ${minutes} min ago` : `seen ${Math.round(minutes / 60)} h ago`
 }

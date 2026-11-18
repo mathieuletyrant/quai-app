@@ -56,12 +56,12 @@ export class Devices extends Context.Service<Devices, {
     readonly code: string
     readonly name: string
     readonly apnsEnvironment: ApnsEnvironment
-    readonly pushToStartToken: string | null
+    readonly pushToStartToken?: string | undefined
   }) => Effect.Effect<Option.Option<{ readonly deviceId: DeviceId; readonly token: string }>>
   readonly authenticate: (token: string) => Effect.Effect<Option.Option<Device>>
   readonly update: (
     id: DeviceId,
-    patch: { readonly name?: string | undefined; readonly pushToStartToken?: string | null | undefined }
+    patch: { readonly name?: string | undefined; readonly pushToStartToken?: string | undefined }
   ) => Effect.Effect<void>
   readonly setActivityToken: (id: DeviceId, mediaKey: string, pushToken: string) => Effect.Effect<void>
   readonly list: Effect.Effect<ReadonlyArray<Device>>
@@ -102,7 +102,7 @@ export class Devices extends Context.Service<Devices, {
             const deviceId = randomUUID() as DeviceId
             const token = randomBytes(32).toString("base64url")
             yield* sql`INSERT INTO devices (id, name, token_hash, apns_environment, push_to_start_token, paired_at, last_seen_at)
-              VALUES (${deviceId}, ${input.name}, ${sha256(token)}, ${input.apnsEnvironment}, ${input.pushToStartToken}, ${now}, ${now})`
+              VALUES (${deviceId}, ${input.name}, ${sha256(token)}, ${input.apnsEnvironment}, ${input.pushToStartToken ?? null}, ${now}, ${now})`
             return Option.some({ deviceId, token })
           }))),
 

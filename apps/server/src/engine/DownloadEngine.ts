@@ -47,13 +47,21 @@ export interface Step {
 
 const stepOrder: Record<DownloadStep, number> = { searching: 0, downloading: 1, importing: 2, available: 3 }
 
-const content = (step: DownloadStep, previous?: DownloadContentState): DownloadContentState => ({
-  step,
-  progress: step === "downloading" ? (previous?.progress ?? 0) : null,
-  bytesPerSecond: step === "downloading" ? (previous?.bytesPerSecond ?? null) : null,
-  remainingSeconds: step === "downloading" ? (previous?.remainingSeconds ?? null) : null,
-  stalled: false
+/** Drops the keys whose value is unknown: the content-state leaves them out. */
+const known = (fields: {
+  readonly progress?: number | null | undefined
+  readonly bytesPerSecond?: number | null | undefined
+  readonly remainingSeconds?: number | null | undefined
+}) => ({
+  ...(fields.progress == null ? {} : { progress: fields.progress }),
+  ...(fields.bytesPerSecond == null ? {} : { bytesPerSecond: fields.bytesPerSecond }),
+  ...(fields.remainingSeconds == null ? {} : { remainingSeconds: fields.remainingSeconds })
 })
+
+const content = (step: DownloadStep, previous?: DownloadContentState): DownloadContentState =>
+  step === "downloading"
+    ? { step, ...known({ ...previous, progress: previous?.progress ?? 0 }), stalled: false }
+    : { step, stalled: false }
 
 const sameContent = (a: DownloadContentState | null, b: DownloadContentState) =>
   a !== null && a.step === b.step && a.progress === b.progress && a.bytesPerSecond === b.bytesPerSecond &&
@@ -131,10 +139,8 @@ const progress = (state: EngineState, event: Extract<MediaEvent, { _tag: "Progre
   const next: Activity = {
     ...current,
     content: {
-      ...current.content,
-      progress: event.progress,
-      bytesPerSecond: event.bytesPerSecond,
-      remainingSeconds: event.remainingSeconds,
+      step: current.content.step,
+      ...known(event),
       stalled: moved ? false : current.content.stalled
     },
     movedAt: moved ? now : current.movedAt

@@ -29,7 +29,7 @@ export const ConsoleHandlers = HttpApiBuilder.group(QuaiApi, "console", (handler
             apnsEnvironment: d.apnsEnvironment,
             canStartActivities: d.pushToStartToken !== null,
             pairedAt: DateTime.makeUnsafe(d.pairedAt),
-            lastSeenAt: d.lastSeenAt === null ? null : DateTime.makeUnsafe(d.lastSeenAt)
+            ...(d.lastSeenAt === null ? {} : { lastSeenAt: DateTime.makeUnsafe(d.lastSeenAt) })
           }))))
       .handle("removeDevice", ({ params }) =>
         Effect.flatMap(devices.remove(params.id), (removed) =>

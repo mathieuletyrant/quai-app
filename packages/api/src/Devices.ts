@@ -3,7 +3,7 @@ import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApi
 import { DownloadAttributes, DownloadContentState } from "./Download.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
-export const ApnsEnvironment = Schema.Literals(["development", "production"])
+export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
 export type ApnsEnvironment = typeof ApnsEnvironment.Type
 
 export const DeviceId = Schema.String.pipe(Schema.brand("DeviceId"))
@@ -28,29 +28,30 @@ export const PairDevice = Schema.Struct({
   code: Schema.String,
   name: Schema.String,
   apnsEnvironment: ApnsEnvironment,
-  pushToStartToken: Schema.NullOr(Schema.String)
-})
+  /** Left out until the iPhone allows Live Activities. */
+  pushToStartToken: Schema.optionalKey(Schema.String)
+}).annotate({ identifier: "PairDevice" })
 
 export const PairedDevice = Schema.Struct({
   deviceId: DeviceId,
   /** Secret: the app keeps it in the Keychain and sends it as a bearer token. */
   token: Schema.String
-})
+}).annotate({ identifier: "PairedDevice" })
 
 export const UpdateDevice = Schema.Struct({
-  name: Schema.optional(Schema.String),
-  pushToStartToken: Schema.optional(Schema.NullOr(Schema.String))
-})
+  name: Schema.optionalKey(Schema.String),
+  pushToStartToken: Schema.optionalKey(Schema.String)
+}).annotate({ identifier: "UpdateDevice" })
 
 export const ActivityToken = Schema.Struct({
   mediaKey: Schema.String,
   pushToken: Schema.String
-})
+}).annotate({ identifier: "ActivityToken" })
 
 export const RunningActivity = Schema.Struct({
   attributes: DownloadAttributes,
   content: DownloadContentState
-})
+}).annotate({ identifier: "RunningActivity" })
 
 /** Routes the iPhone app calls. Reachable without the host's login (see deploy notes). */
 export class DevicesGroup extends HttpApiGroup.make("devices")
@@ -74,7 +75,7 @@ export const PairingCode = Schema.Struct({
   expiresAt: Schema.DateTimeUtcFromString,
   /** What the QR code holds: `quai://pair?…`, read by the app's scanner. */
   link: Schema.String
-})
+}).annotate({ identifier: "PairingCode" })
 
 export const DeviceSummary = Schema.Struct({
   id: DeviceId,
@@ -82,8 +83,8 @@ export const DeviceSummary = Schema.Struct({
   apnsEnvironment: ApnsEnvironment,
   canStartActivities: Schema.Boolean,
   pairedAt: Schema.DateTimeUtcFromString,
-  lastSeenAt: Schema.NullOr(Schema.DateTimeUtcFromString)
-})
+  lastSeenAt: Schema.optionalKey(Schema.DateTimeUtcFromString)
+}).annotate({ identifier: "DeviceSummary" })
 
 /** Routes only the console calls. They stay behind the host's login (Umbrel, Cloudflare Access). */
 export class ConsoleGroup extends HttpApiGroup.make("console")
