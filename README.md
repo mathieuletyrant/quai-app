@@ -11,6 +11,7 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 ![Effect](https://img.shields.io/badge/Effect-4.1-14161c)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![Swift](https://img.shields.io/badge/SwiftUI-iOS%2026-f05138?logo=swift&logoColor=white)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 </div>
 
@@ -100,3 +101,12 @@ Fully automatic, driven by [Conventional Commits](https://www.conventionalcommit
 3. The same release is archived and uploaded to TestFlight, once the repo has the `ASC_KEY_P8` secret: the .p8 of the App Store Connect API key (Admin role, which cloud signing needs) whose ids are in `.github/workflows/testflight.yml`.
 
 📖 Spec: [docs/spec-v1.md](docs/spec-v1.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
+
+## 📄 License
+
+The code is open source under the [Apache License 2.0](LICENSE): run it, change it, self-host it,
+build the iOS app with your own Apple developer account and push key.
+
+The **Quai** name and logo aren't part of that license ([TRADEMARKS.md](TRADEMARKS.md)): a fork
+that ships to others needs its own name, logo and bundle id. The official App Store app and its
+push relay are provided by the author.
