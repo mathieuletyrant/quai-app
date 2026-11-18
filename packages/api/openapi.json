@@ -10,7 +10,232 @@
         "tags": [
           "system"
         ],
-        "operationId": "system.health",
+        "operationId": "getHealth",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Health",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devices": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "pairDevice",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PairedDevice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairedDevice"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidPairingCode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidPairingCodeEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairDevice"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/devices/me": {
+      "patch": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "updateDevice",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDevice"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/devices/me/activity-tokens": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "reportActivityToken",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityToken"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/activities": {
+      "get": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "listActivities",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RunningActivity"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/pairing-codes": {
+      "post": {
+        "tags": [
+          "console"
+        ],
+        "operationId": "createPairingCode",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PairingCode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairingCode"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "serverUrls": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "serverUrls"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/console-api/devices": {
+      "get": {
+        "tags": [
+          "console"
+        ],
+        "operationId": "listDevices",
         "parameters": [],
         "security": [],
         "responses": {
@@ -19,39 +244,44 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "version": {
-                      "type": "string"
-                    },
-                    "uptimeSeconds": {
-                      "anyOf": [
-                        {
-                          "type": "number"
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "Infinity",
-                            "-Infinity",
-                            "NaN"
-                          ]
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "version",
-                    "uptimeSeconds"
-                  ],
-                  "additionalProperties": false
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/devices/{id}": {
+      "delete": {
+        "tags": [
+          "console"
+        ],
+        "operationId": "removeDevice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
                 }
               }
             }
@@ -61,13 +291,288 @@
     }
   },
   "components": {
-    "schemas": {},
-    "securitySchemes": {}
+    "schemas": {
+      "effect_HttpApiError_NotFoundEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "NotFound"
+            ]
+          }
+        },
+        "required": [
+          "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "DeviceSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "apnsEnvironment": {
+            "$ref": "#/components/schemas/ApnsEnvironment"
+          },
+          "canStartActivities": {
+            "type": "boolean"
+          },
+          "pairedAt": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "apnsEnvironment",
+          "canStartActivities",
+          "pairedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApnsEnvironment": {
+        "type": "string",
+        "enum": [
+          "development",
+          "production"
+        ]
+      },
+      "PairingCode": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "expiresAt",
+          "link"
+        ],
+        "additionalProperties": false
+      },
+      "effect_HttpApiError_UnauthorizedEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "Unauthorized"
+            ]
+          }
+        },
+        "required": [
+          "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "RunningActivity": {
+        "type": "object",
+        "properties": {
+          "attributes": {
+            "$ref": "#/components/schemas/DownloadAttributes"
+          },
+          "content": {
+            "$ref": "#/components/schemas/DownloadContentState"
+          }
+        },
+        "required": [
+          "attributes",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "DownloadContentState": {
+        "type": "object",
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/DownloadStep"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "bytesPerSecond": {
+            "type": "number"
+          },
+          "remainingSeconds": {
+            "type": "number"
+          },
+          "stalled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "step",
+          "stalled"
+        ],
+        "additionalProperties": false
+      },
+      "DownloadStep": {
+        "type": "string",
+        "enum": [
+          "searching",
+          "downloading",
+          "importing",
+          "available"
+        ]
+      },
+      "DownloadAttributes": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "ActivityToken": {
+        "type": "object",
+        "properties": {
+          "mediaKey": {
+            "type": "string"
+          },
+          "pushToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mediaKey",
+          "pushToken"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateDevice": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "pushToStartToken": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InvalidPairingCodeEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "InvalidPairingCode"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "PairedDevice": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "deviceId",
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "PairDevice": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "apnsEnvironment": {
+            "$ref": "#/components/schemas/ApnsEnvironment"
+          },
+          "pushToStartToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "apnsEnvironment"
+        ],
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          },
+          "version": {
+            "type": "string"
+          },
+          "uptimeSeconds": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "uptimeSeconds"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "Bearer"
+      }
+    }
   },
   "security": [],
   "tags": [
     {
       "name": "system"
+    },
+    {
+      "name": "devices"
+    },
+    {
+      "name": "console"
     }
   ]
 }

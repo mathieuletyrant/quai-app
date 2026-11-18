@@ -2,21 +2,23 @@ import ActivityKit
 import Foundation
 
 /// "Download" Live Activity. The server pushes `ContentState` over APNs (push-to-start, then updates).
-/// Field names must match the payload apps/server sends.
+/// Field names and step values must match `DownloadContentState` in packages/api.
 struct DownloadActivityAttributes: ActivityAttributes {
     enum Step: String, Codable, Hashable, CaseIterable {
-        case searching, downloading, importing, subtitles, available
+        case searching, downloading, importing, available
     }
 
     struct ContentState: Codable, Hashable {
         var step: Step
-        var progress: Double?        // 0...1 while downloading
-        var bytesPerSecond: Int?
-        var remainingSeconds: Int?
-        var stalled: Bool            // no source for 2 h
+        /// 0...1, only while downloading.
+        var progress: Double?
+        var bytesPerSecond: Double?
+        var remainingSeconds: Double?
+        /// No source for 2 h: shown grey with "Other release".
+        var stalled: Bool
     }
 
-    /// Uniqueness key: TMDB for a movie, TVDB for a series.
+    /// Uniqueness key from the server: `movie:tmdb:<id>`, or a series plus its torrent.
     var mediaKey: String
     var title: String
 }

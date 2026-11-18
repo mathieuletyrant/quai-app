@@ -52,8 +52,18 @@ Open http://localhost:8787. Quai must share a Docker network with the *arr apps 
 | Env | Default | |
 |---|---|---|
 | `QUAI_PORT` | `8787` | HTTP port (API + console) |
-| `QUAI_DATA_DIR` | `/data` | SQLite database and encrypted secrets |
+| `QUAI_DATA_DIR` | `/data` | SQLite database (paired iPhones, webhook secret) |
 | `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the server |
+| `QUAI_INTERNAL_URL` | – | How Radarr and Sonarr reach Quai, e.g. `http://quai:8787`. Set it and Quai adds its webhook to them on start |
+| `QUAI_PUBLIC_URL` | – | Address from outside (behind Cloudflare Access, say), added to the pairing QR code |
+| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | – | Radarr |
+| `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | – | Sonarr |
+| `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | – | qBittorrent Web UI (user and password optional with its local auth bypass) |
+| `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | – | Jellyfin, to know when a title is ready |
+| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities |
+| `QUAI_APNS_TOPIC` | `cc.cheztomy.Quai` | The iOS app's bundle id |
+
+The console's guided setup will replace most of these.
 
 The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
 

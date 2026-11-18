@@ -2,3 +2,9 @@ generate:
   - types
   - client
 accessModifier: internal
+namingStrategy: idiomatic
+# Only what the iPhone calls; the console's routes stay out of the app.
+filter:
+  tags:
+    - system
+    - devices

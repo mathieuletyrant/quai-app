@@ -1,7 +1,7 @@
 import { QuaiApi } from "@quai/api"
 import { Clock, Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
-import { ServerInfo } from "./Version.ts"
+import { ServerInfo } from "../Version.ts"
 
 export const SystemHandlers = HttpApiBuilder.group(QuaiApi, "system", (handlers) =>
   Effect.gen(function*() {
