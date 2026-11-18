@@ -65,41 +65,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # Each release also goes to TestFlight, once the App Store Connect key is in the repo's secrets.
+  # Each release also goes to TestFlight (skipped until the App Store Connect secrets exist).
   testflight:
     needs: release
     if: needs.release.outputs.created == 'true'
-    runs-on: macos-26
-    env:
-      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
-    steps:
-      - id: secrets
-        run: |
-          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_KEY_P8" ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "App Store Connect secrets not set: skipping TestFlight." | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
-      - if: steps.secrets.outputs.ready == 'true'
-        uses: actions/checkout@v4
-      - if: steps.secrets.outputs.ready == 'true'
-        run: brew install xcodegen
-      - if: steps.secrets.outputs.ready == 'true'
-        name: Build and upload to TestFlight
-        working-directory: apps/ios
-        env:
-          VERSION: ${{ needs.release.outputs.version }}
-          BUILD: ${{ github.run_number }}
-        run: |
-          key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
-          printf '%s' "$ASC_KEY_P8" > "$key"
-          sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$VERSION\"/; s/CURRENT_PROJECT_VERSION: \"[^\"]*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
-          xcodegen generate
-          auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
-          xcodebuild archive -project Quai.xcodeproj -scheme Quai -configuration Release \
-            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
-            -skipPackagePluginValidation "${auth[@]}"
-          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
-            -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export" "${auth[@]}"
+    uses: ./.github/workflows/testflight.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    secrets: inherit

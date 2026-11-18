@@ -1,0 +1,51 @@
+# Archives the iOS app and uploads it to App Store Connect, where it lands in TestFlight.
+# Runs after each release, or by hand (Actions → testflight → Run workflow).
+name: testflight
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: macos-26
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - id: secrets
+        run: |
+          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_KEY_P8" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "App Store Connect secrets not set: skipping TestFlight." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: steps.secrets.outputs.ready == 'true'
+        uses: actions/checkout@v4
+      - if: steps.secrets.outputs.ready == 'true'
+        run: brew install xcodegen
+      - if: steps.secrets.outputs.ready == 'true'
+        name: Build and upload
+        working-directory: apps/ios
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          version="${VERSION:-$(jq -r .version ../../package.json)}"
+          # Build numbers must only go up, whichever workflow triggered the upload.
+          BUILD="$(date -u +%Y%m%d%H%M)"
+          key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s' "$ASC_KEY_P8" > "$key"
+          sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$version\"/; s/CURRENT_PROJECT_VERSION: \"[^\"]*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
+          xcodegen generate
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild archive -project Quai.xcodeproj -scheme Quai -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
+            -skipPackagePluginValidation "${auth[@]}"
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export" "${auth[@]}"
+          echo "Uploaded Quai $version ($BUILD) to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
