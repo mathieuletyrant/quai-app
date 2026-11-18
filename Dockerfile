@@ -28,4 +28,4 @@ VOLUME /data
 EXPOSE 8787
 HEALTHCHECK CMD wget -qO- http://localhost:8787/api/health || exit 1
 USER node
-CMD ["node", "main.js"]
+CMD ["node", "--disable-warning=ExperimentalWarning", "main.js"]
