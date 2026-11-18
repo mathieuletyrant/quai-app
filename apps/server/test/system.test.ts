@@ -13,7 +13,7 @@ const TestLayer = SystemHandlers.pipe(
 )
 
 describe("system", () => {
-  it.effect("health renvoie la version et l'uptime", () =>
+  it.effect("health returns the version and uptime", () =>
     Effect.gen(function*() {
       const client = yield* HttpApiTest.groups(QuaiApi, ["system"])
       yield* TestClock.adjust("90 seconds")

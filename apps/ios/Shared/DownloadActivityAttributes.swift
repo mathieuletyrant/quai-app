@@ -1,8 +1,8 @@
 import ActivityKit
 import Foundation
 
-/// Live Activity « Téléchargement ». Le serveur pousse `ContentState` via APNs (push-to-start puis update).
-/// Les noms de champs doivent rester alignés avec le payload envoyé par apps/server.
+/// "Download" Live Activity. The server pushes `ContentState` over APNs (push-to-start, then updates).
+/// Field names must match the payload apps/server sends.
 struct DownloadActivityAttributes: ActivityAttributes {
     enum Step: String, Codable, Hashable, CaseIterable {
         case searching, downloading, importing, subtitles, available
@@ -10,13 +10,13 @@ struct DownloadActivityAttributes: ActivityAttributes {
 
     struct ContentState: Codable, Hashable {
         var step: Step
-        var progress: Double?        // 0...1 pendant le téléchargement
+        var progress: Double?        // 0...1 while downloading
         var bytesPerSecond: Int?
         var remainingSeconds: Int?
-        var stalled: Bool            // sans source depuis 2 h
+        var stalled: Bool            // no source for 2 h
     }
 
-    /// Clé d'unicité : TMDB pour un film, TVDB pour une série.
+    /// Uniqueness key: TMDB for a movie, TVDB for a series.
     var mediaKey: String
     var title: String
 }

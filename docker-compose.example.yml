@@ -1,4 +1,4 @@
-# Exemple d'installation : Quai doit être sur le même réseau Docker que les *arr.
+# Quai must share a Docker network with the *arr apps it watches.
 services:
   quai:
     image: ghcr.io/mathieuletyrant/quai:latest

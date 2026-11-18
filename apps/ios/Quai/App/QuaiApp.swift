@@ -5,8 +5,8 @@ struct QuaiApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
-                Tab("Activité", systemImage: "dot.radiowaves.left.and.right") { ActivityView() }
-                Tab("Réglages", systemImage: "gearshape") { SettingsView() }
+                Tab("Activity", systemImage: "dot.radiowaves.left.and.right") { ActivityView() }
+                Tab("Settings", systemImage: "gearshape") { SettingsView() }
             }
             .preferredColorScheme(.dark)
             .task { DemoActivity.startIfRequested() }
@@ -17,9 +17,9 @@ struct QuaiApp: App {
 struct ActivityView: View {
     var body: some View {
         NavigationStack {
-            ContentUnavailableView("Aucune activité", systemImage: "tray",
-                                   description: Text("Relie l'app à ton serveur Quai pour commencer."))
-                .navigationTitle("Activité")
+            ContentUnavailableView("No activity", systemImage: "tray",
+                                   description: Text("Connect the app to your Quai server to get started."))
+                .navigationTitle("Activity")
         }
     }
 }
@@ -27,8 +27,8 @@ struct ActivityView: View {
 struct SettingsView: View {
     var body: some View {
         NavigationStack {
-            List { Section("Serveur") { Text("Non relié") } }
-                .navigationTitle("Réglages")
+            List { Section("Server") { Text("Not connected") } }
+                .navigationTitle("Settings")
         }
     }
 }

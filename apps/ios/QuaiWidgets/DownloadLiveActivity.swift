@@ -5,7 +5,7 @@ import WidgetKit
 struct DownloadLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: DownloadActivityAttributes.self) { context in
-            // Bannière d'écran verrouillé
+            // Lock Screen banner
             VStack(alignment: .leading, spacing: 6) {
                 Text(context.attributes.title).font(.headline)
                 StepLabel(state: context.state)
@@ -40,13 +40,13 @@ private struct StepLabel: View {
     }
 
     private var label: String {
-        if state.stalled { return "Sans source · Autre release" }
+        if state.stalled { return "No source · Other release" }
         switch state.step {
-        case .searching: return "Recherche"
-        case .downloading: return "Téléchargement"
-        case .importing: return "Import"
-        case .subtitles: return "Sous-titres FR"
-        case .available: return "Disponible"
+        case .searching: return "Searching"
+        case .downloading: return "Downloading"
+        case .importing: return "Importing"
+        case .subtitles: return "French subtitles"
+        case .available: return "Available"
         }
     }
 }

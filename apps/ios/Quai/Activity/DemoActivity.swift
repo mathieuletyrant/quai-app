@@ -1,7 +1,7 @@
 import ActivityKit
 import Foundation
 
-/// Schéma « Quai Démo » : démarre une Live Activity locale pour itérer sur l'UI sans serveur.
+/// "Quai Demo" scheme: starts a local Live Activity to iterate on the UI without a server.
 enum DemoActivity {
     static func startIfRequested() {
         guard ProcessInfo.processInfo.environment["QUAI_DEMO_ACTIVITY"] == "download" else { return }

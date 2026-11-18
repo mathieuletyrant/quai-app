@@ -4,5 +4,5 @@ import { SystemGroup } from "./System.ts"
 export * from "./Activity.ts"
 export * from "./System.ts"
 
-/** Contrat unique : implémenté par apps/server, importé par apps/console, exporté en OpenAPI pour apps/ios. */
+/** The single contract: implemented by apps/server, imported by apps/console, exported as OpenAPI for apps/ios. */
 export class QuaiApi extends HttpApi.make("quai").add(SystemGroup) {}

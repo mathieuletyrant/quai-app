@@ -1,4 +1,4 @@
-# Projet décrit en YAML : `xcodegen generate` produit Quai.xcodeproj (non versionné).
+# `xcodegen generate` builds Quai.xcodeproj from this file (the project is not committed).
 name: Quai
 options:
   bundleIdPrefix: cc.cheztomy
@@ -8,7 +8,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: "" # à renseigner (jalon 1 : compte développeur)
+    DEVELOPMENT_TEAM: "" # set once the Apple developer account exists (milestone 1)
     MARKETING_VERSION: "0.0.1"
     CURRENT_PROJECT_VERSION: "1"
 packages:
@@ -72,8 +72,8 @@ schemes:
       targets: { Quai: all }
     test:
       targets: [QuaiTests]
-  # Lance l'app directement sur une Live Activity de démo, sans serveur.
-  Quai Démo:
+  # Starts the app straight on a demo Live Activity, no server needed.
+  Quai Demo:
     build:
       targets: { Quai: all }
     run:

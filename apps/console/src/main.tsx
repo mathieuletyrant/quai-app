@@ -14,9 +14,9 @@ function App() {
   return (
     <main style={{ fontFamily: "system-ui", padding: 24 }}>
       <h1>Quai</h1>
-      {health && <p>Serveur {health.version} · en route depuis {health.uptimeSeconds} s</p>}
-      {error && <p role="alert">Serveur injoignable : {error}</p>}
-      {!health && !error && <p>Connexion au serveur…</p>}
+      {health && <p>Server {health.version} · up for {health.uptimeSeconds} s</p>}
+      {error && <p role="alert">Server unreachable: {error}</p>}
+      {!health && !error && <p>Connecting to the server…</p>}
     </main>
   )
 }

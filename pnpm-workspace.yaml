@@ -3,7 +3,7 @@ packages:
   - apps/server
   - apps/console
 
-# Effect 4 : version figée partout (HTTP, HttpApi et SQL sont « unstable »).
+# Effect 4 is pinned everywhere: its HTTP, HttpApi and SQL modules are marked unstable.
 catalog:
   effect: 4.1.4
   "@effect/platform-node": 4.1.4

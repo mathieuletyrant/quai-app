@@ -1,6 +1,6 @@
 import { Context, Layer } from "effect"
 
-/** Infos sur le processus en cours ; un Layer pour pouvoir les figer en test. */
+/** Facts about the running process, as a Layer so tests can pin them. */
 export class ServerInfo extends Context.Service<ServerInfo, {
   readonly version: string
   readonly startedAt: number

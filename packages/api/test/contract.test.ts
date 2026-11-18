@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs"
 import { Health } from "../src/index.ts"
 import { openApiJson } from "../src/openapi.ts"
 
-describe("contrat", () => {
-  it.effect("Health décode et ré-encode sans perte", () =>
+describe("contract", () => {
+  it.effect("Health decodes and re-encodes losslessly", () =>
     Effect.gen(function*() {
       const input = { status: "ok", version: "0.0.0", uptimeSeconds: 12 }
       const decoded = yield* Schema.decodeUnknownEffect(Health)(input)
@@ -13,7 +13,7 @@ describe("contrat", () => {
       expect(encoded).toEqual(input)
     }))
 
-  it("openapi.json est à jour (sinon : pnpm gen:openapi)", () => {
+  it("openapi.json is up to date (otherwise: pnpm gen:openapi)", () => {
     const committed = readFileSync(new URL("../openapi.json", import.meta.url), "utf8")
     expect(openApiJson()).toBe(committed)
   })

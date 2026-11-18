@@ -5,7 +5,7 @@ import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
 import { ServerInfo } from "./Version.ts"
 
-// Toute la configuration passe par des variables d'environnement : l'image ne connaît pas son hôte.
+// All configuration comes from environment variables: the image knows nothing about its host.
 const HttpLive = Layer.unwrap(
   Effect.gen(function*() {
     const port = yield* Config.Port("QUAI_PORT").pipe(Config.withDefault(8787))
@@ -13,7 +13,7 @@ const HttpLive = Layer.unwrap(
   })
 )
 
-// La console compilée est servie par le serveur quand QUAI_CONSOLE_DIR est défini (c'est le cas dans l'image).
+// The built console is served when QUAI_CONSOLE_DIR is set (it is in the image).
 const ConsoleLive = Layer.unwrap(
   Effect.gen(function*() {
     const root = yield* Config.option(Config.String("QUAI_CONSOLE_DIR"))

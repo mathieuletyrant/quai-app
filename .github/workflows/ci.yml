@@ -1,7 +1,6 @@
-name: CI
+name: ci
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -30,6 +29,8 @@ jobs:
           context: .
           push: false
           tags: quai:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   changes:
     runs-on: ubuntu-latest
@@ -45,7 +46,7 @@ jobs:
               - 'apps/ios/**'
               - 'packages/api/**'
 
-  # Runner macOS payant : seulement quand l'app ou le contrat change.
+  # macOS minutes are billed: only when the app or the contract changes.
   ios:
     needs: changes
     if: needs.changes.outputs.ios == 'true'

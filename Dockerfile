@@ -1,4 +1,4 @@
-# Image générique de Quai : serveur + console. Aucun hôte supposé (Umbrel, Unraid, Docker nu…).
+# Generic Quai image: server + console. No host assumed (Umbrel, Unraid, plain Docker…).
 FROM node:22-alpine AS build
 WORKDIR /repo
 RUN corepack enable
@@ -26,5 +26,6 @@ COPY --from=build /repo/apps/server/dist/main.js ./main.js
 COPY --from=build /repo/apps/console/dist ./console
 VOLUME /data
 EXPOSE 8787
+HEALTHCHECK CMD wget -qO- http://localhost:8787/api/health || exit 1
 USER node
 CMD ["node", "main.js"]
