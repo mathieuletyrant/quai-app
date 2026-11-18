@@ -15,7 +15,7 @@ jobs:
     runs-on: macos-26
     env:
       # The key's ids aren't secret; only the .p8 is.
-      ASC_KEY_ID: 6CU2594693
+      ASC_KEY_ID: 4D6F68M2VA
       ASC_ISSUER_ID: 29a0b9aa-1e02-48d7-9695-190bf0d3a923
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
     steps:
