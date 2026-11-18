@@ -122,6 +122,12 @@ export function StepPanel(props: {
           </div>
         </div>
       )}
+      {flow.subject === "playback" && (
+        <p className="rounded-xl bg-white/5 px-3 py-2 text-[13px] text-muted">
+          A pause, from Jellyfin or the button, keeps this step: it says Paused, holds the bar and the button turns to Play.
+          Preview it with Paused above.
+        </p>
+      )}
       {props.actions.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-semibold text-muted">Buttons</span>
