@@ -1,6 +1,6 @@
 import { Clock, Context, Effect, Layer, Redacted, Ref, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
-import type { MediaEvent } from "../engine/Events.ts"
+import type { FlowEvent } from "../flows/Events.ts"
 import { StackError } from "./Errors.ts"
 import { StackConfig } from "./StackConfig.ts"
 
@@ -24,12 +24,14 @@ export const loginBackoffMs = (failures: number) => Math.min(30_000 * 2 ** (fail
 /** qBittorrent's "unknown" ETA (100 days). */
 const infiniteEta = 8_640_000
 
-export const progressEvent = (torrent: Torrent): MediaEvent => ({
-  _tag: "Progress",
+export const progressEvent = (torrent: Torrent): FlowEvent => ({
+  type: "download.progress",
   downloadId: torrent.hash.toLowerCase(),
-  progress: torrent.progress,
-  bytesPerSecond: torrent.dlspeed,
-  remainingSeconds: torrent.eta >= infiniteEta || torrent.eta < 0 ? null : torrent.eta
+  values: {
+    progress: torrent.progress,
+    bytesPerSecond: torrent.dlspeed,
+    ...(torrent.eta >= infiniteEta || torrent.eta < 0 ? {} : { remainingSeconds: torrent.eta })
+  }
 })
 
 /**
@@ -47,7 +49,7 @@ export const sessionCookie = (header: string | ReadonlyArray<string> | undefined
 
 export class QBittorrent extends Context.Service<QBittorrent, {
   /** Progress of the given torrents, by hash. Unknown hashes are left out. */
-  readonly progress: (hashes: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<MediaEvent>, StackError>
+  readonly progress: (hashes: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<FlowEvent>, StackError>
 }>()("quai/QBittorrent") {
   static readonly layer = Layer.effect(
     QBittorrent,

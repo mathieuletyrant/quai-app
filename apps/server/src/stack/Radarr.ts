@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import type { MediaEvent } from "../engine/Events.ts"
-import { movieKey } from "../engine/Events.ts"
+import type { FlowEvent } from "../flows/Events.ts"
+import { movieKey } from "../flows/Events.ts"
 
 const Movie = Schema.Struct({
   title: Schema.String,
@@ -18,21 +18,20 @@ export type RadarrWebhook = typeof RadarrWebhook.Type
 
 const titleOf = (movie: typeof Movie.Type) => movie.title
 
-/** Radarr's events in the engine's terms. Events Quai doesn't follow give nothing. */
-export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<MediaEvent> => {
+/** Radarr's events in the catalog's terms. Events Quai doesn't follow give nothing. */
+export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> => {
   const movie = payload.movie
   if (movie === undefined) return []
-  const mediaKey = movieKey(movie.tmdbId)
-  const title = titleOf(movie)
+  const subject = { kind: "media" as const, key: movieKey(movie.tmdbId), title: titleOf(movie), mediaType: "movie" as const }
   switch (payload.eventType) {
     case "MovieAdded":
-      return [{ _tag: "Added", mediaKey, title }]
+      return [{ type: "media.added", subject }]
     case "Grab":
       return payload.downloadId === undefined
         ? []
-        : [{ _tag: "Grabbed", mediaKey, title, downloadId: payload.downloadId.toLowerCase() }]
+        : [{ type: "media.grabbed", subject, downloadId: payload.downloadId.toLowerCase() }]
     case "Download":
-      return [{ _tag: "Imported", mediaKey, title }]
+      return [{ type: "media.imported", subject }]
     default:
       return []
   }

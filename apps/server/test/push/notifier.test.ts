@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Redacted } from "effect"
 import { TestClock } from "effect/testing"
 import { createPublicKey, generateKeyPairSync, verify } from "node:crypto"
-import { DownloadActivities } from "../../src/engine/DownloadActivities.ts"
+import { Activities } from "../../src/flows/Activities.ts"
+import { ev, fixedFlows } from "../flows/helpers.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { Notifier } from "../../src/push/Notifier.ts"
 import * as Database from "../../src/store/Database.ts"
@@ -33,11 +34,11 @@ describe("push to APNs", () => {
       yield* Effect.gen(function*() {
         const mathieu = yield* pairPhone("Mathieu", "development", "pts-mathieu")
         yield* pairPhone("Julie", "production", "pts-julie")
-        const engine = yield* DownloadActivities
+        const engine = yield* Activities
         const notifier = yield* Notifier
         const devices = yield* Devices
 
-        yield* notifier.send(yield* engine.handle({ _tag: "Added", mediaKey: "movie:tmdb:1", title: "Dune" }))
+        yield* notifier.send(yield* engine.handle(ev.added()))
         expect(dev.hits.map((h) => h.path)).toEqual(["/3/device/pts-mathieu"])
         expect(prod.hits.map((h) => h.path)).toEqual(["/3/device/pts-julie"])
 
@@ -47,10 +48,10 @@ describe("push to APNs", () => {
         expect(start.headers["apns-priority"]).toBe("10")
         expect(start.body.aps).toMatchObject({
           event: "start",
-          "attributes-type": "DownloadActivityAttributes",
-          attributes: { mediaKey: "movie:tmdb:1", title: "Dune" },
-          "content-state": { step: "searching", stalled: false },
-          alert: { title: "Dune" }
+          "attributes-type": "QuaiActivityAttributes",
+          attributes: { key: "download|movie:tmdb:1", flowId: "download", title: "Dune", color: "#FFC230" },
+          "content-state": { step: 0, tone: "active" },
+          alert: { title: "Dune", body: "Searching" }
         })
 
         // The provider token is a valid ES256 JWT from our key.
@@ -63,23 +64,24 @@ describe("push to APNs", () => {
         }, Buffer.from(signature!, "base64url"))).toBe(true)
 
         // Only Mathieu's iPhone reported the activity's token: only it gets the update.
-        yield* devices.setActivityToken(mathieu, "movie:tmdb:1", "act-mathieu")
-        yield* notifier.send(yield* engine.handle({ _tag: "Grabbed", mediaKey: "movie:tmdb:1", title: "Dune", downloadId: "h" }))
+        yield* devices.setActivityToken(mathieu, "download|movie:tmdb:1", "act-mathieu")
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
         expect(dev.hits[1]!.path).toBe("/3/device/act-mathieu")
-        expect(dev.hits[1]!.body.aps).toMatchObject({ event: "update", "content-state": { step: "downloading" } })
+        expect(dev.hits[1]!.body.aps).toMatchObject({ event: "update", "content-state": { step: 1 } })
         expect(prod.hits).toHaveLength(1)
 
         // Progress goes at high priority too: low priority let iOS hold updates back.
         yield* TestClock.adjust("20 seconds")
-        yield* notifier.send(yield* engine.handle({ _tag: "Progress", downloadId: "h", progress: 0.5, bytesPerSecond: 1, remainingSeconds: 9 }))
+        yield* notifier.send(yield* engine.handle(ev.progress(0.5, "h")))
         expect(dev.hits[2]!.headers["apns-priority"]).toBe("10")
 
-        yield* notifier.send(yield* engine.handle({ _tag: "Available", mediaKey: "movie:tmdb:1" }))
+        yield* notifier.send(yield* engine.handle(ev.available()))
         expect(dev.hits[3]!.body.aps.event).toBe("end")
         expect(dev.hits[3]!.body.aps["dismissal-date"] - dev.hits[3]!.body.aps.timestamp).toBe(15 * 60)
       }).pipe(Effect.provide(Notifier.layer.pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }).pipe(
-      Effect.provide(Layer.mergeAll(Devices.layer, DownloadActivities.layer).pipe(
+      Effect.provide(Layer.mergeAll(Devices.layer, Activities.layer, fixedFlows()).pipe(
+        Layer.provideMerge(fixedFlows()),
         Layer.provideMerge(Database.layerFile(":memory:"))
       )),
       Effect.scoped
@@ -94,13 +96,14 @@ describe("push to APNs", () => {
       )
       yield* Effect.gen(function*() {
         yield* pairPhone("Old iPhone", "development", "dead-token")
-        const engine = yield* DownloadActivities
-        yield* (yield* Notifier).send(yield* engine.handle({ _tag: "Added", mediaKey: "m", title: "T" }))
+        const engine = yield* Activities
+        yield* (yield* Notifier).send(yield* engine.handle(ev.added()))
         expect(dev.hits).toHaveLength(1)
         expect(yield* (yield* Devices).startRecipients).toEqual([])
       }).pipe(Effect.provide(Notifier.layer.pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }).pipe(
-      Effect.provide(Layer.mergeAll(Devices.layer, DownloadActivities.layer).pipe(
+      Effect.provide(Layer.mergeAll(Devices.layer, Activities.layer, fixedFlows()).pipe(
+        Layer.provideMerge(fixedFlows()),
         Layer.provideMerge(Database.layerFile(":memory:"))
       )),
       Effect.scoped

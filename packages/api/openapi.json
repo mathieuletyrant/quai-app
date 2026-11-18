@@ -252,6 +252,65 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestActivity"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/flows": {
+      "get": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "listFlows",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FlowSummary"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
           }
         }
       }
@@ -479,10 +538,447 @@
           }
         }
       }
+    },
+    "/console-api/flows": {
+      "get": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "listAllFlows",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Flow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/flows/catalog": {
+      "get": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "getCatalog",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/flows/{id}": {
+      "put": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "saveFlow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Flow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flow"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidFlow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidFlowEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Flow"
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "delete": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "removeFlow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "400": {
+            "description": "InvalidFlow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidFlowEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/flows/{id}/reset": {
+      "post": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "resetFlow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Flow",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flow"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/flows/{id}/test": {
+      "post": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "testFlow",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "effect_HttpApiError_NotFoundEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "NotFound"
+            ]
+          }
+        },
+        "required": [
+          "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "Flow": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "builtIn": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/FlowSubject"
+          },
+          "filter": {
+            "$ref": "#/components/schemas/FlowFilter"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FlowStep"
+            },
+            "minItems": 2,
+            "maxItems": 6
+          },
+          "lingerMinutes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60
+          },
+          "stalledAfterMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          },
+          "expireAfterMinutes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1440
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "builtIn",
+          "enabled",
+          "color",
+          "icon",
+          "subject",
+          "filter",
+          "steps",
+          "lingerMinutes"
+        ],
+        "additionalProperties": false
+      },
+      "FlowStep": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24
+          },
+          "icon": {
+            "type": "string"
+          },
+          "on": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "show": {
+            "$ref": "#/components/schemas/StepShow"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "icon",
+          "on",
+          "show"
+        ],
+        "additionalProperties": false
+      },
+      "StepShow": {
+        "type": "object",
+        "properties": {
+          "progress": {
+            "type": "boolean"
+          },
+          "speed": {
+            "type": "boolean"
+          },
+          "eta": {
+            "type": "boolean"
+          },
+          "timer": {
+            "type": "boolean"
+          },
+          "since": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "media.added",
+          "media.grabbed",
+          "media.imported",
+          "media.available",
+          "download.progress",
+          "playback.started",
+          "playback.progress",
+          "playback.stopped",
+          "service.down",
+          "service.up"
+        ]
+      },
+      "FlowFilter": {
+        "type": "object",
+        "properties": {
+          "mediaType": {
+            "type": "string",
+            "enum": [
+              "any",
+              "movie",
+              "series"
+            ]
+          },
+          "devices": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "FlowSubject": {
+        "type": "string",
+        "enum": [
+          "media",
+          "playback",
+          "service"
+        ]
+      },
+      "InvalidFlowEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "InvalidFlow"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "CatalogEvent": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/EventType"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/FlowSubject"
+          },
+          "label": {
+            "type": "string"
+          },
+          "data": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "subject",
+          "label",
+          "data"
+        ],
+        "additionalProperties": false
+      },
       "PushSettings": {
         "type": "object",
         "properties": {
@@ -548,21 +1044,6 @@
           "keyPem",
           "keyId",
           "teamId"
-        ],
-        "additionalProperties": false
-      },
-      "effect_HttpApiError_NotFoundEncoded": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "NotFound"
-            ]
-          }
-        },
-        "required": [
-          "_tag"
         ],
         "additionalProperties": false
       },
@@ -643,10 +1124,10 @@
         "type": "object",
         "properties": {
           "attributes": {
-            "$ref": "#/components/schemas/DownloadAttributes"
+            "$ref": "#/components/schemas/ActivityAttributes"
           },
           "content": {
-            "$ref": "#/components/schemas/DownloadContentState"
+            "$ref": "#/components/schemas/ActivityContent"
           }
         },
         "required": [
@@ -655,11 +1136,16 @@
         ],
         "additionalProperties": false
       },
-      "DownloadContentState": {
+      "ActivityContent": {
         "type": "object",
         "properties": {
           "step": {
-            "$ref": "#/components/schemas/DownloadStep"
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "tone": {
+            "$ref": "#/components/schemas/ActivityTone"
           },
           "progress": {
             "type": "number"
@@ -670,83 +1156,163 @@
           "remainingSeconds": {
             "type": "number"
           },
-          "stalled": {
-            "type": "boolean"
+          "endsAt": {
+            "type": "number"
+          },
+          "since": {
+            "type": "number"
+          },
+          "detail": {
+            "type": "string"
           }
         },
         "required": [
           "step",
-          "stalled"
+          "tone"
         ],
         "additionalProperties": false
       },
-      "DownloadStep": {
+      "ActivityTone": {
         "type": "string",
         "enum": [
-          "searching",
-          "downloading",
-          "importing",
-          "available"
+          "active",
+          "stalled",
+          "done"
         ]
       },
-      "DownloadAttributes": {
+      "ActivityAttributes": {
         "type": "object",
         "properties": {
-          "mediaKey": {
+          "key": {
+            "type": "string"
+          },
+          "flowId": {
             "type": "string"
           },
           "title": {
             "type": "string"
           },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
           "steps": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DownloadStep"
+              "$ref": "#/components/schemas/ActivityStep"
             }
           }
         },
         "required": [
-          "mediaKey",
-          "title"
+          "key",
+          "flowId",
+          "title",
+          "color",
+          "icon",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "ActivityStep": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "icon"
+        ],
+        "additionalProperties": false
+      },
+      "FlowSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityStep"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "color",
+          "icon",
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "TestActivity": {
+        "type": "object",
+        "properties": {
+          "flowId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "flowId"
         ],
         "additionalProperties": false
       },
       "DevicePreferences": {
         "type": "object",
         "properties": {
-          "download": {
-            "$ref": "#/components/schemas/DownloadPreferences"
+          "flows": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FlowPreference"
+            }
           }
         },
         "required": [
-          "download"
+          "flows"
         ],
         "additionalProperties": false
       },
-      "DownloadPreferences": {
+      "FlowPreference": {
         "type": "object",
         "properties": {
           "enabled": {
             "type": "boolean"
           },
-          "steps": {
+          "hiddenSteps": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DownloadStep"
+              "type": "string"
             }
-          },
-          "lingerMinutes": {
-            "type": "number",
-            "enum": [
-              15,
-              60
-            ]
           }
         },
         "required": [
           "enabled",
-          "steps",
-          "lingerMinutes"
+          "hiddenSteps"
         ],
         "additionalProperties": false
       },
@@ -880,6 +1446,9 @@
     },
     {
       "name": "push"
+    },
+    {
+      "name": "flows"
     }
   ]
 }

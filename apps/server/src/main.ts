@@ -3,11 +3,13 @@ import { Config, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpStaticServer } from "effect/http"
 import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
-import { DownloadActivities } from "./engine/DownloadActivities.ts"
-import { Watcher } from "./engine/Watcher.ts"
+import { Activities } from "./flows/Activities.ts"
+import { FlowStore } from "./flows/FlowStore.ts"
+import { Watcher } from "./flows/Watcher.ts"
 import { WebhooksLive } from "./http/Webhooks.ts"
 import { Apns } from "./push/Apns.ts"
 import { Notifier } from "./push/Notifier.ts"
+import { Health } from "./stack/Health.ts"
 import { Jellyfin } from "./stack/Jellyfin.ts"
 import { QBittorrent } from "./stack/QBittorrent.ts"
 import { WebhookSetupLive } from "./stack/Setup.ts"
@@ -38,18 +40,20 @@ const ConsoleLive = Layer.unwrap(
   })
 )
 
-const Stack = Layer.mergeAll(QBittorrent.layer, Jellyfin.layer).pipe(
+const Stack = Layer.mergeAll(QBittorrent.layer, Jellyfin.layer, Health.layer).pipe(
   Layer.provideMerge(StackConfig.layer),
   Layer.provide(NodeHttpClient.layerUndici)
 )
 
-const Store = Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer).pipe(Layer.provideMerge(Database.layer))
+const Store = Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer, FlowStore.layer).pipe(
+  Layer.provideMerge(Database.layer)
+)
 
 const Push = PushKey.layer.pipe(Layer.provideMerge(Apns.layer))
 
 const Engine = Watcher.layer.pipe(
   Layer.provideMerge(Notifier.layer),
-  Layer.provideMerge(DownloadActivities.layerPersisted),
+  Layer.provideMerge(Activities.layerPersisted),
   Layer.provideMerge(Push),
   Layer.provideMerge(Stack),
   Layer.provideMerge(Store)

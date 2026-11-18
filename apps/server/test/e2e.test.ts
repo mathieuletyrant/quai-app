@@ -4,8 +4,10 @@ import { Effect, Layer, Redacted } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
 import { generateKeyPairSync } from "node:crypto"
-import { DownloadActivities } from "../src/engine/DownloadActivities.ts"
-import { Watcher } from "../src/engine/Watcher.ts"
+import { Activities } from "../src/flows/Activities.ts"
+import { Watcher } from "../src/flows/Watcher.ts"
+import { Health } from "../src/stack/Health.ts"
+import { fixedFlows } from "./flows/helpers.ts"
 import { WebhooksLive } from "../src/http/Webhooks.ts"
 import { Apns } from "../src/push/Apns.ts"
 import { Notifier } from "../src/push/Notifier.ts"
@@ -68,39 +70,40 @@ describe("end to end", () => {
         expect(apnsServer.hits).toHaveLength(0)
 
         yield* post("movie-added")
-        expect(steps()).toEqual(["start:searching"])
+        expect(steps()).toEqual(["start:0"])
         // The iPhone started the activity and reports its token.
-        yield* devices.setActivityToken(deviceId, "movie:tmdb:693134", "act")
+        yield* devices.setActivityToken(deviceId, "download|movie:tmdb:693134", "act")
 
         yield* TestClock.adjust("3 minutes")
         yield* post("grab")
         yield* TestClock.adjust("15 seconds")
         yield* watcher.poll
-        expect(steps()).toEqual(["start:searching", "update:downloading", "update:downloading"])
+        expect(steps()).toEqual(["start:0", "update:1", "update:1"])
         expect(apnsServer.hits[2]!.body.aps["content-state"]).toMatchObject({ progress: 0.4199, remainingSeconds: 683 })
 
         yield* TestClock.adjust("10 minutes")
         yield* post("download")
         yield* TestClock.adjust("15 seconds")
         yield* watcher.poll
-        expect(steps().at(-1)).toBe("update:importing")
+        expect(steps().at(-1)).toBe("update:2")
 
         jellyfinHasDune = true
         yield* TestClock.adjust("15 seconds")
         yield* watcher.poll
-        expect(steps().at(-1)).toBe("end:available")
+        expect(steps().at(-1)).toBe("end:3")
         expect(apnsServer.hits.every((h, i) => h.path === (i === 0 ? "/3/device/pts" : "/3/device/act"))).toBe(true)
 
         yield* TestClock.adjust("15 minutes")
         yield* watcher.poll
-        expect((yield* (yield* DownloadActivities).snapshot).activities.size).toBe(0)
+        expect((yield* (yield* Activities).snapshot).activities.size).toBe(0)
       }).pipe(Effect.provide(
         HttpRouter.serve(WebhooksLive, { disableLogger: true }).pipe(
           Layer.provideMerge(Layer.effect(Watcher, Watcher.make)),
           Layer.provideMerge(Notifier.layer),
-          Layer.provideMerge(DownloadActivities.layer),
+          Layer.provideMerge(Activities.layer),
           Layer.provide(Layer.succeed(Apns, apns)),
-          Layer.provide(Layer.mergeAll(QBittorrent.layer, Jellyfin.layer).pipe(Layer.provide([stackConfig, stack]))),
+          Layer.provide(Layer.mergeAll(QBittorrent.layer, Jellyfin.layer, Health.layer).pipe(Layer.provide([stackConfig, stack]))),
+          Layer.provideMerge(fixedFlows()),
           Layer.provideMerge(Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer)),
           Layer.provideMerge(Database.layerFile(":memory:")),
           Layer.provideMerge(NodeHttpServer.layerTest)

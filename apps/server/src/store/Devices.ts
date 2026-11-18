@@ -1,4 +1,4 @@
-import { type ApnsEnvironment, type DeviceId, type DevicePreferences, defaultDownloadPreferences, DevicePreferences as DevicePreferencesSchema } from "@quai/api"
+import { type ApnsEnvironment, type DeviceId, type DevicePreferences, DevicePreferences as DevicePreferencesSchema } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
@@ -34,7 +34,7 @@ export interface PushTarget {
   readonly preferences: DevicePreferences
 }
 
-export const defaultPreferences: DevicePreferences = { download: defaultDownloadPreferences }
+export const defaultPreferences: DevicePreferences = { flows: {} }
 
 const decodePreferences = Schema.decodeUnknownOption(Schema.fromJsonString(DevicePreferencesSchema))
 const readPreferences = (raw: unknown): DevicePreferences =>
@@ -89,7 +89,7 @@ export class Devices extends Context.Service<Devices, {
   readonly preferences: (id: DeviceId) => Effect.Effect<DevicePreferences>
   readonly setPreferences: (id: DeviceId, preferences: DevicePreferences) => Effect.Effect<DevicePreferences>
   /** Every iPhone, with its tokens for this activity and its preferences. */
-  readonly targets: (mediaKey: string) => Effect.Effect<ReadonlyArray<PushTarget>>
+  readonly targets: (activityKey: string) => Effect.Effect<ReadonlyArray<PushTarget>>
   /** APNs said this token is dead: forget it. */
   readonly dropToken: (token: string) => Effect.Effect<void>
 }>()("quai/Devices") {
@@ -192,10 +192,10 @@ export class Devices extends Context.Service<Devices, {
             preferences
           )),
 
-        targets: (mediaKey) =>
+        targets: (activityKey) =>
           orDie(Effect.map(
             sql`SELECT d.id, d.apns_environment, d.push_to_start_token, d.preferences, t.push_token
-              FROM devices d LEFT JOIN activity_tokens t ON t.device_id = d.id AND t.media_key = ${mediaKey}`,
+              FROM devices d LEFT JOIN activity_tokens t ON t.device_id = d.id AND t.media_key = ${activityKey}`,
             (rows) =>
               rows.map((r): PushTarget => ({
                 deviceId: r["id"] as DeviceId,

@@ -34,18 +34,14 @@ describe("qBittorrent", () => {
       const events = yield* qb.progress(["8f1c0e3a9b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e", "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"])
       expect(events).toEqual([
         {
-          _tag: "Progress",
+          type: "download.progress",
           downloadId: "8f1c0e3a9b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e",
-          progress: 0.4199,
-          bytesPerSecond: 8388608,
-          remainingSeconds: 683
+          values: { progress: 0.4199, bytesPerSecond: 8388608, remainingSeconds: 683 }
         },
         {
-          _tag: "Progress",
+          type: "download.progress",
           downloadId: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
-          progress: 0,
-          bytesPerSecond: 0,
-          remainingSeconds: null
+          values: { progress: 0, bytesPerSecond: 0 }
         }
       ])
       expect(seen.map((r) => r.url.pathname)).toEqual([

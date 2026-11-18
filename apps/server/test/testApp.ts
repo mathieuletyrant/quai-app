@@ -1,6 +1,8 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
-import { DownloadActivities } from "../src/engine/DownloadActivities.ts"
+import { Activities } from "../src/flows/Activities.ts"
+import { FlowStore } from "../src/flows/FlowStore.ts"
+import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
@@ -19,10 +21,11 @@ import { ServerInfo } from "../src/Version.ts"
 /** Everything the routes need, on an in-memory database and an in-memory HTTP server. */
 const pushKey = Layer.effect(PushKey, Effect.suspend(() => PushKey.make(join(mkdtempSync(join(tmpdir(), "quai-")), "secret.key"))))
 
-export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, ConsoleHandlers, PushHandlers).pipe(
+export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(DeviceAuthLive),
   Layer.provideMerge(Notifier.layer),
-  Layer.provideMerge(Layer.mergeAll(Devices.layer, DownloadActivities.layer, pushKey)),
+  Layer.provideMerge(Layer.mergeAll(Devices.layer, Activities.layer, pushKey)),
+  Layer.provideMerge(FlowStore.layer),
   Layer.provideMerge(Apns.layer),
   Layer.provideMerge(Database.layerFile(":memory:")),
   Layer.provideMerge(Layer.succeed(ServerInfo, { version: "test", startedAt: 0 })),

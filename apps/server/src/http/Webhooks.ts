@@ -1,6 +1,6 @@
 import { Effect, type Schema } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
-import { Watcher } from "../engine/Watcher.ts"
+import { Watcher } from "../flows/Watcher.ts"
 import { decodeRadarrWebhook, radarrAvailability, radarrEvents } from "../stack/Radarr.ts"
 import { decodeSonarrWebhook, sonarrAvailability, sonarrEvents } from "../stack/Sonarr.ts"
 import { Settings } from "../store/Settings.ts"

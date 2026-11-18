@@ -4,7 +4,7 @@ import { Effect, Exit } from "effect"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { HttpClientRequest } from "effect/http"
-import { DownloadActivities } from "../src/engine/DownloadActivities.ts"
+import { Activities } from "../src/flows/Activities.ts"
 import { Devices } from "../src/store/Devices.ts"
 import { TestApp } from "./testApp.ts"
 
@@ -60,28 +60,56 @@ describe("pairing", () => {
 
   it.effect("lists the running activities to the iPhone", () =>
     Effect.gen(function*() {
-      yield* (yield* DownloadActivities).handle({ _tag: "Added", mediaKey: "movie:tmdb:1", title: "Dune" })
+      yield* (yield* Activities).handle({ type: "media.added", subject: { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" } })
       const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
       const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
       const api = yield* signedIn(token)
       const list = yield* api.devices.activities()
-      expect(list.map((a) => [a.attributes.title, a.content.step])).toEqual([["Dune", "searching"]])
+      expect(list.map((a) => [a.attributes.title, a.attributes.steps[a.content.step]?.id])).toEqual([["Dune", "searching"]])
     }).pipe(Effect.provide(TestApp)))
 })
 
 describe("preferences", () => {
-  it.effect("each iPhone keeps its own, with every step by default", () =>
+  it.effect("each iPhone keeps its own per flow, and sees every flow", () =>
     Effect.gen(function*() {
       const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
       const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
       const phone = yield* signedIn(token)
-      expect(yield* phone.devices.preferences()).toEqual({
-        download: { enabled: true, steps: ["searching", "downloading", "importing", "available"], lingerMinutes: 15 }
-      })
+      expect(yield* phone.devices.preferences()).toEqual({ flows: {} })
       const saved = yield* phone.devices.savePreferences({
-        payload: { download: { enabled: true, steps: ["downloading", "available"], lingerMinutes: 60 } }
+        payload: { flows: { download: { enabled: true, hiddenSteps: ["searching"] }, incident: { enabled: false, hiddenSteps: [] } } }
       })
-      expect(saved.download.lingerMinutes).toBe(60)
-      expect((yield* phone.devices.preferences()).download.steps).toEqual(["downloading", "available"])
+      expect(saved.flows["incident"]?.enabled).toBe(false)
+      expect((yield* phone.devices.preferences()).flows["download"]?.hiddenSteps).toEqual(["searching"])
+      expect((yield* phone.devices.flows()).map((f) => f.id)).toEqual(["download", "playback", "incident"])
+    }).pipe(Effect.provide(TestApp)))
+})
+
+describe("flows from the console", () => {
+  it.effect("create, edit and delete a custom flow; built-in ones can be reset, not deleted", () =>
+    Effect.gen(function*() {
+      const api = yield* HttpApiTest.groups(QuaiApi, ["flows"])
+      const download = (yield* api.flows.list()).find((f) => f.id === "download")!
+      const anime = yield* api.flows.save({
+        params: { id: "anime" },
+        payload: { ...download, id: "anime", name: "Anime", builtIn: true, filter: { mediaType: "series" } }
+      })
+      expect(anime.builtIn).toBe(false)
+      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident", "anime"])
+
+      const bad = yield* Effect.exit(api.flows.save({
+        params: { id: "bad" },
+        payload: { ...download, id: "bad", steps: [download.steps[0]!, { ...download.steps[1]!, on: "service.down" }] }
+      }))
+      expect(Exit.isFailure(bad)).toBe(true)
+
+      yield* api.flows.save({ params: { id: "download" }, payload: { ...download, color: "#123456" } })
+      expect((yield* api.flows.list()).find((f) => f.id === "download")?.color).toBe("#123456")
+      expect((yield* api.flows.reset({ params: { id: "download" } })).color).toBe("#FFC230")
+
+      expect(Exit.isFailure(yield* Effect.exit(api.flows.remove({ params: { id: "download" } })))).toBe(true)
+      yield* api.flows.remove({ params: { id: "anime" } })
+      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident"])
+      expect((yield* api.flows.catalog()).length).toBeGreaterThan(5)
     }).pipe(Effect.provide(TestApp)))
 })

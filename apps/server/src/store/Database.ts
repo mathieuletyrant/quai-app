@@ -37,6 +37,16 @@ export const migrations = Migrator.fromRecord({
   "0002_device_preferences": Effect.gen(function*() {
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE devices ADD COLUMN preferences TEXT`
+  }),
+  "0003_flows": Effect.gen(function*() {
+    const sql = yield* SqlClient.SqlClient
+    // Only edited or custom flows are stored; built-in flows come from the code until edited.
+    yield* sql`CREATE TABLE flows (
+      id TEXT PRIMARY KEY,
+      definition TEXT NOT NULL
+    )`
+    // Preferences moved from one Download activity to one entry per flow.
+    yield* sql`UPDATE devices SET preferences = NULL`
   })
 })
 

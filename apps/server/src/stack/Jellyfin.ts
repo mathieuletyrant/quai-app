@@ -17,6 +17,55 @@ const Episode = Schema.Struct({
 })
 export const EpisodesResult = Schema.Struct({ Items: Schema.Array(Episode) })
 
+const Session = Schema.Struct({
+  Id: Schema.String,
+  DeviceName: Schema.optional(Schema.String),
+  NowPlayingItem: Schema.optional(Schema.Struct({
+    Id: Schema.String,
+    Name: Schema.String,
+    SeriesName: Schema.optional(Schema.String),
+    ParentIndexNumber: Schema.optional(Schema.Number),
+    IndexNumber: Schema.optional(Schema.Number),
+    RunTimeTicks: Schema.optional(Schema.Number)
+  })),
+  PlayState: Schema.optional(Schema.Struct({
+    PositionTicks: Schema.optional(Schema.Number),
+    IsPaused: Schema.optional(Schema.Boolean)
+  }))
+})
+export const Sessions = Schema.Array(Session)
+
+/** Something playing on a Jellyfin device, as Quai follows it. */
+export interface Playing {
+  readonly key: string
+  readonly title: string
+  readonly device: string
+  readonly paused: boolean
+  /** Milliseconds left, when Jellyfin knows the runtime. */
+  readonly remainingMs: number | null
+}
+
+const pad = (n: number) => n.toString().padStart(2, "0")
+
+export const playingFrom = (sessions: typeof Sessions.Type): ReadonlyArray<Playing> =>
+  sessions.flatMap((s) => {
+    const item = s.NowPlayingItem
+    if (item === undefined) return []
+    const episode = item.SeriesName !== undefined && item.ParentIndexNumber !== undefined && item.IndexNumber !== undefined
+      ? `${item.SeriesName} · S${pad(item.ParentIndexNumber)}E${pad(item.IndexNumber)}`
+      : null
+    const runtime = item.RunTimeTicks
+    const position = s.PlayState?.PositionTicks ?? 0
+    return [{
+      key: `playback:${s.Id}:${item.Id}`,
+      title: episode ?? item.Name,
+      device: s.DeviceName ?? "Jellyfin",
+      paused: s.PlayState?.IsPaused === true,
+      // Jellyfin ticks are 100 ns.
+      remainingMs: runtime === undefined ? null : Math.max(0, (runtime - position) / 10_000)
+    }]
+  })
+
 /** Jellyfin's provider id keys are capitalized ("Tmdb", "Tvdb"), but be lenient. */
 const providerId = (item: typeof Item.Type, provider: string) =>
   Object.entries(item.ProviderIds ?? {}).find(([k]) => k.toLowerCase() === provider)?.[1]
@@ -24,6 +73,8 @@ const providerId = (item: typeof Item.Type, provider: string) =>
 export class Jellyfin extends Context.Service<Jellyfin, {
   /** Whether what the check names can be played in Jellyfin; with the item id when it can. */
   readonly find: (check: AvailabilityCheck) => Effect.Effect<string | null, StackError>
+  /** What plays right now, on every device. */
+  readonly playing: Effect.Effect<ReadonlyArray<Playing>, StackError>
 }>()("quai/Jellyfin") {
   static readonly layer = Layer.effect(
     Jellyfin,
@@ -31,7 +82,8 @@ export class Jellyfin extends Context.Service<Jellyfin, {
       const config = (yield* StackConfig).jellyfin
       const client = yield* HttpClient.HttpClient
       if (config === null) {
-        return { find: () => Effect.fail(new StackError({ service: "jellyfin", message: "not configured" })) }
+        const missing = new StackError({ service: "jellyfin", message: "not configured" })
+        return { find: () => Effect.fail(missing), playing: Effect.fail(missing) }
       }
       const get = <A, I>(path: string, params: Record<string, string>, schema: Schema.Codec<A, I>) =>
         client.execute(
@@ -49,6 +101,7 @@ export class Jellyfin extends Context.Service<Jellyfin, {
         get("/Items", { Recursive: "true", IncludeItemTypes: type, SearchTerm: title, Fields: "ProviderIds" }, ItemsResult)
 
       return {
+        playing: Effect.map(get("/Sessions", { ActiveWithinSeconds: "120" }, Sessions), playingFrom),
         find: (check: AvailabilityCheck) =>
           Effect.gen(function*() {
             if (check._tag === "Movie") {

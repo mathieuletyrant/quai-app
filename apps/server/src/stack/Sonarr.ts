@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import type { MediaEvent } from "../engine/Events.ts"
-import { seriesKey } from "../engine/Events.ts"
+import type { FlowEvent } from "../flows/Events.ts"
+import { seriesKey } from "../flows/Events.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
@@ -42,16 +42,20 @@ export const episodeLabel = (series: string, episodes: ReadonlyArray<typeof Epis
  */
 export const sonarrKey = (tvdbId: number, downloadId: string) => `${seriesKey(tvdbId)}:dl:${downloadId.toLowerCase()}`
 
-export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<MediaEvent> => {
+export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> => {
   const series = payload.series
   if (series === undefined || payload.downloadId === undefined) return []
-  const mediaKey = sonarrKey(series.tvdbId, payload.downloadId)
-  const title = episodeLabel(series.title, payload.episodes ?? [])
+  const subject = {
+    kind: "media" as const,
+    key: sonarrKey(series.tvdbId, payload.downloadId),
+    title: episodeLabel(series.title, payload.episodes ?? []),
+    mediaType: "series" as const
+  }
   switch (payload.eventType) {
     case "Grab":
-      return [{ _tag: "Grabbed", mediaKey, title, downloadId: payload.downloadId.toLowerCase() }]
+      return [{ type: "media.grabbed", subject, downloadId: payload.downloadId.toLowerCase() }]
     case "Download":
-      return [{ _tag: "Imported", mediaKey, title }]
+      return [{ type: "media.imported", subject }]
     default:
       return []
   }
