@@ -104,21 +104,20 @@ final class Connection {
 
     /// Follows ActivityKit's tokens for as long as the app runs: the push-to-start token, and the
     /// push token of every Download activity, including the ones the server started remotely.
-    func watchTokens() async {
+    /// The token that lets the server start a Live Activity on this iPhone. Runs as long as the app does.
+    func watchPushToStartTokens() async {
+        for await data in Activity<DownloadActivityAttributes>.pushToStartTokenUpdates {
+            await didReceivePushToStartToken(data.hexString)
+        }
+    }
+
+    /// The push token of every Download activity, including the ones the server started remotely.
+    func watchActivities() async {
         for activity in Activity<DownloadActivityAttributes>.activities {
             Task { await watch(activity) }
         }
-        await withTaskGroup(of: Void.self) { group in
-            group.addTask { @MainActor in
-                for await data in Activity<DownloadActivityAttributes>.pushToStartTokenUpdates {
-                    await self.didReceivePushToStartToken(data.hexString)
-                }
-            }
-            group.addTask { @MainActor in
-                for await activity in Activity<DownloadActivityAttributes>.activityUpdates {
-                    Task { await self.watch(activity) }
-                }
-            }
+        for await activity in Activity<DownloadActivityAttributes>.activityUpdates {
+            Task { await watch(activity) }
         }
     }
 

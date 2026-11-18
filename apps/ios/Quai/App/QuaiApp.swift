@@ -24,7 +24,8 @@ struct QuaiApp: App {
             .onOpenURL { url in
                 if let link = PairingLink(url) { pendingLink = link }
             }
-            .task { await connection.watchTokens() }
+            .task { await connection.watchPushToStartTokens() }
+            .task { await connection.watchActivities() }
             .task { DemoActivity.startIfRequested() }
         }
     }
