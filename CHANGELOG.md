@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/mathieuletyrant/quai-app/compare/v0.3.2...v0.3.3) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* **server:** keep running activities across restarts ([09b02c7](https://github.com/mathieuletyrant/quai-app/commit/09b02c78b9a14bf7a02b0ad036554696ed8c1c19))
+
 ## [0.3.2](https://github.com/mathieuletyrant/quai-app/compare/v0.3.1...v0.3.2) (2026-11-18)
 
 
