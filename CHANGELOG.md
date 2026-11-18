@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.4](https://github.com/mathieuletyrant/quai-app/compare/v0.3.3...v0.3.4) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* **server:** push download progress at high priority, and log each push ([f7ad54c](https://github.com/mathieuletyrant/quai-app/commit/f7ad54c2a4566e54a39e83b572bd92ad2ec2bfdc))
+
 ## [0.3.3](https://github.com/mathieuletyrant/quai-app/compare/v0.3.2...v0.3.3) (2026-11-18)
 
 
