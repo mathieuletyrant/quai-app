@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/mathieuletyrant/quai-app/compare/v0.5.0...v0.5.1) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* **server:** a playback shows its countdown, not a stale 0 % ([#16](https://github.com/mathieuletyrant/quai-app/issues/16)) ([18ad42a](https://github.com/mathieuletyrant/quai-app/commit/18ad42ae6bab15e474fae2a27d6ab6d10a036cfb))
+
 ## [0.5.0](https://github.com/mathieuletyrant/quai-app/compare/v0.4.0...v0.5.0) (2026-11-18)
 
 
