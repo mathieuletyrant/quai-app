@@ -18,17 +18,17 @@ export function FlowSwitcher({ flows, current, dirty, onOpen, onNew }: {
     <Popover
       className="w-80"
       trigger={({ open, toggle }) => (
-        <button type="button" aria-expanded={open} aria-label="Choose a flow" onClick={toggle} className="group flex min-w-0 items-center gap-3 rounded-2xl py-1 pr-2 text-left">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-black ring-1 ring-white/10">
-            <Glyph name={current.icon} color={current.color} size={20} />
+        <button type="button" aria-expanded={open} aria-label="Choose a flow" onClick={toggle} className="group -my-1 flex min-w-0 items-center gap-3 rounded-xl py-1 pr-2 text-left">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-black ring-1 ring-white/10">
+            <Glyph name={current.icon} color={current.color} size={17} />
           </span>
           <span className="min-w-0">
-            <span className="flex items-center gap-2 text-2xl font-bold">
+            <span className="flex items-center gap-2 text-lg font-semibold">
               <span className="truncate">{current.name || "New flow"}</span>
               {dirty && <span className="size-2 shrink-0 rounded-full bg-[#ffc230]" title="Unsaved changes" />}
               <span className="text-base text-muted transition group-hover:text-text" aria-hidden="true">▾</span>
             </span>
-            <span className="block text-[13px] text-muted">
+            <span className="block text-xs font-normal text-muted">
               {subjects[current.subject].label} · {current.builtIn ? "built-in" : current.id ? "custom" : "not saved yet"}
             </span>
           </span>

@@ -8,9 +8,8 @@ export interface Phone {
 }
 
 /** Plays the flow's test on the iPhones ticked here (all of them by default). */
-export function TestMenu({ phones, disabled, onTest }: {
+export function TestMenu({ phones, onTest }: {
   phones: ReadonlyArray<Phone>
-  disabled: boolean
   onTest: (deviceIds: ReadonlyArray<DeviceId>) => void
 }) {
   const [chosen, setChosen] = useState<ReadonlySet<DeviceId> | null>(null)
@@ -29,13 +28,12 @@ export function TestMenu({ phones, disabled, onTest }: {
       trigger={({ open, toggle: flip }) => (
         <Button
           variant="secondary"
-          size="sm"
-          disabled={disabled || phones.length === 0}
-          title={phones.length === 0 ? "Pair an iPhone first" : disabled ? "Save first" : undefined}
+          disabled={phones.length === 0}
+          title={phones.length === 0 ? "Pair an iPhone first" : undefined}
           aria-expanded={open}
           onClick={flip}
         >
-          Test…
+          ▶ Test
         </Button>
       )}
     >

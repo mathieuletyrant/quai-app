@@ -32,12 +32,12 @@ function App() {
   }, [])
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col md:flex-row">
+    <div className="flex min-h-screen flex-col md:flex-row">
       <nav
         aria-label="Console"
-        className="flex shrink-0 flex-row items-center gap-1 border-b border-line px-4 py-3 md:sticky md:top-0 md:h-screen md:w-60 md:flex-col md:items-stretch md:border-r md:border-b-0 md:py-6"
+        className="flex shrink-0 flex-row items-center gap-1 border-b border-line px-4 py-3 md:sticky md:top-0 md:h-screen md:w-60 md:flex-col md:items-stretch md:border-r md:border-b-0 md:pt-0 md:pb-6"
       >
-        <div className="mr-3 flex items-center gap-2.5 px-3 text-lg font-bold md:mr-0 md:pb-5">
+        <div className="mr-3 flex items-center gap-2.5 px-3 text-lg font-bold md:-mx-4 md:mr-[-1rem] md:mb-3 md:h-16 md:border-b md:border-line md:px-7">
           <img src="/icon.svg" alt="" className="size-[30px] rounded-[9px]" />
           Quai
         </div>
@@ -57,7 +57,7 @@ function App() {
             : down ? <><span className="size-2 rounded-full bg-danger" /> Server unreachable</> : "…"}
         </p>
       </nav>
-      <main className="flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-12 md:px-8 md:pt-7">{pages[page].render()}</main>
+      <main className="flex min-w-0 flex-1 flex-col">{pages[page].render()}</main>
     </div>
   )
 }

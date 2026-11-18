@@ -1,6 +1,6 @@
 import { type DeviceId, flowProblem } from "@quai/api"
 import { type ReactNode, useState } from "react"
-import { Button, IconButton, MenuItem, Popover, Toggle } from "../../ui.tsx"
+import { Button, IconButton, MenuItem, PageBar, Popover, Toggle } from "../../ui.tsx"
 import { type Catalogs, type Draft, newStep, stepActions, stepEvents } from "./draft.ts"
 import { EndPanel, FlowPanel, StepPanel } from "./Inspector.tsx"
 import { type Selection, Pipeline } from "./Pipeline.tsx"
@@ -9,8 +9,8 @@ import { type Phone, TestMenu } from "./TestMenu.tsx"
 
 /**
  * Edits one flow: the pipeline in the middle (what it follows, its steps, how it ends), and an
- * inspector beside it for what's selected, under a live Lock Screen preview. A bar appears with
- * unsaved changes, and says what blocks saving.
+ * inspector beside it for what's selected, under a live Lock Screen preview. Save and Discard
+ * appear in the top bar with unsaved changes, with what blocks saving.
  */
 export function FlowEditor(props: {
   draft: Draft
@@ -42,20 +42,29 @@ export function FlowEditor(props: {
   }
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-5">
-      <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="min-w-0 flex-1">{props.switcher}</div>
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 pr-2 text-sm font-semibold">
-            <Toggle label="Flow on" checked={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
-            {draft.enabled ? "On" : "Off"}
-          </label>
-          {!props.isNew && (
+    <>
+      <PageBar title={props.switcher}>
+        <label className="flex h-9 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm font-semibold ring-1 ring-white/12 ring-inset">
+          <Toggle label="Flow enabled" checked={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
+          {draft.enabled ? "Enabled" : "Disabled"}
+        </label>
+        {props.dirty || props.isNew
+          ? (
             <>
-              <TestMenu phones={props.phones} disabled={props.dirty} onTest={props.onTest} />
+              <span className={`flex items-center gap-2 px-1 text-sm ${problem ? "text-danger" : "text-muted"}`}>
+                {!problem && <span className="size-1.5 rounded-full bg-[#ffc230]" aria-hidden="true" />}
+                {problem ?? (props.isNew ? "Not saved yet" : "Unsaved changes")}
+              </span>
+              <Button variant="secondary" onClick={props.onDiscard}>{props.isNew ? "Cancel" : "Discard"}</Button>
+              <Button disabled={problem !== null} onClick={props.onSave}>{props.isNew ? "Create" : "Save"}</Button>
+            </>
+          )
+          : (
+            <>
+              <TestMenu phones={props.phones} onTest={props.onTest} />
               <Popover
                 align="right"
-                trigger={({ open, toggle }) => <IconButton label="More" aria-expanded={open} onClick={toggle} className="size-8 text-lg">⋯</IconButton>}
+                trigger={({ open, toggle }) => <IconButton label="More" aria-expanded={open} onClick={toggle} className="text-lg ring-1 ring-white/12 ring-inset">⋯</IconButton>}
               >
                 {(close) => (
                   <>
@@ -66,26 +75,27 @@ export function FlowEditor(props: {
               </Popover>
             </>
           )}
+      </PageBar>
+
+      <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 p-4 md:p-6">
+          <Pipeline
+            flow={draft}
+            events={events}
+            selection={selection}
+            onSelect={select}
+            onAddStep={draft.steps.length < 6
+              ? () => {
+                onChange((d) => { d.steps.push(newStep(d, events)) })
+                select({ _tag: "Step", index: draft.steps.length })
+              }
+              : null}
+          />
         </div>
-      </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-        <Pipeline
-          flow={draft}
-          events={events}
-          selection={selection}
-          onSelect={select}
-          onAddStep={draft.steps.length < 6
-            ? () => {
-              onChange((d) => { d.steps.push(newStep(d, events)) })
-              select({ _tag: "Step", index: draft.steps.length })
-            }
-            : null}
-        />
-
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+        <aside className="flex flex-col gap-6 border-t border-line p-4 md:p-6 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:border-t-0 lg:border-l">
           <Preview flow={draft} step={shown} onStep={(index) => select({ _tag: "Step", index })} />
-          <div className="rounded-2xl border border-line bg-panel p-5">
+          <div className="border-t border-line pt-6">
             {selection._tag === "Flow" && <FlowPanel flow={draft} onChange={onChange} />}
             {selection._tag === "End" && <EndPanel flow={draft} events={events} onChange={onChange} />}
             {selection._tag === "Step" && draft.steps[selection.index] && (
@@ -111,16 +121,6 @@ export function FlowEditor(props: {
           </div>
         </aside>
       </div>
-
-      {(props.dirty || props.isNew) && (
-        <div className="sticky bottom-4 z-40 flex flex-wrap items-center gap-3 rounded-2xl border border-white/12 bg-raised/95 px-4 py-3 shadow-2xl backdrop-blur">
-          <p className={`flex-1 text-sm ${problem ? "text-danger" : "text-muted"}`}>
-            {problem ?? (props.isNew ? "New flow, not saved yet." : "Unsaved changes.")}
-          </p>
-          <Button variant="ghost" onClick={props.onDiscard}>{props.isNew ? "Cancel" : "Discard"}</Button>
-          <Button disabled={problem !== null} onClick={props.onSave}>{props.isNew ? "Create the flow" : "Save"}</Button>
-        </div>
-      )}
-    </div>
+    </>
   )
 }

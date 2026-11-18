@@ -6,7 +6,7 @@ const join = (...classes: ReadonlyArray<string | false | null | undefined>) => c
 
 const buttonVariants = {
   primary: "bg-accent text-on-accent hover:brightness-110",
-  secondary: "bg-raised text-text hover:bg-white/12",
+  secondary: "bg-transparent text-text ring-1 ring-white/12 ring-inset hover:bg-white/6",
   ghost: "text-muted hover:bg-white/8 hover:text-text",
   danger: "text-danger ring-1 ring-danger/40 ring-inset hover:bg-danger/10"
 } as const
@@ -20,8 +20,8 @@ export function Button({ variant = "primary", size = "md", className, ...props }
       type="button"
       {...props}
       className={join(
-        "inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-semibold transition disabled:cursor-default disabled:opacity-40",
-        size === "md" ? "h-10 px-4 text-sm" : "h-8 px-3 text-[13px]",
+        "inline-flex shrink-0 items-center justify-center gap-2 rounded-lg font-semibold transition disabled:cursor-default disabled:opacity-40",
+        size === "md" ? "h-9 px-3.5 text-sm" : "h-8 px-3 text-[13px]",
         buttonVariants[variant],
         className
       )}
@@ -37,44 +37,32 @@ export function IconButton({ label, className, ...props }: ButtonHTMLAttributes<
       title={label}
       {...props}
       className={join(
-        "grid size-8 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-white/8 hover:text-text disabled:pointer-events-none disabled:opacity-25",
+        "grid size-9 shrink-0 place-items-center rounded-lg text-muted transition hover:bg-white/8 hover:text-text disabled:pointer-events-none disabled:opacity-25",
         className
       )}
     />
   )
 }
 
-export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children?: ReactNode }) {
+/** The bar at the top of every page: its title on the left, its actions on the right. */
+export function PageBar({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return (
-    <header className="flex flex-wrap items-end gap-4">
-      <div className="min-w-0 flex-1">
-        <h1 className="text-[28px] font-bold tracking-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
-      </div>
-      {children}
+    <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-bg/90 px-4 py-3 backdrop-blur md:px-6">
+      <div className="min-w-0 flex-1 text-xl font-semibold">{title}</div>
+      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </header>
   )
 }
 
-export function Card({ title, description, actions, className, children }: {
-  title?: ReactNode
-  description?: ReactNode
-  actions?: ReactNode
-  className?: string
-  children?: ReactNode
-}) {
+/** A settings row: what it is on the left, its controls on the right. */
+export function Section({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
   return (
-    <section className={join("flex flex-col gap-4 rounded-2xl border border-line bg-panel p-5", className)}>
-      {(title || actions) && (
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
-            {title && <h2 className="text-[17px] font-semibold">{title}</h2>}
-            {description && <p className="mt-1 text-sm text-muted">{description}</p>}
-          </div>
-          {actions}
-        </div>
-      )}
-      {children}
+    <section className="grid gap-4 border-b border-line px-4 py-6 md:grid-cols-[280px_minmax(0,1fr)] md:gap-8 md:px-6">
+      <div>
+        <h2 className="font-semibold">{title}</h2>
+        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">{children}</div>
     </section>
   )
 }
@@ -106,9 +94,9 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={join("relative h-7 w-12 shrink-0 rounded-full transition", checked ? "bg-ok" : "bg-white/15")}
+      className={join("relative h-5 w-9 shrink-0 rounded-full transition", checked ? "bg-ok" : "bg-white/15")}
     >
-      <span className={join("absolute top-0.5 size-6 rounded-full bg-white shadow transition-all", checked ? "left-[22px]" : "left-0.5")} />
+      <span className={join("absolute top-0.5 size-4 rounded-full bg-white shadow transition-all", checked ? "left-[18px]" : "left-0.5")} />
     </button>
   )
 }
