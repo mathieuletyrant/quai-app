@@ -40,7 +40,8 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
     ...(show.eta && v.remainingSeconds !== undefined ? { remainingSeconds: v.remainingSeconds } : {}),
     ...(show.timer && v.endsAt !== undefined ? { endsAt: seconds(v.endsAt) } : {}),
     ...(show.timer && v.startsAt !== undefined ? { startsAt: seconds(v.startsAt) } : {}),
-    ...(show.timer && v.paused !== undefined ? { paused: v.paused } : {}),
+    // Paused or not drives the label and the Play/Pause button, whatever the step shows.
+    ...(v.paused !== undefined ? { paused: v.paused } : {}),
     // A paused timeline holds where it is: the iPhone needs the fraction to draw it.
     ...(show.timer && !show.progress && v.paused === true && v.progress !== undefined ? { progress: v.progress } : {}),
     ...(show.since ? { since: seconds(v.since ?? activity.enteredAt) } : {}),

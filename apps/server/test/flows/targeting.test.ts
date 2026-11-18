@@ -83,4 +83,15 @@ describe("per-iPhone steps", () => {
     )
     expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", paused: true, progress: 0.25 })
   })
+
+  it("playback paused: sent even when the step doesn't show the countdown, for the label and the button", () => {
+    const withoutTimer = { ...playback, steps: playback.steps.map((s) => ({ ...s, show: {} })) }
+    const d = deliveryFor(
+      { _tag: "Update", activity: activity({ flowId: "playback", values: { paused: true, progress: 0.25 } }) },
+      withoutTimer,
+      { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: { flows: {} } },
+      0
+    )
+    expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", paused: true })
+  })
 })
