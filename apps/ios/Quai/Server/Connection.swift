@@ -106,16 +106,6 @@ final class Connection {
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
-
-    /// Asks the server to play a flow's steps on this iPhone only, through the real push path.
-    func sendTestActivity(flowId: String) async throws {
-        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
-        switch try await client.sendTestActivity(body: .json(.init(flowId: flowId))) {
-        case .noContent: return
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.server(404)
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
     }
 
     // MARK: Activities

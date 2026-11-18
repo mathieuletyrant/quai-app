@@ -144,7 +144,7 @@ for it, its activity starts at its first shown step, and `attributes.steps` list
 
 Flows page: list with on/off, edit (name, color, icon, filter, steps picked from the catalog for
 the flow's subject, what each step shows, linger, stall and expiry), duplicate, delete (custom
-flows), reset (built-in flows), and test (plays the flow's steps on every paired iPhone).
+flows), reset (built-in flows), and test (plays the flow's steps on the paired iPhones you pick). Each iPhone's own choices (which flows it shows, which steps) are in the app, under Settings → On this iPhone.
 
 ## What people can build
 

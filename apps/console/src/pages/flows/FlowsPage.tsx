@@ -1,14 +1,16 @@
-import type { Flow } from "@quai/api"
+import type { DeviceId, Flow } from "@quai/api"
 import { useCallback, useEffect, useState } from "react"
 import { call } from "../../client.ts"
 import { Button, errorText, type Notice, PageHeader, Toast } from "../../ui.tsx"
 import { type Catalogs, clone, type Draft, sameFlow, slug, subjects } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
 import { Glyph } from "./icons.tsx"
+import type { Phone } from "./TestMenu.tsx"
 
 /** The flows on the left, the one being edited on the right. */
 export function FlowsPage() {
   const [flows, setFlows] = useState<ReadonlyArray<Flow>>([])
+  const [phones, setPhones] = useState<ReadonlyArray<Phone>>([])
   const [catalogs, setCatalogs] = useState<Catalogs>({ events: [], actions: [] })
   /** The flow as saved; null while a new one is drafted. */
   const [original, setOriginal] = useState<Flow | null>(null)
@@ -27,12 +29,14 @@ export function FlowsPage() {
   }
 
   const load = async (select?: string) => {
-    const [all, events, actions] = await Promise.all([
+    const [all, events, actions, devices] = await Promise.all([
       call((c) => c.flows.list()),
       call((c) => c.flows.catalog()),
-      call((c) => c.flows.actions())
+      call((c) => c.flows.actions()),
+      call((c) => c.console.devices())
     ])
     setFlows(all)
+    setPhones(devices)
     setCatalogs({ events, actions })
     const chosen = all.find((f) => f.id === select) ?? all[0]
     if (chosen) open(chosen)
@@ -61,10 +65,10 @@ export function FlowsPage() {
     await load(saved.id)
   })
 
-  const test = () => run(async () => {
+  const test = (deviceIds: ReadonlyArray<DeviceId>) => run(async () => {
     if (draft === null) return
-    await call((c) => c.flows.test({ params: { id: draft.id } }))
-    setNotice({ ok: true, text: "Test sent to every paired iPhone: lock one to watch it (about 30 s)." })
+    await call((c) => c.flows.test({ params: { id: draft.id }, payload: { deviceIds } }))
+    setNotice({ ok: true, text: `Test sent to ${deviceIds.length === 1 ? "the iPhone" : `${deviceIds.length} iPhones`}: lock it to watch (about 30 s).` })
   })
 
   const remove = () => run(async () => {
@@ -95,8 +99,8 @@ export function FlowsPage() {
         title="Flows"
         subtitle="What starts a Live Activity, the steps it goes through and what each one shows. Each iPhone then picks its own steps."
       />
-      <div className="flex flex-col items-start gap-6 lg:flex-row">
-        <nav aria-label="Flows" className="flex w-full shrink-0 flex-col gap-1 rounded-2xl border border-line bg-panel p-2 lg:sticky lg:top-6 lg:w-64">
+      <div className="flex flex-col gap-6">
+        <nav aria-label="Flows" className="relative flex flex-wrap items-center gap-2 border-b border-line pb-4">
           {flows.map((f) => {
             const current = !isNew && draft?.id === f.id
             return (
@@ -105,58 +109,45 @@ export function FlowsPage() {
                 type="button"
                 aria-current={current}
                 onClick={() => { if (!current && leave()) open(f) }}
-                className="flex items-center gap-3 rounded-xl p-2.5 text-left transition hover:bg-white/5 aria-[current=true]:bg-raised"
+                className="flex h-10 items-center gap-2 rounded-full border border-line px-3.5 text-sm font-semibold text-muted transition hover:border-white/20 hover:text-text aria-[current=true]:border-white/25 aria-[current=true]:bg-raised aria-[current=true]:text-text"
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-black ring-1 ring-white/10">
-                  <Glyph name={f.icon} color={f.enabled ? f.color : "#5a5a60"} size={17} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className={`block truncate text-sm font-semibold ${f.enabled ? "" : "text-muted"}`}>{f.name}</span>
-                  <span className="block truncate text-xs text-muted">
-                    {subjects[f.subject].label} · {f.steps.length} {f.steps.length === 1 ? "step" : "steps"}{f.enabled ? "" : " · off"}
-                  </span>
-                </span>
-                {current && dirty && <span className="size-2 shrink-0 rounded-full bg-[#ffc230]" title="Unsaved changes" />}
+                <Glyph name={f.icon} color={f.enabled ? f.color : "#5a5a60"} size={15} />
+                {f.name}
+                {!f.enabled && <span className="text-xs font-normal text-muted">off</span>}
+                {current && dirty && <span className="size-2 rounded-full bg-[#ffc230]" title="Unsaved changes" />}
               </button>
             )
           })}
           {isNew && draft && (
-            <div aria-current="true" className="flex items-center gap-3 rounded-xl bg-raised p-2.5">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-black ring-1 ring-white/10">
-                <Glyph name={draft.icon} color={draft.color} size={17} />
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{draft.name || "New flow"}</span>
-              <span className="size-2 shrink-0 rounded-full bg-[#ffc230]" title="Not saved" />
+            <span aria-current="true" className="flex h-10 items-center gap-2 rounded-full border border-white/25 bg-raised px-3.5 text-sm font-semibold">
+              <Glyph name={draft.icon} color={draft.color} size={15} />
+              {draft.name || "New flow"}
+              <span className="size-2 rounded-full bg-[#ffc230]" title="Not saved" />
+            </span>
+          )}
+          <Button variant="ghost" aria-expanded={creating} onClick={() => setCreating(!creating)}>+ New flow</Button>
+          {creating && (
+            <div className="absolute top-12 z-30 flex w-80 flex-col gap-1 rounded-2xl border border-white/12 bg-raised p-2 shadow-2xl">
+              <p className="px-2.5 pt-1 pb-1 text-xs font-semibold text-muted">Start from</p>
+              {(Object.keys(subjects) as Array<Flow["subject"]>).map((s) => {
+                const base = flows.find((f) => f.subject === s && f.builtIn)
+                return base && (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => startNew(base, `My ${subjects[s].label.toLowerCase()}`)}
+                    className="flex items-start gap-3 rounded-xl p-2.5 text-left transition hover:bg-white/5"
+                  >
+                    <Glyph name={subjects[s].icon} color="#6fd3c2" size={17} />
+                    <span>
+                      <span className="block text-sm font-semibold">{subjects[s].label}</span>
+                      <span className="block text-xs text-muted">{subjects[s].description}</span>
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
-
-          <div className="mt-1 border-t border-line pt-2">
-            {creating
-              ? (
-                <div className="flex flex-col gap-1">
-                  <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-muted">Start from</p>
-                  {(Object.keys(subjects) as Array<Flow["subject"]>).map((s) => {
-                    const base = flows.find((f) => f.subject === s && f.builtIn)
-                    return base && (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => startNew(base, `My ${subjects[s].label.toLowerCase()}`)}
-                        className="flex items-start gap-3 rounded-xl p-2.5 text-left transition hover:bg-white/5"
-                      >
-                        <Glyph name={subjects[s].icon} color="#6fd3c2" size={17} />
-                        <span>
-                          <span className="block text-sm font-semibold">{subjects[s].label}</span>
-                          <span className="block text-xs text-muted">{subjects[s].description}</span>
-                        </span>
-                      </button>
-                    )
-                  })}
-                  <Button variant="ghost" size="sm" onClick={() => setCreating(false)}>Cancel</Button>
-                </div>
-              )
-              : <Button variant="ghost" className="w-full justify-start" onClick={() => setCreating(true)}>+ New flow</Button>}
-          </div>
         </nav>
 
         {draft && (
@@ -166,6 +157,7 @@ export function FlowsPage() {
             isNew={isNew}
             dirty={dirty}
             catalogs={catalogs}
+            phones={phones}
             onChange={(change) => {
               const next = clone(draft)
               change(next)

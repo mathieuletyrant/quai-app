@@ -82,7 +82,6 @@ export class InvalidAction extends Schema.TaggedError<InvalidAction>()("InvalidA
   message: Schema.String
 }, { httpApiStatus: 400 }) {}
 
-export const TestActivity = Schema.Struct({ flowId: Schema.String }).annotate({ identifier: "TestActivity" })
 
 export const RunningActivity = Schema.Struct({
   attributes: ActivityAttributes,
@@ -108,11 +107,6 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
   .add(
     HttpApiEndpoint.put("savePreferences", "/devices/me/preferences", { payload: DevicePreferences, success: DevicePreferences })
       .annotate(OpenApi.Identifier, "savePreferences")
-      .middleware(DeviceAuth)
-  )
-  .add(
-    HttpApiEndpoint.post("testActivity", "/devices/me/test-activity", { payload: TestActivity, error: HttpApiError.NotFound })
-      .annotate(OpenApi.Identifier, "sendTestActivity")
       .middleware(DeviceAuth)
   )
   .add(
@@ -190,10 +184,14 @@ export class PushGroup extends HttpApiGroup.make("push")
   .add(HttpApiEndpoint.delete("removePushKey", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "removePushKey"))
   .prefix("/console-api") {}
 
-
 export class InvalidFlow extends Schema.TaggedError<InvalidFlow>()("InvalidFlow", {
   message: Schema.String
 }, { httpApiStatus: 400 }) {}
+
+/** Which paired iPhones a flow's test plays on. */
+export const TestFlow = Schema.Struct({
+  deviceIds: Schema.Array(DeviceId).check(Schema.isMinLength(1))
+}).annotate({ identifier: "TestFlow" })
 
 /** Flows, from the console's Flows page. */
 export class FlowsGroup extends HttpApiGroup.make("flows")
@@ -216,7 +214,7 @@ export class FlowsGroup extends HttpApiGroup.make("flows")
       .annotate(OpenApi.Identifier, "resetFlow")
   )
   .add(
-    HttpApiEndpoint.post("test", "/flows/:id/test", { params: { id: Schema.String }, error: HttpApiError.NotFound })
+    HttpApiEndpoint.post("test", "/flows/:id/test", { params: { id: Schema.String }, payload: TestFlow, error: HttpApiError.NotFound })
       .annotate(OpenApi.Identifier, "testFlow")
   )
   .prefix("/console-api") {}

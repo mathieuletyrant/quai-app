@@ -227,55 +227,6 @@
         }
       }
     },
-    "/api/devices/me/test-activity": {
-      "post": {
-        "tags": [
-          "devices"
-        ],
-        "operationId": "sendTestActivity",
-        "parameters": [],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TestActivity"
-              }
-            }
-          },
-          "required": true
-        }
-      }
-    },
     "/api/flows": {
       "get": {
         "tags": [
@@ -838,6 +789,16 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestFlow"
+              }
+            }
+          },
+          "required": true
         }
       }
     }
@@ -856,6 +817,22 @@
         },
         "required": [
           "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "TestFlow": {
+        "type": "object",
+        "properties": {
+          "deviceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "deviceIds"
         ],
         "additionalProperties": false
       },
@@ -1455,18 +1432,6 @@
           "color",
           "icon",
           "steps"
-        ],
-        "additionalProperties": false
-      },
-      "TestActivity": {
-        "type": "object",
-        "properties": {
-          "flowId": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "flowId"
         ],
         "additionalProperties": false
       },

@@ -5,7 +5,6 @@ import { ActionRunner } from "../flows/ActionRunner.ts"
 import { Activities } from "../flows/Activities.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { attributesFor, contentFor, preferenceFor, visibleSteps } from "../flows/Targeting.ts"
-import { TestRunner } from "../flows/TestRunner.ts"
 import { Devices } from "../store/Devices.ts"
 
 export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handlers) =>
@@ -13,7 +12,6 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
     const devices = yield* Devices
     const activities = yield* Activities
     const flowStore = yield* FlowStore
-    const tests = yield* TestRunner
     const actions = yield* ActionRunner
     return handlers
       .handle("pair", ({ payload }) =>
@@ -51,12 +49,6 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
             icon: f.icon,
             steps: f.steps.map((s) => ({ id: s.id, label: s.label, icon: s.icon }))
           }))))
-      .handle("testActivity", ({ payload }) =>
-        Effect.gen(function*() {
-          const device = yield* CurrentDevice
-          const played = yield* tests.play(payload.flowId, device.id)
-          if (Option.isNone(played)) return yield* Effect.fail(new HttpApiError.NotFound())
-        }))
       .handle("action", ({ payload }) => actions.run(payload.key, payload.action))
       .handle("activities", () =>
         Effect.gen(function*() {

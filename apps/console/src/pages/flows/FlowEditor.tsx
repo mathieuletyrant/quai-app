@@ -1,10 +1,11 @@
-import { flowProblem } from "@quai/api"
+import { type DeviceId, flowProblem } from "@quai/api"
 import { useState } from "react"
 import { Badge, Button, Toggle } from "../../ui.tsx"
 import { type Catalogs, type Draft, newStep, stepActions, stepEvents, subjects } from "./draft.ts"
 import { EndPanel, FlowPanel, StepPanel } from "./Inspector.tsx"
 import { type Selection, Pipeline } from "./Pipeline.tsx"
 import { Preview } from "./Preview.tsx"
+import { type Phone, TestMenu } from "./TestMenu.tsx"
 
 /**
  * Edits one flow: the pipeline in the middle (what it follows, its steps, how it ends), and an
@@ -16,10 +17,11 @@ export function FlowEditor(props: {
   isNew: boolean
   dirty: boolean
   catalogs: Catalogs
+  phones: ReadonlyArray<Phone>
   onChange: (change: (d: Draft) => void) => void
   onSave: () => void
   onDiscard: () => void
-  onTest: () => void
+  onTest: (deviceIds: ReadonlyArray<DeviceId>) => void
   onDuplicate: () => void
   onRemove: () => void
 }) {
@@ -54,7 +56,7 @@ export function FlowEditor(props: {
         </span>
         {!props.isNew && (
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            <Button variant="secondary" size="sm" disabled={props.dirty} title={props.dirty ? "Save first" : undefined} onClick={props.onTest}>Test on the iPhones</Button>
+            <TestMenu phones={props.phones} disabled={props.dirty} onTest={props.onTest} />
             <Button variant="secondary" size="sm" onClick={props.onDuplicate}>Duplicate</Button>
             <Button variant="ghost" size="sm" className="hover:text-danger" onClick={props.onRemove}>{draft.builtIn ? "Reset" : "Delete"}</Button>
           </div>
