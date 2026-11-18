@@ -15,6 +15,7 @@ import { StackConfig } from "../src/stack/StackConfig.ts"
 import * as Database from "../src/store/Database.ts"
 import { Devices } from "../src/store/Devices.ts"
 import { Settings } from "../src/store/Settings.ts"
+import { StateStore } from "../src/store/StateStore.ts"
 import { fakeHttp } from "./fakeHttp.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -100,7 +101,7 @@ describe("end to end", () => {
           Layer.provideMerge(DownloadActivities.layer),
           Layer.provide(Layer.succeed(Apns, apns)),
           Layer.provide(Layer.mergeAll(QBittorrent.layer, Jellyfin.layer).pipe(Layer.provide([stackConfig, stack]))),
-          Layer.provideMerge(Layer.mergeAll(Devices.layer, Settings.layer)),
+          Layer.provideMerge(Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer)),
           Layer.provideMerge(Database.layerFile(":memory:")),
           Layer.provideMerge(NodeHttpServer.layerTest)
         )

@@ -16,6 +16,7 @@ import * as Database from "./store/Database.ts"
 import { Devices } from "./store/Devices.ts"
 import { PushKey } from "./store/PushKey.ts"
 import { Settings } from "./store/Settings.ts"
+import { StateStore } from "./store/StateStore.ts"
 import { ServerInfo } from "./Version.ts"
 
 // All configuration comes from environment variables: the image knows nothing about its host.
@@ -42,13 +43,13 @@ const Stack = Layer.mergeAll(QBittorrent.layer, Jellyfin.layer).pipe(
   Layer.provide(NodeHttpClient.layerUndici)
 )
 
-const Store = Layer.mergeAll(Devices.layer, Settings.layer).pipe(Layer.provideMerge(Database.layer))
+const Store = Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer).pipe(Layer.provideMerge(Database.layer))
 
 const Push = PushKey.layer.pipe(Layer.provideMerge(Apns.layer))
 
 const Engine = Watcher.layer.pipe(
   Layer.provideMerge(Notifier.layer),
-  Layer.provideMerge(DownloadActivities.layer),
+  Layer.provideMerge(DownloadActivities.layerPersisted),
   Layer.provideMerge(Push),
   Layer.provideMerge(Stack),
   Layer.provideMerge(Store)

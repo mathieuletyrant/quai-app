@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schedule } from "effect"
+import { StateStore } from "../store/StateStore.ts"
 import { Notifier } from "../push/Notifier.ts"
 import type { AvailabilityCheck } from "../stack/Availability.ts"
 import { Jellyfin } from "../stack/Jellyfin.ts"
@@ -23,13 +24,22 @@ export class Watcher extends Context.Service<Watcher, {
     const notifier = yield* Notifier
     const qbittorrent = yield* QBittorrent
     const jellyfin = yield* Jellyfin
-    const checks = new Map<string, AvailabilityCheck>()
+    const store = yield* StateStore
+    // What to look for in Jellyfin, per activity; saved so an import awaited before a restart still ends.
+    const stored = yield* store.load("availability-checks")
+    const checks = new Map<string, AvailabilityCheck>(
+      Array.isArray(stored) ? (stored as ReadonlyArray<AvailabilityCheck>).map((c) => [c.mediaKey, c]) : []
+    )
+    const saveChecks = store.save("availability-checks", [...checks.values()])
 
     const apply = (event: MediaEvent) => Effect.flatMap(engine.handle(event), notifier.send)
 
     const handle = (events: ReadonlyArray<MediaEvent>, check: AvailabilityCheck | null) =>
       Effect.gen(function*() {
-        if (check !== null) checks.set(check.mediaKey, check)
+        if (check !== null) {
+          checks.set(check.mediaKey, check)
+          yield* saveChecks
+        }
         yield* Effect.forEach(events, apply, { discard: true })
       })
 
@@ -59,7 +69,11 @@ export class Watcher extends Context.Service<Watcher, {
         )
       }
 
-      for (const key of checks.keys()) if (!activities.has(key)) checks.delete(key)
+      const stale = [...checks.keys()].filter((key) => !activities.has(key))
+      if (stale.length > 0) {
+        for (const key of stale) checks.delete(key)
+        yield* saveChecks
+      }
       yield* Effect.flatMap(engine.tick, notifier.send)
     })
 
