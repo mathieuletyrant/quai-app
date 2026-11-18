@@ -288,10 +288,160 @@
           }
         }
       }
+    },
+    "/console-api/push-settings": {
+      "get": {
+        "tags": [
+          "push"
+        ],
+        "operationId": "getPushSettings",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PushSettings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSettings"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "push"
+        ],
+        "operationId": "savePushKey",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PushSettings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSettings"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidPushKey",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidPushKeyEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePushKey"
+              }
+            }
+          },
+          "required": true
+        }
+      },
+      "delete": {
+        "tags": [
+          "push"
+        ],
+        "operationId": "removePushKey",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "PushSettings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSettings"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "PushSettings": {
+        "type": "object",
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "console",
+              "environment"
+            ]
+          },
+          "keyId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "topic"
+        ],
+        "additionalProperties": false
+      },
+      "InvalidPushKeyEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "InvalidPushKey"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "SavePushKey": {
+        "type": "object",
+        "properties": {
+          "keyPem": {
+            "type": "string"
+          },
+          "keyId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "keyPem",
+          "keyId",
+          "teamId"
+        ],
+        "additionalProperties": false
+      },
       "effect_HttpApiError_NotFoundEncoded": {
         "type": "object",
         "properties": {
@@ -573,6 +723,9 @@
     },
     {
       "name": "console"
+    },
+    {
+      "name": "push"
     }
   ]
 }

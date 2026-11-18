@@ -14,6 +14,7 @@ import { WebhookSetupLive } from "./stack/Setup.ts"
 import { StackConfig } from "./stack/StackConfig.ts"
 import * as Database from "./store/Database.ts"
 import { Devices } from "./store/Devices.ts"
+import { PushKey } from "./store/PushKey.ts"
 import { Settings } from "./store/Settings.ts"
 import { ServerInfo } from "./Version.ts"
 
@@ -43,10 +44,12 @@ const Stack = Layer.mergeAll(QBittorrent.layer, Jellyfin.layer).pipe(
 
 const Store = Layer.mergeAll(Devices.layer, Settings.layer).pipe(Layer.provideMerge(Database.layer))
 
+const Push = PushKey.layer.pipe(Layer.provideMerge(Apns.layer))
+
 const Engine = Watcher.layer.pipe(
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(DownloadActivities.layer),
-  Layer.provide(Apns.layer),
+  Layer.provideMerge(Push),
   Layer.provideMerge(Stack),
   Layer.provideMerge(Store)
 )

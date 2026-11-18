@@ -45,3 +45,8 @@ h2 { margin: 0; font-size: 17px; }
   .nav { max-width: none; border-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
   main { padding: 20px 16px 40px; }
 }
+.form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); }
+.field input { height: 44px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.12); background: #16161c; color: var(--text); font: inherit; font-size: 15px; font-weight: 400; padding: 0 12px; }
+.field input[type="file"] { padding: 10px 12px; height: auto; }
+.button:disabled { opacity: 0.4; cursor: default; }

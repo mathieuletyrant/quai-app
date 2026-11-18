@@ -31,7 +31,7 @@ export class Notifier extends Context.Service<Notifier, {
 
       const one = (push: Push) =>
         Effect.gen(function*() {
-          if (!apns.configured) return
+          if (!(yield* apns.configured)) return
           const mediaKey = push._tag === "Start" ? push.attributes.mediaKey : push.mediaKey
           const priority = apnsPriority(push, lastStep.get(mediaKey) ?? null)
           if (push._tag === "End") lastStep.delete(mediaKey)

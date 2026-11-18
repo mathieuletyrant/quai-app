@@ -97,3 +97,34 @@ export class ConsoleGroup extends HttpApiGroup.make("console")
   .add(HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }).annotate(OpenApi.Identifier, "listDevices"))
   .add(HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound }).annotate(OpenApi.Identifier, "removeDevice"))
   .prefix("/console-api") {}
+
+export const PushSettings = Schema.Struct({
+  configured: Schema.Boolean,
+  /** Where the key comes from: saved in the console, or the `QUAI_APNS_*` environment variables. */
+  source: Schema.optionalKey(Schema.Literals(["console", "environment"])),
+  keyId: Schema.optionalKey(Schema.String),
+  teamId: Schema.optionalKey(Schema.String),
+  /** The iOS app's bundle id the pushes target. */
+  topic: Schema.String
+}).annotate({ identifier: "PushSettings" })
+
+export const SavePushKey = Schema.Struct({
+  /** The .p8 file's text, as Apple gives it. Never sent back. */
+  keyPem: Schema.String,
+  keyId: Schema.String,
+  teamId: Schema.String
+}).annotate({ identifier: "SavePushKey" })
+
+export class InvalidPushKey extends Schema.TaggedError<InvalidPushKey>()("InvalidPushKey", {
+  message: Schema.String
+}, { httpApiStatus: 400 }) {}
+
+/** The Apple push key, set from the console's Settings. */
+export class PushGroup extends HttpApiGroup.make("push")
+  .add(HttpApiEndpoint.get("pushSettings", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "getPushSettings"))
+  .add(
+    HttpApiEndpoint.put("savePushKey", "/push-settings", { payload: SavePushKey, success: PushSettings, error: InvalidPushKey })
+      .annotate(OpenApi.Identifier, "savePushKey")
+  )
+  .add(HttpApiEndpoint.delete("removePushKey", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "removePushKey"))
+  .prefix("/console-api") {}

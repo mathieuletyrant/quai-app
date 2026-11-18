@@ -60,7 +60,7 @@ Open http://localhost:8787. Quai must share a Docker network with the *arr apps 
 | `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | – | Sonarr |
 | `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | – | qBittorrent Web UI (user and password optional with its local auth bypass) |
 | `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | – | Jellyfin, to know when a title is ready |
-| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities |
+| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities. Easier: upload it in the console, where it's stored encrypted and wins over these |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The iOS app's bundle id |
 
 The console's guided setup will replace most of these.

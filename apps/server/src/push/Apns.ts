@@ -1,6 +1,5 @@
 import type { ApnsEnvironment } from "@quai/api"
-import { Clock, Config, Context, Data, Effect, Layer, Option, Redacted, Ref } from "effect"
-import { existsSync, readFileSync } from "node:fs"
+import { Clock, Context, Data, Effect, Exit, Layer, Redacted, Ref, Scope } from "effect"
 import * as http2 from "node:http2"
 import { signApnsJwt } from "./ApnsJwt.ts"
 
@@ -34,15 +33,49 @@ export interface ApnsRequest {
 /** Refresh the provider token every 50 minutes (APNs rejects tokens older than an hour). */
 const jwtLifetimeMs = 50 * 60_000
 
-export class Apns extends Context.Service<Apns, {
+interface ApnsClient {
   readonly configured: boolean
   readonly send: (request: ApnsRequest) => Effect.Effect<void, ApnsError>
+}
+
+export class Apns extends Context.Service<Apns, {
+  readonly configured: Effect.Effect<boolean>
+  readonly send: (request: ApnsRequest) => Effect.Effect<void, ApnsError>
+  /** Switches to another key (or none) at once: the console's Settings page saves one. */
+  readonly use: (credentials: ApnsCredentials | null) => Effect.Effect<void>
 }>()("quai/Apns") {
-  /**
-   * One HTTP/2 session per APNs server, opened on first use and reopened when it drops. `hosts`
-   * is overridable so tests can point it at a local fake.
-   */
+  /** Starts with `credentials`; `hosts` is overridable so tests can point it at a local fake. */
   static readonly make = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvironment, string> = apnsHosts) =>
+    Effect.gen(function*() {
+      const parent = yield* Scope.Scope
+      const start = (credentials: ApnsCredentials | null) =>
+        Effect.gen(function*() {
+          const scope = yield* Scope.fork(parent)
+          const client = yield* makeClient(credentials, hosts).pipe(Scope.provide(scope))
+          return { client, scope }
+        })
+      const current = yield* Ref.make(yield* start(credentials))
+      return {
+        configured: Effect.map(Ref.get(current), ({ client }) => client.configured),
+        send: (request: ApnsRequest) => Effect.flatMap(Ref.get(current), ({ client }) => client.send(request)),
+        use: (credentials: ApnsCredentials | null) =>
+          Effect.gen(function*() {
+            const next = yield* start(credentials)
+            const previous = yield* Ref.getAndSet(current, next)
+            yield* Scope.close(previous.scope, Exit.void)
+          })
+      }
+    })
+
+  /** Starts with no key; `PushKey` loads the saved one, or the environment's, on start. */
+  static readonly layer = Layer.effect(Apns, Apns.make(null))
+}
+
+/**
+ * One HTTP/2 session per APNs server, opened on first use and reopened when it drops. The sessions
+ * close with the scope, when the key changes.
+ */
+const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvironment, string>) =>
     Effect.gen(function*() {
       if (credentials === null) {
         return {
@@ -122,29 +155,6 @@ export class Apns extends Context.Service<Apns, {
 
       return { configured: true, send }
     })
-
-  /** From `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID`, `QUAI_APNS_TOPIC`. */
-  static readonly layer = Layer.effect(
-    Apns,
-    Effect.gen(function*() {
-      const file = yield* Config.option(Config.String("QUAI_APNS_KEY_FILE"))
-      const inline = yield* Config.option(Config.Redacted("QUAI_APNS_KEY"))
-      const keyId = yield* Config.option(Config.String("QUAI_APNS_KEY_ID"))
-      const teamId = yield* Config.option(Config.String("QUAI_APNS_TEAM_ID"))
-      const topic = yield* Config.String("QUAI_APNS_TOPIC").pipe(Config.withDefault("com.mathieuletyrant.quai"))
-      // A key file that isn't there yet (not dropped in the data folder) means "no pushes", not a crash.
-      const keyPem = Option.isSome(inline)
-        ? Option.some(inline.value)
-        : Option.flatMap(file, (path) =>
-          existsSync(path) ? Option.some(Redacted.make(readFileSync(path, "utf8"))) : Option.none())
-      const credentials = Option.isSome(keyPem) && Option.isSome(keyId) && Option.isSome(teamId)
-        ? { keyPem: keyPem.value, keyId: keyId.value, teamId: teamId.value, topic }
-        : null
-      if (credentials === null) yield* Effect.logInfo("No APNs key: Live Activities won't be pushed")
-      return yield* Apns.make(credentials)
-    })
-  )
-}
 
 const parseReason = (body: string) => {
   try {
