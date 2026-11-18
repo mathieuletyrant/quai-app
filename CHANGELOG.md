@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/mathieuletyrant/quai-app/compare/v0.1.0...v0.2.0) (2026-11-18)
+
+
+### ✨ Features
+
+* Download Live Activity, end to end (milestone 2) ([d488c85](https://github.com/mathieuletyrant/quai-app/commit/d488c85361432091942ca184149212cb0bf920e1))
+
 ## 0.1.0 (2026-11-18)
 
 
