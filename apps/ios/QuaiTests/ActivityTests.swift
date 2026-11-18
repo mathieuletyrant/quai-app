@@ -19,7 +19,7 @@ struct ActivityStateTests {
     }
 
     @Test func decodesTheAttributes() throws {
-        let json = #"{"key":"download|movie:tmdb:1","flowId":"download","title":"Dune","color":"#FFC230","icon":"arrow.down","steps":[{"id":"downloading","label":"Downloading","icon":"arrow.down"},{"id":"available","label":"Ready to watch","icon":"checkmark"}]}"#
+        let json = ##"{"key":"download|movie:tmdb:1","flowId":"download","title":"Dune","color":"#FFC230","icon":"arrow.down","steps":[{"id":"downloading","label":"Downloading","icon":"arrow.down"},{"id":"available","label":"Ready to watch","icon":"checkmark"}]}"##
         let attributes = try JSONDecoder().decode(QuaiActivityAttributes.self, from: Data(json.utf8))
         #expect(attributes.steps.map(\.id) == ["downloading", "available"])
     }
