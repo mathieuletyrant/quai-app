@@ -28,7 +28,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - `effect` and `@effect/*` are pinned to **4.1.4** through the `catalog:` in `pnpm-workspace.yaml`. Never bump them unasked: `effect/http`, `effect/http-api` and `effect/sql` are marked unstable.
 - Reference docs: https://effect.website/llms.txt (v4). When unsure of a signature, read the `.d.ts` files in `node_modules/effect/dist/`.
 - One service = one `Context.Service` + one `Layer` (`static readonly layer`). One `Layer` per *arr service.
-- Errors: `Data.TaggedError` (or `Schema.TaggedErrorClass` when they cross the API). No `throw`.
+- Errors: `Data.TaggedError` (or `Schema.TaggedError` when they cross the API). No `throw`.
 - No bare `Promise` or `async` on the server: everything is an `Effect`. `Promise` is only allowed at the console's React boundary.
 - Time goes through `Clock` (never `Date.now()` in logic) so `TestClock` works. One exception: the start time in `ServerInfo.layer`.
 - In `HttpApiBuilder.group`, get services in the outer `Effect.gen`, not inside each handler.

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
+    "@effect/sql-sqlite-node": "catalog:",
     "@quai/api": "workspace:*",
     "effect": "catalog:"
   },
