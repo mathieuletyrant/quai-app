@@ -1,6 +1,6 @@
 import type { ApnsEnvironment } from "@quai/api"
 import { Clock, Config, Context, Data, Effect, Layer, Option, Redacted, Ref } from "effect"
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import * as http2 from "node:http2"
 import { signApnsJwt } from "./ApnsJwt.ts"
 
@@ -132,12 +132,15 @@ export class Apns extends Context.Service<Apns, {
       const keyId = yield* Config.option(Config.String("QUAI_APNS_KEY_ID"))
       const teamId = yield* Config.option(Config.String("QUAI_APNS_TEAM_ID"))
       const topic = yield* Config.String("QUAI_APNS_TOPIC").pipe(Config.withDefault("cc.cheztomy.Quai"))
+      // A key file that isn't there yet (not dropped in the data folder) means "no pushes", not a crash.
       const keyPem = Option.isSome(inline)
         ? Option.some(inline.value)
-        : Option.map(file, (path) => Redacted.make(readFileSync(path, "utf8")))
+        : Option.flatMap(file, (path) =>
+          existsSync(path) ? Option.some(Redacted.make(readFileSync(path, "utf8"))) : Option.none())
       const credentials = Option.isSome(keyPem) && Option.isSome(keyId) && Option.isSome(teamId)
         ? { keyPem: keyPem.value, keyId: keyId.value, teamId: teamId.value, topic }
         : null
+      if (credentials === null) yield* Effect.logInfo("No APNs key: Live Activities won't be pushed")
       return yield* Apns.make(credentials)
     })
   )
