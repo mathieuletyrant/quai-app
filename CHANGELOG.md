@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.1](https://github.com/mathieuletyrant/quai-app/compare/v0.3.0...v0.3.1) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* **ios:** app icon, iPhone only, portrait ([ab4a20a](https://github.com/mathieuletyrant/quai-app/commit/ab4a20a7ad5f4909fac3bac24cfb540e587be874))
+* **ios:** declare every orientation ([358f704](https://github.com/mathieuletyrant/quai-app/commit/358f70460c692213095d499f520e2a17ce44cbb1))
+* **ios:** take the version and build number from the build settings ([b2b4dcd](https://github.com/mathieuletyrant/quai-app/commit/b2b4dcd572a60d9470a42d3904d76708d77b65df))
+
 ## [0.3.0](https://github.com/mathieuletyrant/quai-app/compare/v0.2.2...v0.3.0) (2026-11-18)
 
 
