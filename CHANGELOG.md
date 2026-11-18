@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/mathieuletyrant/quai-app/compare/v0.3.1...v0.3.2) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* **server:** progressive qBittorrent login backoff ([d071413](https://github.com/mathieuletyrant/quai-app/commit/d071413276275c9d2c34928676130d596f37813a))
+* **server:** qBittorrent 5 session cookie, and no login storm ([3586304](https://github.com/mathieuletyrant/quai-app/commit/358630483e6895cd40207254cf936d37bbae9108))
+
 ## [0.3.1](https://github.com/mathieuletyrant/quai-app/compare/v0.3.0...v0.3.1) (2026-11-18)
 
 
