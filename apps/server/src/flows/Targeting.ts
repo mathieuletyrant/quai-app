@@ -1,4 +1,4 @@
-import type { ActivityAttributes, ActivityContent, DevicePreferences, Flow, FlowPreference } from "@quai/api"
+import { type ActivityAttributes, type ActivityContent, type DevicePreferences, type Flow, type FlowPreference, type StepShow, stepShows } from "@quai/api"
 import type { Activity, Push } from "./Engine.ts"
 
 export const preferenceFor = (preferences: DevicePreferences, flowId: string): FlowPreference =>
@@ -31,7 +31,11 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
   const index = visibleSteps(flow, preference).indexOf(step)
   if (index < 0) return null
   const v = activity.values
-  const show = step.show
+  // Only what this kind of flow can show, whatever an older saved flow asks for: a playback
+  // step with Progress would otherwise keep the last paused fraction over the countdown.
+  const show = Object.fromEntries(
+    Object.entries(step.show).filter(([key]) => (stepShows[flow.subject] as ReadonlyArray<string>).includes(key))
+  ) as StepShow
   return {
     step: index,
     tone: activity.endedAt !== null ? "done" : activity.tone,
