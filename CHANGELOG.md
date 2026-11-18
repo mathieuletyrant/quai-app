@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/mathieuletyrant/quai-app/compare/v0.3.4...v0.4.0) (2026-11-18)
+
+
+### ✨ Features
+
+* choose the Live Activity's steps on each iPhone, with a test button, and a redesign ([#11](https://github.com/mathieuletyrant/quai-app/issues/11)) ([66e207e](https://github.com/mathieuletyrant/quai-app/commit/66e207e587b07e317c22c4dc4d0fcd6696b3815a))
+* flows — build your own Live Activities ([#13](https://github.com/mathieuletyrant/quai-app/issues/13)) ([93114c6](https://github.com/mathieuletyrant/quai-app/commit/93114c6c92a677e0ea55bf4c9153e6f02ae1cc2b))
+
 ## [0.3.4](https://github.com/mathieuletyrant/quai-app/compare/v0.3.3...v0.3.4) (2026-11-18)
 
 
