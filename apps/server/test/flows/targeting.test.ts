@@ -104,4 +104,15 @@ describe("per-iPhone steps", () => {
     expect(deliveryFor({ _tag: "End", activity: activity({ flowId: "playback" }) }, playback, target, 0)._tag).toBe("None")
     expect(deliveryFor(at({}, 2), download, { ...target, dismissed: { stepIndex: 1, paused: null } }, 0)._tag).toBe("Start")
   })
+
+  it("playback ignores an old Progress setting: the countdown stays, with no stale fraction", () => {
+    const withProgress = { ...playback, steps: playback.steps.map((s) => ({ ...s, show: { ...s.show, progress: true } })) }
+    const d = deliveryFor(
+      { _tag: "Update", activity: activity({ flowId: "playback", values: { paused: false, progress: 0, startsAt: 20_000, endsAt: 120_000 } }) },
+      withProgress,
+      { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: { flows: {} } },
+      0
+    )
+    expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", endsAt: 120, startsAt: 20, paused: false })
+  })
 })
