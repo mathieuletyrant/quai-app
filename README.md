@@ -7,7 +7,7 @@
 **Your self-hosted media stack, live on your iPhone.**
 Every movie or series followed from request to "ready to watch", on the Lock Screen and in the Dynamic Island.
 
-[![Image](https://img.shields.io/badge/ghcr.io-mathieuletyrant%2Fquai-f2b45a?logo=docker&logoColor=white)](https://github.com/mathieuletyrant/quai-app/pkgs/container/quai)
+[![Image](https://img.shields.io/badge/ghcr.io-mathieuletyrant%2Fquai-6FD3C2?logo=docker&logoColor=white)](https://github.com/mathieuletyrant/quai-app/pkgs/container/quai)
 ![Effect](https://img.shields.io/badge/Effect-4.1-14161c)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
 ![Swift](https://img.shields.io/badge/SwiftUI-iOS%2026-f05138?logo=swift&logoColor=white)
