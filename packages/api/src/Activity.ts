@@ -132,6 +132,7 @@ export const CatalogAction = Schema.Struct({
   label: Schema.String,
   service: ServiceName
 }).annotate({ identifier: "CatalogAction" })
+export type CatalogAction = typeof CatalogAction.Type
 
 /** A catalog entry, for the console's step picker. */
 export const CatalogEvent = Schema.Struct({
@@ -143,3 +144,4 @@ export const CatalogEvent = Schema.Struct({
   /** The services that produce it. */
   services: Schema.Array(ServiceName)
 }).annotate({ identifier: "CatalogEvent" })
+export type CatalogEvent = typeof CatalogEvent.Type

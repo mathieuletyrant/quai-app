@@ -3,6 +3,7 @@ import { DateTime } from "effect"
 import QRCode from "qrcode"
 import { useCallback, useEffect, useState } from "react"
 import { call } from "../client.ts"
+import { Badge, Button, Card, errorText, PageHeader } from "../ui.tsx"
 
 interface DeviceRow {
   readonly id: DeviceId
@@ -36,7 +37,7 @@ function PairIphone({ onPaired }: { onPaired: () => void }) {
       const qrSvg = await QRCode.toString(result.link, { type: "svg", margin: 0, errorCorrectionLevel: "M" })
       setPairing({ code: result.code, expiresAt: DateTime.toEpochMillis(result.expiresAt), qrSvg })
     } catch (e) {
-      setError(String(e))
+      setError(errorText(e))
     }
   }
 
@@ -52,30 +53,21 @@ function PairIphone({ onPaired }: { onPaired: () => void }) {
   const left = pairing === null ? 0 : Math.max(0, Math.round((pairing.expiresAt - now) / 1000))
 
   return (
-    <section className="panel" aria-labelledby="pair">
-      <h2 id="pair">Pair an iPhone</h2>
-      {pairing === null || left === 0
-        ? (
-          <div className="row">
-            <p className="grow muted" style={{ margin: 0 }}>
-              One code per iPhone. It works once, for 10 minutes.
-            </p>
-            <button type="button" className="button" onClick={start}>Show a QR code</button>
+    <Card title="Pair an iPhone" description={pairing === null || left === 0 ? "One code per iPhone. It works once, for 10 minutes." : undefined}
+      actions={(pairing === null || left === 0) && <Button onClick={start}>Show a QR code</Button>}>
+      {pairing !== null && left > 0 && (
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="size-[216px] rounded-2xl bg-white p-3" role="img" aria-label="Pairing QR code" dangerouslySetInnerHTML={{ __html: pairing.qrSvg }} />
+          <div className="flex flex-col gap-2.5">
+            <p>Open Quai on the iPhone and scan this code.</p>
+            <p className="text-muted">Or type it in the app:</p>
+            <p className="font-mono text-[22px] tracking-[3px]">{pairing.code}</p>
+            <p className="text-muted">Expires in {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</p>
           </div>
-        )
-        : (
-          <div className="pair">
-            <div className="qr" role="img" aria-label="Pairing QR code" dangerouslySetInnerHTML={{ __html: pairing.qrSvg }} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <p style={{ margin: 0 }}>Open Quai on the iPhone and scan this code.</p>
-              <p className="muted" style={{ margin: 0 }}>Or type it in the app:</p>
-              <p className="code" style={{ margin: 0 }}>{pairing.code}</p>
-              <p className="muted" style={{ margin: 0 }}>Expires in {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}</p>
-            </div>
-          </div>
-        )}
-      {error && <p role="alert" style={{ margin: 0, color: "var(--danger)" }}>{error}</p>}
-    </section>
+        </div>
+      )}
+      {error && <p role="alert" className="text-danger">{error}</p>}
+    </Card>
   )
 }
 
@@ -84,7 +76,7 @@ export function IphonesPage() {
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(() => {
-    call((c) => c.console.devices()).then(setDevices, (e: unknown) => setError(String(e)))
+    call((c) => c.console.devices()).then(setDevices, (e: unknown) => setError(errorText(e)))
   }, [])
 
   useEffect(() => refresh(), [refresh])
@@ -96,32 +88,26 @@ export function IphonesPage() {
 
   return (
     <>
-      <div>
-        <h1>iPhones</h1>
-        <p className="muted" style={{ margin: "6px 0 0" }}>{devices.length} paired</p>
-      </div>
-      {error && <p role="alert" style={{ color: "var(--danger)" }}>{error}</p>}
+      <PageHeader title="iPhones" subtitle={`${devices.length} paired`} />
+      {error && <p role="alert" className="text-danger">{error}</p>}
       <PairIphone onPaired={refresh} />
-      <section className="panel" aria-labelledby="devices">
-        <h2 id="devices">Paired iPhones</h2>
-        <div>
-          {devices.length === 0 && <p className="muted" style={{ margin: 0 }}>None yet.</p>}
+      <Card title="Paired iPhones">
+        {devices.length === 0 && <p className="text-muted">None yet.</p>}
+        <ul className="divide-y divide-line">
           {devices.map((d) => (
-            <div className="row" key={d.id}>
-              <div className="grow">
-                <p style={{ margin: 0, fontWeight: 600 }}>{d.name}</p>
-                <p className="muted" style={{ margin: "2px 0 0", fontSize: 13 }}>
+            <li key={d.id} className="flex flex-wrap items-center gap-3 py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">{d.name}</p>
+                <p className="mt-0.5 text-[13px] text-muted">
                   {d.canStartActivities ? "Live Activities allowed" : "Live Activities not allowed yet"} · {ago(d.lastSeenAt)}
                 </p>
               </div>
-              <span className="pill">{d.apnsEnvironment === "development" ? "Xcode build" : "TestFlight"}</span>
-              <button type="button" className="button danger" onClick={() => remove(d.id)} aria-label={`Remove ${d.name}`}>
-                Remove
-              </button>
-            </div>
+              <Badge>{d.apnsEnvironment === "development" ? "Xcode build" : "TestFlight"}</Badge>
+              <Button variant="danger" size="sm" aria-label={`Remove ${d.name}`} onClick={() => remove(d.id)}>Remove</Button>
+            </li>
           ))}
-        </div>
-      </section>
+        </ul>
+      </Card>
     </>
   )
 }

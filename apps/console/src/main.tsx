@@ -2,23 +2,15 @@ import type { Health } from "@quai/api"
 import { StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { call } from "./client.ts"
-import { FlowsPage } from "./pages/Flows.tsx"
+import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
-import { PushKeyPanel } from "./pages/Settings.tsx"
+import { SettingsPage } from "./pages/Settings.tsx"
 import "./styles.css"
 
 const pages = {
   iphones: { label: "iPhones", render: () => <IphonesPage /> },
   flows: { label: "Flows", render: () => <FlowsPage /> },
-  settings: {
-    label: "Settings",
-    render: () => (
-      <>
-        <h1>Settings</h1>
-        <PushKeyPanel />
-      </>
-    )
-  }
+  settings: { label: "Settings", render: () => <SettingsPage /> }
 } as const
 type Page = keyof typeof pages
 
@@ -40,17 +32,32 @@ function App() {
   }, [])
 
   return (
-    <div className="layout">
-      <nav className="nav" aria-label="Console">
-        <div className="brand"><img src="/icon.svg" alt="" />Quai</div>
+    <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col md:flex-row">
+      <nav
+        aria-label="Console"
+        className="flex shrink-0 flex-row items-center gap-1 border-b border-line px-4 py-3 md:sticky md:top-0 md:h-screen md:w-60 md:flex-col md:items-stretch md:border-r md:border-b-0 md:py-6"
+      >
+        <div className="mr-3 flex items-center gap-2.5 px-3 text-lg font-bold md:mr-0 md:pb-5">
+          <img src="/icon.svg" alt="" className="size-[30px] rounded-[9px]" />
+          Quai
+        </div>
         {(Object.keys(pages) as Array<Page>).map((p) => (
-          <a key={p} className="nav-link" href={`#${p}`} aria-current={page === p ? "page" : undefined}>{pages[p].label}</a>
+          <a
+            key={p}
+            href={`#${p}`}
+            aria-current={page === p ? "page" : undefined}
+            className="flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-[#c7c7cc] transition hover:text-text aria-[current=page]:bg-raised aria-[current=page]:text-text"
+          >
+            {pages[p].label}
+          </a>
         ))}
-        <p className="muted nav-foot">
-          {health ? <><span className="dot" style={{ background: "var(--ok)" }} /> Quai {health.version}</> : down ? "Server unreachable" : "…"}
+        <p className="ml-auto hidden items-center gap-2 px-3 text-[13px] text-muted sm:flex md:mt-auto md:ml-0 md:pt-6">
+          {health
+            ? <><span className="size-2 rounded-full bg-ok" /> Quai {health.version}</>
+            : down ? <><span className="size-2 rounded-full bg-danger" /> Server unreachable</> : "…"}
         </p>
       </nav>
-      <main>{pages[page].render()}</main>
+      <main className="flex min-w-0 flex-1 flex-col gap-6 px-4 pt-6 pb-12 md:px-8 md:pt-7">{pages[page].render()}</main>
     </div>
   )
 }
