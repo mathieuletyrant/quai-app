@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/mathieuletyrant/quai-app/compare/v0.2.0...v0.2.1) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* **server:** start without the APNs key file ([eae33f1](https://github.com/mathieuletyrant/quai-app/commit/eae33f16c89d2570ab70d330264e119f025d0ec6))
+
 ## [0.2.0](https://github.com/mathieuletyrant/quai-app/compare/v0.1.0...v0.2.0) (2026-11-18)
 
 
