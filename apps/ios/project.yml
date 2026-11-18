@@ -25,6 +25,9 @@ targets:
   Quai:
     type: application
     platform: iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cc.cheztomy.Quai
     sources:
       - Quai
       - Shared
@@ -51,6 +54,9 @@ targets:
   QuaiWidgets:
     type: app-extension
     platform: iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cc.cheztomy.Quai.Widgets
     sources:
       - QuaiWidgets
       - Shared
