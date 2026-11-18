@@ -33,6 +33,10 @@ export const migrations = Migrator.fromRecord({
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     )`
+  }),
+  "0002_device_preferences": Effect.gen(function*() {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`ALTER TABLE devices ADD COLUMN preferences TEXT`
   })
 })
 

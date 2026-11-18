@@ -6,6 +6,7 @@ import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
 import { Apns } from "../src/push/Apns.ts"
+import { Notifier } from "../src/push/Notifier.ts"
 import { PushKey } from "../src/store/PushKey.ts"
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -20,6 +21,7 @@ const pushKey = Layer.effect(PushKey, Effect.suspend(() => PushKey.make(join(mkd
 
 export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, ConsoleHandlers, PushHandlers).pipe(
   Layer.provideMerge(DeviceAuthLive),
+  Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Layer.mergeAll(Devices.layer, DownloadActivities.layer, pushKey)),
   Layer.provideMerge(Apns.layer),
   Layer.provideMerge(Database.layerFile(":memory:")),

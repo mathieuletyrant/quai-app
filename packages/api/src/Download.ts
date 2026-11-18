@@ -21,6 +21,24 @@ export type DownloadContentState = typeof DownloadContentState.Type
 /** Fixed for the activity's life. Pushed as APNs `attributes` on start. */
 export const DownloadAttributes = Schema.Struct({
   mediaKey: Schema.String,
-  title: Schema.String
+  title: Schema.String,
+  /** The steps this activity shows, in order, for the iPhone's stepper. `available` is always last. */
+  steps: Schema.optionalKey(Schema.Array(DownloadStep))
 }).annotate({ identifier: "DownloadAttributes" })
 export type DownloadAttributes = typeof DownloadAttributes.Type
+
+/** How the Download Live Activity behaves on one iPhone (app → Settings → Live Activities). */
+export const DownloadPreferences = Schema.Struct({
+  enabled: Schema.Boolean,
+  /** Steps that get a push. `available` is always shown: it ends the activity. */
+  steps: Schema.Array(DownloadStep),
+  /** How long the activity stays on the Lock Screen once the title is ready. */
+  lingerMinutes: Schema.Literals([15, 60])
+}).annotate({ identifier: "DownloadPreferences" })
+export type DownloadPreferences = typeof DownloadPreferences.Type
+
+export const defaultDownloadPreferences: DownloadPreferences = {
+  enabled: true,
+  steps: ["searching", "downloading", "importing", "available"],
+  lingerMinutes: 15
+}

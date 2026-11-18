@@ -68,3 +68,20 @@ describe("pairing", () => {
       expect(list.map((a) => [a.attributes.title, a.content.step])).toEqual([["Dune", "searching"]])
     }).pipe(Effect.provide(TestApp)))
 })
+
+describe("preferences", () => {
+  it.effect("each iPhone keeps its own, with every step by default", () =>
+    Effect.gen(function*() {
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      const phone = yield* signedIn(token)
+      expect(yield* phone.devices.preferences()).toEqual({
+        download: { enabled: true, steps: ["searching", "downloading", "importing", "available"], lingerMinutes: 15 }
+      })
+      const saved = yield* phone.devices.savePreferences({
+        payload: { download: { enabled: true, steps: ["downloading", "available"], lingerMinutes: 60 } }
+      })
+      expect(saved.download.lingerMinutes).toBe(60)
+      expect((yield* phone.devices.preferences()).download.steps).toEqual(["downloading", "available"])
+    }).pipe(Effect.provide(TestApp)))
+})

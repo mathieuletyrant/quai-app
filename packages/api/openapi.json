@@ -147,6 +147,115 @@
         }
       }
     },
+    "/api/devices/me/preferences": {
+      "get": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "getPreferences",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DevicePreferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicePreferences"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "savePreferences",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DevicePreferences",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicePreferences"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevicePreferences"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/devices/me/test-activity": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "sendTestActivity",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/activities": {
       "get": {
         "tags": [
@@ -588,11 +697,56 @@
           },
           "title": {
             "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadStep"
+            }
           }
         },
         "required": [
           "mediaKey",
           "title"
+        ],
+        "additionalProperties": false
+      },
+      "DevicePreferences": {
+        "type": "object",
+        "properties": {
+          "download": {
+            "$ref": "#/components/schemas/DownloadPreferences"
+          }
+        },
+        "required": [
+          "download"
+        ],
+        "additionalProperties": false
+      },
+      "DownloadPreferences": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DownloadStep"
+            }
+          },
+          "lingerMinutes": {
+            "type": "number",
+            "enum": [
+              15,
+              60
+            ]
+          }
+        },
+        "required": [
+          "enabled",
+          "steps",
+          "lingerMinutes"
         ],
         "additionalProperties": false
       },

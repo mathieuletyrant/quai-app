@@ -1,4 +1,4 @@
-import type { ApnsEnvironment, DeviceId } from "@quai/api"
+import { type ApnsEnvironment, type DeviceId, type DevicePreferences, defaultDownloadPreferences, DevicePreferences as DevicePreferencesSchema } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
@@ -23,6 +23,22 @@ export interface Device {
   readonly pairedAt: number
   readonly lastSeenAt: number | null
 }
+
+/** One iPhone as the notifier sees it for one activity. */
+export interface PushTarget {
+  readonly deviceId: DeviceId
+  readonly apnsEnvironment: ApnsEnvironment
+  readonly pushToStartToken: string | null
+  /** The token of this activity on this iPhone, once the iPhone reported it. */
+  readonly activityToken: string | null
+  readonly preferences: DevicePreferences
+}
+
+export const defaultPreferences: DevicePreferences = { download: defaultDownloadPreferences }
+
+const decodePreferences = Schema.decodeUnknownOption(Schema.fromJsonString(DevicePreferencesSchema))
+const readPreferences = (raw: unknown): DevicePreferences =>
+  typeof raw === "string" ? Option.getOrElse(decodePreferences(raw), () => defaultPreferences) : defaultPreferences
 
 /** Where a push for one activity goes: one row per iPhone that can receive it. */
 export interface Recipient {
@@ -70,6 +86,10 @@ export class Devices extends Context.Service<Devices, {
   readonly startRecipients: Effect.Effect<ReadonlyArray<Recipient>>
   /** iPhones that told us the push token of this activity. */
   readonly activityRecipients: (mediaKey: string) => Effect.Effect<ReadonlyArray<Recipient>>
+  readonly preferences: (id: DeviceId) => Effect.Effect<DevicePreferences>
+  readonly setPreferences: (id: DeviceId, preferences: DevicePreferences) => Effect.Effect<DevicePreferences>
+  /** Every iPhone, with its tokens for this activity and its preferences. */
+  readonly targets: (mediaKey: string) => Effect.Effect<ReadonlyArray<PushTarget>>
   /** APNs said this token is dead: forget it. */
   readonly dropToken: (token: string) => Effect.Effect<void>
 }>()("quai/Devices") {
@@ -159,6 +179,30 @@ export class Devices extends Context.Service<Devices, {
                 deviceId: r["id"] as DeviceId,
                 apnsEnvironment: r["apns_environment"] as ApnsEnvironment,
                 token: r["push_token"] as string
+              }))
+          )),
+
+        preferences: (id) =>
+          orDie(Effect.map(sql`SELECT preferences FROM devices WHERE id = ${id}`, (rows) =>
+            readPreferences(rows[0]?.["preferences"]))),
+
+        setPreferences: (id, preferences) =>
+          orDie(Effect.as(
+            sql`UPDATE devices SET preferences = ${JSON.stringify(preferences)} WHERE id = ${id}`,
+            preferences
+          )),
+
+        targets: (mediaKey) =>
+          orDie(Effect.map(
+            sql`SELECT d.id, d.apns_environment, d.push_to_start_token, d.preferences, t.push_token
+              FROM devices d LEFT JOIN activity_tokens t ON t.device_id = d.id AND t.media_key = ${mediaKey}`,
+            (rows) =>
+              rows.map((r): PushTarget => ({
+                deviceId: r["id"] as DeviceId,
+                apnsEnvironment: r["apns_environment"] as ApnsEnvironment,
+                pushToStartToken: (r["push_to_start_token"] as string | null) ?? null,
+                activityToken: (r["push_token"] as string | null) ?? null,
+                preferences: readPreferences(r["preferences"])
               }))
           )),
 

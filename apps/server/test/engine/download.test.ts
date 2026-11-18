@@ -28,6 +28,7 @@ describe("download activity", () => {
       expect(grabbed).toEqual([{
         _tag: "Update",
         mediaKey: dune,
+        title: "Dune",
         content: { step: "downloading", progress: 0, stalled: false }
       }])
 
@@ -42,6 +43,7 @@ describe("download activity", () => {
       expect(progress).toEqual([{
         _tag: "Update",
         mediaKey: dune,
+        title: "Dune",
         content: { step: "downloading", progress: 0.42, bytesPerSecond: 8_000_000, remainingSeconds: 540, stalled: false }
       }])
 

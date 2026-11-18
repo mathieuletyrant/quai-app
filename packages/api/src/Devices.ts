@@ -1,6 +1,6 @@
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
-import { DownloadAttributes, DownloadContentState } from "./Download.ts"
+import { DownloadAttributes, DownloadContentState, DownloadPreferences } from "./Download.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
 export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
@@ -48,6 +48,12 @@ export const ActivityToken = Schema.Struct({
   pushToken: Schema.String
 }).annotate({ identifier: "ActivityToken" })
 
+/** What this iPhone wants to receive. Each iPhone has its own; the console sets what's allowed. */
+export const DevicePreferences = Schema.Struct({
+  download: DownloadPreferences
+}).annotate({ identifier: "DevicePreferences" })
+export type DevicePreferences = typeof DevicePreferences.Type
+
 export const RunningActivity = Schema.Struct({
   attributes: DownloadAttributes,
   content: DownloadContentState
@@ -62,6 +68,21 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
   )
   .add(
     HttpApiEndpoint.post("activityToken", "/devices/me/activity-tokens", { payload: ActivityToken }).annotate(OpenApi.Identifier, "reportActivityToken")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.get("preferences", "/devices/me/preferences", { success: DevicePreferences })
+      .annotate(OpenApi.Identifier, "getPreferences")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.put("savePreferences", "/devices/me/preferences", { payload: DevicePreferences, success: DevicePreferences })
+      .annotate(OpenApi.Identifier, "savePreferences")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.post("testActivity", "/devices/me/test-activity")
+      .annotate(OpenApi.Identifier, "sendTestActivity")
       .middleware(DeviceAuth)
   )
   .add(
@@ -128,3 +149,4 @@ export class PushGroup extends HttpApiGroup.make("push")
   )
   .add(HttpApiEndpoint.delete("removePushKey", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "removePushKey"))
   .prefix("/console-api") {}
+
