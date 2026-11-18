@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { call } from "../client.ts"
+import { Badge, Button, errorText, Field, inputClass, PageBar, Section } from "../ui.tsx"
 
 interface PushStatus {
   readonly configured: boolean
@@ -9,7 +10,7 @@ interface PushStatus {
   readonly topic: string
 }
 
-export function PushKeyPanel() {
+function PushKeyPanel() {
   const [status, setStatus] = useState<PushStatus | null>(null)
   const [keyPem, setKeyPem] = useState<string | null>(null)
   const [fileName, setFileName] = useState("")
@@ -18,7 +19,7 @@ export function PushKeyPanel() {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
-    call((c) => c.push.pushSettings()).then(setStatus, (e: unknown) => setMessage({ ok: false, text: String(e) }))
+    call((c) => c.push.pushSettings()).then(setStatus, (e: unknown) => setMessage({ ok: false, text: errorText(e) }))
   }, [])
 
   const pick = async (file: File | undefined) => {
@@ -38,8 +39,7 @@ export function PushKeyPanel() {
       setFileName("")
       setMessage({ ok: true, text: "Saved. Live Activities will be pushed from now on." })
     } catch (e) {
-      const text = typeof e === "object" && e !== null && "message" in e ? String(e.message) : String(e)
-      setMessage({ ok: false, text })
+      setMessage({ ok: false, text: errorText(e) })
     }
   }
 
@@ -49,46 +49,44 @@ export function PushKeyPanel() {
   }
 
   return (
-    <section className="panel" aria-labelledby="push">
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-        <h2 id="push" className="grow">Apple push key</h2>
-        {status && (
-          <span className="pill">
+    <Section
+      title="Apple push key"
+      description="The .p8 key from developer.apple.com → Keys, with Apple Push Notifications service enabled. It is stored encrypted on this server and never shown again."
+    >
+      {status && (
+        <div>
+          <Badge tone={status.configured ? "ok" : "warn"}>
             {status.configured
               ? `Key ${status.keyId} · ${status.source === "console" ? "saved here" : "from the environment"}`
               : "Not set: nothing is pushed"}
-          </span>
-        )}
+          </Badge>
+        </div>
+      )}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Key file (.p8)" hint={fileName || undefined}>
+          <input type="file" accept=".p8" className="text-sm text-muted file:mr-3 file:h-10 file:rounded-full file:border-0 file:bg-raised file:px-4 file:font-semibold file:text-text" onChange={(e) => pick(e.target.files?.[0])} />
+        </Field>
+        <Field label="Key ID">
+          <input className={inputClass} value={keyId} onChange={(e) => setKeyId(e.target.value.toUpperCase())} placeholder="72YS3G4HXU" maxLength={10} />
+        </Field>
+        <Field label="Team ID">
+          <input className={inputClass} value={teamId} onChange={(e) => setTeamId(e.target.value.toUpperCase())} placeholder="FFGWB5G2PN" maxLength={10} />
+        </Field>
       </div>
-      <p className="muted" style={{ margin: 0 }}>
-        The .p8 key from developer.apple.com → Keys, with Apple Push Notifications service enabled. It is stored
-        encrypted on this server and never shown again.
-      </p>
-      <div className="form">
-        <label className="field">
-          <span>Key file (.p8)</span>
-          <input type="file" accept=".p8" onChange={(e) => pick(e.target.files?.[0])} />
-          {fileName && <span className="muted">{fileName}</span>}
-        </label>
-        <label className="field">
-          <span>Key ID</span>
-          <input value={keyId} onChange={(e) => setKeyId(e.target.value.toUpperCase())} placeholder="72YS3G4HXU" maxLength={10} />
-        </label>
-        <label className="field">
-          <span>Team ID</span>
-          <input value={teamId} onChange={(e) => setTeamId(e.target.value.toUpperCase())} placeholder="FFGWB5G2PN" maxLength={10} />
-        </label>
+      <div className="flex flex-wrap gap-3">
+        <Button disabled={keyPem === null || keyId.length !== 10 || teamId.length !== 10} onClick={save}>Save the key</Button>
+        {status?.source === "console" && <Button variant="danger" onClick={remove}>Remove</Button>}
       </div>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <button type="button" className="button" disabled={keyPem === null || keyId.length !== 10 || teamId.length !== 10} onClick={save}>
-          Save the key
-        </button>
-        {status?.source === "console" && (
-          <button type="button" className="button danger" onClick={remove}>Remove</button>
-        )}
-      </div>
-      {message && <p role={message.ok ? "status" : "alert"} style={{ margin: 0, color: message.ok ? "var(--ok)" : "var(--danger)" }}>{message.text}</p>}
-    </section>
+      {message && <p role={message.ok ? "status" : "alert"} className={message.ok ? "text-ok" : "text-danger"}>{message.text}</p>}
+    </Section>
   )
 }
 
+export function SettingsPage() {
+  return (
+    <>
+      <PageBar title="Settings" />
+      <PushKeyPanel />
+    </>
+  )
+}

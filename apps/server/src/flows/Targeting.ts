@@ -40,7 +40,8 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
     ...(show.eta && v.remainingSeconds !== undefined ? { remainingSeconds: v.remainingSeconds } : {}),
     ...(show.timer && v.endsAt !== undefined ? { endsAt: seconds(v.endsAt) } : {}),
     ...(show.timer && v.startsAt !== undefined ? { startsAt: seconds(v.startsAt) } : {}),
-    ...(show.timer && v.paused !== undefined ? { paused: v.paused } : {}),
+    // Paused or not drives the label and the Play/Pause button, whatever the step shows.
+    ...(v.paused !== undefined ? { paused: v.paused } : {}),
     // A paused timeline holds where it is: the iPhone needs the fraction to draw it.
     ...(show.timer && !show.progress && v.paused === true && v.progress !== undefined ? { progress: v.progress } : {}),
     ...(show.since ? { since: seconds(v.since ?? activity.enteredAt) } : {}),
@@ -67,6 +68,8 @@ export const deliveryFor = (
     readonly pushToStartToken: string | null
     readonly activityToken: string | null
     readonly shown: boolean
+    /** Where the activity was when this iPhone's user swiped it away, if they did. */
+    readonly dismissed?: { readonly stepIndex: number; readonly paused: boolean | null } | null
   },
   now: number
 ): Delivery => {
@@ -74,6 +77,15 @@ export const deliveryFor = (
   const preference = preferenceFor(target.preferences, flow.id)
   if (!preference.enabled) return none
   const content = contentFor(flow, push.activity, preference)
+  const dismissed = target.dismissed ?? null
+  if (dismissed !== null) {
+    // Swiped away: it stays away until it changes for real (a step, a pause or a resume), then
+    // starts again as a new activity.
+    const paused = push.activity.values.paused ?? null
+    if (push._tag === "End" || (push.activity.stepIndex === dismissed.stepIndex && paused === dismissed.paused)) return none
+    if (content === null || target.pushToStartToken === null) return none
+    return { _tag: "Start", token: target.pushToStartToken, attributes: attributesFor(flow, push.activity, preference), content }
+  }
 
   if (push._tag === "End") {
     if (!target.shown || target.activityToken === null) return none

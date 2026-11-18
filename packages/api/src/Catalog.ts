@@ -1,4 +1,4 @@
-import type { ActionType, EventType, Flow, FlowSubject, ServiceName } from "./Activity.ts"
+import type { ActionType, EventType, Flow, FlowSubject, ServiceName, StepShow } from "./Activity.ts"
 
 /**
  * Every event a flow can use, with its subject, the services that produce it, and how the console
@@ -40,6 +40,42 @@ export const subjectOf = (type: EventType): FlowSubject => catalog.find((e) => e
 export const isDataEvent = (type: EventType): boolean => catalog.find((e) => e.type === type)!.data
 
 /** The flows Quai ships with. Editable and resettable in the console; not deletable. */
+/** What a step can show for each kind of flow: the values its data events carry. */
+export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
+  media: ["progress", "speed", "eta"],
+  // The countdown draws the bar too (held where it is while paused).
+  playback: ["timer"],
+  service: ["since"]
+}
+
+/**
+ * The rules the schema alone can't check (docs/flows.md, Model), or null when the flow is valid.
+ * The server refuses a flow that breaks one; the console shows it before saving.
+ */
+export const flowProblem = (flow: Flow): string | null => {
+  const ids = new Set(flow.steps.map((s) => s.id))
+  if (ids.size !== flow.steps.length) return "Two steps have the same id."
+  for (const step of flow.steps) {
+    if (isDataEvent(step.on)) return `“${step.label}” uses a data event: pick an event that starts a step.`
+    if (subjectOf(step.on) !== flow.subject) return `“${step.label}” uses an event for another kind of flow.`
+  }
+  for (const step of flow.steps) {
+    for (const action of step.actions ?? []) {
+      if (actionSubject(action) !== flow.subject) return `“${step.label}” has a button for another kind of flow.`
+    }
+  }
+  const events = new Set(flow.steps.map((s) => s.on))
+  if (events.size !== flow.steps.length) return "Two steps start on the same event."
+  if (flow.endOn !== undefined) {
+    if (isDataEvent(flow.endOn) || subjectOf(flow.endOn) !== flow.subject) return "The end event doesn't fit this flow."
+    if (events.has(flow.endOn)) return "The end event is also a step's event."
+  } else if (flow.steps.length < 2 && flow.expireAfterMinutes === undefined) {
+    return "A one-step flow needs an end event or an end after no news."
+  }
+  return null
+}
+
+
 export const builtInFlows: ReadonlyArray<Flow> = [
   {
     id: "download",

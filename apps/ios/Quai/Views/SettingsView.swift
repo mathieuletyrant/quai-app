@@ -11,7 +11,7 @@ struct SettingsView: View {
                     NavigationLink {
                         LiveActivitySettingsView()
                     } label: {
-                        Label("Live Activities", systemImage: "rectangle.badge.checkmark")
+                        Label("On this iPhone", systemImage: "iphone")
                     }
                 }
                 Section("Server") {

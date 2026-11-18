@@ -56,8 +56,25 @@ jobs:
       - run: brew install xcodegen
       - working-directory: apps/ios
         run: xcodegen generate
+      # Runner images don't always ship the same simulators (some had none): use any available
+      # iPhone, else create one, downloading the iOS runtime if it's missing.
+      - name: Pick a simulator
+        id: simulator
+        run: |
+          pick() { xcrun simctl list devices available -j | jq -r '[.devices[] | .[] | select(.name | startswith("iPhone"))][0].udid // empty'; }
+          udid=$(pick)
+          if [ -z "$udid" ]; then
+            runtime=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | last | .identifier // empty')
+            if [ -z "$runtime" ]; then
+              xcodebuild -downloadPlatform iOS
+              runtime=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | last | .identifier')
+            fi
+            type=$(xcrun simctl list devicetypes -j | jq -r '[.devicetypes[] | select(.name | startswith("iPhone"))] | last | .identifier')
+            udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
+          fi
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
       - working-directory: apps/ios
         run: >
           xcodebuild test -project Quai.xcodeproj -scheme Quai
-          -destination 'platform=iOS Simulator,name=iPhone 17'
+          -destination 'id=${{ steps.simulator.outputs.udid }}'
           -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO

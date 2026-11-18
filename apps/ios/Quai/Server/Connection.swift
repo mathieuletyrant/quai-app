@@ -107,17 +107,6 @@ final class Connection {
         }
     }
 
-    /// Asks the server to play a flow's steps on this iPhone only, through the real push path.
-    func sendTestActivity(flowId: String) async throws {
-        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
-        switch try await client.sendTestActivity(body: .json(.init(flowId: flowId))) {
-        case .noContent: return
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.server(404)
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
-    }
-
     // MARK: Activities
 
     func refresh() async {
@@ -147,10 +136,10 @@ final class Connection {
     /// The push token of every Quai activity, including the ones the server started remotely.
     func watchActivities() async {
         for activity in Activity<QuaiActivityAttributes>.activities {
-            Task { await watch(activity) }
+            watch(activity)
         }
         for await activity in Activity<QuaiActivityAttributes>.activityUpdates {
-            Task { await watch(activity) }
+            watch(activity)
         }
     }
 
@@ -161,13 +150,37 @@ final class Connection {
         }
     }
 
-    private func watch(_ activity: Activity<QuaiActivityAttributes>) async {
+    /// Tells the server which activities are still on screen, so it shows again, at their next
+    /// change, the ones the user swiped away.
+    func reportShownActivities() async {
+        let keys = Activity<QuaiActivityAttributes>.activities
+            .filter { $0.activityState == .active || $0.activityState == .stale }
+            .map(\.attributes.key)
+        await send { client in
+            _ = try await client.reportShownActivities(body: .json(.init(keys: keys)))
+        }
+    }
+
+    private func watch(_ activity: Activity<QuaiActivityAttributes>) {
+        Task { await reportTokens(of: activity) }
+        Task { await reportWhenGone(activity) }
+    }
+
+    private func reportTokens(of activity: Activity<QuaiActivityAttributes>) async {
         let mediaKey = activity.attributes.key
         for await data in activity.pushTokenUpdates {
             let hex = data.hexString
             await send { client in
                 _ = try await client.reportActivityToken(body: .json(.init(mediaKey: mediaKey, pushToken: hex)))
             }
+        }
+    }
+
+    /// Swiped away (or ended) while the app runs: report it at once.
+    private func reportWhenGone(_ activity: Activity<QuaiActivityAttributes>) async {
+        for await state in activity.activityStateUpdates where state == .dismissed || state == .ended {
+            await reportShownActivities()
+            return
         }
     }
 

@@ -120,4 +120,26 @@ describe("flows from the console", () => {
       expect((yield* api.flows.catalog()).length).toBeGreaterThan(5)
       expect((yield* api.flows.actions()).map((a) => a.type)).toEqual(["playback.playPause", "playback.stop"])
     }).pipe(Effect.provide(TestApp)))
+
+  it.effect("an activity swiped away is forgotten with where it was, until the iPhone shows it again", () =>
+    Effect.gen(function*() {
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
+      const { deviceId, token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      const phone = yield* signedIn(token)
+      const tv = { kind: "playback" as const, key: "playback:s1:i1", title: "Dune", device: "TV Salon" }
+      yield* (yield* Activities).handle({ type: "playback.started", subject: tv, values: { paused: true } })
+      const key = "playback|playback:s1:i1"
+      yield* phone.devices.activityToken({ payload: { mediaKey: key, pushToken: "act-1" } })
+      const store = yield* Devices
+      const target = () => Effect.map(store.targets(key), (all) => all.find((t) => t.deviceId === deviceId)!)
+
+      yield* phone.devices.shownActivities({ payload: { keys: [key] } })
+      expect((yield* target()).activityToken).toBe("act-1")
+
+      yield* phone.devices.shownActivities({ payload: { keys: [] } })
+      expect(yield* target()).toMatchObject({ activityToken: null, dismissed: { stepIndex: 0, paused: true } })
+
+      yield* phone.devices.activityToken({ payload: { mediaKey: key, pushToken: "act-2" } })
+      expect(yield* target()).toMatchObject({ activityToken: "act-2", dismissed: null })
+    }).pipe(Effect.provide(TestApp)))
 })

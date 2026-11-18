@@ -19,5 +19,5 @@ export const FlowsHandlers = HttpApiBuilder.group(QuaiApi, "flows", (handlers) =
         Effect.flatMap(store.remove(params.id), (removed) => removed ? Effect.void : Effect.fail(new HttpApiError.NotFound())))
       .handle("reset", ({ params }) => Effect.flatMap(store.reset(params.id), orNotFound))
       // Every paired iPhone, each with its own preferences for this flow.
-      .handle("test", ({ params }) => Effect.flatMap(tests.play(params.id, null), orNotFound))
+      .handle("test", ({ params, payload }) => Effect.flatMap(tests.play(params.id, payload.deviceIds), orNotFound))
   }))

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Settings → Live Activities: per flow, on or off, which steps this iPhone shows, and a test.
-/// Saved on the server, per iPhone. Flows themselves are made in the console.
+/// Settings → On this iPhone: per flow, whether this iPhone shows it and which steps. Saved on the
+/// server, per iPhone. Flows themselves are made, and tested, in the console.
 struct LiveActivitySettingsView: View {
     @Environment(Connection.self) private var connection
     @State private var flows: [Components.Schemas.FlowSummary] = []
@@ -11,6 +11,9 @@ struct LiveActivitySettingsView: View {
 
     var body: some View {
         List {
+            Section {} footer: {
+                Text("Which Live Activities this iPhone shows, and which of their steps. Flows are made, and tested, in Quai's console.")
+            }
             if !loaded {
                 ProgressView().frame(maxWidth: .infinity)
             }
@@ -18,15 +21,14 @@ struct LiveActivitySettingsView: View {
                 FlowSection(
                     flow: flow,
                     preference: preference(flow.id),
-                    onChange: { change in update(flow.id, change) },
-                    onTest: { await test(flow) }
+                    onChange: { change in update(flow.id, change) }
                 )
             }
             if let status {
                 Section { Text(status).font(.footnote).foregroundStyle(.secondary) }
             }
         }
-        .navigationTitle("Live Activities")
+        .navigationTitle("On this iPhone")
         .task { await load() }
         .refreshable { await load() }
     }
@@ -62,23 +64,12 @@ struct LiveActivitySettingsView: View {
             }
         }
     }
-
-    private func test(_ flow: Components.Schemas.FlowSummary) async {
-        do {
-            try await connection.sendTestActivity(flowId: flow.id)
-            status = "\(flow.name): test sent. Lock the iPhone to watch it (about 30 s)."
-        } catch {
-            status = error.localizedDescription
-        }
-    }
 }
 
 private struct FlowSection: View {
     let flow: Components.Schemas.FlowSummary
     let preference: Components.Schemas.FlowPreference
     let onChange: ((inout Components.Schemas.FlowPreference) -> Void) -> Void
-    let onTest: () async -> Void
-    @State private var testing = false
 
     var body: some View {
         Section {
@@ -111,23 +102,10 @@ private struct FlowSection: View {
                         .padding(.leading, 8)
                     }
                 }
-                Button {
-                    Task {
-                        testing = true
-                        await onTest()
-                        testing = false
-                    }
-                } label: {
-                    HStack {
-                        Label("Send a test", systemImage: "play.circle.fill")
-                        if testing { Spacer(); ProgressView() }
-                    }
-                }
-                .disabled(testing)
             }
         } footer: {
             if !flow.enabled {
-                Text("Turned off in the console.")
+                Text("Turned off in the console, for every iPhone.")
             }
         }
     }

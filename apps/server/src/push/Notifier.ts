@@ -39,10 +39,14 @@ export class Notifier extends Context.Service<Notifier, {
                 preferences: target.preferences,
                 pushToStartToken: target.pushToStartToken,
                 activityToken: target.activityToken,
-                shown: shown.has(k) || target.activityToken !== null
+                shown: shown.has(k) || target.activityToken !== null,
+                dismissed: target.dismissed
               }, now)
+              // The activity is over: nothing left to show again.
+              if (push._tag === "End" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
               if (delivery._tag === "None") return
               if (delivery._tag === "Start") shown.add(k)
+              if (delivery._tag === "Start" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
               if (delivery._tag === "End") shown.delete(k)
               const step = flow.steps[push.activity.stepIndex]?.id ?? "?"
               const progress = delivery.content.progress === undefined ? "" : ` ${Math.round(delivery.content.progress * 100)} %`

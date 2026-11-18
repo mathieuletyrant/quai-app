@@ -9,6 +9,7 @@ export const icons: ReadonlyArray<{ readonly name: string; readonly label: strin
   { name: "checkmark", label: "Done", path: "M5 12.5l4.5 4.5L19 7" },
   { name: "play.fill", label: "Play", path: "M7 5l12 7-12 7z" },
   { name: "pause.fill", label: "Pause", path: "M7 5h3v14H7zM14 5h3v14h-3z" },
+  { name: "stop.fill", label: "Stop", path: "M6 6h12v12H6z" },
   { name: "exclamationmark.triangle.fill", label: "Alert", path: "M12 4l9 16H3zM12 10v4M12 17v.5" },
   { name: "captions.bubble.fill", label: "Subtitles", path: "M4 5h16v11H9l-4 4v-4H4zM8 10h3M13 10h3M8 13h8" },
   { name: "film", label: "Movie", path: "M4 4h16v16H4zM8 4v16M16 4v16M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4" },
