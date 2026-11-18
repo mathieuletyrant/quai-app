@@ -1,6 +1,7 @@
 import { CurrentDevice, InvalidPairingCode, QuaiApi } from "@quai/api"
 import { Effect, Option } from "effect"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
+import { ActionRunner } from "../flows/ActionRunner.ts"
 import { Activities } from "../flows/Activities.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { attributesFor, contentFor, preferenceFor, visibleSteps } from "../flows/Targeting.ts"
@@ -13,6 +14,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
     const activities = yield* Activities
     const flowStore = yield* FlowStore
     const tests = yield* TestRunner
+    const actions = yield* ActionRunner
     return handlers
       .handle("pair", ({ payload }) =>
         Effect.flatMap(devices.pair(payload), Option.match({
@@ -55,6 +57,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
           const played = yield* tests.play(payload.flowId, device.id)
           if (Option.isNone(played)) return yield* Effect.fail(new HttpApiError.NotFound())
         }))
+      .handle("action", ({ payload }) => actions.run(payload.key, payload.action))
       .handle("activities", () =>
         Effect.gen(function*() {
           const device = yield* CurrentDevice

@@ -20,8 +20,10 @@ Flow
   icon          SF Symbol name, the flow's glyph ("arrow.down")
   subject       what one activity follows: media | playback | service
   filter        media: movies, series or both · playback: Jellyfin device names (empty: all)
-  steps         2 to 6, in order (below)
-  lingerMinutes how long the last step stays on screen (0 to 60)
+  steps         1 to 6, in order (below)
+  endOn         optional: an event that ends the activity where it is, without being a step
+                (playback stopped). Without it, reaching the last step ends the activity.
+  lingerMinutes how long the end stays on screen (0 to 60)
   stalledAfterMinutes   a step showing progress with no progress for this long turns grey (optional)
   expireAfterMinutes    no event at all for this long ends the activity (optional)
 
@@ -30,9 +32,12 @@ Step
   label   "Downloading"
   icon    SF Symbol name
   on      the catalog event that enters this step
-  show    which live values the step displays: progress, speed, eta, timer (to an end time),
-          since (time elapsed since the step began)
+  show    which live values the step displays: progress, speed, eta, timer (to an end time,
+          with a timeline the iPhone animates itself), since (time elapsed since the step began)
+  actions buttons the step offers on the Live Activity (below)
 ```
+
+A one-step flow needs `endOn` or `expireAfterMinutes`, or it would never end.
 
 ## Event catalog
 
@@ -54,6 +59,19 @@ Events are normalized by the adapters; flows only see these. Each belongs to a s
 Events marked *progress* are **data events**: they update the current step's values and never
 change the step. All others are **step events**.
 
+## Actions
+
+Buttons on the Live Activity, from a catalog like events. A tap runs an App Intent in the app
+(iOS wakes it in the background), which calls `POST /api/activities/actions`; the server checks
+the activity's current step offers the button, sends it to the service, and refreshes at once.
+
+| Action | Subject | Does |
+| --- | --- | --- |
+| `playback.playPause` | playback | Jellyfin remote: play or pause the session |
+| `playback.stop` | playback | Jellyfin remote: stop the session |
+
+Next in the catalog: "Other release" and "Retry" for downloads (spec v1, Live Activities).
+
 ## Engine rules
 
 1. One activity per flow and subject (`flowId|subjectKey`). Several flows can follow the same
@@ -61,9 +79,12 @@ change the step. All others are **step events**.
 2. A step event for a subject with no activity starts one **at that step**, whichever it is: a
    missed webhook doesn't lose the title.
 3. A step event moves the activity forward to its step, never backwards.
-4. Reaching the last step ends the activity: it stays on screen `lingerMinutes`, then is forgotten.
+4. Reaching the last step ends the activity, unless the flow has `endOn`: then only that event
+   (or expiry) does. The end stays on screen `lingerMinutes`, then is forgotten.
 5. Data events update the current step's values; pushes for them go out at most every 15 s per
-   activity (step changes go at once).
+   activity. Step changes, a pause or a resume, and a stalled download moving again go at once.
+   Times are compared to 10 s: a playback's end drifting by milliseconds between polls is not news,
+   since the iPhone animates the timeline itself.
 6. `stalledAfterMinutes` without progress turns the activity grey; progress turns it back.
 7. `expireAfterMinutes` without any event ends the activity where it is.
 8. The engine is pure and its state is saved after every change, so a restart loses nothing.
@@ -75,8 +96,14 @@ One ActivityKit type, `QuaiActivityAttributes`, for every flow:
 ```
 attributes  key, flowId, title, color, icon, steps [{ id, label, icon }]
 content     step (index into attributes.steps), tone (active | stalled | done),
-            progress, bytesPerSecond, remainingSeconds, endsAt, since, detail — each only when
-            the step shows it
+            progress, bytesPerSecond, remainingSeconds, endsAt, startsAt, paused, since, detail —
+            each only when the step shows it
+```
+
+`attributes.steps[].actions` lists the buttons of each step. With `startsAt` and `endsAt` the
+iPhone draws the timeline on its own (no push per second); `paused` holds it at `progress`.
+
+```
 ```
 
 ## Per iPhone
@@ -98,3 +125,19 @@ for it, its activity starts at its first shown step, and `attributes.steps` list
 Flows page: list with on/off, edit (name, color, icon, filter, steps picked from the catalog for
 the flow's subject, what each step shows, linger, stall and expiry), duplicate, delete (custom
 flows), reset (built-in flows), and test (plays the flow's steps on every paired iPhone).
+
+## What people can build
+
+A check that the editor stays at the right level: pieces to stack, no rule language. What makes
+it richer is the catalog (events, actions) and the filters, not the editor.
+
+| Flow | Today |
+| --- | --- |
+| Anime: series only, without the Searching step | ✅ |
+| Living room night: playback on the TV only, with Play/Pause and Stop | ✅ |
+| Express downloads: Downloading → Ready only | ✅ |
+| Server incident limited to Radarr and Sonarr | ❌ needs a service filter |
+| French subtitles: Imported → Subtitles found → Ready | ❌ needs a Bazarr event |
+| 4K movies, Julie's requests | ❌ needs quality profile and requester filters (Seerr) |
+| Tonight: today's episodes at 18:00 | ❌ needs a time trigger and the Sonarr calendar |
+| Disk almost full | ❌ needs a disk event |

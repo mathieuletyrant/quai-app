@@ -1,6 +1,6 @@
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
-import { ActivityAttributes, ActivityContent, ActivityStep, CatalogEvent, Flow } from "./Activity.ts"
+import { ActionType, ActivityAttributes, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow } from "./Activity.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
 export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
@@ -71,6 +71,17 @@ export const FlowSummary = Schema.Struct({
   steps: Schema.Array(ActivityStep)
 }).annotate({ identifier: "FlowSummary" })
 
+/** A button pressed on a Live Activity. */
+export const ActivityAction = Schema.Struct({
+  /** `attributes.key` of the activity. */
+  key: Schema.String,
+  action: ActionType
+}).annotate({ identifier: "ActivityAction" })
+
+export class InvalidAction extends Schema.TaggedError<InvalidAction>()("InvalidAction", {
+  message: Schema.String
+}, { httpApiStatus: 400 }) {}
+
 export const TestActivity = Schema.Struct({ flowId: Schema.String }).annotate({ identifier: "TestActivity" })
 
 export const RunningActivity = Schema.Struct({
@@ -107,6 +118,11 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
   .add(
     HttpApiEndpoint.get("flows", "/flows", { success: Schema.Array(FlowSummary) })
       .annotate(OpenApi.Identifier, "listFlows")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.post("action", "/activities/actions", { payload: ActivityAction, error: [InvalidAction, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "performAction")
       .middleware(DeviceAuth)
   )
   .add(
@@ -183,6 +199,10 @@ export class InvalidFlow extends Schema.TaggedError<InvalidFlow>()("InvalidFlow"
 export class FlowsGroup extends HttpApiGroup.make("flows")
   .add(HttpApiEndpoint.get("list", "/flows", { success: Schema.Array(Flow) }).annotate(OpenApi.Identifier, "listAllFlows"))
   .add(HttpApiEndpoint.get("catalog", "/flows/catalog", { success: Schema.Array(CatalogEvent) }).annotate(OpenApi.Identifier, "getCatalog"))
+  .add(
+    HttpApiEndpoint.get("actions", "/flows/actions", { success: Schema.Array(CatalogAction) })
+      .annotate(OpenApi.Identifier, "getActionCatalog")
+  )
   .add(
     HttpApiEndpoint.put("save", "/flows/:id", { params: { id: Schema.String }, payload: Flow, success: Flow, error: InvalidFlow })
       .annotate(OpenApi.Identifier, "saveFlow")

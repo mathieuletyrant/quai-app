@@ -16,8 +16,14 @@ describe("test script", () => {
     expect(new Set(beats.map((b) => b.push.activity.key)).size).toBe(1)
   })
 
-  it("a countdown for playback, time since for incidents", () => {
-    expect(testScript(playback, 1_000, "t")[0]!.push.activity.values.endsAt).toBeGreaterThan(1_000)
+  it("playback: a timeline, a pause and a resume, then the end event closes it", () => {
+    const beats = testScript(playback, 1_000, "t")
+    expect(beats[0]!.push.activity.values).toMatchObject({ paused: false, startsAt: 1_000, endsAt: 41_000 })
+    expect(beats.map((b) => b.push._tag)).toEqual(["Start", "Update", "Update", "End"])
+    expect(beats.map((b) => b.push.activity.values.paused)).toEqual([false, true, false, false])
+  })
+
+  it("time since for incidents", () => {
     expect(testScript(incident, 1_000, "t")[0]!.push.activity.values.since).toBe(1_000)
   })
 })

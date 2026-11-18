@@ -4,6 +4,8 @@ import { Activities } from "../src/flows/Activities.ts"
 import { FlowStore } from "../src/flows/FlowStore.ts"
 import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
 import { TestRunner } from "../src/flows/TestRunner.ts"
+import { ActionRunner } from "../src/flows/ActionRunner.ts"
+import { HttpApiError } from "effect/http-api"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
@@ -25,6 +27,8 @@ const pushKey = Layer.effect(PushKey, Effect.suspend(() => PushKey.make(join(mkd
 export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(DeviceAuthLive),
   Layer.provideMerge(TestRunner.layer),
+  // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
+  Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Layer.mergeAll(Devices.layer, Activities.layer, pushKey)),
   Layer.provideMerge(FlowStore.layer),

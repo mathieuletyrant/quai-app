@@ -83,3 +83,4 @@ h2 { margin: 0; font-size: 17px; }
 .bar > div { height: 100%; border-radius: 3px; }
 .stepper { display: flex; gap: 6px; font-size: 11px; }
 .stepper .tick { height: 3px; border-radius: 2px; margin-bottom: 4px; }
+.action-preview { font-size: 22px; padding: 4px 14px; border-radius: 12px; background: rgba(255, 255, 255, 0.08); }

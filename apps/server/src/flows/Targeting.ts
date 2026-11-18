@@ -14,7 +14,12 @@ export const attributesFor = (flow: Flow, activity: Activity, preference: FlowPr
   title: activity.title,
   color: flow.color,
   icon: flow.icon,
-  steps: visibleSteps(flow, preference).map((s) => ({ id: s.id, label: s.label, icon: s.icon }))
+  steps: visibleSteps(flow, preference).map((s) => ({
+    id: s.id,
+    label: s.label,
+    icon: s.icon,
+    ...(s.actions !== undefined && s.actions.length > 0 ? { actions: s.actions } : {})
+  }))
 })
 
 const seconds = (ms: number) => Math.floor(ms / 1000)
@@ -34,6 +39,10 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
     ...(show.speed && v.bytesPerSecond !== undefined ? { bytesPerSecond: v.bytesPerSecond } : {}),
     ...(show.eta && v.remainingSeconds !== undefined ? { remainingSeconds: v.remainingSeconds } : {}),
     ...(show.timer && v.endsAt !== undefined ? { endsAt: seconds(v.endsAt) } : {}),
+    ...(show.timer && v.startsAt !== undefined ? { startsAt: seconds(v.startsAt) } : {}),
+    ...(show.timer && v.paused !== undefined ? { paused: v.paused } : {}),
+    // A paused timeline holds where it is: the iPhone needs the fraction to draw it.
+    ...(show.timer && !show.progress && v.paused === true && v.progress !== undefined ? { progress: v.progress } : {}),
     ...(show.since ? { since: seconds(v.since ?? activity.enteredAt) } : {}),
     ...(v.detail !== undefined ? { detail: v.detail } : {})
   }

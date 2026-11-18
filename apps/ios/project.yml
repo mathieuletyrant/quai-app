@@ -79,6 +79,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mathieuletyrant.quai.widgets
+        # Shared/ActivityActionIntent.swift: the widget declares the buttons, the app runs them.
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) WIDGET_EXTENSION
     sources:
       - QuaiWidgets
       - Shared

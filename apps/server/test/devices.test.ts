@@ -102,6 +102,13 @@ describe("flows from the console", () => {
         payload: { ...download, id: "bad", steps: [download.steps[0]!, { ...download.steps[1]!, on: "service.down" }] }
       }))
       expect(Exit.isFailure(bad)).toBe(true)
+      const wrongButton = yield* Effect.exit(api.flows.save({
+        params: { id: "bad" },
+        payload: { ...download, id: "bad", steps: [download.steps[0]!, { ...download.steps[1]!, actions: ["playback.stop"] }] }
+      }))
+      expect(Exit.isFailure(wrongButton)).toBe(true)
+      const oneStepNoEnd = yield* Effect.exit(api.flows.save({ params: { id: "bad" }, payload: { ...download, id: "bad", steps: [download.steps[1]!] } }))
+      expect(Exit.isFailure(oneStepNoEnd)).toBe(true)
 
       yield* api.flows.save({ params: { id: "download" }, payload: { ...download, color: "#123456" } })
       expect((yield* api.flows.list()).find((f) => f.id === "download")?.color).toBe("#123456")
@@ -111,5 +118,6 @@ describe("flows from the console", () => {
       yield* api.flows.remove({ params: { id: "anime" } })
       expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident"])
       expect((yield* api.flows.catalog()).length).toBeGreaterThan(5)
+      expect((yield* api.flows.actions()).map((a) => a.type)).toEqual(["playback.playPause", "playback.stop"])
     }).pipe(Effect.provide(TestApp)))
 })

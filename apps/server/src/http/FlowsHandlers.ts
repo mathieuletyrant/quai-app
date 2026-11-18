@@ -1,4 +1,4 @@
-import { catalog, QuaiApi } from "@quai/api"
+import { actionCatalog, catalog, QuaiApi } from "@quai/api"
 import { Effect, Option } from "effect"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
 import { FlowStore } from "../flows/FlowStore.ts"
@@ -13,6 +13,7 @@ export const FlowsHandlers = HttpApiBuilder.group(QuaiApi, "flows", (handlers) =
     return handlers
       .handle("list", () => store.all)
       .handle("catalog", () => Effect.succeed(catalog))
+      .handle("actions", () => Effect.succeed(actionCatalog))
       .handle("save", ({ params, payload }) => store.save({ ...payload, id: params.id }))
       .handle("remove", ({ params }) =>
         Effect.flatMap(store.remove(params.id), (removed) => removed ? Effect.void : Effect.fail(new HttpApiError.NotFound())))

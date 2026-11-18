@@ -16,8 +16,16 @@ export const playbackEvents = (
     seen.add(p.key)
     const subject = { kind: "playback" as const, key: p.key, title: p.title, device: p.device }
     const values = p.paused
-      ? { detail: `Paused · ${p.device}` }
-      : { detail: p.device, ...(p.remainingMs === null ? {} : { endsAt: nowMs + p.remainingMs }) }
+      ? {
+        paused: true,
+        detail: p.device,
+        ...(p.runtimeMs === null || p.runtimeMs === 0 ? {} : { progress: p.positionMs / p.runtimeMs })
+      }
+      : {
+        paused: false,
+        detail: p.device,
+        ...(p.remainingMs === null ? {} : { endsAt: nowMs + p.remainingMs, startsAt: nowMs - p.positionMs })
+      }
     events.push({ type: before.has(p.key) ? "playback.progress" : "playback.started", subject, values })
   }
   for (const [key, p] of before) {
@@ -26,4 +34,10 @@ export const playbackEvents = (
     }
   }
   return events
+}
+
+/** The Jellyfin session a playback subject belongs to (`playback:<session>:<item>`). */
+export const sessionOf = (subjectKey: string): string | null => {
+  const [kind, session] = subjectKey.split(":")
+  return kind === "playback" && session !== undefined && session !== "" ? session : null
 }

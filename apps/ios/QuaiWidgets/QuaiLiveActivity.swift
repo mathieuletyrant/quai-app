@@ -16,11 +16,23 @@ struct Model {
     var symbol: String { state.tone == .done ? "checkmark" : (step?.icon ?? attributes.icon) }
 
     var endsAt: Date? { state.endsAt.map { Date(timeIntervalSince1970: $0) } }
+    var paused: Bool { state.paused == true }
+
+    /// The playback timeline, when it runs: the bar animates on its own between these dates.
+    var timeline: ClosedRange<Date>? {
+        guard !paused, let start = state.startsAt, let end = state.endsAt, end > start else { return nil }
+        return Date(timeIntervalSince1970: start)...Date(timeIntervalSince1970: end)
+    }
+
+    var actions: [ActivityAction] {
+        guard state.tone != .done else { return [] }
+        return (step?.actions ?? []).compactMap(ActivityAction.init(rawValue:))
+    }
     var since: Date? { state.since.map { Date(timeIntervalSince1970: $0) } }
 
     /// "Downloading · ≈ 4 min · 11 MB/s", "Playing · TV Salon"
     var subtitle: String {
-        var parts = [state.tone == .stalled ? "No progress for a while" : (step?.label ?? "")]
+        var parts = [state.tone == .stalled ? "No progress for a while" : paused ? "Paused" : (step?.label ?? "")]
         if let remaining = state.remainingSeconds { parts.append("≈ " + Self.duration(remaining)) }
         if let speed = state.bytesPerSecond, speed > 0 {
             parts.append(ByteCountFormatter.string(fromByteCount: Int64(speed), countStyle: .file) + "/s")
@@ -64,8 +76,9 @@ struct QuaiLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 8) {
-                        if let progress = model.state.progress { ProgressBar(value: progress, tint: model.tint) }
-                        Stepper(model: model)
+                        Timeline(model: model)
+                        if model.attributes.steps.count > 1 { Stepper(model: model) }
+                        if !model.actions.isEmpty { ActionButtons(model: model) }
                     }
                     .padding(.horizontal, 4)
                 }
@@ -96,8 +109,9 @@ struct LockScreenBanner: View {
                 Spacer(minLength: 8)
                 Headline(model: model)
             }
-            if let progress = model.state.progress { ProgressBar(value: progress, tint: model.tint) }
+            Timeline(model: model)
             if model.attributes.steps.count > 1 { Stepper(model: model) }
+            if !model.actions.isEmpty { ActionButtons(model: model) }
         }
         .foregroundStyle(.white)
     }
@@ -130,6 +144,8 @@ struct Headline: View {
         Group {
             if model.state.tone == .done {
                 Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(Palette.ready)
+            } else if model.paused {
+                Image(systemName: "pause.circle.fill").font(.title2)
             } else if let progress = model.state.progress {
                 Text(progress, format: .percent.precision(.fractionLength(0)))
                     .contentTransition(.numericText(value: progress))
@@ -160,6 +176,46 @@ struct CompactValue: View {
         }
         .font(.caption.monospacedDigit().weight(.semibold))
         .foregroundStyle(model.tint)
+    }
+}
+
+/// Download progress pushed by the server, or a playback timeline the iPhone animates itself.
+struct Timeline: View {
+    let model: Model
+
+    var body: some View {
+        if let timeline = model.timeline {
+            ProgressView(timerInterval: timeline, countsDown: false) {
+                EmptyView()
+            } currentValueLabel: {
+                EmptyView()
+            }
+            .progressViewStyle(.linear)
+            .tint(model.tint)
+        } else if let progress = model.state.progress {
+            ProgressBar(value: progress, tint: model.tint)
+        }
+    }
+}
+
+/// The step's buttons, run by `ActivityActionIntent` without opening the app.
+struct ActionButtons: View {
+    let model: Model
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(model.actions, id: \.self) { action in
+                Button(intent: ActivityActionIntent(key: model.attributes.key, action: action)) {
+                    Image(systemName: action.symbol(paused: model.paused))
+                        .font(.title3.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(model.tint)
+                .background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .accessibilityLabel(action.label)
+            }
+        }
     }
 }
 

@@ -41,9 +41,14 @@ export interface Playing {
   readonly title: string
   readonly device: string
   readonly paused: boolean
-  /** Milliseconds left, when Jellyfin knows the runtime. */
+  /** Milliseconds left and played, when Jellyfin knows the runtime. */
   readonly remainingMs: number | null
+  readonly positionMs: number
+  readonly runtimeMs: number | null
 }
+
+/** Remote control commands Quai sends to a Jellyfin session. */
+export type PlaybackCommand = "PlayPause" | "Stop"
 
 const pad = (n: number) => n.toString().padStart(2, "0")
 
@@ -62,7 +67,9 @@ export const playingFrom = (sessions: typeof Sessions.Type): ReadonlyArray<Playi
       device: s.DeviceName ?? "Jellyfin",
       paused: s.PlayState?.IsPaused === true,
       // Jellyfin ticks are 100 ns.
-      remainingMs: runtime === undefined ? null : Math.max(0, (runtime - position) / 10_000)
+      remainingMs: runtime === undefined ? null : Math.max(0, (runtime - position) / 10_000),
+      positionMs: position / 10_000,
+      runtimeMs: runtime === undefined ? null : runtime / 10_000
     }]
   })
 
@@ -75,6 +82,8 @@ export class Jellyfin extends Context.Service<Jellyfin, {
   readonly find: (check: AvailabilityCheck) => Effect.Effect<string | null, StackError>
   /** What plays right now, on every device. */
   readonly playing: Effect.Effect<ReadonlyArray<Playing>, StackError>
+  /** Sends a remote control command to a session (the Live Activity's buttons). */
+  readonly command: (sessionId: string, command: PlaybackCommand) => Effect.Effect<void, StackError>
   readonly configured: boolean
 }>()("quai/Jellyfin") {
   static readonly layer = Layer.effect(
@@ -84,13 +93,14 @@ export class Jellyfin extends Context.Service<Jellyfin, {
       const client = yield* HttpClient.HttpClient
       if (config === null) {
         const missing = new StackError({ service: "jellyfin", message: "not configured" })
-        return { configured: false, find: () => Effect.fail(missing), playing: Effect.fail(missing) }
+        return { configured: false, find: () => Effect.fail(missing), playing: Effect.fail(missing), command: () => Effect.fail(missing) }
       }
+      const authorization = HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${Redacted.value(config.apiKey)}"`)
       const get = <A, I>(path: string, params: Record<string, string>, schema: Schema.Codec<A, I>) =>
         client.execute(
           HttpClientRequest.get(`${config.url}${path}`).pipe(
             HttpClientRequest.setUrlParams(params),
-            HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${Redacted.value(config.apiKey)}"`)
+            authorization
           )
         ).pipe(
           Effect.flatMap((r) => r.status === 200 ? r.json : Effect.fail(new Error(`HTTP ${r.status}`))),
@@ -103,6 +113,13 @@ export class Jellyfin extends Context.Service<Jellyfin, {
 
       return {
         configured: true,
+        command: (sessionId, command) =>
+          client.execute(
+            HttpClientRequest.post(`${config.url}/Sessions/${encodeURIComponent(sessionId)}/Playing/${command}`).pipe(authorization)
+          ).pipe(
+            Effect.flatMap((r) => r.status < 300 ? Effect.void : Effect.fail(new Error(`HTTP ${r.status}`))),
+            Effect.mapError((cause) => new StackError({ service: "jellyfin", message: `could not send ${command}`, cause }))
+          ),
         playing: Effect.map(get("/Sessions", { ActiveWithinSeconds: "120" }, Sessions), playingFrom),
         find: (check: AvailabilityCheck) =>
           Effect.gen(function*() {

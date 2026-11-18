@@ -3,6 +3,7 @@ import { Config, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpStaticServer } from "effect/http"
 import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
+import { ActionRunner } from "./flows/ActionRunner.ts"
 import { Activities } from "./flows/Activities.ts"
 import { FlowStore } from "./flows/FlowStore.ts"
 import { TestRunner } from "./flows/TestRunner.ts"
@@ -52,7 +53,8 @@ const Store = Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer, Fl
 
 const Push = PushKey.layer.pipe(Layer.provideMerge(Apns.layer))
 
-const Engine = Layer.mergeAll(Watcher.layer, TestRunner.layer).pipe(
+const Engine = ActionRunner.layer.pipe(
+  Layer.provideMerge(Layer.mergeAll(Watcher.layer, TestRunner.layer)),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Activities.layerPersisted),
   Layer.provideMerge(Push),

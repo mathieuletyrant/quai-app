@@ -315,6 +315,65 @@
         }
       }
     },
+    "/api/activities/actions": {
+      "post": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "performAction",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "400": {
+            "description": "InvalidAction",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidActionEncoded"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityAction"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/activities": {
       "get": {
         "tags": [
@@ -589,6 +648,31 @@
         }
       }
     },
+    "/console-api/flows/actions": {
+      "get": {
+        "tags": [
+          "flows"
+        ],
+        "operationId": "getActionCatalog",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogAction"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/console-api/flows/{id}": {
       "put": {
         "tags": [
@@ -809,8 +893,11 @@
             "items": {
               "$ref": "#/components/schemas/FlowStep"
             },
-            "minItems": 2,
+            "minItems": 1,
             "maxItems": 6
+          },
+          "endOn": {
+            "$ref": "#/components/schemas/EventType"
           },
           "lingerMinutes": {
             "type": "integer",
@@ -842,6 +929,21 @@
         ],
         "additionalProperties": false
       },
+      "EventType": {
+        "type": "string",
+        "enum": [
+          "media.added",
+          "media.grabbed",
+          "media.imported",
+          "media.available",
+          "download.progress",
+          "playback.started",
+          "playback.progress",
+          "playback.stopped",
+          "service.down",
+          "service.up"
+        ]
+      },
       "FlowStep": {
         "type": "object",
         "properties": {
@@ -861,6 +963,12 @@
           },
           "show": {
             "$ref": "#/components/schemas/StepShow"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionType"
+            }
           }
         },
         "required": [
@@ -871,6 +979,13 @@
           "show"
         ],
         "additionalProperties": false
+      },
+      "ActionType": {
+        "type": "string",
+        "enum": [
+          "playback.playPause",
+          "playback.stop"
+        ]
       },
       "StepShow": {
         "type": "object",
@@ -892,21 +1007,6 @@
           }
         },
         "additionalProperties": false
-      },
-      "EventType": {
-        "type": "string",
-        "enum": [
-          "media.added",
-          "media.grabbed",
-          "media.imported",
-          "media.available",
-          "download.progress",
-          "playback.started",
-          "playback.progress",
-          "playback.stopped",
-          "service.down",
-          "service.up"
-        ]
       },
       "FlowFilter": {
         "type": "object",
@@ -952,6 +1052,26 @@
         "required": [
           "_tag",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "CatalogAction": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ActionType"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/FlowSubject"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "subject",
+          "label"
         ],
         "additionalProperties": false
       },
@@ -1159,6 +1279,12 @@
           "endsAt": {
             "type": "number"
           },
+          "startsAt": {
+            "type": "number"
+          },
+          "paused": {
+            "type": "boolean"
+          },
           "since": {
             "type": "number"
           },
@@ -1226,12 +1352,53 @@
           },
           "icon": {
             "type": "string"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActionType"
+            }
           }
         },
         "required": [
           "id",
           "label",
           "icon"
+        ],
+        "additionalProperties": false
+      },
+      "InvalidActionEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "InvalidAction"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "ActivityAction": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/ActionType"
+          }
+        },
+        "required": [
+          "key",
+          "action"
         ],
         "additionalProperties": false
       },

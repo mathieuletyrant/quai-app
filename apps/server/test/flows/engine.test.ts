@@ -89,13 +89,37 @@ describe("download flow", () => {
 
 describe("playback flow", () => {
   const tv = { kind: "playback" as const, key: "playback:s1:i1", title: "Dune", device: "TV Salon" }
+  const playing = (endsAt: number) => ({ type: "playback.started" as const, subject: tv, values: { paused: false, startsAt: 0, endsAt } })
+  const position = (values: object) => ({ type: "playback.progress" as const, subject: tv, values })
 
-  it.effect("starts with an end time, ends on stop, or expires after 15 min without news", () =>
+  it.effect("one step that stays while playing, and ends on stop", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities
-      const start = yield* engine.handle({ type: "playback.started", subject: tv, values: { endsAt: 999_000 } })
+      const start = yield* engine.handle(playing(999_000))
       expect(tags(start)).toEqual(["Start:0"])
-      expect(start[0]!.activity.values.endsAt).toBe(999_000)
+      expect(start[0]!.activity.endedAt).toBeNull()
+      const stop = yield* engine.handle({ type: "playback.stopped", subject: tv })
+      expect(tags(stop)).toEqual(["End:0"])
+      expect(stop[0]!.activity.tone).toBe("done")
+    }), [playback]))
+
+  it.effect("the end time drifting by milliseconds pushes nothing; a pause goes at once; a seek within 15 s", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(playing(3_600_000))
+      yield* TestClock.adjust("15 seconds")
+      expect(yield* engine.handle(position({ paused: false, startsAt: 3, endsAt: 3_600_004 }))).toEqual([])
+      yield* TestClock.adjust("1 second")
+      const paused = yield* engine.handle(position({ paused: true, progress: 0.25 }))
+      expect(paused.map((p) => p.activity.values.paused)).toEqual([true])
+      yield* TestClock.adjust("1 second")
+      expect((yield* engine.handle(position({ paused: false, startsAt: 0, endsAt: 3_000_000 }))).length).toBe(1)
+    }), [playback]))
+
+  it.effect("expires after 15 min without news", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(playing(999_000))
       yield* TestClock.adjust("16 minutes")
       expect(tags(yield* engine.tick)).toEqual(["End:0"])
     }), [playback]))
@@ -105,7 +129,6 @@ describe("playback flow", () => {
       const engine = yield* Activities
       expect(yield* engine.handle({ type: "playback.started", subject: { ...tv, device: "iPad" } })).toEqual([])
       expect(tags(yield* engine.handle({ type: "playback.started", subject: tv }))).toEqual(["Start:0"])
-      expect(tags(yield* engine.handle({ type: "playback.stopped", subject: tv }))).toEqual(["End:1"])
     }), [{ ...playback, filter: { devices: ["TV Salon"] } }]))
 })
 

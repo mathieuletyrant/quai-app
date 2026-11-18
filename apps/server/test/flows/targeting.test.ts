@@ -60,13 +60,26 @@ describe("per-iPhone steps", () => {
     expect(deliveryFor(push("Start"), download, { ...fresh, preferences: prefs([], false) }, 0)._tag).toBe("None")
   })
 
-  it("a timer step sends its end time in seconds", () => {
+  it("playback: the timeline in seconds for the iPhone to animate, and the buttons in the attributes", () => {
     const d = deliveryFor(
-      { _tag: "Start", activity: activity({ flowId: "playback", values: { endsAt: 120_500, detail: "TV Salon" } }) },
+      { _tag: "Start", activity: activity({ flowId: "playback", values: { paused: false, startsAt: 20_000, endsAt: 120_500, detail: "TV Salon" } }) },
       playback,
       { ...fresh, preferences: { flows: {} } },
       0
     )
-    expect(d._tag === "Start" && d.content).toEqual({ step: 0, tone: "active", endsAt: 120, detail: "TV Salon" })
+    expect(d._tag === "Start" && d.content).toEqual({ step: 0, tone: "active", endsAt: 120, startsAt: 20, paused: false, detail: "TV Salon" })
+    expect(d._tag === "Start" && d.attributes.steps).toEqual([
+      { id: "playing", label: "Playing", icon: "play.fill", actions: ["playback.playPause", "playback.stop"] }
+    ])
+  })
+
+  it("playback paused: the bar holds at its fraction", () => {
+    const d = deliveryFor(
+      { _tag: "Update", activity: activity({ flowId: "playback", values: { paused: true, progress: 0.25 } }) },
+      playback,
+      { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: { flows: {} } },
+      0
+    )
+    expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", paused: true, progress: 0.25 })
   })
 })

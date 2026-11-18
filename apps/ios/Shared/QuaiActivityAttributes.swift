@@ -10,6 +10,8 @@ struct QuaiActivityAttributes: ActivityAttributes {
         var label: String
         /// SF Symbol name.
         var icon: String
+        /// Buttons this step offers (`ActivityAction` raw values).
+        var actions: [String]?
     }
 
     enum Tone: String, Codable, Hashable {
@@ -25,6 +27,10 @@ struct QuaiActivityAttributes: ActivityAttributes {
         var remainingSeconds: Double?
         /// Epoch seconds a countdown runs to.
         var endsAt: Double?
+        /// Epoch seconds the timeline began: with `endsAt`, the bar animates without pushes.
+        var startsAt: Double?
+        /// Playback paused: the bar holds at `progress`, the button shows Play.
+        var paused: Bool?
         /// Epoch seconds the step began, for "time since".
         var since: Double?
         var detail: String?

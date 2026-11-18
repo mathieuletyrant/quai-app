@@ -21,7 +21,9 @@ describe("Jellyfin playback", () => {
       title: "Severance · S02E03",
       device: "TV Salon",
       paused: false,
-      remainingMs: 2_400_000
+      remainingMs: 2_400_000,
+      positionMs: 1_200_000,
+      runtimeMs: 3_600_000
     }])
   })
 
@@ -29,7 +31,9 @@ describe("Jellyfin playback", () => {
     const now = playingFrom(sessions)
     const first = playbackEvents(new Map(), now, 1_000)
     expect(first.map((e) => e.type)).toEqual(["playback.started"])
-    expect(first[0]!.values).toEqual({ detail: "TV Salon", endsAt: 2_401_000 })
+    expect(first[0]!.values).toEqual({ paused: false, detail: "TV Salon", endsAt: 2_401_000, startsAt: -1_199_000 })
+    const paused = playbackEvents(new Map(), [{ ...now[0]!, paused: true }], 1_000)
+    expect(paused[0]!.values).toEqual({ paused: true, detail: "TV Salon", progress: 1 / 3 })
     const before = new Map(now.map((p) => [p.key, p]))
     expect(playbackEvents(before, now, 2_000).map((e) => e.type)).toEqual(["playback.progress"])
     expect(playbackEvents(before, [], 3_000).map((e) => e.type)).toEqual(["playback.stopped"])

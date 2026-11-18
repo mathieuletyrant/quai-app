@@ -1,4 +1,4 @@
-import { builtInFlows, type Flow, Flow as FlowSchema, InvalidFlow, isDataEvent, subjectOf } from "@quai/api"
+import { actionSubject, builtInFlows, type Flow, Flow as FlowSchema, InvalidFlow, isDataEvent, subjectOf } from "@quai/api"
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 
@@ -10,8 +10,19 @@ export const validate = (flow: Flow): string | null => {
     if (isDataEvent(step.on)) return `“${step.label}” uses a data event: pick an event that starts a step.`
     if (subjectOf(step.on) !== flow.subject) return `“${step.label}” uses an event for another kind of flow.`
   }
+  for (const step of flow.steps) {
+    for (const action of step.actions ?? []) {
+      if (actionSubject(action) !== flow.subject) return `“${step.label}” has a button for another kind of flow.`
+    }
+  }
   const events = new Set(flow.steps.map((s) => s.on))
   if (events.size !== flow.steps.length) return "Two steps start on the same event."
+  if (flow.endOn !== undefined) {
+    if (isDataEvent(flow.endOn) || subjectOf(flow.endOn) !== flow.subject) return "The end event doesn't fit this flow."
+    if (events.has(flow.endOn)) return "The end event is also a step's event."
+  } else if (flow.steps.length < 2 && flow.expireAfterMinutes === undefined) {
+    return "A one-step flow needs an end event or an end after no news."
+  }
   return null
 }
 

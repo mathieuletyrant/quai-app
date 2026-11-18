@@ -19,6 +19,10 @@ export const EventType = Schema.Literals([
 ]).annotate({ identifier: "EventType" })
 export type EventType = typeof EventType.Type
 
+/** Buttons a step can offer on the Live Activity (docs/flows.md, Actions). */
+export const ActionType = Schema.Literals(["playback.playPause", "playback.stop"]).annotate({ identifier: "ActionType" })
+export type ActionType = typeof ActionType.Type
+
 /** Live values a step can display. */
 export const StepShow = Schema.Struct({
   progress: Schema.optionalKey(Schema.Boolean),
@@ -38,7 +42,8 @@ export const FlowStep = Schema.Struct({
   label: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(24)),
   icon: Symbol,
   on: EventType,
-  show: StepShow
+  show: StepShow,
+  actions: Schema.optionalKey(Schema.Array(ActionType))
 }).annotate({ identifier: "FlowStep" })
 export type FlowStep = typeof FlowStep.Type
 
@@ -59,7 +64,12 @@ export const Flow = Schema.Struct({
   icon: Symbol,
   subject: FlowSubject,
   filter: FlowFilter,
-  steps: Schema.Array(FlowStep).check(Schema.isMinLength(2), Schema.isMaxLength(6)),
+  steps: Schema.Array(FlowStep).check(Schema.isMinLength(1), Schema.isMaxLength(6)),
+  /**
+   * An event that ends the activity where it is, without being a step (playback stopped). Without
+   * it, reaching the last step ends the activity.
+   */
+  endOn: Schema.optionalKey(EventType),
   lingerMinutes: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 60 })),
   stalledAfterMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1440 }))),
   expireAfterMinutes: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 1440 })))
@@ -70,7 +80,8 @@ export type Flow = typeof Flow.Type
 export const ActivityStep = Schema.Struct({
   id: Schema.String,
   label: Schema.String,
-  icon: Schema.String
+  icon: Schema.String,
+  actions: Schema.optionalKey(Schema.Array(ActionType))
 }).annotate({ identifier: "ActivityStep" })
 
 /** Fixed for the activity's life: pushed as APNs `attributes` on start. */
@@ -100,11 +111,22 @@ export const ActivityContent = Schema.Struct({
   remainingSeconds: Schema.optionalKey(Schema.Finite),
   /** Epoch seconds the countdown runs to (playback end). */
   endsAt: Schema.optionalKey(Schema.Finite),
+  /** Epoch seconds the timeline began: with `endsAt`, the iPhone animates the bar on its own. */
+  startsAt: Schema.optionalKey(Schema.Finite),
+  /** Playback paused: the bar holds at `progress` and the button shows Play. */
+  paused: Schema.optionalKey(Schema.Boolean),
   /** Epoch seconds the step began (time since an incident). */
   since: Schema.optionalKey(Schema.Finite),
   detail: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "ActivityContent" })
 export type ActivityContent = typeof ActivityContent.Type
+
+/** An action entry, for the console's step editor. */
+export const CatalogAction = Schema.Struct({
+  type: ActionType,
+  subject: FlowSubject,
+  label: Schema.String
+}).annotate({ identifier: "CatalogAction" })
 
 /** A catalog entry, for the console's step picker. */
 export const CatalogEvent = Schema.Struct({

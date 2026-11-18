@@ -51,7 +51,15 @@ export interface Result {
 
 export const activityKey = (flowId: string, subjectKey: string) => `${flowId}|${subjectKey}`
 
-const fingerprint = (a: Activity) => JSON.stringify([a.stepIndex, a.tone, a.values])
+/**
+ * What a push would change on screen. Times are rounded to 10 s: a playback's end time drifts by
+ * milliseconds between polls, and the iPhone animates the bar itself, so only a seek is news.
+ */
+const fingerprint = (a: Activity) => {
+  const round = (ms: number | undefined) => ms === undefined ? undefined : Math.round(ms / 10_000)
+  const { endsAt, startsAt, ...rest } = a.values
+  return JSON.stringify([a.stepIndex, a.tone, rest, round(endsAt), round(startsAt)])
+}
 
 const matches = (flow: Flow, subject: Subject) => {
   if (!flow.enabled || flow.subject !== subject.kind) return false
@@ -66,7 +74,8 @@ const matches = (flow: Flow, subject: Subject) => {
   return true
 }
 
-const isLast = (flow: Flow, index: number) => index === flow.steps.length - 1
+/** Without an end event, reaching the last step ends the activity; with one, only that event does. */
+const endsAtStep = (flow: Flow, index: number) => flow.endOn === undefined && index === flow.steps.length - 1
 
 const put = (activities: Map<string, Activity>, activity: Activity) => activities.set(activity.key, activity)
 
@@ -103,9 +112,11 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
         movedAt: moved ? now : activity.movedAt,
         lastEventAt: now
       }
-      const unstalled = activity.tone === "stalled" && next.tone === "active"
+      // A visible change of state goes at once: a download moving again, a pause or a resume.
+      const urgent = (activity.tone === "stalled" && next.tone === "active") ||
+        (event.values?.paused !== undefined && event.values.paused !== activity.values.paused)
       const throttled = activity.pushedAt !== null && now - activity.pushedAt < Timing.throttleMs
-      if ((throttled && !unstalled) || fingerprint(next) === activity.pushedFingerprint) {
+      if ((throttled && !urgent) || fingerprint(next) === activity.pushedFingerprint) {
         put(activities, next)
       } else {
         const sent = pushed(next, now)
@@ -120,14 +131,22 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
   if (subject === undefined) return { state, pushes: [] }
   for (const flow of flows) {
     if (!matches(flow, subject)) continue
-    const index = flow.steps.findIndex((s) => s.on === event.type)
-    if (index < 0) continue
     const key = activityKey(flow.id, subject.key)
     const current = activities.get(key)
 
+    if (flow.endOn === event.type) {
+      if (current === undefined || current.endedAt !== null) continue
+      const ended = pushed({ ...current, tone: "done", endedAt: now, lastEventAt: now }, now)
+      put(activities, ended)
+      pushes.push({ _tag: "End", activity: ended })
+      continue
+    }
+    const index = flow.steps.findIndex((s) => s.on === event.type)
+    if (index < 0) continue
+
     if (current === undefined) {
       // Nothing to finish: an end event alone (a service back that was never down) starts nothing.
-      if (isLast(flow, index)) continue
+      if (endsAtStep(flow, index)) continue
       const created: Activity = {
         key,
         flowId: flow.id,
@@ -156,7 +175,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       put(activities, { ...current, lastEventAt: now })
       continue
     }
-    const ends = isLast(flow, index)
+    const ends = endsAtStep(flow, index)
     const next: Activity = {
       ...current,
       title: subject.title,

@@ -12,6 +12,9 @@ export interface Values {
   readonly bytesPerSecond?: number
   readonly remainingSeconds?: number
   readonly endsAt?: number
+  /** With `endsAt`: when the timeline began, so the iPhone can animate the bar itself. */
+  readonly startsAt?: number
+  readonly paused?: boolean
   readonly since?: number
   readonly detail?: string
 }

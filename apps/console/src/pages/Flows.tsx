@@ -4,6 +4,8 @@ import { call } from "../client.ts"
 import { Glyph, icons } from "./icons.tsx"
 
 type CatalogEntry = { readonly type: FlowStep["on"]; readonly subject: Flow["subject"]; readonly label: string; readonly data: boolean }
+type ActionEntry = { readonly type: NonNullable<FlowStep["actions"]>[number]; readonly subject: Flow["subject"]; readonly label: string }
+const actionGlyphs: Record<ActionEntry["type"], string> = { "playback.playPause": "⏯", "playback.stop": "⏹" }
 type Mutable<T> = { -readonly [K in keyof T]: T[K] extends ReadonlyArray<infer U> ? Array<Mutable<U>> : T[K] extends object ? Mutable<T[K]> : T[K] }
 type Draft = Mutable<Flow>
 
@@ -23,8 +25,8 @@ const clone = (flow: Flow): Draft => JSON.parse(JSON.stringify(flow)) as Draft
 function Preview({ flow, step }: { flow: Draft; step: number }) {
   const current = flow.steps[step]
   if (current === undefined) return null
-  const last = step === flow.steps.length - 1
-  const tint = last ? "#30D158" : flow.color
+  const done = flow.endOn === undefined && step === flow.steps.length - 1
+  const tint = done ? "#30D158" : flow.color
   return (
     <div className="preview" aria-label="Lock Screen preview">
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -38,15 +40,20 @@ function Preview({ flow, step }: { flow: Draft; step: number }) {
         {current.show.progress && <span style={{ color: tint, fontWeight: 700, fontSize: 20 }}>63 %</span>}
         {current.show.timer && <span style={{ color: tint, fontWeight: 700, fontSize: 20 }}>38:12</span>}
       </div>
-      {current.show.progress && <div className="bar"><div style={{ width: "63%", background: tint }} /></div>}
-      <div className="stepper">
+      {(current.show.progress || current.show.timer) && <div className="bar"><div style={{ width: current.show.timer ? "34%" : "63%", background: tint }} /></div>}
+      {(current.actions ?? []).length > 0 && (
+        <div className="checks">
+          {(current.actions ?? []).map((a) => <span key={a} className="action-preview" style={{ color: tint }}>{actionGlyphs[a]}</span>)}
+        </div>
+      )}
+      {flow.steps.length > 1 && <div className="stepper">
         {flow.steps.map((s, i) => (
           <div key={s.id} className="grow">
             <div className="tick" style={{ background: i <= step ? tint : "rgba(255,255,255,0.14)" }} />
             <span style={{ opacity: i === step ? 0.95 : 0.5, fontWeight: i === step ? 600 : 400 }}>{s.label}</span>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   )
 }
@@ -56,6 +63,7 @@ function StepRow(props: {
   index: number
   count: number
   events: ReadonlyArray<CatalogEntry>
+  actions: ReadonlyArray<ActionEntry>
   onChange: (step: Draft["steps"][number]) => void
   onMove: (delta: -1 | 1) => void
   onRemove: () => void
@@ -71,7 +79,7 @@ function StepRow(props: {
         </select>
         <button type="button" className="icon-button" aria-label="Move up" disabled={index === 0} onClick={() => props.onMove(-1)}>↑</button>
         <button type="button" className="icon-button" aria-label="Move down" disabled={index === count - 1} onClick={() => props.onMove(1)}>↓</button>
-        <button type="button" className="icon-button" aria-label="Remove step" disabled={count <= 2} onClick={props.onRemove}>✕</button>
+        <button type="button" className="icon-button" aria-label="Remove step" disabled={count <= 1} onClick={props.onRemove}>✕</button>
       </div>
       <label className="field">
         <span>Starts when</span>
@@ -87,6 +95,24 @@ function StepRow(props: {
           </label>
         ))}
       </div>
+      {props.actions.length > 0 && (
+        <div className="checks">
+          <span className="muted" style={{ fontSize: 13 }}>Buttons</span>
+          {props.actions.map((a) => (
+            <label key={a.type} className="check">
+              <input
+                type="checkbox"
+                checked={(step.actions ?? []).includes(a.type)}
+                onChange={(e) => props.onChange({
+                  ...step,
+                  actions: e.target.checked ? [...(step.actions ?? []), a.type] : (step.actions ?? []).filter((x) => x !== a.type)
+                })}
+              />
+              {a.label}
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -94,15 +120,21 @@ function StepRow(props: {
 export function FlowsPage() {
   const [flows, setFlows] = useState<ReadonlyArray<Flow>>([])
   const [catalog, setCatalog] = useState<ReadonlyArray<CatalogEntry>>([])
+  const [actionCatalog, setActionCatalog] = useState<ReadonlyArray<ActionEntry>>([])
   const [draft, setDraft] = useState<Draft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [previewStep, setPreviewStep] = useState(1)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   const load = useCallback(async (select?: string) => {
-    const [all, events] = await Promise.all([call((c) => c.flows.list()), call((c) => c.flows.catalog())])
+    const [all, events, actions] = await Promise.all([
+      call((c) => c.flows.list()),
+      call((c) => c.flows.catalog()),
+      call((c) => c.flows.actions())
+    ])
     setFlows(all)
     setCatalog(events)
+    setActionCatalog(actions)
     const chosen = all.find((f) => f.id === (select ?? draft?.id)) ?? all[0]
     if (chosen) {
       setDraft(clone(chosen))
@@ -117,6 +149,11 @@ export function FlowsPage() {
   const stepEvents = useMemo(
     () => catalog.filter((e) => !e.data && draft !== null && e.subject === draft.subject),
     [catalog, draft?.subject]
+  )
+
+  const stepActions = useMemo(
+    () => actionCatalog.filter((a) => draft !== null && a.subject === draft.subject),
+    [actionCatalog, draft?.subject]
   )
 
   const fail = (e: unknown) => {
@@ -284,6 +321,7 @@ export function FlowsPage() {
                 index={index}
                 count={draft.steps.length}
                 events={stepEvents}
+                actions={stepActions}
                 onChange={(s) => update((d) => { d.steps[index] = { ...s, id: s.id || slug(s.label) } })}
                 onMove={(delta) => update((d) => {
                   const [moved] = d.steps.splice(index, 1)
@@ -305,11 +343,21 @@ export function FlowsPage() {
               </button>
             )}
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              The activity starts at the first step that happens, and ends at the last one.
+              The activity starts at the first step that happens.
             </p>
 
             <h2>End</h2>
             <div className="form">
+              <label className="field">
+                <span>Ends when</span>
+                <select value={draft.endOn ?? ""} onChange={(e) => update((d) => {
+                  if (e.target.value === "") delete d.endOn
+                  else d.endOn = e.target.value as FlowStep["on"]
+                })}>
+                  <option value="">The last step is reached</option>
+                  {stepEvents.filter((e) => !draft.steps.some((s) => s.on === e.type)).map((e) => <option key={e.type} value={e.type}>{e.label}</option>)}
+                </select>
+              </label>
               <label className="field">
                 <span>Stay on screen after the last step</span>
                 <select value={draft.lingerMinutes} onChange={(e) => update((d) => { d.lingerMinutes = Number(e.target.value) })}>

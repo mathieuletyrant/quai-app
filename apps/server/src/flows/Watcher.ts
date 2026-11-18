@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Schedule } from "effect"
+import { Clock, Context, Effect, Layer, Schedule } from "effect"
 import { Notifier } from "../push/Notifier.ts"
 import type { AvailabilityCheck } from "../stack/Availability.ts"
 import { Health } from "../stack/Health.ts"
@@ -23,6 +23,8 @@ export const healthEvery = "1 minute"
 export class Watcher extends Context.Service<Watcher, {
   readonly handle: (events: ReadonlyArray<FlowEvent>, check: AvailabilityCheck | null) => Effect.Effect<void>
   readonly poll: Effect.Effect<void>
+  /** Reads Jellyfin's sessions now (after a remote control command). */
+  readonly pollPlayback: Effect.Effect<void>
   readonly checkHealth: Effect.Effect<void>
 }>()("quai/Watcher") {
   static readonly make = Effect.gen(function*() {
@@ -52,6 +54,21 @@ export class Watcher extends Context.Service<Watcher, {
         }
         yield* Effect.forEach(events, apply, { discard: true })
       })
+
+    const pollPlayback = Effect.gen(function*() {
+      const flows = yield* flowStore.all
+      if (!jellyfin.configured || !flows.some((f) => f.enabled && f.subject === "playback")) return
+      yield* jellyfin.playing.pipe(
+        Effect.flatMap((now) =>
+          Effect.gen(function*() {
+            const events = playbackEvents(playing, now, yield* Clock.currentTimeMillis)
+            playing = new Map(now.map((p) => [p.key, p]))
+            yield* Effect.forEach(events, apply, { discard: true })
+          })
+        ),
+        Effect.catchTag("StackError", (e) => Effect.logWarning(`Jellyfin sessions: ${e.message}`))
+      )
+    })
 
     const poll = Effect.gen(function*() {
       const flows = yield* flowStore.all
@@ -100,19 +117,7 @@ export class Watcher extends Context.Service<Watcher, {
         yield* saveChecks
       }
 
-      if (jellyfin.configured && flows.some((f) => f.enabled && f.subject === "playback")) {
-        yield* jellyfin.playing.pipe(
-          Effect.flatMap((now) =>
-            Effect.gen(function*() {
-              const events = playbackEvents(playing, now, Date.now())
-              playing = new Map(now.map((p) => [p.key, p]))
-              yield* Effect.forEach(events, apply, { discard: true })
-            })
-          ),
-          Effect.catchTag("StackError", (e) => Effect.logWarning(`Jellyfin sessions: ${e.message}`))
-        )
-      }
-
+      yield* pollPlayback
       yield* Effect.flatMap(engine.tick, notifier.send)
     })
 
@@ -123,7 +128,7 @@ export class Watcher extends Context.Service<Watcher, {
       yield* Effect.forEach(events, apply, { discard: true })
     })
 
-    return { handle, poll, checkHealth }
+    return { handle, poll, pollPlayback, checkHealth }
   })
 
   static readonly layer = Layer.effect(

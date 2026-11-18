@@ -25,6 +25,23 @@ struct ActivityStateTests {
     }
 }
 
+struct ActivityActionTests {
+    @Test func namesMatchTheServersCatalog() {
+        #expect(ActivityAction.allCases.map(\.rawValue) == ["playback.playPause", "playback.stop"])
+    }
+
+    @Test func playPauseShowsWhatATapWillDo() {
+        #expect(ActivityAction.playPause.symbol(paused: true) == "play.fill")
+        #expect(ActivityAction.playPause.symbol(paused: false) == "pause.fill")
+    }
+
+    @Test func decodesAStepsButtons() throws {
+        let json = #"{"id":"playing","label":"Playing","icon":"play.fill","actions":["playback.playPause","playback.stop"]}"#
+        let step = try JSONDecoder().decode(QuaiActivityAttributes.Step.self, from: Data(json.utf8))
+        #expect(step.actions?.compactMap(ActivityAction.init(rawValue:)) == [.playPause, .stop])
+    }
+}
+
 struct PairingLinkTests {
     @Test func readsTheConsolesQRCode() throws {
         let url = try #require(URL(string: "quai://pair?code=ABCD2345&url=http%3A%2F%2Fumbrel.local%3A3078&url=https%3A%2F%2Fquai.example.com"))

@@ -1,4 +1,4 @@
-import type { EventType, Flow, FlowSubject } from "./Activity.ts"
+import type { ActionType, EventType, Flow, FlowSubject } from "./Activity.ts"
 
 /** Every event a flow can use, with its subject and how the console names it. */
 export const catalog: ReadonlyArray<{
@@ -18,6 +18,18 @@ export const catalog: ReadonlyArray<{
   { type: "service.down", subject: "service", label: "Service down for 5 min", data: false },
   { type: "service.up", subject: "service", label: "Service back", data: false }
 ]
+
+/** Every button a step can offer. */
+export const actionCatalog: ReadonlyArray<{
+  readonly type: ActionType
+  readonly subject: FlowSubject
+  readonly label: string
+}> = [
+  { type: "playback.playPause", subject: "playback", label: "Play / Pause" },
+  { type: "playback.stop", subject: "playback", label: "Stop" }
+]
+
+export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((a) => a.type === type)!.subject
 
 export const subjectOf = (type: EventType): FlowSubject => catalog.find((e) => e.type === type)!.subject
 export const isDataEvent = (type: EventType): boolean => catalog.find((e) => e.type === type)!.data
@@ -52,10 +64,17 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     subject: "playback",
     filter: { devices: [] },
     steps: [
-      { id: "playing", label: "Playing", icon: "play.fill", on: "playback.started", show: { timer: true } },
-      { id: "finished", label: "Finished", icon: "checkmark", on: "playback.stopped", show: {} }
+      {
+        id: "playing",
+        label: "Playing",
+        icon: "play.fill",
+        on: "playback.started",
+        show: { timer: true },
+        actions: ["playback.playPause", "playback.stop"]
+      }
     ],
-    lingerMinutes: 1,
+    endOn: "playback.stopped",
+    lingerMinutes: 0,
     expireAfterMinutes: 15
   },
   {
