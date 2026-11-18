@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/mathieuletyrant/quai-app/compare/v0.2.2...v0.3.0) (2026-11-18)
+
+
+### ✨ Features
+
+* set the Apple push key from the console ([76b6845](https://github.com/mathieuletyrant/quai-app/commit/76b6845be90a1d1f0fbb37b2582d56fd81ca93da))
+
 ## [0.2.2](https://github.com/mathieuletyrant/quai-app/compare/v0.2.1...v0.2.2) (2026-11-18)
 
 
