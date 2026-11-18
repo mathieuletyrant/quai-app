@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/mathieuletyrant/quai-app/compare/v0.2.1...v0.2.2) (2026-11-18)
+
+
+### 🐛 Fixes
+
+* bundle id com.mathieuletyrant.quai ([5968583](https://github.com/mathieuletyrant/quai-app/commit/5968583c4a02dcf1656fe83330014cc780df3d84))
+
 ## [0.2.1](https://github.com/mathieuletyrant/quai-app/compare/v0.2.0...v0.2.1) (2026-11-18)
 
 
