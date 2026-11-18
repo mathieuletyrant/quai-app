@@ -1,88 +1,61 @@
 import SwiftUI
 
-/// Settings → Live Activities: what this iPhone receives. Saved on the server, per iPhone.
+/// Settings → Live Activities: per flow, on or off, which steps this iPhone shows, and a test.
+/// Saved on the server, per iPhone. Flows themselves are made in the console.
 struct LiveActivitySettingsView: View {
     @Environment(Connection.self) private var connection
-    @State private var preferences: Components.Schemas.DevicePreferences?
+    @State private var flows: [Components.Schemas.FlowSummary] = []
+    @State private var preferences: [String: Components.Schemas.FlowPreference] = [:]
     @State private var status: String?
-    @State private var testing = false
-
-    private static let order: [Components.Schemas.DownloadStep] = [.searching, .downloading, .importing, .available]
-    private static let optionalSteps: [Components.Schemas.DownloadStep] = [.searching, .downloading, .importing]
+    @State private var loaded = false
 
     var body: some View {
         List {
-            if let preferences {
-                Section {
-                    Toggle(isOn: binding(\.enabled, preferences)) {
-                        Label("Download", systemImage: "arrow.down.circle.fill").foregroundStyle(.primary)
-                    }
-                    .tint(.quaiAccent)
-                } footer: {
-                    Text("From the request to “Ready to watch”, on the Lock Screen and in the Dynamic Island.")
-                }
-
-                if preferences.download.enabled {
-                    Section {
-                        ForEach(Self.optionalSteps, id: \.self) { step in
-                            Toggle(Self.label(step), isOn: stepBinding(step, preferences)).tint(.quaiAccent)
-                        }
-                        LabeledContent("Ready to watch", value: "Always")
-                    } header: {
-                        Text("Steps shown")
-                    } footer: {
-                        Text("The activity starts at the first step you keep. Ready to watch ends it.")
-                    }
-
-                    Section("Once ready") {
-                        Picker("Stay on screen", selection: lingerBinding(preferences)) {
-                            Text("15 min").tag(15.0)
-                            Text("1 hour").tag(60.0)
-                        }
-                    }
-                }
-
-                Section {
-                    Button {
-                        Task { await sendTest() }
-                    } label: {
-                        HStack {
-                            Label("Send a test activity", systemImage: "play.circle.fill")
-                            if testing { Spacer(); ProgressView() }
-                        }
-                    }
-                    .disabled(testing)
-                } footer: {
-                    Text(status ?? "A pretend download of about 45 s, with your steps, through the real push path. Lock the iPhone to see it.")
-                }
-            } else {
+            if !loaded {
                 ProgressView().frame(maxWidth: .infinity)
+            }
+            ForEach(flows, id: \.id) { flow in
+                FlowSection(
+                    flow: flow,
+                    preference: preference(flow.id),
+                    onChange: { change in update(flow.id, change) },
+                    onTest: { await test(flow) }
+                )
+            }
+            if let status {
+                Section { Text(status).font(.footnote).foregroundStyle(.secondary) }
             }
         }
         .navigationTitle("Live Activities")
         .task { await load() }
+        .refreshable { await load() }
     }
 
-    private static func label(_ step: Components.Schemas.DownloadStep) -> String {
-        switch step {
-        case .searching: "Searching"
-        case .downloading: "Downloading"
-        case .importing: "Importing"
-        case .available: "Ready to watch"
-        }
+    private func preference(_ id: String) -> Components.Schemas.FlowPreference {
+        preferences[id] ?? .init(enabled: true, hiddenSteps: [])
     }
 
     private func load() async {
-        do { preferences = try await connection.preferences() } catch { status = error.localizedDescription }
+        do {
+            async let all = connection.flows()
+            async let saved = connection.preferences()
+            flows = try await all
+            preferences = try await saved.flows.additionalProperties
+            loaded = true
+        } catch {
+            status = error.localizedDescription
+            loaded = true
+        }
     }
 
-    private func update(_ change: (inout Components.Schemas.DevicePreferences) -> Void) {
-        guard var next = preferences else { return }
+    private func update(_ id: String, _ change: (inout Components.Schemas.FlowPreference) -> Void) {
+        var next = preference(id)
         change(&next)
-        preferences = next
+        preferences[id] = next
+        let all = preferences
         Task {
             do {
-                try await connection.save(next)
+                try await connection.save(.init(flows: .init(additionalProperties: all)))
                 status = nil
             } catch {
                 status = error.localizedDescription
@@ -90,36 +63,80 @@ struct LiveActivitySettingsView: View {
         }
     }
 
-    private func binding(_ keyPath: WritableKeyPath<Components.Schemas.DownloadPreferences, Bool>, _ current: Components.Schemas.DevicePreferences) -> Binding<Bool> {
-        Binding(get: { current.download[keyPath: keyPath] }, set: { value in update { $0.download[keyPath: keyPath] = value } })
-    }
-
-    private func stepBinding(_ step: Components.Schemas.DownloadStep, _ current: Components.Schemas.DevicePreferences) -> Binding<Bool> {
-        Binding(
-            get: { current.download.steps.contains(step) },
-            set: { on in
-                update { prefs in
-                    var steps = Set(prefs.download.steps)
-                    if on { steps.insert(step) } else { steps.remove(step) }
-                    steps.insert(.available)
-                    prefs.download.steps = Self.order.filter(steps.contains)
-                }
-            }
-        )
-    }
-
-    private func lingerBinding(_ current: Components.Schemas.DevicePreferences) -> Binding<Double> {
-        Binding(get: { current.download.lingerMinutes }, set: { value in update { $0.download.lingerMinutes = value } })
-    }
-
-    private func sendTest() async {
-        testing = true
-        defer { testing = false }
+    private func test(_ flow: Components.Schemas.FlowSummary) async {
         do {
-            try await connection.sendTestActivity()
-            status = "Sent. Lock the iPhone: it runs for about 45 s."
+            try await connection.sendTestActivity(flowId: flow.id)
+            status = "\(flow.name): test sent. Lock the iPhone to watch it (about 30 s)."
         } catch {
             status = error.localizedDescription
         }
+    }
+}
+
+private struct FlowSection: View {
+    let flow: Components.Schemas.FlowSummary
+    let preference: Components.Schemas.FlowPreference
+    let onChange: ((inout Components.Schemas.FlowPreference) -> Void) -> Void
+    let onTest: () async -> Void
+    @State private var testing = false
+
+    var body: some View {
+        Section {
+            Toggle(isOn: Binding(get: { preference.enabled }, set: { value in onChange { $0.enabled = value } })) {
+                Label {
+                    Text(flow.name)
+                } icon: {
+                    Image(systemName: flow.icon).foregroundStyle(Color(hex: flow.color))
+                }
+            }
+            .tint(.quaiAccent)
+            .disabled(!flow.enabled)
+
+            if preference.enabled && flow.enabled {
+                ForEach(Array(flow.steps.enumerated()), id: \.element.id) { index, step in
+                    if index == flow.steps.count - 1 {
+                        LabeledContent(step.label, value: "Always")
+                    } else {
+                        Toggle(step.label, isOn: Binding(
+                            get: { !preference.hiddenSteps.contains(step.id) },
+                            set: { shown in
+                                onChange { pref in
+                                    var hidden = Set(pref.hiddenSteps)
+                                    if shown { hidden.remove(step.id) } else { hidden.insert(step.id) }
+                                    pref.hiddenSteps = flow.steps.map(\.id).filter(hidden.contains)
+                                }
+                            }
+                        ))
+                        .tint(.quaiAccent)
+                        .padding(.leading, 8)
+                    }
+                }
+                Button {
+                    Task {
+                        testing = true
+                        await onTest()
+                        testing = false
+                    }
+                } label: {
+                    HStack {
+                        Label("Send a test", systemImage: "play.circle.fill")
+                        if testing { Spacer(); ProgressView() }
+                    }
+                }
+                .disabled(testing)
+            }
+        } footer: {
+            if !flow.enabled {
+                Text("Turned off in the console.")
+            }
+        }
+    }
+}
+
+extension Color {
+    /// "#RRGGBB"; falls back to Quai's teal.
+    init(hex: String) {
+        let value = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0x6FD3C2
+        self.init(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
     }
 }

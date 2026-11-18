@@ -103,12 +103,22 @@ final class Connection {
         }
     }
 
-    /// Asks the server for a ~45 s demo activity on this iPhone only, through the real push path.
-    func sendTestActivity() async throws {
+    func flows() async throws -> [Components.Schemas.FlowSummary] {
         guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
-        switch try await client.sendTestActivity() {
+        switch try await client.listFlows() {
+        case let .ok(ok): return try ok.body.json
+        case .unauthorized: throw ConnectionError.server(401)
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+    }
+
+    /// Asks the server to play a flow's steps on this iPhone only, through the real push path.
+    func sendTestActivity(flowId: String) async throws {
+        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        switch try await client.sendTestActivity(body: .json(.init(flowId: flowId))) {
         case .noContent: return
         case .unauthorized: throw ConnectionError.server(401)
+        case .notFound: throw ConnectionError.server(404)
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
@@ -136,17 +146,17 @@ final class Connection {
     /// push token of every Download activity, including the ones the server started remotely.
     /// The token that lets the server start a Live Activity on this iPhone. Runs as long as the app does.
     func watchPushToStartTokens() async {
-        for await data in Activity<DownloadActivityAttributes>.pushToStartTokenUpdates {
+        for await data in Activity<QuaiActivityAttributes>.pushToStartTokenUpdates {
             await didReceivePushToStartToken(data.hexString)
         }
     }
 
     /// The push token of every Download activity, including the ones the server started remotely.
     func watchActivities() async {
-        for activity in Activity<DownloadActivityAttributes>.activities {
+        for activity in Activity<QuaiActivityAttributes>.activities {
             Task { await watch(activity) }
         }
-        for await activity in Activity<DownloadActivityAttributes>.activityUpdates {
+        for await activity in Activity<QuaiActivityAttributes>.activityUpdates {
             Task { await watch(activity) }
         }
     }
@@ -158,8 +168,8 @@ final class Connection {
         }
     }
 
-    private func watch(_ activity: Activity<DownloadActivityAttributes>) async {
-        let mediaKey = activity.attributes.mediaKey
+    private func watch(_ activity: Activity<QuaiActivityAttributes>) async {
+        let mediaKey = activity.attributes.key
         for await data in activity.pushTokenUpdates {
             let hex = data.hexString
             await send { client in
