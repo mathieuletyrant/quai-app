@@ -75,6 +75,7 @@ export class Jellyfin extends Context.Service<Jellyfin, {
   readonly find: (check: AvailabilityCheck) => Effect.Effect<string | null, StackError>
   /** What plays right now, on every device. */
   readonly playing: Effect.Effect<ReadonlyArray<Playing>, StackError>
+  readonly configured: boolean
 }>()("quai/Jellyfin") {
   static readonly layer = Layer.effect(
     Jellyfin,
@@ -83,7 +84,7 @@ export class Jellyfin extends Context.Service<Jellyfin, {
       const client = yield* HttpClient.HttpClient
       if (config === null) {
         const missing = new StackError({ service: "jellyfin", message: "not configured" })
-        return { find: () => Effect.fail(missing), playing: Effect.fail(missing) }
+        return { configured: false, find: () => Effect.fail(missing), playing: Effect.fail(missing) }
       }
       const get = <A, I>(path: string, params: Record<string, string>, schema: Schema.Codec<A, I>) =>
         client.execute(
@@ -101,6 +102,7 @@ export class Jellyfin extends Context.Service<Jellyfin, {
         get("/Items", { Recursive: "true", IncludeItemTypes: type, SearchTerm: title, Fields: "ProviderIds" }, ItemsResult)
 
       return {
+        configured: true,
         playing: Effect.map(get("/Sessions", { ActiveWithinSeconds: "120" }, Sessions), playingFrom),
         find: (check: AvailabilityCheck) =>
           Effect.gen(function*() {

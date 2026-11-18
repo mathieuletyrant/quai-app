@@ -100,7 +100,7 @@ export class Watcher extends Context.Service<Watcher, {
         yield* saveChecks
       }
 
-      if (flows.some((f) => f.enabled && f.subject === "playback")) {
+      if (jellyfin.configured && flows.some((f) => f.enabled && f.subject === "playback")) {
         yield* jellyfin.playing.pipe(
           Effect.flatMap((now) =>
             Effect.gen(function*() {
