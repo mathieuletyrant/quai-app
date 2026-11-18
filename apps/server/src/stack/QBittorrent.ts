@@ -15,10 +15,11 @@ export const Torrents = Schema.Array(Torrent)
 export type Torrent = typeof Torrent.Type
 
 /**
- * After a failed login, wait this long before trying again: qBittorrent bans an address after a
- * few failures, and a wrong password won't fix itself in 15 s.
+ * After failed logins, wait before trying again: 30 s, 1 min, 2 min, then every 5 min.
+ * qBittorrent bans an address after 5 failures in a row; this keeps well under that pace.
+ * A right password never waits, and changing it restarts Quai, which starts over.
  */
-export const loginBackoffMs = 5 * 60_000
+export const loginBackoffMs = (failures: number) => Math.min(30_000 * 2 ** (failures - 1), 5 * 60_000)
 
 /** qBittorrent's "unknown" ETA (100 days). */
 const infiniteEta = 8_640_000
@@ -53,7 +54,7 @@ export class QBittorrent extends Context.Service<QBittorrent, {
     Effect.gen(function*() {
       const config = (yield* StackConfig).qbittorrent
       const cookies = yield* Ref.make(new Map<string, string>())
-      const lastFailure = yield* Ref.make<{ at: number; error: StackError } | null>(null)
+      const lastFailure = yield* Ref.make<{ at: number; count: number; error: StackError } | null>(null)
       const base = yield* HttpClient.HttpClient
       const fail = (message: string) => (cause: unknown) => new StackError({ service: "qbittorrent", message, cause })
 
@@ -88,9 +89,9 @@ export class QBittorrent extends Context.Service<QBittorrent, {
       const login = Effect.gen(function*() {
         const now = yield* Clock.currentTimeMillis
         const failed = yield* Ref.get(lastFailure)
-        if (failed !== null && now - failed.at < loginBackoffMs) return yield* Effect.fail(failed.error)
+        if (failed !== null && now - failed.at < loginBackoffMs(failed.count)) return yield* Effect.fail(failed.error)
         yield* attemptLogin.pipe(
-          Effect.tapError((error) => Ref.set(lastFailure, { at: now, error })),
+          Effect.tapError((error) => Ref.set(lastFailure, { at: now, count: (failed?.count ?? 0) + 1, error })),
           Effect.tap(() => Ref.set(lastFailure, null))
         )
       })

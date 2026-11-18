@@ -82,7 +82,7 @@ describe("qBittorrent login", () => {
     }).pipe(Effect.provide(QBittorrent.layer.pipe(Layer.provide([config, http]))))
   })
 
-  it.effect("a wrong password is reported, and not retried for 5 minutes", () => {
+  it.effect("a wrong password is reported, and retried at 30 s, 1 min, 2 min…", () => {
     const seen: Array<Seen> = []
     const http = fakeHttp((r) =>
       r.url.pathname === "/api/v2/auth/login" ? { status: 200, json: undefined, text: "Fails." } : { status: 403 }, seen)
@@ -91,12 +91,16 @@ describe("qBittorrent login", () => {
       const logins = () => seen.filter((r) => r.url.pathname === "/api/v2/auth/login").length
       const first = yield* Effect.flip(qb.progress(["a"]))
       expect(first.message).toBe("wrong username or password")
-      yield* TestClock.adjust("4 minutes")
-      yield* Effect.flip(qb.progress(["a"]))
+      const pollAfter = (seconds: number) =>
+        Effect.andThen(TestClock.adjust(`${seconds} seconds`), Effect.flip(qb.progress(["a"])))
+      yield* pollAfter(15)
       expect(logins()).toBe(1)
-      yield* TestClock.adjust("2 minutes")
-      yield* Effect.flip(qb.progress(["a"]))
+      yield* pollAfter(15)
       expect(logins()).toBe(2)
+      yield* pollAfter(45)
+      expect(logins()).toBe(2)
+      yield* pollAfter(15)
+      expect(logins()).toBe(3)
     }).pipe(Effect.provide(QBittorrent.layer.pipe(Layer.provide([config, http]))))
   })
 })
