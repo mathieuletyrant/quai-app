@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Redacted, Ref, Schema } from "effect"
+import { Clock, Context, Effect, Layer, Redacted, Ref, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import type { MediaEvent } from "../engine/Events.ts"
 import { StackError } from "./Errors.ts"
@@ -14,6 +14,12 @@ const Torrent = Schema.Struct({
 export const Torrents = Schema.Array(Torrent)
 export type Torrent = typeof Torrent.Type
 
+/**
+ * After a failed login, wait this long before trying again: qBittorrent bans an address after a
+ * few failures, and a wrong password won't fix itself in 15 s.
+ */
+export const loginBackoffMs = 5 * 60_000
+
 /** qBittorrent's "unknown" ETA (100 days). */
 const infiniteEta = 8_640_000
 
@@ -25,6 +31,19 @@ export const progressEvent = (torrent: Torrent): MediaEvent => ({
   remainingSeconds: torrent.eta >= infiniteEta || torrent.eta < 0 ? null : torrent.eta
 })
 
+/**
+ * The session cookie: `SID` up to qBittorrent 4, `QBT_SID_<port>` since 5 (one per instance).
+ * Set-Cookie may come as one string or several.
+ */
+export const sessionCookie = (header: string | ReadonlyArray<string> | undefined): readonly [string, string] | null => {
+  const lines = header === undefined ? [] : typeof header === "string" ? [header] : header
+  for (const line of lines) {
+    const match = line.match(/(?:^|[;,]\s*)((?:QBT_)?SID(?:_\d+)?)=([^;]+)/)
+    if (match !== null) return [match[1]!, match[2]!]
+  }
+  return null
+}
+
 export class QBittorrent extends Context.Service<QBittorrent, {
   /** Progress of the given torrents, by hash. Unknown hashes are left out. */
   readonly progress: (hashes: ReadonlyArray<string>) => Effect.Effect<ReadonlyArray<MediaEvent>, StackError>
@@ -34,6 +53,7 @@ export class QBittorrent extends Context.Service<QBittorrent, {
     Effect.gen(function*() {
       const config = (yield* StackConfig).qbittorrent
       const cookies = yield* Ref.make(new Map<string, string>())
+      const lastFailure = yield* Ref.make<{ at: number; error: StackError } | null>(null)
       const base = yield* HttpClient.HttpClient
       const fail = (message: string) => (cause: unknown) => new StackError({ service: "qbittorrent", message, cause })
 
@@ -41,25 +61,48 @@ export class QBittorrent extends Context.Service<QBittorrent, {
         return { progress: () => Effect.fail(new StackError({ service: "qbittorrent", message: "not configured" })) }
       }
 
-      const login = Effect.gen(function*() {
-        if (config.username === null || config.password === null) return
+      const attemptLogin = Effect.gen(function*() {
+        if (config.username === null || config.password === null) {
+          return yield* Effect.fail(new StackError({ service: "qbittorrent", message: "access refused and no password set" }))
+        }
         const response = yield* base.execute(
           HttpClientRequest.post(`${config.url}/api/v2/auth/login`).pipe(
             HttpClientRequest.setHeader("Referer", config.url),
             HttpClientRequest.bodyUrlParams({ username: config.username, password: Redacted.value(config.password) })
           )
+        ).pipe(Effect.mapError(fail("login failed")))
+        if (response.status === 403) {
+          return yield* Effect.fail(new StackError({ service: "qbittorrent", message: "login refused: too many failed attempts, qBittorrent banned this address for a while" }))
+        }
+        const cookie = sessionCookie(response.headers["set-cookie"])
+        if (cookie === null) {
+          const body = yield* Effect.orElseSucceed(response.text, () => "")
+          return yield* Effect.fail(new StackError({
+            service: "qbittorrent",
+            message: body.trim() === "Fails." ? "wrong username or password" : `login refused (HTTP ${response.status})`
+          }))
+        }
+        yield* Ref.set(cookies, new Map([cookie]))
+      })
+
+      const login = Effect.gen(function*() {
+        const now = yield* Clock.currentTimeMillis
+        const failed = yield* Ref.get(lastFailure)
+        if (failed !== null && now - failed.at < loginBackoffMs) return yield* Effect.fail(failed.error)
+        yield* attemptLogin.pipe(
+          Effect.tapError((error) => Ref.set(lastFailure, { at: now, error })),
+          Effect.tap(() => Ref.set(lastFailure, null))
         )
-        const sid = (response.headers["set-cookie"] ?? "").match(/SID=([^;]+)/)?.[1]
-        if (sid === undefined) return yield* Effect.fail(new Error("login refused"))
-        yield* Ref.set(cookies, new Map([["SID", sid]]))
-      }).pipe(Effect.mapError(fail("login failed")))
+      })
 
       const info = (hashes: ReadonlyArray<string>) =>
         Effect.gen(function*() {
           const jar = yield* Ref.get(cookies)
           const request = HttpClientRequest.get(`${config.url}/api/v2/torrents/info`).pipe(
             HttpClientRequest.setUrlParam("hashes", hashes.join("|")),
-            jar.has("SID") ? HttpClientRequest.setHeader("Cookie", `SID=${jar.get("SID")}`) : (r) => r
+            jar.size > 0
+              ? HttpClientRequest.setHeader("Cookie", [...jar].map(([k, v]) => `${k}=${v}`).join("; "))
+              : (r) => r
           )
           const response = yield* base.execute(request)
           if (response.status === 403) return null

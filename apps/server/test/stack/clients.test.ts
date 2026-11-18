@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Redacted } from "effect"
 import { ensureWebhook } from "../../src/stack/ArrWebhooks.ts"
 import { Jellyfin } from "../../src/stack/Jellyfin.ts"
-import { QBittorrent } from "../../src/stack/QBittorrent.ts"
+import { QBittorrent, sessionCookie } from "../../src/stack/QBittorrent.ts"
+import { TestClock } from "effect/testing"
 import { StackConfig } from "../../src/stack/StackConfig.ts"
 import { fakeHttp, type Seen } from "../fakeHttp.ts"
 import { fixture } from "../fixtures.ts"
@@ -54,6 +55,48 @@ describe("qBittorrent", () => {
       ])
       expect(seen[2]!.headers["cookie"]).toBe("SID=s3ss10n")
       expect(seen[2]!.url.searchParams.get("hashes")).toContain("|")
+    }).pipe(Effect.provide(QBittorrent.layer.pipe(Layer.provide([config, http]))))
+  })
+})
+
+describe("qBittorrent login", () => {
+  it("reads the session cookie of qBittorrent 4 and 5", () => {
+    expect(sessionCookie("SID=abc; HttpOnly; path=/")).toEqual(["SID", "abc"])
+    expect(sessionCookie(["QBT_SID_8080=xyz; HttpOnly; SameSite=Strict; path=/"])).toEqual(["QBT_SID_8080", "xyz"])
+    expect(sessionCookie(undefined)).toBeNull()
+  })
+
+  it.effect("sends back the cookie under its own name", () => {
+    const seen: Array<Seen> = []
+    let loggedIn = false
+    const http = fakeHttp((r) => {
+      if (r.url.pathname === "/api/v2/auth/login") {
+        loggedIn = true
+        return { status: 200, headers: { "set-cookie": "QBT_SID_8080=v5session; HttpOnly; path=/" } }
+      }
+      return loggedIn ? { json: [] } : { status: 403 }
+    }, seen)
+    return Effect.gen(function*() {
+      yield* (yield* QBittorrent).progress(["a"])
+      expect(seen.at(-1)!.headers["cookie"]).toBe("QBT_SID_8080=v5session")
+    }).pipe(Effect.provide(QBittorrent.layer.pipe(Layer.provide([config, http]))))
+  })
+
+  it.effect("a wrong password is reported, and not retried for 5 minutes", () => {
+    const seen: Array<Seen> = []
+    const http = fakeHttp((r) =>
+      r.url.pathname === "/api/v2/auth/login" ? { status: 200, json: undefined, text: "Fails." } : { status: 403 }, seen)
+    return Effect.gen(function*() {
+      const qb = yield* QBittorrent
+      const logins = () => seen.filter((r) => r.url.pathname === "/api/v2/auth/login").length
+      const first = yield* Effect.flip(qb.progress(["a"]))
+      expect(first.message).toBe("wrong username or password")
+      yield* TestClock.adjust("4 minutes")
+      yield* Effect.flip(qb.progress(["a"]))
+      expect(logins()).toBe(1)
+      yield* TestClock.adjust("2 minutes")
+      yield* Effect.flip(qb.progress(["a"]))
+      expect(logins()).toBe(2)
     }).pipe(Effect.provide(QBittorrent.layer.pipe(Layer.provide([config, http]))))
   })
 })

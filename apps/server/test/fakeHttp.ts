@@ -11,7 +11,7 @@ export interface Seen {
 
 /** An HttpClient that answers from a routing function and records every request. */
 export const fakeHttp = (
-  route: (request: Seen) => { status?: number; json?: unknown; headers?: Record<string, string> },
+  route: (request: Seen) => { status?: number; json?: unknown; text?: string; headers?: Record<string, string> },
   seen: Array<Seen> = []
 ) =>
   Layer.succeed(
@@ -23,7 +23,7 @@ export const fakeHttp = (
       const answer = route(entry)
       return Effect.succeed(HttpClientResponse.fromWeb(
         request,
-        new Response(answer.json === undefined ? null : JSON.stringify(answer.json), {
+        new Response(answer.text ?? (answer.json === undefined ? null : JSON.stringify(answer.json)), {
           status: answer.status ?? 200,
           headers: { "content-type": "application/json", ...answer.headers }
         })
