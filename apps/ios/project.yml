@@ -49,6 +49,8 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: Quai talks to your server on your home network.
+        # No encryption beyond HTTPS: skips the export compliance question on each TestFlight build.
+        ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: Quai/Quai.entitlements
       properties:

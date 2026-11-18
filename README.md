@@ -97,5 +97,6 @@ Fully automatic, driven by [Conventional Commits](https://www.conventionalcommit
 
 1. Every push to `main` opens or updates a **release PR** with the next version and the CHANGELOG.
 2. Merging it creates the tag and GitHub release, then builds and publishes the Docker image.
+3. The same release is archived and uploaded to TestFlight, once the repo has the `APPLE_TEAM_ID`, `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8` secrets (an App Store Connect API key with the App Manager role).
 
 📖 Spec: [docs/spec-v1.md](docs/spec-v1.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
