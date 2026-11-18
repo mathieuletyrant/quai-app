@@ -1,6 +1,6 @@
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
-import { DownloadAttributes, DownloadContentState, DownloadPreferences } from "./Download.ts"
+import { ActionType, ActivityAttributes, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow } from "./Activity.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
 export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
@@ -48,15 +48,45 @@ export const ActivityToken = Schema.Struct({
   pushToken: Schema.String
 }).annotate({ identifier: "ActivityToken" })
 
-/** What this iPhone wants to receive. Each iPhone has its own; the console sets what's allowed. */
+/** One flow on one iPhone: on or off, and the steps it hides (never the last). */
+export const FlowPreference = Schema.Struct({
+  enabled: Schema.Boolean,
+  hiddenSteps: Schema.Array(Schema.String)
+}).annotate({ identifier: "FlowPreference" })
+export type FlowPreference = typeof FlowPreference.Type
+
+/** What this iPhone wants to receive, per flow id. A flow left out: on, every step. */
 export const DevicePreferences = Schema.Struct({
-  download: DownloadPreferences
+  flows: Schema.Record(Schema.String, FlowPreference)
 }).annotate({ identifier: "DevicePreferences" })
 export type DevicePreferences = typeof DevicePreferences.Type
 
+/** A flow as the iPhone lists it in its settings. */
+export const FlowSummary = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  enabled: Schema.Boolean,
+  color: Schema.String,
+  icon: Schema.String,
+  steps: Schema.Array(ActivityStep)
+}).annotate({ identifier: "FlowSummary" })
+
+/** A button pressed on a Live Activity. */
+export const ActivityAction = Schema.Struct({
+  /** `attributes.key` of the activity. */
+  key: Schema.String,
+  action: ActionType
+}).annotate({ identifier: "ActivityAction" })
+
+export class InvalidAction extends Schema.TaggedError<InvalidAction>()("InvalidAction", {
+  message: Schema.String
+}, { httpApiStatus: 400 }) {}
+
+export const TestActivity = Schema.Struct({ flowId: Schema.String }).annotate({ identifier: "TestActivity" })
+
 export const RunningActivity = Schema.Struct({
-  attributes: DownloadAttributes,
-  content: DownloadContentState
+  attributes: ActivityAttributes,
+  content: ActivityContent
 }).annotate({ identifier: "RunningActivity" })
 
 /** Routes the iPhone app calls. Reachable without the host's login (see deploy notes). */
@@ -81,8 +111,18 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.post("testActivity", "/devices/me/test-activity")
+    HttpApiEndpoint.post("testActivity", "/devices/me/test-activity", { payload: TestActivity, error: HttpApiError.NotFound })
       .annotate(OpenApi.Identifier, "sendTestActivity")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.get("flows", "/flows", { success: Schema.Array(FlowSummary) })
+      .annotate(OpenApi.Identifier, "listFlows")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.post("action", "/activities/actions", { payload: ActivityAction, error: [InvalidAction, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "performAction")
       .middleware(DeviceAuth)
   )
   .add(
@@ -150,3 +190,33 @@ export class PushGroup extends HttpApiGroup.make("push")
   .add(HttpApiEndpoint.delete("removePushKey", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "removePushKey"))
   .prefix("/console-api") {}
 
+
+export class InvalidFlow extends Schema.TaggedError<InvalidFlow>()("InvalidFlow", {
+  message: Schema.String
+}, { httpApiStatus: 400 }) {}
+
+/** Flows, from the console's Flows page. */
+export class FlowsGroup extends HttpApiGroup.make("flows")
+  .add(HttpApiEndpoint.get("list", "/flows", { success: Schema.Array(Flow) }).annotate(OpenApi.Identifier, "listAllFlows"))
+  .add(HttpApiEndpoint.get("catalog", "/flows/catalog", { success: Schema.Array(CatalogEvent) }).annotate(OpenApi.Identifier, "getCatalog"))
+  .add(
+    HttpApiEndpoint.get("actions", "/flows/actions", { success: Schema.Array(CatalogAction) })
+      .annotate(OpenApi.Identifier, "getActionCatalog")
+  )
+  .add(
+    HttpApiEndpoint.put("save", "/flows/:id", { params: { id: Schema.String }, payload: Flow, success: Flow, error: InvalidFlow })
+      .annotate(OpenApi.Identifier, "saveFlow")
+  )
+  .add(
+    HttpApiEndpoint.delete("remove", "/flows/:id", { params: { id: Schema.String }, error: [InvalidFlow, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "removeFlow")
+  )
+  .add(
+    HttpApiEndpoint.post("reset", "/flows/:id/reset", { params: { id: Schema.String }, success: Flow, error: HttpApiError.NotFound })
+      .annotate(OpenApi.Identifier, "resetFlow")
+  )
+  .add(
+    HttpApiEndpoint.post("test", "/flows/:id/test", { params: { id: Schema.String }, error: HttpApiError.NotFound })
+      .annotate(OpenApi.Identifier, "testFlow")
+  )
+  .prefix("/console-api") {}

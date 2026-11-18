@@ -1,0 +1,27 @@
+import { describe, expect, it } from "@effect/vitest"
+import { testScript } from "../../src/flows/TestScript.ts"
+import { download, incident, playback } from "./helpers.ts"
+
+describe("test script", () => {
+  it("plays every step in order, starts and ends, with fake progress where a step shows it", () => {
+    const beats = testScript(download, 0, "t")
+    const tags = beats.map((b) => `${b.push._tag}:${b.push.activity.stepIndex}`)
+    expect(tags[0]).toBe("Start:0")
+    expect(tags.at(-1)).toBe("End:3")
+    expect(new Set(beats.map((b) => b.push.activity.stepIndex))).toEqual(new Set([0, 1, 2, 3]))
+    const progress = beats.filter((b) => b.push.activity.values.progress !== undefined)
+    expect(progress.map((b) => b.push.activity.values.progress)).toEqual([0.12, 0.31, 0.52, 0.74, 0.93, 1])
+    expect(new Set(beats.map((b) => b.push.activity.key)).size).toBe(1)
+  })
+
+  it("playback: a timeline, a pause and a resume, then the end event closes it", () => {
+    const beats = testScript(playback, 1_000, "t")
+    expect(beats[0]!.push.activity.values).toMatchObject({ paused: false, startsAt: 1_000, endsAt: 41_000 })
+    expect(beats.map((b) => b.push._tag)).toEqual(["Start", "Update", "Update", "End"])
+    expect(beats.map((b) => b.push.activity.values.paused)).toEqual([false, true, false, false])
+  })
+
+  it("time since for incidents", () => {
+    expect(testScript(incident, 1_000, "t")[0]!.push.activity.values.since).toBe(1_000)
+  })
+})

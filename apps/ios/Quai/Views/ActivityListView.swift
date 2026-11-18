@@ -18,7 +18,7 @@ struct ActivityListView: View {
                     .listRowBackground(Color.clear)
                 } else {
                     Section("In progress") {
-                        ForEach(connection.activities, id: \.attributes.mediaKey) { activity in
+                        ForEach(connection.activities, id: \.attributes.key) { activity in
                             ActivityRow(activity: activity)
                         }
                     }
@@ -40,32 +40,32 @@ struct ActivityListView: View {
 struct ActivityRow: View {
     let activity: Components.Schemas.RunningActivity
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(activity.attributes.title).font(.headline).lineLimit(1)
-                Spacer()
-                if let progress = activity.content.progress, activity.content.step == .downloading {
-                    Text(progress, format: .percent.precision(.fractionLength(0)))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.quaiAccent)
-                }
-            }
-            if let progress = activity.content.progress, activity.content.step == .downloading {
-                ProgressView(value: progress).tint(activity.content.stalled ? .gray : .quaiAccent)
-            }
-            Text(label).font(.subheadline).foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 4)
+    private var tint: Color { Palette.tint(tone: activity.content.tone.rawValue, color: activity.attributes.color) }
+
+    private var stepLabel: String {
+        let steps = activity.attributes.steps
+        return steps.indices.contains(activity.content.step) ? steps[activity.content.step].label : ""
     }
 
-    private var label: String {
-        if activity.content.stalled { return "No source for 2 h" }
-        switch activity.content.step {
-        case .searching: return "Searching"
-        case .downloading: return "Downloading"
-        case .importing: return "Importing"
-        case .available: return "Ready to watch"
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Image(systemName: activity.attributes.icon).foregroundStyle(tint)
+                Text(activity.attributes.title).font(.headline).lineLimit(1)
+                Spacer()
+                if let progress = activity.content.progress {
+                    Text(progress, format: .percent.precision(.fractionLength(0)))
+                        .monospacedDigit()
+                        .foregroundStyle(tint)
+                }
+            }
+            if let progress = activity.content.progress {
+                ProgressView(value: progress).tint(tint)
+            }
+            Text([stepLabel, activity.content.detail].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
+        .padding(.vertical, 4)
     }
 }

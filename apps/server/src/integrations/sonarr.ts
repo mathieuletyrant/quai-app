@@ -1,6 +1,7 @@
-import { Schema } from "effect"
-import type { MediaEvent } from "../engine/Events.ts"
-import { seriesKey } from "../engine/Events.ts"
+import { Effect, Schema } from "effect"
+import type { FlowEvent } from "../flows/Events.ts"
+import { seriesKey } from "../flows/Events.ts"
+import type { Integration } from "./Integration.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
@@ -42,16 +43,26 @@ export const episodeLabel = (series: string, episodes: ReadonlyArray<typeof Epis
  */
 export const sonarrKey = (tvdbId: number, downloadId: string) => `${seriesKey(tvdbId)}:dl:${downloadId.toLowerCase()}`
 
-export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<MediaEvent> => {
+export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> => {
   const series = payload.series
   if (series === undefined || payload.downloadId === undefined) return []
-  const mediaKey = sonarrKey(series.tvdbId, payload.downloadId)
-  const title = episodeLabel(series.title, payload.episodes ?? [])
+  const subject = {
+    kind: "media" as const,
+    key: sonarrKey(series.tvdbId, payload.downloadId),
+    title: episodeLabel(series.title, payload.episodes ?? []),
+    mediaType: "series" as const,
+    lookup: {
+      _tag: "Episodes" as const,
+      tvdbId: series.tvdbId,
+      title: series.title,
+      episodes: (payload.episodes ?? []).map((e) => ({ season: e.seasonNumber, episode: e.episodeNumber }))
+    }
+  }
   switch (payload.eventType) {
     case "Grab":
-      return [{ _tag: "Grabbed", mediaKey, title, downloadId: payload.downloadId.toLowerCase() }]
+      return [{ type: "media.grabbed", subject, downloadId: payload.downloadId.toLowerCase() }]
     case "Download":
-      return [{ _tag: "Imported", mediaKey, title }]
+      return [{ type: "media.imported", subject }]
     default:
       return []
   }
@@ -59,13 +70,10 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<MediaEvent> 
 
 export const decodeSonarrWebhook = Schema.decodeUnknownEffect(SonarrWebhook)
 
-export const sonarrAvailability = (payload: SonarrWebhook) =>
-  payload.eventType === "Download" && payload.series !== undefined && payload.downloadId !== undefined
-    ? {
-      _tag: "Episodes" as const,
-      mediaKey: sonarrKey(payload.series.tvdbId, payload.downloadId),
-      tvdbId: payload.series.tvdbId,
-      title: payload.series.title,
-      episodes: (payload.episodes ?? []).map((e) => ({ season: e.seasonNumber, episode: e.episodeNumber }))
-    }
-    : null
+/** Sonarr pushes: grabbed and imported come by webhook. It has no actions yet. */
+export const sonarr: Integration = {
+  service: "sonarr",
+  webhook: { read: (body) => Effect.map(decodeSonarrWebhook(body), sonarrEvents) },
+  pollers: [],
+  actions: {}
+}

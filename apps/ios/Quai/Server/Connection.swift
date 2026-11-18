@@ -24,12 +24,11 @@ final class Connection {
     private(set) var serverURL: URL?
     private(set) var activities: [Components.Schemas.RunningActivity] = []
     private(set) var lastError: String?
-    private var serverURLs: [URL] = []
-    private var token: String?
+    private var session: ServerSession?
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
-    var isPaired: Bool { token != nil && !serverURLs.isEmpty }
+    var isPaired: Bool { session != nil }
 
     /// Builds from Xcode reach APNs development; TestFlight and the App Store, production.
     static var apnsEnvironment: Components.Schemas.ApnsEnvironment {
@@ -41,15 +40,14 @@ final class Connection {
     }
 
     init() {
-        token = Keychain.read("deviceToken")
-        serverURLs = (UserDefaults.standard.stringArray(forKey: "serverURLs") ?? []).compactMap(URL.init(string:))
-        serverURL = serverURLs.first
+        session = ServerSession.stored()
+        serverURL = session?.urls.first
     }
 
     // MARK: Pairing
 
     func pair(_ link: PairingLink, name: String) async throws {
-        guard let url = await firstReachable(link.serverURLs) else { throw ConnectionError.unreachable }
+        guard let url = await ServerSession.firstReachable(link.serverURLs) else { throw ConnectionError.unreachable }
         let client = Client(serverURL: url, transport: URLSessionTransport())
         let body = Components.Schemas.PairDevice(
             code: link.code,
@@ -60,11 +58,10 @@ final class Connection {
         switch try await client.pairDevice(body: .json(body)) {
         case let .ok(ok):
             let paired = try ok.body.json
-            Keychain.write(paired.token, for: "deviceToken")
-            token = paired.token
-            serverURLs = [url] + link.serverURLs.filter { $0 != url }
+            let session = ServerSession(token: paired.token, urls: [url] + link.serverURLs.filter { $0 != url })
+            session.save()
+            self.session = session
             serverURL = url
-            UserDefaults.standard.set(serverURLs.map(\.absoluteString), forKey: "serverURLs")
             lastError = nil
             await refresh()
         case .forbidden:
@@ -75,10 +72,8 @@ final class Connection {
     }
 
     func disconnect() {
-        Keychain.delete("deviceToken")
-        UserDefaults.standard.removeObject(forKey: "serverURLs")
-        token = nil
-        serverURLs = []
+        ServerSession.clear()
+        session = nil
         serverURL = nil
         activities = []
     }
@@ -103,12 +98,22 @@ final class Connection {
         }
     }
 
-    /// Asks the server for a ~45 s demo activity on this iPhone only, through the real push path.
-    func sendTestActivity() async throws {
+    func flows() async throws -> [Components.Schemas.FlowSummary] {
         guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
-        switch try await client.sendTestActivity() {
+        switch try await client.listFlows() {
+        case let .ok(ok): return try ok.body.json
+        case .unauthorized: throw ConnectionError.server(401)
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+    }
+
+    /// Asks the server to play a flow's steps on this iPhone only, through the real push path.
+    func sendTestActivity(flowId: String) async throws {
+        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        switch try await client.sendTestActivity(body: .json(.init(flowId: flowId))) {
         case .noContent: return
         case .unauthorized: throw ConnectionError.server(401)
+        case .notFound: throw ConnectionError.server(404)
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
@@ -132,21 +137,19 @@ final class Connection {
         }
     }
 
-    /// Follows ActivityKit's tokens for as long as the app runs: the push-to-start token, and the
-    /// push token of every Download activity, including the ones the server started remotely.
     /// The token that lets the server start a Live Activity on this iPhone. Runs as long as the app does.
     func watchPushToStartTokens() async {
-        for await data in Activity<DownloadActivityAttributes>.pushToStartTokenUpdates {
+        for await data in Activity<QuaiActivityAttributes>.pushToStartTokenUpdates {
             await didReceivePushToStartToken(data.hexString)
         }
     }
 
-    /// The push token of every Download activity, including the ones the server started remotely.
+    /// The push token of every Quai activity, including the ones the server started remotely.
     func watchActivities() async {
-        for activity in Activity<DownloadActivityAttributes>.activities {
+        for activity in Activity<QuaiActivityAttributes>.activities {
             Task { await watch(activity) }
         }
-        for await activity in Activity<DownloadActivityAttributes>.activityUpdates {
+        for await activity in Activity<QuaiActivityAttributes>.activityUpdates {
             Task { await watch(activity) }
         }
     }
@@ -158,8 +161,8 @@ final class Connection {
         }
     }
 
-    private func watch(_ activity: Activity<DownloadActivityAttributes>) async {
-        let mediaKey = activity.attributes.mediaKey
+    private func watch(_ activity: Activity<QuaiActivityAttributes>) async {
+        let mediaKey = activity.attributes.key
         for await data in activity.pushTokenUpdates {
             let hex = data.hexString
             await send { client in
@@ -175,33 +178,15 @@ final class Connection {
         do { try await call(client) } catch { lastError = error.localizedDescription }
     }
 
-    /// Prefers the address that answered last; on another network, tries the others (local, then public).
+    /// Prefers the address that answered last; on another network, tries the others.
     private func authenticatedClient() async -> Client? {
-        guard let token, !serverURLs.isEmpty else { return nil }
-        let url: URL
-        if let current = serverURL, await isReachable(current) {
-            url = current
-        } else if let other = await firstReachable(serverURLs) {
-            url = other
-            serverURL = other
-        } else {
+        guard let session else { return nil }
+        guard let (url, client) = await session.connect(preferring: serverURL) else {
             lastError = ConnectionError.unreachable.localizedDescription
             return nil
         }
-        return Client(serverURL: url, transport: URLSessionTransport(), middlewares: [BearerMiddleware(token: token)])
-    }
-
-    private func firstReachable(_ urls: [URL]) async -> URL? {
-        for url in urls where await isReachable(url) { return url }
-        return nil
-    }
-
-    private func isReachable(_ url: URL) async -> Bool {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 3
-        let client = Client(serverURL: url, transport: URLSessionTransport(configuration: .init(session: URLSession(configuration: configuration))))
-        guard let response = try? await client.getHealth(), case .ok = response else { return false }
-        return true
+        serverURL = url
+        return client
     }
 }
 

@@ -1,41 +1,41 @@
 import type { DeviceId } from "@quai/api"
 import { Clock, Context, Effect, Layer } from "effect"
-import type { Push } from "../engine/DownloadEngine.ts"
+import type { Push } from "../flows/Engine.ts"
+import { FlowStore } from "../flows/FlowStore.ts"
+import { deliveryFor } from "../flows/Targeting.ts"
 import { Devices, type PushTarget } from "../store/Devices.ts"
 import { Apns } from "./Apns.ts"
 import { apnsBody } from "./ApnsPayload.ts"
-import { deliveryFor } from "./Targeting.ts"
 
-/**
- * Sends the engine's pushes to the paired iPhones, each according to its own preferences: an
- * iPhone sees only the steps it chose, starts the activity at the first of them, and keeps the
- * end on screen as long as it asked.
- */
+/** Sends the engine's pushes to the paired iPhones, each according to its own preferences. */
 export class Notifier extends Context.Service<Notifier, {
   readonly send: (pushes: ReadonlyArray<Push>) => Effect.Effect<void>
-  /** Sends to one iPhone only (the app's test button). */
-  readonly sendTo: (deviceId: DeviceId, pushes: ReadonlyArray<Push>) => Effect.Effect<void>
+  /** Sends to one iPhone only, or every iPhone with `null` (test buttons). */
+  readonly sendTo: (deviceId: DeviceId | null, pushes: ReadonlyArray<Push>) => Effect.Effect<void>
 }>()("quai/Notifier") {
   static readonly layer = Layer.effect(
     Notifier,
     Effect.gen(function*() {
       const apns = yield* Apns
       const devices = yield* Devices
+      const flowStore = yield* FlowStore
       // Which iPhones show which activity. A reported activity token also counts, which covers
       // activities started before a restart.
       const shown = new Set<string>()
-      const key = (deviceId: string, mediaKey: string) => `${deviceId}\u0000${mediaKey}`
+      const key = (deviceId: string, activityKey: string) => `${deviceId}\u0000${activityKey}`
 
       const one = (push: Push, only: DeviceId | null) =>
         Effect.gen(function*() {
           if (!(yield* apns.configured)) return
-          const mediaKey = push._tag === "Start" ? push.attributes.mediaKey : push.mediaKey
+          const flow = (yield* flowStore.all).find((f) => f.id === push.activity.flowId)
+          if (flow === undefined) return
+          const activityKey = push.activity.key
           const now = yield* Clock.currentTimeMillis
-          const targets = (yield* devices.targets(mediaKey)).filter((t) => only === null || t.deviceId === only)
+          const targets = (yield* devices.targets(activityKey)).filter((t) => only === null || t.deviceId === only)
           yield* Effect.forEach(targets, (target: PushTarget) =>
             Effect.gen(function*() {
-              const k = key(target.deviceId, mediaKey)
-              const delivery = deliveryFor(push, {
+              const k = key(target.deviceId, activityKey)
+              const delivery = deliveryFor(push, flow, {
                 preferences: target.preferences,
                 pushToStartToken: target.pushToStartToken,
                 activityToken: target.activityToken,
@@ -44,16 +44,16 @@ export class Notifier extends Context.Service<Notifier, {
               if (delivery._tag === "None") return
               if (delivery._tag === "Start") shown.add(k)
               if (delivery._tag === "End") shown.delete(k)
-              const content = delivery.push.content
-              const progress = content.progress === undefined ? "" : ` ${Math.round(content.progress * 100)} %`
+              const step = flow.steps[push.activity.stepIndex]?.id ?? "?"
+              const progress = delivery.content.progress === undefined ? "" : ` ${Math.round(delivery.content.progress * 100)} %`
               yield* apns.send({
                 environment: target.apnsEnvironment,
                 deviceToken: delivery.token,
-                body: apnsBody(delivery.push, now),
+                body: apnsBody(delivery, now),
                 // High priority: low priority let iOS hold updates back until the app opened.
                 priority: 10
               }).pipe(
-                Effect.tap(() => Effect.logInfo(`push ${delivery._tag} ${mediaKey} ${content.step}${progress} → ${target.deviceId}`)),
+                Effect.tap(() => Effect.logInfo(`push ${delivery._tag} ${activityKey} ${step}${progress} → ${target.deviceId}`)),
                 Effect.catchTag("ApnsError", (error) =>
                   Effect.gen(function*() {
                     yield* Effect.logWarning(`APNs refused a ${delivery._tag} for ${target.deviceId}: ${error.reason}`)

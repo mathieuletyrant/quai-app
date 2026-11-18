@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Schema } from "effect"
 import { readFileSync } from "node:fs"
-import { Health } from "../src/index.ts"
+import { builtInFlows, Flow, Health } from "../src/index.ts"
 import { openApiJson } from "../src/openapi.ts"
 
 describe("contract", () => {
@@ -17,4 +17,11 @@ describe("contract", () => {
     const committed = readFileSync(new URL("../openapi.json", import.meta.url), "utf8")
     expect(openApiJson()).toBe(committed)
   })
+})
+
+describe("built-in flows", () => {
+  it.effect("decode as flows", () =>
+    Effect.gen(function*() {
+      for (const flow of builtInFlows) yield* Schema.decodeUnknownEffect(Flow)(flow)
+    }))
 })
