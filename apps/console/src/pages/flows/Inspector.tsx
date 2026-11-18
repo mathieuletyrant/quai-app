@@ -124,8 +124,8 @@ export function StepPanel(props: {
       )}
       {flow.subject === "playback" && (
         <p className="rounded-xl bg-white/5 px-3 py-2 text-[13px] text-muted">
-          A pause, from Jellyfin or the button, keeps this step: it says Paused, holds the bar and the button turns to Play.
-          Preview it with Paused above.
+          A pause, from Jellyfin or the button, keeps this step: it says Paused, holds the bar and the button turns
+          to Play. To see it, switch the preview to Paused.
         </p>
       )}
       {props.actions.length > 0 && (

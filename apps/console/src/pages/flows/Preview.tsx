@@ -41,6 +41,17 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <h3 className="flex-1 text-[13px] font-bold tracking-wide text-muted uppercase">Preview</h3>
+        {canPause && (
+          <Segmented
+            label="Preview the activity"
+            value={isPaused ? "paused" : "playing"}
+            options={[{ value: "playing", label: "▶ Playing" }, { value: "paused", label: "⏸ Paused" }]}
+            onChange={(v) => setPaused(v === "paused")}
+          />
+        )}
+      </div>
       <div
         aria-label="Lock Screen preview"
         className="relative overflow-hidden rounded-[28px] border border-line bg-[radial-gradient(120%_90%_at_20%_0%,#3a2f5c_0%,#141420_55%,#0b0b0f_100%)] px-4 pt-4 pb-5"
@@ -92,17 +103,6 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
         </div>
       </div>
 
-      {canPause && (
-        <div className="flex flex-col gap-1.5">
-          <Segmented
-            label="Preview playback state"
-            value={isPaused ? "paused" : "playing"}
-            options={[{ value: "playing", label: "Playing" }, { value: "paused", label: "Paused" }]}
-            onChange={(v) => setPaused(v === "paused")}
-          />
-          <span className="text-xs text-muted">Pausing from Jellyfin or the button: same step, bar held, Play button.</span>
-        </div>
-      )}
       {flow.steps.length > 1 && (
         <div className="flex items-center gap-2">
           <span className="text-[13px] text-muted">Preview step</span>
