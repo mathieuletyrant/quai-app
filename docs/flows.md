@@ -132,6 +132,14 @@ Each iPhone chooses, per flow: on or off, and which steps it shows (the last ste
 it ends the activity). The server filters per iPhone: an iPhone that hides a step gets no push
 for it, its activity starts at its first shown step, and `attributes.steps` lists only its steps.
 
+## Swiped away
+
+An iPhone's user can swipe a Live Activity away. The app tells the server which activities are
+still on screen (when it opens, and at once if it's running), and the server forgets the others,
+noting where they were. Such an activity stays away while nothing changes, and starts again as a
+new one at its next step, pause or resume. An activity swiped away while the app isn't running is
+only known once the app opens.
+
 ## Limits
 
 - 2 to 6 steps: more doesn't fit on the Lock Screen.

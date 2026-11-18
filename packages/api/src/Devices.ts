@@ -48,6 +48,14 @@ export const ActivityToken = Schema.Struct({
   pushToken: Schema.String
 }).annotate({ identifier: "ActivityToken" })
 
+/**
+ * The Live Activities still on this iPhone's screen, by key. The server forgets the others (the
+ * user swiped them away) and shows them again at their next real change.
+ */
+export const ShownActivities = Schema.Struct({
+  keys: Schema.Array(Schema.String)
+}).annotate({ identifier: "ShownActivities" })
+
 /** One flow on one iPhone: on or off, and the steps it hides (never the last). */
 export const FlowPreference = Schema.Struct({
   enabled: Schema.Boolean,
@@ -97,6 +105,11 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
   )
   .add(
     HttpApiEndpoint.post("activityToken", "/devices/me/activity-tokens", { payload: ActivityToken }).annotate(OpenApi.Identifier, "reportActivityToken")
+      .middleware(DeviceAuth)
+  )
+  .add(
+    HttpApiEndpoint.put("shownActivities", "/devices/me/activities/shown", { payload: ShownActivities })
+      .annotate(OpenApi.Identifier, "reportShownActivities")
       .middleware(DeviceAuth)
   )
   .add(

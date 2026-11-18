@@ -47,6 +47,17 @@ export const migrations = Migrator.fromRecord({
     )`
     // Preferences moved from one Download activity to one entry per flow.
     yield* sql`UPDATE devices SET preferences = NULL`
+  }),
+  "0004_dismissed_activities": Effect.gen(function*() {
+    const sql = yield* SqlClient.SqlClient
+    // Activities an iPhone's user swiped away, with where they were: shown again once that changes.
+    yield* sql`CREATE TABLE dismissed_activities (
+      device_id TEXT NOT NULL REFERENCES devices(id),
+      activity_key TEXT NOT NULL,
+      step_index INTEGER NOT NULL,
+      paused INTEGER,
+      PRIMARY KEY (device_id, activity_key)
+    )`
   })
 })
 

@@ -29,6 +29,17 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
           const device = yield* CurrentDevice
           yield* devices.setActivityToken(device.id, payload.mediaKey, payload.pushToken)
         }))
+      .handle("shownActivities", ({ payload }) =>
+        Effect.gen(function*() {
+          const device = yield* CurrentDevice
+          const running = (yield* activities.snapshot).activities
+          yield* devices.reconcile(device.id, payload.keys, (key) => {
+            const activity = running.get(key)
+            return activity === undefined || activity.endedAt !== null
+              ? null
+              : { stepIndex: activity.stepIndex, paused: activity.values.paused ?? null }
+          })
+        }))
       .handle("preferences", () =>
         Effect.gen(function*() {
           const device = yield* CurrentDevice

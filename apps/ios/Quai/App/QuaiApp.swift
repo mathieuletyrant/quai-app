@@ -4,6 +4,7 @@ import SwiftUI
 struct QuaiApp: App {
     @State private var connection = Connection()
     @State private var pendingLink: PairingLink?
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -27,6 +28,10 @@ struct QuaiApp: App {
             .task { await connection.watchPushToStartTokens() }
             .task { await connection.watchActivities() }
             .task { DemoActivity.startIfRequested() }
+            // Activities swiped away while the app wasn't running: the server learns it here.
+            .onChange(of: scenePhase, initial: true) { _, phase in
+                if phase == .active { Task { await connection.reportShownActivities() } }
+            }
         }
     }
 }

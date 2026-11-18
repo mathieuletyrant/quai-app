@@ -94,4 +94,14 @@ describe("per-iPhone steps", () => {
     )
     expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", paused: true })
   })
+
+  it("swiped away: stays away while nothing changes, starts again on a pause, a resume or a step", () => {
+    const target = { pushToStartToken: "pts", activityToken: null, shown: false, preferences: { flows: {} }, dismissed: { stepIndex: 0, paused: false } }
+    const at = (values: Activity["values"], stepIndex = 0) =>
+      ({ _tag: "Update" as const, activity: activity({ flowId: "playback", stepIndex, values }) })
+    expect(deliveryFor(at({ paused: false, endsAt: 99_000 }), playback, target, 0)._tag).toBe("None")
+    expect(deliveryFor(at({ paused: true, progress: 0.4 }), playback, target, 0)._tag).toBe("Start")
+    expect(deliveryFor({ _tag: "End", activity: activity({ flowId: "playback" }) }, playback, target, 0)._tag).toBe("None")
+    expect(deliveryFor(at({}, 2), download, { ...target, dismissed: { stepIndex: 1, paused: null } }, 0)._tag).toBe("Start")
+  })
 })

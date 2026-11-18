@@ -32,6 +32,14 @@ export interface PushTarget {
   /** The token of this activity on this iPhone, once the iPhone reported it. */
   readonly activityToken: string | null
   readonly preferences: DevicePreferences
+  /** Where the activity was when this iPhone's user swiped it away, if they did. */
+  readonly dismissed: Dismissed | null
+}
+
+/** An activity as it was when it was swiped away: a change from this shows it again. */
+export interface Dismissed {
+  readonly stepIndex: number
+  readonly paused: boolean | null
 }
 
 export const defaultPreferences: DevicePreferences = { flows: {} }
@@ -90,6 +98,13 @@ export class Devices extends Context.Service<Devices, {
   readonly setPreferences: (id: DeviceId, preferences: DevicePreferences) => Effect.Effect<DevicePreferences>
   /** Every iPhone, with its tokens for this activity and its preferences. */
   readonly targets: (activityKey: string) => Effect.Effect<ReadonlyArray<PushTarget>>
+  /**
+   * The iPhone reports the activities still on its screen: the others were swiped away, so their
+   * tokens go and `stateOf` records where they were.
+   */
+  readonly reconcile: (id: DeviceId, shownKeys: ReadonlyArray<string>, stateOf: (key: string) => Dismissed | null) => Effect.Effect<void>
+  /** The activity is on this iPhone again. */
+  readonly clearDismissed: (id: DeviceId, activityKey: string) => Effect.Effect<void>
   /** APNs said this token is dead: forget it. */
   readonly dropToken: (token: string) => Effect.Effect<void>
 }>()("quai/Devices") {
@@ -149,6 +164,7 @@ export class Devices extends Context.Service<Devices, {
             yield* sql`INSERT INTO activity_tokens (device_id, media_key, push_token, updated_at)
               VALUES (${id}, ${mediaKey}, ${pushToken}, ${now})
               ON CONFLICT (device_id, media_key) DO UPDATE SET push_token = excluded.push_token, updated_at = excluded.updated_at`
+            yield* sql`DELETE FROM dismissed_activities WHERE device_id = ${id} AND activity_key = ${mediaKey}`
           })),
 
         list: orDie(Effect.map(sql`SELECT * FROM devices ORDER BY paired_at`, (rows) => decodeRows(rows).map(toDevice))),
@@ -156,6 +172,7 @@ export class Devices extends Context.Service<Devices, {
         remove: (id) =>
           orDie(sql.withTransaction(Effect.gen(function*() {
             yield* sql`DELETE FROM activity_tokens WHERE device_id = ${id}`
+            yield* sql`DELETE FROM dismissed_activities WHERE device_id = ${id}`
             const removed = yield* sql`DELETE FROM devices WHERE id = ${id} RETURNING id`
             return removed.length > 0
           }))),
@@ -194,17 +211,42 @@ export class Devices extends Context.Service<Devices, {
 
         targets: (activityKey) =>
           orDie(Effect.map(
-            sql`SELECT d.id, d.apns_environment, d.push_to_start_token, d.preferences, t.push_token
-              FROM devices d LEFT JOIN activity_tokens t ON t.device_id = d.id AND t.media_key = ${activityKey}`,
+            sql`SELECT d.id, d.apns_environment, d.push_to_start_token, d.preferences, t.push_token, x.step_index, x.paused
+              FROM devices d
+              LEFT JOIN activity_tokens t ON t.device_id = d.id AND t.media_key = ${activityKey}
+              LEFT JOIN dismissed_activities x ON x.device_id = d.id AND x.activity_key = ${activityKey}`,
             (rows) =>
               rows.map((r): PushTarget => ({
                 deviceId: r["id"] as DeviceId,
                 apnsEnvironment: r["apns_environment"] as ApnsEnvironment,
                 pushToStartToken: (r["push_to_start_token"] as string | null) ?? null,
                 activityToken: (r["push_token"] as string | null) ?? null,
-                preferences: readPreferences(r["preferences"])
+                preferences: readPreferences(r["preferences"]),
+                dismissed: r["step_index"] === null || r["step_index"] === undefined
+                  ? null
+                  : { stepIndex: Number(r["step_index"]), paused: r["paused"] === null ? null : Number(r["paused"]) === 1 }
               }))
           )),
+
+        reconcile: (id, shownKeys, stateOf) =>
+          orDie(sql.withTransaction(Effect.gen(function*() {
+            const shown = new Set(shownKeys)
+            const rows = yield* sql`SELECT media_key FROM activity_tokens WHERE device_id = ${id}`
+            for (const row of rows) {
+              const key = String(row["media_key"])
+              if (shown.has(key)) continue
+              yield* sql`DELETE FROM activity_tokens WHERE device_id = ${id} AND media_key = ${key}`
+              const state = stateOf(key)
+              if (state === null) continue
+              const paused = state.paused === null ? null : state.paused ? 1 : 0
+              yield* sql`INSERT INTO dismissed_activities (device_id, activity_key, step_index, paused)
+                VALUES (${id}, ${key}, ${state.stepIndex}, ${paused})
+                ON CONFLICT (device_id, activity_key) DO UPDATE SET step_index = excluded.step_index, paused = excluded.paused`
+            }
+          }))),
+
+        clearDismissed: (id, activityKey) =>
+          orDie(Effect.asVoid(sql`DELETE FROM dismissed_activities WHERE device_id = ${id} AND activity_key = ${activityKey}`)),
 
         dropToken: (token) =>
           orDie(Effect.gen(function*() {

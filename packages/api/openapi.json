@@ -147,6 +147,45 @@
         }
       }
     },
+    "/api/devices/me/activities/shown": {
+      "put": {
+        "tags": [
+          "devices"
+        ],
+        "operationId": "reportShownActivities",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShownActivities"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
     "/api/devices/me/preferences": {
       "get": {
         "tags": [
@@ -1466,6 +1505,21 @@
         "required": [
           "enabled",
           "hiddenSteps"
+        ],
+        "additionalProperties": false
+      },
+      "ShownActivities": {
+        "type": "object",
+        "properties": {
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "keys"
         ],
         "additionalProperties": false
       },
