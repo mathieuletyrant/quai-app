@@ -21,6 +21,9 @@ packages:
   swift-openapi-urlsession:
     url: https://github.com/apple/swift-openapi-urlsession
     from: 1.1.0
+  swift-http-types:
+    url: https://github.com/apple/swift-http-types
+    from: 1.3.0
 targets:
   Quai:
     type: application
@@ -38,6 +41,14 @@ targets:
         NSSupportsLiveActivities: true
         NSSupportsLiveActivitiesFrequentUpdates: true
         UILaunchScreen: {}
+        # The console's QR code is a quai://pair link.
+        CFBundleURLTypes:
+          - CFBundleURLName: cc.cheztomy.Quai.pair
+            CFBundleURLSchemes: [quai]
+        # The server is often plain HTTP on the home network (umbrel.local).
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Quai talks to your server on your home network.
     entitlements:
       path: Quai/Quai.entitlements
       properties:
@@ -48,6 +59,8 @@ targets:
         product: OpenAPIRuntime
       - package: swift-openapi-urlsession
         product: OpenAPIURLSession
+      - package: swift-http-types
+        product: HTTPTypes
     buildToolPlugins:
       - plugin: OpenAPIGenerator
         package: swift-openapi-generator

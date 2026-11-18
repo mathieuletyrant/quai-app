@@ -10,7 +10,7 @@
         "tags": [
           "system"
         ],
-        "operationId": "system.health",
+        "operationId": "getHealth",
         "parameters": [],
         "security": [],
         "responses": {
@@ -32,7 +32,7 @@
         "tags": [
           "devices"
         ],
-        "operationId": "devices.pair",
+        "operationId": "pairDevice",
         "parameters": [],
         "security": [],
         "responses": {
@@ -74,7 +74,7 @@
         "tags": [
           "devices"
         ],
-        "operationId": "devices.update",
+        "operationId": "updateDevice",
         "parameters": [],
         "security": [
           {
@@ -113,7 +113,7 @@
         "tags": [
           "devices"
         ],
-        "operationId": "devices.activityToken",
+        "operationId": "reportActivityToken",
         "parameters": [],
         "security": [
           {
@@ -152,7 +152,7 @@
         "tags": [
           "devices"
         ],
-        "operationId": "devices.activities",
+        "operationId": "listActivities",
         "parameters": [],
         "security": [
           {
@@ -191,7 +191,7 @@
         "tags": [
           "console"
         ],
-        "operationId": "console.createPairingCode",
+        "operationId": "createPairingCode",
         "parameters": [],
         "security": [],
         "responses": {
@@ -235,7 +235,7 @@
         "tags": [
           "console"
         ],
-        "operationId": "console.devices",
+        "operationId": "listDevices",
         "parameters": [],
         "security": [],
         "responses": {
@@ -260,7 +260,7 @@
         "tags": [
           "console"
         ],
-        "operationId": "console.removeDevice",
+        "operationId": "removeDevice",
         "parameters": [
           {
             "name": "id",

@@ -2,33 +2,34 @@ import SwiftUI
 
 @main
 struct QuaiApp: App {
+    @State private var connection = Connection()
+    @State private var pendingLink: PairingLink?
+
     var body: some Scene {
         WindowGroup {
-            TabView {
-                Tab("Activity", systemImage: "dot.radiowaves.left.and.right") { ActivityView() }
-                Tab("Settings", systemImage: "gearshape") { SettingsView() }
+            Group {
+                if connection.isPaired {
+                    TabView {
+                        Tab("Activity", systemImage: "dot.radiowaves.left.and.right") { ActivityListView() }
+                        Tab("Settings", systemImage: "gearshape") { SettingsView() }
+                    }
+                } else {
+                    PairingView(link: $pendingLink)
+                }
             }
+            .environment(connection)
+            .tint(.quaiAccent)
             .preferredColorScheme(.dark)
+            // The Camera app opens the console's QR code as a quai://pair link.
+            .onOpenURL { url in
+                if let link = PairingLink(url) { pendingLink = link }
+            }
+            .task { await connection.watchTokens() }
             .task { DemoActivity.startIfRequested() }
         }
     }
 }
 
-struct ActivityView: View {
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView("No activity", systemImage: "tray",
-                                   description: Text("Connect the app to your Quai server to get started."))
-                .navigationTitle("Activity")
-        }
-    }
-}
-
-struct SettingsView: View {
-    var body: some View {
-        NavigationStack {
-            List { Section("Server") { Text("Not connected") } }
-                .navigationTitle("Settings")
-        }
-    }
+extension Color {
+    static let quaiAccent = Color(red: 0x6F / 255, green: 0xD3 / 255, blue: 0xC2 / 255)
 }

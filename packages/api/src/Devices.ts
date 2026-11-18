@@ -1,5 +1,5 @@
 import { Context, Schema } from "effect"
-import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity } from "effect/http-api"
+import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
 import { DownloadAttributes, DownloadContentState } from "./Download.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
@@ -55,17 +55,17 @@ export const RunningActivity = Schema.Struct({
 
 /** Routes the iPhone app calls. Reachable without the host's login (see deploy notes). */
 export class DevicesGroup extends HttpApiGroup.make("devices")
-  .add(HttpApiEndpoint.post("pair", "/devices", { payload: PairDevice, success: PairedDevice, error: InvalidPairingCode }))
+  .add(HttpApiEndpoint.post("pair", "/devices", { payload: PairDevice, success: PairedDevice, error: InvalidPairingCode }).annotate(OpenApi.Identifier, "pairDevice"))
   .add(
-    HttpApiEndpoint.patch("update", "/devices/me", { payload: UpdateDevice })
+    HttpApiEndpoint.patch("update", "/devices/me", { payload: UpdateDevice }).annotate(OpenApi.Identifier, "updateDevice")
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.post("activityToken", "/devices/me/activity-tokens", { payload: ActivityToken })
+    HttpApiEndpoint.post("activityToken", "/devices/me/activity-tokens", { payload: ActivityToken }).annotate(OpenApi.Identifier, "reportActivityToken")
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.get("activities", "/activities", { success: Schema.Array(RunningActivity) })
+    HttpApiEndpoint.get("activities", "/activities", { success: Schema.Array(RunningActivity) }).annotate(OpenApi.Identifier, "listActivities")
       .middleware(DeviceAuth)
   )
   .prefix("/api") {}
@@ -92,8 +92,8 @@ export class ConsoleGroup extends HttpApiGroup.make("console")
     HttpApiEndpoint.post("createPairingCode", "/pairing-codes", {
       payload: Schema.Struct({ serverUrls: Schema.Array(Schema.String) }),
       success: PairingCode
-    })
+    }).annotate(OpenApi.Identifier, "createPairingCode")
   )
-  .add(HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }))
-  .add(HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound }))
+  .add(HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }).annotate(OpenApi.Identifier, "listDevices"))
+  .add(HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound }).annotate(OpenApi.Identifier, "removeDevice"))
   .prefix("/console-api") {}
