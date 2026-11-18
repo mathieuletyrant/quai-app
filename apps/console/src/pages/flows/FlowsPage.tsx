@@ -1,10 +1,10 @@
 import type { DeviceId, Flow } from "@quai/api"
 import { useCallback, useEffect, useState } from "react"
 import { call } from "../../client.ts"
-import { Button, errorText, type Notice, PageHeader, Toast } from "../../ui.tsx"
-import { type Catalogs, clone, type Draft, sameFlow, slug, subjects } from "./draft.ts"
+import { errorText, type Notice, Toast } from "../../ui.tsx"
+import { type Catalogs, clone, type Draft, sameFlow, slug } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
-import { Glyph } from "./icons.tsx"
+import { FlowSwitcher } from "./FlowSwitcher.tsx"
 import type { Phone } from "./TestMenu.tsx"
 
 /** The flows on the left, the one being edited on the right. */
@@ -15,7 +15,6 @@ export function FlowsPage() {
   /** The flow as saved; null while a new one is drafted. */
   const [original, setOriginal] = useState<Flow | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
-  const [creating, setCreating] = useState(false)
   const [notice, setNotice] = useState<Notice | null>(null)
   const clearNotice = useCallback(() => setNotice(null), [])
 
@@ -25,7 +24,6 @@ export function FlowsPage() {
   const open = (flow: Flow) => {
     setOriginal(flow)
     setDraft(clone(flow))
-    setCreating(false)
   }
 
   const load = async (select?: string) => {
@@ -90,87 +88,39 @@ export function FlowsPage() {
     if (!leave()) return
     setOriginal(null)
     setDraft({ ...clone(base), id: "", name, builtIn: false })
-    setCreating(false)
   }
 
   return (
     <>
-      <PageHeader
-        title="Flows"
-        subtitle="What starts a Live Activity, the steps it goes through and what each one shows. Each iPhone then picks its own steps."
-      />
-      <div className="flex flex-col gap-6">
-        <nav aria-label="Flows" className="relative flex flex-wrap items-center gap-2 border-b border-line pb-4">
-          {flows.map((f) => {
-            const current = !isNew && draft?.id === f.id
-            return (
-              <button
-                key={f.id}
-                type="button"
-                aria-current={current}
-                onClick={() => { if (!current && leave()) open(f) }}
-                className="flex h-10 items-center gap-2 rounded-full border border-line px-3.5 text-sm font-semibold text-muted transition hover:border-white/20 hover:text-text aria-[current=true]:border-white/25 aria-[current=true]:bg-raised aria-[current=true]:text-text"
-              >
-                <Glyph name={f.icon} color={f.enabled ? f.color : "#5a5a60"} size={15} />
-                {f.name}
-                {!f.enabled && <span className="text-xs font-normal text-muted">off</span>}
-                {current && dirty && <span className="size-2 rounded-full bg-[#ffc230]" title="Unsaved changes" />}
-              </button>
-            )
-          })}
-          {isNew && draft && (
-            <span aria-current="true" className="flex h-10 items-center gap-2 rounded-full border border-white/25 bg-raised px-3.5 text-sm font-semibold">
-              <Glyph name={draft.icon} color={draft.color} size={15} />
-              {draft.name || "New flow"}
-              <span className="size-2 rounded-full bg-[#ffc230]" title="Not saved" />
-            </span>
-          )}
-          <Button variant="ghost" aria-expanded={creating} onClick={() => setCreating(!creating)}>+ New flow</Button>
-          {creating && (
-            <div className="absolute top-12 z-30 flex w-80 flex-col gap-1 rounded-2xl border border-white/12 bg-raised p-2 shadow-2xl">
-              <p className="px-2.5 pt-1 pb-1 text-xs font-semibold text-muted">Start from</p>
-              {(Object.keys(subjects) as Array<Flow["subject"]>).map((s) => {
-                const base = flows.find((f) => f.subject === s && f.builtIn)
-                return base && (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => startNew(base, `My ${subjects[s].label.toLowerCase()}`)}
-                    className="flex items-start gap-3 rounded-xl p-2.5 text-left transition hover:bg-white/5"
-                  >
-                    <Glyph name={subjects[s].icon} color="#6fd3c2" size={17} />
-                    <span>
-                      <span className="block text-sm font-semibold">{subjects[s].label}</span>
-                      <span className="block text-xs text-muted">{subjects[s].description}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </nav>
-
-        {draft && (
-          <FlowEditor
-            key={original?.id ?? "new"}
-            draft={draft}
-            isNew={isNew}
-            dirty={dirty}
-            catalogs={catalogs}
-            phones={phones}
-            onChange={(change) => {
-              const next = clone(draft)
-              change(next)
-              setDraft(next)
-            }}
-            onSave={save}
-            onDiscard={() => { if (original) setDraft(clone(original)); else void load() }}
-            onTest={test}
-            onDuplicate={() => startNew(draft as Flow, `${draft.name} copy`.slice(0, 40))}
-            onRemove={remove}
-          />
-        )}
-      </div>
+      {draft && (
+        <FlowEditor
+          key={original?.id ?? "new"}
+          draft={draft}
+          isNew={isNew}
+          dirty={dirty || isNew}
+          catalogs={catalogs}
+          phones={phones}
+          switcher={
+            <FlowSwitcher
+              flows={flows}
+              current={draft}
+              dirty={dirty || isNew}
+              onOpen={(f) => { if (f.id !== draft.id && leave()) open(f) }}
+              onNew={startNew}
+            />
+          }
+          onChange={(change) => {
+            const next = clone(draft)
+            change(next)
+            setDraft(next)
+          }}
+          onSave={save}
+          onDiscard={() => { if (original) setDraft(clone(original)); else void load() }}
+          onTest={test}
+          onDuplicate={() => startNew(draft as Flow, `${draft.name} copy`.slice(0, 40))}
+          onRemove={remove}
+        />
+      )}
       <Toast notice={notice} onDone={clearNotice} />
     </>
   )

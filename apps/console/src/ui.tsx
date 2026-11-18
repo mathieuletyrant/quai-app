@@ -1,4 +1,4 @@
-import { type ButtonHTMLAttributes, type ReactNode, useEffect } from "react"
+import { type ButtonHTMLAttributes, type ReactNode, useEffect, useRef, useState } from "react"
 
 /** The console's building blocks: every page composes these, so the look lives in one place. */
 
@@ -187,5 +187,52 @@ export function Toast({ notice, onDone }: { notice: Notice | null; onDone: () =>
       <p className="flex-1">{notice.text}</p>
       <button type="button" className="text-muted hover:text-text" aria-label="Dismiss" onClick={onDone}>✕</button>
     </div>
+  )
+}
+
+/** A button that opens a floating panel, closed by a click outside or Escape. */
+export function Popover({ trigger, align = "left", className, children }: {
+  trigger: (props: { open: boolean; toggle: () => void }) => ReactNode
+  align?: "left" | "right"
+  className?: string
+  children: (close: () => void) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+    document.addEventListener("mousedown", onDown)
+    document.addEventListener("keydown", onKey)
+    return () => {
+      document.removeEventListener("mousedown", onDown)
+      document.removeEventListener("keydown", onKey)
+    }
+  }, [open])
+  return (
+    <div ref={ref} className="relative">
+      {trigger({ open, toggle: () => setOpen(!open) })}
+      {open && (
+        <div className={join("absolute z-40 mt-2 flex min-w-56 flex-col gap-0.5 rounded-2xl border border-white/12 bg-raised p-1.5 shadow-2xl", align === "right" ? "right-0" : "left-0", className)}>
+          {children(() => setOpen(false))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** One row of a Popover menu. */
+export function MenuItem({ danger, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean }) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={join(
+        "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition hover:bg-white/6 disabled:pointer-events-none disabled:opacity-40",
+        danger ? "text-danger" : "text-text",
+        className
+      )}
+    />
   )
 }

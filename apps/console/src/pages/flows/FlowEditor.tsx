@@ -1,7 +1,7 @@
 import { type DeviceId, flowProblem } from "@quai/api"
-import { useState } from "react"
-import { Badge, Button, Toggle } from "../../ui.tsx"
-import { type Catalogs, type Draft, newStep, stepActions, stepEvents, subjects } from "./draft.ts"
+import { type ReactNode, useState } from "react"
+import { Button, IconButton, MenuItem, Popover, Toggle } from "../../ui.tsx"
+import { type Catalogs, type Draft, newStep, stepActions, stepEvents } from "./draft.ts"
 import { EndPanel, FlowPanel, StepPanel } from "./Inspector.tsx"
 import { type Selection, Pipeline } from "./Pipeline.tsx"
 import { Preview } from "./Preview.tsx"
@@ -18,6 +18,8 @@ export function FlowEditor(props: {
   dirty: boolean
   catalogs: Catalogs
   phones: ReadonlyArray<Phone>
+  /** The page title: the flow's name, opening the other flows. */
+  switcher: ReactNode
   onChange: (change: (d: Draft) => void) => void
   onSave: () => void
   onDiscard: () => void
@@ -41,26 +43,30 @@ export function FlowEditor(props: {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-5">
-      <header className="flex flex-wrap items-center gap-3">
-        <input
-          aria-label="Flow name"
-          value={draft.name}
-          maxLength={40}
-          onChange={(e) => onChange((d) => { d.name = e.target.value })}
-          className="min-w-0 flex-1 border-b border-transparent bg-transparent py-1 text-2xl font-bold outline-none focus:border-accent"
-        />
-        <Badge>{subjects[draft.subject].label}{draft.builtIn ? " · built-in" : ""}</Badge>
-        <span className="flex items-center gap-2 text-sm font-semibold">
-          <Toggle label="Flow on" checked={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
-          {draft.enabled ? "On" : "Off"}
-        </span>
-        {!props.isNew && (
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            <TestMenu phones={props.phones} disabled={props.dirty} onTest={props.onTest} />
-            <Button variant="secondary" size="sm" onClick={props.onDuplicate}>Duplicate</Button>
-            <Button variant="ghost" size="sm" className="hover:text-danger" onClick={props.onRemove}>{draft.builtIn ? "Reset" : "Delete"}</Button>
-          </div>
-        )}
+      <header className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="min-w-0 flex-1">{props.switcher}</div>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 pr-2 text-sm font-semibold">
+            <Toggle label="Flow on" checked={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
+            {draft.enabled ? "On" : "Off"}
+          </label>
+          {!props.isNew && (
+            <>
+              <TestMenu phones={props.phones} disabled={props.dirty} onTest={props.onTest} />
+              <Popover
+                align="right"
+                trigger={({ open, toggle }) => <IconButton label="More" aria-expanded={open} onClick={toggle} className="size-8 text-lg">⋯</IconButton>}
+              >
+                {(close) => (
+                  <>
+                    <MenuItem onClick={() => { close(); props.onDuplicate() }}>Duplicate</MenuItem>
+                    <MenuItem danger onClick={() => { close(); props.onRemove() }}>{draft.builtIn ? "Reset to how Quai ships it" : "Delete"}</MenuItem>
+                  </>
+                )}
+              </Popover>
+            </>
+          )}
+        </div>
       </header>
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">

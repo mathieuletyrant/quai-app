@@ -22,6 +22,9 @@ function Section({ title, actions, children }: { title: string; actions?: ReactN
 export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: (change: (d: Draft) => void) => void }) {
   return (
     <Section title="Flow">
+      <Field label="Name">
+        <input className={`${inputClass} font-semibold`} value={flow.name} maxLength={40} onChange={(e) => onChange((d) => { d.name = e.target.value })} />
+      </Field>
       <Field label="Color">
         <div className="flex flex-wrap gap-2.5">
           {palette.map((c) => (
