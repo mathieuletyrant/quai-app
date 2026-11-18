@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/mathieuletyrant/quai-app/compare/v0.4.0...v0.5.0) (2026-11-18)
+
+
+### ✨ Features
+
+* console redesign, tests on chosen iPhones, playback pause and dismissed activities fixed ([#14](https://github.com/mathieuletyrant/quai-app/issues/14)) ([8110a22](https://github.com/mathieuletyrant/quai-app/commit/8110a22df7d726201f45eacae5f68dfcf55512aa))
+
 ## [0.4.0](https://github.com/mathieuletyrant/quai-app/compare/v0.3.4...v0.4.0) (2026-11-18)
 
 
