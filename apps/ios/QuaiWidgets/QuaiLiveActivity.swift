@@ -2,20 +2,6 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-extension Color {
-    /// "#RRGGBB"; falls back to Quai's teal.
-    init(hex: String) {
-        let value = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0x6FD3C2
-        self.init(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
-    }
-}
-
-enum Palette {
-    static let ready = Color(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255)
-    static let stalled = Color(white: 0.55)
-    static let track = Color.white.opacity(0.14)
-}
-
 /// Everything the views need, computed once from the server's description.
 struct Model {
     let attributes: QuaiActivityAttributes
@@ -25,13 +11,7 @@ struct Model {
         attributes.steps.indices.contains(state.step) ? attributes.steps[state.step] : attributes.steps.last
     }
 
-    var tint: Color {
-        switch state.tone {
-        case .stalled: Palette.stalled
-        case .done: Palette.ready
-        case .active: Color(hex: attributes.color)
-        }
-    }
+    var tint: Color { Palette.tint(tone: state.tone.rawValue, color: attributes.color) }
 
     var symbol: String { state.tone == .done ? "checkmark" : (step?.icon ?? attributes.icon) }
 

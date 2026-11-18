@@ -1,11 +1,10 @@
 import { CurrentDevice, InvalidPairingCode, QuaiApi } from "@quai/api"
-import { Clock, Duration, Effect, Option } from "effect"
+import { Effect, Option } from "effect"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
 import { Activities } from "../flows/Activities.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { attributesFor, contentFor, preferenceFor, visibleSteps } from "../flows/Targeting.ts"
-import { testScript } from "../flows/TestScript.ts"
-import { Notifier } from "../push/Notifier.ts"
+import { TestRunner } from "../flows/TestRunner.ts"
 import { Devices } from "../store/Devices.ts"
 
 export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handlers) =>
@@ -13,7 +12,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
     const devices = yield* Devices
     const activities = yield* Activities
     const flowStore = yield* FlowStore
-    const notifier = yield* Notifier
+    const tests = yield* TestRunner
     return handlers
       .handle("pair", ({ payload }) =>
         Effect.flatMap(devices.pair(payload), Option.match({
@@ -53,14 +52,8 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
       .handle("testActivity", ({ payload }) =>
         Effect.gen(function*() {
           const device = yield* CurrentDevice
-          const flow = yield* flowStore.get(payload.flowId)
-          if (Option.isNone(flow)) return yield* Effect.fail(new HttpApiError.NotFound())
-          const now = yield* Clock.currentTimeMillis
-          // Plays in the background: the request returns at once, the pushes follow.
-          yield* Effect.forEach(testScript(flow.value, now, `${device.id}:${now}`), (beat) =>
-            Effect.andThen(Effect.sleep(Duration.millis(beat.afterMs)), notifier.sendTo(device.id, [beat.push])), {
-            discard: true
-          }).pipe(Effect.forkDetach)
+          const played = yield* tests.play(payload.flowId, device.id)
+          if (Option.isNone(played)) return yield* Effect.fail(new HttpApiError.NotFound())
         }))
       .handle("activities", () =>
         Effect.gen(function*() {

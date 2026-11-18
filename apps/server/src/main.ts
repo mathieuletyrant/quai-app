@@ -5,6 +5,7 @@ import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
 import { Activities } from "./flows/Activities.ts"
 import { FlowStore } from "./flows/FlowStore.ts"
+import { TestRunner } from "./flows/TestRunner.ts"
 import { Watcher } from "./flows/Watcher.ts"
 import { WebhooksLive } from "./http/Webhooks.ts"
 import { Apns } from "./push/Apns.ts"
@@ -51,7 +52,7 @@ const Store = Layer.mergeAll(Devices.layer, Settings.layer, StateStore.layer, Fl
 
 const Push = PushKey.layer.pipe(Layer.provideMerge(Apns.layer))
 
-const Engine = Watcher.layer.pipe(
+const Engine = Layer.mergeAll(Watcher.layer, TestRunner.layer).pipe(
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Activities.layerPersisted),
   Layer.provideMerge(Push),

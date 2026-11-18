@@ -3,6 +3,7 @@ import { Effect, Layer } from "effect"
 import { Activities } from "../src/flows/Activities.ts"
 import { FlowStore } from "../src/flows/FlowStore.ts"
 import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
+import { TestRunner } from "../src/flows/TestRunner.ts"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
@@ -23,6 +24,7 @@ const pushKey = Layer.effect(PushKey, Effect.suspend(() => PushKey.make(join(mkd
 
 export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(DeviceAuthLive),
+  Layer.provideMerge(TestRunner.layer),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Layer.mergeAll(Devices.layer, Activities.layer, pushKey)),
   Layer.provideMerge(FlowStore.layer),

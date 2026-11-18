@@ -30,7 +30,3 @@ struct QuaiApp: App {
         }
     }
 }
-
-extension Color {
-    static let quaiAccent = Color(red: 0x6F / 255, green: 0xD3 / 255, blue: 0xC2 / 255)
-}

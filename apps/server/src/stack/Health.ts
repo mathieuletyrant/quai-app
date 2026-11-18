@@ -6,10 +6,24 @@ import { StackConfig } from "./StackConfig.ts"
 /** A service is reported down after failing this long, as the spec's default (docs/spec-v1.md). */
 export const downAfterMs = 5 * 60_000
 
-interface Probe {
+export interface Probe {
   readonly name: string
   readonly title: string
   readonly request: HttpClientRequest.HttpClientRequest
+}
+
+/** How to ask each kind of service whether it's up. Only configured services are probed. */
+export const probesFor = (config: StackConfig["Service"]): ReadonlyArray<Probe> => {
+  const withKey = (url: string, path: string, apiKey: Redacted.Redacted<string>) =>
+    HttpClientRequest.get(`${url}${path}`).pipe(HttpClientRequest.setHeader("X-Api-Key", Redacted.value(apiKey)))
+  const table: ReadonlyArray<Probe | null> = [
+    config.radarr && { name: "radarr", title: "Radarr", request: withKey(config.radarr.url, "/api/v3/system/status", config.radarr.apiKey) },
+    config.sonarr && { name: "sonarr", title: "Sonarr", request: withKey(config.sonarr.url, "/api/v3/system/status", config.sonarr.apiKey) },
+    config.jellyfin && { name: "jellyfin", title: "Jellyfin", request: HttpClientRequest.get(`${config.jellyfin.url}/System/Info/Public`) },
+    // Answers 403 without a session: that still proves it's up.
+    config.qbittorrent && { name: "qbittorrent", title: "qBittorrent", request: HttpClientRequest.get(`${config.qbittorrent.url}/api/v2/app/version`) }
+  ]
+  return table.filter((p): p is Probe => p !== null)
 }
 
 /**
@@ -24,21 +38,7 @@ export class Health extends Context.Service<Health, {
     Effect.gen(function*() {
       const config = yield* StackConfig
       const client = yield* HttpClient.HttpClient
-      const key = (k: Redacted.Redacted<string>) => Redacted.value(k)
-      const probes: Array<Probe> = []
-      if (config.radarr) {
-        probes.push({ name: "radarr", title: "Radarr", request: HttpClientRequest.get(`${config.radarr.url}/api/v3/system/status`).pipe(HttpClientRequest.setHeader("X-Api-Key", key(config.radarr.apiKey))) })
-      }
-      if (config.sonarr) {
-        probes.push({ name: "sonarr", title: "Sonarr", request: HttpClientRequest.get(`${config.sonarr.url}/api/v3/system/status`).pipe(HttpClientRequest.setHeader("X-Api-Key", key(config.sonarr.apiKey))) })
-      }
-      if (config.jellyfin) {
-        probes.push({ name: "jellyfin", title: "Jellyfin", request: HttpClientRequest.get(`${config.jellyfin.url}/System/Info/Public`) })
-      }
-      if (config.qbittorrent) {
-        // Answers 403 without a session: that still proves it's up.
-        probes.push({ name: "qbittorrent", title: "qBittorrent", request: HttpClientRequest.get(`${config.qbittorrent.url}/api/v2/app/version`) })
-      }
+      const probes = probesFor(config)
       const failingSince = new Map<string, number>()
       const reported = new Set<string>()
 

@@ -132,11 +132,3 @@ private struct FlowSection: View {
         }
     }
 }
-
-extension Color {
-    /// "#RRGGBB"; falls back to Quai's teal.
-    init(hex: String) {
-        let value = UInt64(hex.trimmingCharacters(in: CharacterSet(charactersIn: "#")), radix: 16) ?? 0x6FD3C2
-        self.init(red: Double((value >> 16) & 0xFF) / 255, green: Double((value >> 8) & 0xFF) / 255, blue: Double(value & 0xFF) / 255)
-    }
-}

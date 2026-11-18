@@ -40,13 +40,7 @@ struct ActivityListView: View {
 struct ActivityRow: View {
     let activity: Components.Schemas.RunningActivity
 
-    private var tint: Color {
-        switch activity.content.tone {
-        case .done: Color(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255)
-        case .stalled: .gray
-        case .active: Color(hex: activity.attributes.color)
-        }
-    }
+    private var tint: Color { Palette.tint(tone: activity.content.tone.rawValue, color: activity.attributes.color) }
 
     private var stepLabel: String {
         let steps = activity.attributes.steps
