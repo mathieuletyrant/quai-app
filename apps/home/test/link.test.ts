@@ -101,10 +101,10 @@ describe("link", () => {
         const connection = yield* Queue.take(connections)
         expect(yield* Queue.take(connection.sent)).toEqual({
           _tag: "Hello",
-          protocol: 1,
+          protocol: 2,
           homeVersion: "dev",
           publicKey: key.publicKey,
-          services: ["radarr", "qbittorrent", "jellyfin"]
+          services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr"]
         })
         const nonce = randomBytes(32).toString("base64")
         yield* cloud(connection, { _tag: "Challenge", nonce })

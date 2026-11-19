@@ -1,0 +1,137 @@
+{
+  "page": 1,
+  "pageSize": 1000,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "ascending",
+  "totalRecords": 5,
+  "records": [
+    {
+      "id": 52,
+      "title": "Arco",
+      "year": 2025,
+      "tmdbId": 100052,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/x/poster.jpg",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/zAqxYlLg2gl5rK6o4u7S9jGAbqZ.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T11:00:00Z",
+      "digitalRelease": "2026-10-28T00:00:00Z",
+      "inCinemas": "2025-10-22T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 54,
+      "title": "Mickey 17",
+      "year": 2025,
+      "tmdbId": 100054,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/x/poster.jpg",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/edKpE9B5qN3e559OuMCLZdW1iBZ.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-01T18:00:00Z",
+      "digitalRelease": "2025-04-18T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 55,
+      "title": "Mouse",
+      "year": 2025,
+      "tmdbId": 100055,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/x/poster.jpg",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/6WYrOc6VZbmBbEhAMuB7vKWd8oY.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T07:00:00Z",
+      "digitalRelease": "2026-11-05T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 51,
+      "title": "Nero",
+      "year": 2027,
+      "tmdbId": 100051,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/x/poster.jpg",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": false,
+      "added": "2026-11-12T10:12:03Z",
+      "inCinemas": "2027-03-10T00:00:00Z",
+      "status": "announced",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 48,
+      "title": "Runner",
+      "year": 2026,
+      "tmdbId": 100048,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/x/poster.jpg",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T09:00:00Z",
+      "digitalRelease": "2026-11-10T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0,
+      "overview": "A young runner chases one last race across the desert."
+    },
+    {
+      "id": 53,
+      "title": "The Wild Robot",
+      "year": 2024,
+      "tmdbId": 100053,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/x/poster.jpg",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/wTnV3PCVW5O92JMrFvvrRcV39RU.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T11:30:00Z",
+      "digitalRelease": "2024-10-15T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    }
+  ]
+}

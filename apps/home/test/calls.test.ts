@@ -91,6 +91,67 @@ describe("calls allowlist", () => {
     }).pipe(Effect.provide(callsWith(() => ({ unreachable: true }), []))))
 })
 
+describe("To fix calls", () => {
+  it.effect("removes a queue item with DELETE, and protects in Reclaimerr with its bearer token", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      const calls = yield* Calls
+      const removed = yield* calls.run(request({ service: "radarr", method: "DELETE", path: "/api/v3/queue/41?removeFromClient=true&blocklist=true" }))
+      expect(removed).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(seen[0]!.method).toBe("DELETE")
+      expect(seen[0]!.url.href).toBe("http://radarr:7878/api/v3/queue/41?removeFromClient=true&blocklist=true")
+
+      yield* calls.run(request({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: "Kept from Quai" } }))
+      expect(seen[1]!.url.href).toBe("http://reclaimerr:8000/api/v1/candidates/42/protect")
+      expect(seen[1]!.headers["authorization"]).toBe("Bearer masked")
+      expect(seen[1]!.headers["x-api-key"]).toBeUndefined()
+      expect(JSON.parse(seen[1]!.body!)).toEqual({ reason: "Kept from Quai" })
+    }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
+  })
+
+  it.effect("refuses a command other than ManualImport without calling Radarr", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      const calls = yield* Calls
+      for (const name of ["RescanMovie", "Backup", "MissingMoviesSearch"]) {
+        const result = yield* calls.run(request({ service: "radarr", method: "POST", path: "/api/v3/command", body: { name, importMode: "auto", files: [] } }))
+        expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
+      }
+      expect(seen).toHaveLength(0)
+      const ok = yield* calls.run(request({
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/command",
+        body: { name: "ManualImport", importMode: "auto", files: [{ path: "/downloads/a.mkv", movieId: 12, downloadId: "X" }] }
+      }))
+      expect(ok).toMatchObject({ _tag: "CallResponse" })
+      expect(JSON.parse(seen[0]!.body!).name).toBe("ManualImport")
+    }).pipe(Effect.provide(callsWith(() => ({ json: { id: 1 } }), seen)))
+  })
+
+  it.effect("a release search may take 50 s, a read only 10", () =>
+    Effect.gen(function*() {
+      const calls = yield* Calls
+      const search = yield* Effect.forkChild(calls.run(request({ service: "radarr", method: "GET", path: "/api/v3/release?movieId=12" })))
+      const read = yield* Effect.forkChild(calls.run(request({ service: "radarr", method: "GET", path: "/api/v3/queue" })))
+      yield* TestClock.adjust("10 seconds")
+      expect(yield* Fiber.join(read)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
+      yield* TestClock.adjust("39 seconds")
+      expect(search.pollUnsafe()).toBeUndefined()
+      yield* TestClock.adjust("1 second")
+      expect(yield* Fiber.join(search)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
+    }).pipe(Effect.provide(Calls.layer.pipe(
+      Layer.provide(ServiceAuth.layer),
+      Layer.provide([configLayer(), Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
+    ))))
+
+  it.effect("Reclaimerr unset is not configured", () =>
+    Effect.gen(function*() {
+      const result = yield* (yield* Calls).run(request({ service: "reclaimerr", method: "GET", path: "/api/v1/candidates" }))
+      expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "reclaimerr is not configured" })
+    }).pipe(Effect.provide(callsWith(() => ({ json: {} }), [], configLayer({ reclaimerr: null })))))
+})
+
 describe("call bodies", () => {
   it.effect("sends a form body form-encoded, and refuses one that isn't flat", () => {
     const seen: Array<Seen> = []

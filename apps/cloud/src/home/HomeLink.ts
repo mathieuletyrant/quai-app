@@ -139,8 +139,14 @@ export const verifyProof = (publicKey: string, nonce: string, signature: string)
 export class HomeLink extends Context.Service<HomeLink, {
   /** The connected home, once its documents are loaded. */
   readonly home: Effect.Effect<Option.Option<LinkedHome>>
-  /** One HTTP call to a service, through Quai Home's allowlist. */
-  readonly call: (request: CallRequest) => Effect.Effect<{ readonly status: number; readonly body: string }, HomeError>
+  /**
+   * One HTTP call to a service, through Quai Home's allowlist. `timeoutMs` for the slow ones (a
+   * release search): a little longer than Quai Home itself waits for the service.
+   */
+  readonly call: (
+    request: CallRequest,
+    options?: { readonly timeoutMs?: number }
+  ) => Effect.Effect<{ readonly status: number; readonly body: string }, HomeError>
   /** Replaces what Quai Home polls. */
   readonly setWatches: (watches: ReadonlyArray<HomeProtocol.Watch>) => Effect.Effect<void, HomeError>
   readonly documents: HomeDocuments["Service"]
@@ -165,7 +171,7 @@ export class HomeLink extends Context.Service<HomeLink, {
         : Effect.succeed(connection)
     })
 
-    const request = (connection: Connection, make: (id: string) => CloudMessage) =>
+    const request = (connection: Connection, make: (id: string) => CloudMessage, timeoutMs: number = Timing.requestMs) =>
       Effect.gen(function*() {
         const id = `r${yield* Ref.updateAndGet(requestCount, (n) => n + 1)}`
         const answer = yield* Deferred.make<Answer, HomeError>()
@@ -173,7 +179,7 @@ export class HomeLink extends Context.Service<HomeLink, {
         yield* connection.send(make(id))
         return yield* Deferred.await(answer).pipe(
           Effect.timeoutOrElse({
-            duration: Timing.requestMs,
+            duration: timeoutMs,
             orElse: () => Effect.fail(new HomeError({ reason: "timeout", message: "Quai Home didn't answer in time" }))
           }),
           Effect.ensuring(Effect.sync(() => connection.pending.delete(id)))
@@ -227,10 +233,11 @@ export class HomeLink extends Context.Service<HomeLink, {
         const handshake = Effect.gen(function*(): Effect.fn.Return<HandshakeOutcome, Socket.SocketError> {
           const hello = yield* expect("Hello")
           if (Option.isNone(hello)) return { _tag: "Refused", reason: "expected a Hello", retryAfterSeconds: 60 }
-          if (hello.value.protocol !== HomeProtocol.protocolVersion) {
+          const protocol = hello.value.protocol
+          if (protocol < HomeProtocol.minProtocolVersion || protocol > HomeProtocol.protocolVersion) {
             return {
               _tag: "Refused",
-              reason: `this Cloud speaks protocol ${HomeProtocol.protocolVersion}, this Quai Home ${hello.value.protocol}`,
+              reason: `this Cloud speaks protocols ${HomeProtocol.minProtocolVersion} to ${HomeProtocol.protocolVersion}, this Quai Home ${protocol}`,
               retryAfterSeconds: 3600
             }
           }
@@ -354,10 +361,10 @@ export class HomeLink extends Context.Service<HomeLink, {
         const connection = ready()
         return connection === null ? Option.none() : Option.some({ homeId: connection.homeId, services: connection.services })
       }),
-      call: (call) =>
+      call: (call, options) =>
         Effect.gen(function*() {
           const connection = yield* current
-          const answer = yield* request(connection, (id) => HomeProtocol.Call.make({ ...call, id })).pipe(Effect.flatMap(failedWith))
+          const answer = yield* request(connection, (id) => HomeProtocol.Call.make({ ...call, id }), options?.timeoutMs).pipe(Effect.flatMap(failedWith))
           if (answer._tag !== "CallResponse") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
           return { status: answer.status, body: answer.body }
         }),

@@ -66,9 +66,18 @@ struct HomeView: View {
                 if let error = connection.lastError {
                     MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
                 }
+                if let fixes = connection.fixes?.items, !fixes.isEmpty {
+                    NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
+                        .buttonStyle(.plain)
+                }
                 tiles(tonight)
             }
-            .refreshable { await connection.refresh() }
+            .refreshable {
+                await connection.refresh()
+                await connection.loadFixes()
+            }
+            // The To fix list asks Radarr, Sonarr and Reclaimerr: read when the screen opens, not polled.
+            .task { await connection.loadFixes() }
             .task {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
                 while !Task.isCancelled {
@@ -125,6 +134,49 @@ struct HomeView: View {
         let tile = content()
         return Button { tab = .activity } label: { tile }
             .buttonStyle(.plain)
+    }
+}
+
+/// What needs a tap: the count, and the first problems.
+private struct FixesTile: View {
+    let fixes: [Fix]
+
+    var body: some View {
+        Tile {
+            HStack {
+                TileLabel(title: "To fix", systemImage: "wrench.and.screwdriver.fill", color: Palette.toFix)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.tertiaryText)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(fixes.count, format: .number)
+                    .font(QuaiFont.value)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.toFix)
+                Text(fixes.count == 1 ? "point to settle" : "points to settle")
+                    .font(QuaiFont.caption)
+                    .foregroundStyle(Palette.secondaryText)
+            }
+            ForEach(fixes.prefix(2)) { fix in
+                HStack(spacing: 8) {
+                    Image(systemName: fix.symbol.name)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(fix.symbol.color)
+                        .frame(width: 16)
+                    Text(fix.headline)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Palette.primaryText)
+                        .lineLimit(1)
+                }
+            }
+            if fixes.count > 2 {
+                Text("and \(fixes.count - 2) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the To fix list")
     }
 }
 

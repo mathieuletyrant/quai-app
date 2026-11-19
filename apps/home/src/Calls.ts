@@ -18,7 +18,8 @@ const formFields = (body: unknown): Record<string, string> | null => {
 }
 
 /**
- * Runs the calls the cloud asks for, within the allowlist. Never fails: anything that goes wrong
+ * Runs the calls the cloud asks for, within the allowlist (method, path and, for the writes that
+ * need it, the body). Never fails: anything that goes wrong
  * is a `Failed` the cloud can read.
  */
 export class Calls extends Context.Service<Calls, {
@@ -33,9 +34,14 @@ export class Calls extends Context.Service<Calls, {
 
       return {
         run: (call) => {
-          if (!HomeProtocol.allowed(call)) return failed(call.id, "not allowed")
+          const rule = HomeProtocol.allowRule(call)
+          if (rule === undefined) return failed(call.id, "not allowed")
           if (!auth.configured.includes(call.service)) return failed(call.id, `${call.service} is not configured`)
-          let request = call.method === "GET" ? HttpClientRequest.get(call.path) : HttpClientRequest.post(call.path)
+          let request = call.method === "GET"
+            ? HttpClientRequest.get(call.path)
+            : call.method === "DELETE"
+            ? HttpClientRequest.delete(call.path)
+            : HttpClientRequest.post(call.path)
           if (call.body !== undefined) {
             if (call.encoding === "form") {
               const fields = formFields(call.body)
@@ -54,7 +60,7 @@ export class Calls extends Context.Service<Calls, {
                   ? HomeProtocol.Failed.make({ id: call.id, reason: "too large" })
                   : HomeProtocol.CallResponse.make({ id: call.id, status: response.status, body }))
             }),
-            Effect.timeout("10 seconds"),
+            Effect.timeout(`${rule.timeoutSeconds ?? HomeProtocol.defaultCallTimeoutSeconds} seconds`),
             Effect.catch((error) => failed(call.id, error._tag === "ServiceError" ? error.message : error._tag === "TimeoutError" ? "timed out" : "could not read the response"))
           )
         }

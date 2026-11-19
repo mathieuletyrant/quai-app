@@ -1,0 +1,293 @@
+[
+  {
+    "guid": "https://eztv.example/1",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "web",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 0,
+    "qualityWeight": 301,
+    "age": 1,
+    "ageHours": 30.0,
+    "ageMinutes": 1800.0,
+    "size": 21474836480,
+    "indexerId": 2,
+    "indexer": "EZTV",
+    "releaseGroup": "NTb",
+    "title": "Severance.S02.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb",
+    "fullSeason": true,
+    "sceneSource": false,
+    "seasonNumber": 2,
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      }
+    ],
+    "seriesTitle": "Severance",
+    "episodeNumbers": [],
+    "approved": true,
+    "temporarilyRejected": false,
+    "rejected": false,
+    "tvdbId": 371980,
+    "rejections": [],
+    "publishDate": "2026-11-18T06:00:00Z",
+    "downloadAllowed": true,
+    "mappedSeasonNumber": 2,
+    "mappedEpisodeNumbers": [],
+    "mappedSeriesId": 3,
+    "mappedEpisodeInfo": [
+      {
+        "id": 301,
+        "seasonNumber": 2,
+        "episodeNumber": 1,
+        "title": "x"
+      },
+      {
+        "id": 302,
+        "seasonNumber": 2,
+        "episodeNumber": 2,
+        "title": "x"
+      },
+      {
+        "id": 303,
+        "seasonNumber": 2,
+        "episodeNumber": 3,
+        "title": "x"
+      },
+      {
+        "id": 304,
+        "seasonNumber": 2,
+        "episodeNumber": 4,
+        "title": "x"
+      },
+      {
+        "id": 305,
+        "seasonNumber": 2,
+        "episodeNumber": 5,
+        "title": "x"
+      },
+      {
+        "id": 306,
+        "seasonNumber": 2,
+        "episodeNumber": 6,
+        "title": "x"
+      },
+      {
+        "id": 307,
+        "seasonNumber": 2,
+        "episodeNumber": 7,
+        "title": "x"
+      },
+      {
+        "id": 308,
+        "seasonNumber": 2,
+        "episodeNumber": 8,
+        "title": "x"
+      },
+      {
+        "id": 309,
+        "seasonNumber": 2,
+        "episodeNumber": 9,
+        "title": "x"
+      },
+      {
+        "id": 310,
+        "seasonNumber": 2,
+        "episodeNumber": 10,
+        "title": "x"
+      }
+    ],
+    "seeders": 88,
+    "leechers": 2,
+    "protocol": "torrent"
+  },
+  {
+    "guid": "https://eztv.example/2",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "web",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 0,
+    "qualityWeight": 301,
+    "age": 1,
+    "ageHours": 30.0,
+    "ageMinutes": 1800.0,
+    "size": 2147483648,
+    "indexerId": 2,
+    "indexer": "EZTV",
+    "releaseGroup": "NTb",
+    "title": "Severance.S02E09.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb",
+    "fullSeason": false,
+    "sceneSource": false,
+    "seasonNumber": 2,
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      }
+    ],
+    "seriesTitle": "Severance",
+    "episodeNumbers": [],
+    "approved": true,
+    "temporarilyRejected": false,
+    "rejected": false,
+    "tvdbId": 371980,
+    "rejections": [],
+    "publishDate": "2026-11-18T06:00:00Z",
+    "downloadAllowed": true,
+    "mappedSeasonNumber": 2,
+    "mappedEpisodeNumbers": [],
+    "mappedSeriesId": 3,
+    "mappedEpisodeInfo": [
+      {
+        "id": 309,
+        "seasonNumber": 2,
+        "episodeNumber": 9,
+        "title": "x"
+      }
+    ],
+    "seeders": 140,
+    "leechers": 2,
+    "protocol": "torrent"
+  },
+  {
+    "guid": "https://eztv.example/3",
+    "quality": {
+      "quality": {
+        "id": 5,
+        "name": "WEBDL-720p",
+        "source": "web",
+        "resolution": 720
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 0,
+    "qualityWeight": 301,
+    "age": 1,
+    "ageHours": 30.0,
+    "ageMinutes": 1800.0,
+    "size": 4294967296,
+    "indexerId": 2,
+    "indexer": "EZTV",
+    "releaseGroup": "NTb",
+    "title": "Severance.S02E09E10.720p.ATVP.WEB-DL.DDP5.1.H.264-NTb",
+    "fullSeason": false,
+    "sceneSource": false,
+    "seasonNumber": 2,
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      }
+    ],
+    "seriesTitle": "Severance",
+    "episodeNumbers": [],
+    "approved": false,
+    "temporarilyRejected": false,
+    "rejected": true,
+    "tvdbId": 371980,
+    "rejections": [
+      "Quality WEBDL-720p is not wanted in profile"
+    ],
+    "publishDate": "2026-11-18T06:00:00Z",
+    "downloadAllowed": true,
+    "mappedSeasonNumber": 2,
+    "mappedEpisodeNumbers": [],
+    "mappedSeriesId": 3,
+    "mappedEpisodeInfo": [
+      {
+        "id": 309,
+        "seasonNumber": 2,
+        "episodeNumber": 9,
+        "title": "x"
+      },
+      {
+        "id": 310,
+        "seasonNumber": 2,
+        "episodeNumber": 10,
+        "title": "x"
+      }
+    ],
+    "seeders": 12,
+    "leechers": 2,
+    "protocol": "torrent"
+  },
+  {
+    "guid": "https://eztv.example/4",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "web",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 0,
+    "qualityWeight": 301,
+    "age": 1,
+    "ageHours": 30.0,
+    "ageMinutes": 1800.0,
+    "size": 2147483648,
+    "indexerId": 2,
+    "indexer": "EZTV",
+    "releaseGroup": "NTb",
+    "title": "Severance.Season.2.Extras.1080p.WEB",
+    "fullSeason": false,
+    "sceneSource": false,
+    "seasonNumber": 2,
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      }
+    ],
+    "seriesTitle": "Severance",
+    "episodeNumbers": [],
+    "approved": true,
+    "temporarilyRejected": false,
+    "rejected": false,
+    "tvdbId": 371980,
+    "rejections": [],
+    "publishDate": "2026-11-18T06:00:00Z",
+    "downloadAllowed": true,
+    "mappedSeasonNumber": 2,
+    "mappedEpisodeNumbers": [],
+    "mappedSeriesId": 3,
+    "mappedEpisodeInfo": [],
+    "seeders": 30,
+    "leechers": 2,
+    "protocol": "torrent"
+  }
+]
