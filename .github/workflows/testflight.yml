@@ -44,9 +44,12 @@ jobs:
           sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$version\"/; s/CURRENT_PROJECT_VERSION: \"[^\"]*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
           xcodegen generate
           auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          # Archived unsigned, signed once by the export with the cloud-managed distribution
+          # certificate: signing the archive made every fresh runner ask Apple for a new
+          # development certificate, until the account's limit.
           xcodebuild archive -project Quai.xcodeproj -scheme Quai -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
-            -skipPackagePluginValidation "${auth[@]}"
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
             -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export" "${auth[@]}"
           echo "Uploaded Quai $version ($BUILD) to App Store Connect." >> "$GITHUB_STEP_SUMMARY"

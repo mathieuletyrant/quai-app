@@ -9,6 +9,9 @@
 	<string>upload</string>
 	<key>signingStyle</key>
 	<string>automatic</string>
+	<!-- The archive is built unsigned, so it carries no team: the export signs for this one. -->
+	<key>teamID</key>
+	<string>FFGWB5G2PN</string>
 	<key>manageAppVersionAndBuildNumber</key>
 	<false/>
 </dict>
