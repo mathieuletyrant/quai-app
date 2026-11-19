@@ -6,9 +6,9 @@ import Foundation
 enum RemoteControl {
     static func perform(key: String, action: ActivityAction) async throws {
         await optimisticallyApply(action, to: key)
-        guard let session = ServerSession.stored(), let (_, client) = await session.connect() else {
-            throw ConnectionError.unreachable
-        }
+        // The access headers come with the session: the button works through the proxy too.
+        guard let session = ServerSession.stored() else { throw ConnectionError.unreachable }
+        let (_, client) = try await session.connect()
         guard let type = Components.Schemas.ActionType(rawValue: action.rawValue) else { return }
         switch try await client.performAction(body: .json(.init(key: key, action: type))) {
         case .noContent: return

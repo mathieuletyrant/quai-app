@@ -1,25 +1,38 @@
 import { QuaiApi } from "@quai/api"
-import { Config, DateTime, Effect, Option } from "effect"
+import { DateTime, Effect, Option, Redacted } from "effect"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
 import { Devices } from "../home/Devices.ts"
+import { type AccessHeader, PublicAccess } from "../PublicAccess.ts"
 
-/** The QR code's content: the app reads the code and every address it may reach the server at. */
-export const pairingLink = (code: string, serverUrls: ReadonlyArray<string>) => {
-  const params = new URLSearchParams({ code })
-  for (const url of serverUrls) params.append("url", url)
-  return `quai://pair?${params.toString()}`
+/**
+ * The QR code's content: the code, every address the app may reach the server at, and the access
+ * headers the proxy in front of it requires. Percent-encoded (`%20`, never `+`) so the app's
+ * `URLComponents` reads back exactly what was written.
+ */
+export const pairingLink = (code: string, serverUrls: ReadonlyArray<string>, headers: ReadonlyArray<AccessHeader> = []) => {
+  const params = [
+    ["code", code],
+    ...serverUrls.map((url) => ["url", url]),
+    ...headers.map((h) => ["header", `${h.name}: ${Redacted.value(h.value)}`])
+  ]
+  return `quai://pair?${params.map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join("&")}`
 }
 
 export const ConsoleHandlers = HttpApiBuilder.group(QuaiApi, "console", (handlers) =>
   Effect.gen(function*() {
     const devices = yield* Devices
-    // The address from outside (behind Cloudflare Access, say), on top of the one the console uses.
-    const publicUrl = yield* Config.option(Config.String("QUAI_PUBLIC_URL"))
+    // The address from outside (behind a reverse proxy, say), on top of the one the console uses.
+    const publicAccess = yield* PublicAccess
     return handlers
       .handle("createPairingCode", ({ payload }) =>
         Effect.map(devices.createPairingCode, ({ code, expiresAt }) => {
-          const urls = [...new Set([...payload.serverUrls, ...Option.toArray(publicUrl)])]
-          return { code, expiresAt: DateTime.makeUnsafe(expiresAt), link: pairingLink(code, urls) }
+          const urls = [...new Set([...payload.serverUrls, ...Option.toArray(publicAccess.url)])]
+          return {
+            code,
+            expiresAt: DateTime.makeUnsafe(expiresAt),
+            link: pairingLink(code, urls, publicAccess.headers),
+            accessHeaderNames: publicAccess.settings.accessHeaderNames
+          }
         }))
       .handle("devices", () =>
         Effect.map(devices.list, (list) =>

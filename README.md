@@ -102,8 +102,12 @@ the console's routes answer 503 "Quai Home is not connected".
 | `QUAI_PORT` | `8787` | HTTP port (API, console, `/home` WebSocket) |
 | `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the Cloud |
 | `QUAI_PUBLIC_URL` | – | Address from outside, added to the pairing QR code |
+| `QUAI_PUBLIC_HEADERS` | – | Headers a reverse proxy in front of the Cloud requires, as `Name: value` pairs separated by `;` or line breaks (e.g. `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`). Go into the pairing QR code; the app sends them on every request. See [behind a proxy](docs/proxy.md) |
 | `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities: the Cloud's own configuration |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The iOS app's bundle id |
+
+To reach the Cloud away from home, put its `/api/*` behind a reverse proxy (Cloudflare Access,
+Pangolin, Authentik, …): [docs/proxy.md](docs/proxy.md).
 
 The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
 

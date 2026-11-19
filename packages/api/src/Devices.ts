@@ -157,8 +157,15 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
 export const PairingCode = Schema.Struct({
   code: Schema.String,
   expiresAt: Schema.DateTimeUtcFromString,
-  /** What the QR code holds: `quai://pair?…`, read by the app's scanner. */
-  link: Schema.String
+  /**
+   * What the QR code holds, read by the app's scanner:
+   * `quai://pair?code=…&url=…&url=…&header=Name%3A%20value&header=…`, every value
+   * percent-encoded. `header` carries the access headers (`QUAI_PUBLIC_HEADERS`), names and
+   * values: apps that predate them ignore it.
+   */
+  link: Schema.String,
+  /** The access headers the link carries, by name only: their values are secrets. */
+  accessHeaderNames: Schema.Array(Schema.String)
 }).annotate({ identifier: "PairingCode" })
 
 export const DeviceSummary = Schema.Struct({
@@ -181,6 +188,25 @@ export class ConsoleGroup extends HttpApiGroup.make("console")
   .add(HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }).annotate(OpenApi.Identifier, "listDevices"))
   .add(HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound }).annotate(OpenApi.Identifier, "removeDevice"))
   .middleware(HomeRequired)
+  .prefix("/console-api") {}
+
+/**
+ * How the app reaches Quai Cloud from outside: Quai Cloud's own configuration (`QUAI_PUBLIC_URL`,
+ * `QUAI_PUBLIC_HEADERS`). The access headers are those a reverse proxy in front of the Cloud
+ * requires (a Cloudflare Access service token, say): shown by name only.
+ */
+export const ConnectionSettings = Schema.Struct({
+  publicUrl: Schema.optionalKey(Schema.String),
+  accessHeaderNames: Schema.Array(Schema.String)
+}).annotate({ identifier: "ConnectionSettings" })
+export type ConnectionSettings = typeof ConnectionSettings.Type
+
+/** What the console's Settings page shows of the public address. Read-only: it is set on Quai Cloud. */
+export class ConnectionGroup extends HttpApiGroup.make("connection")
+  .add(
+    HttpApiEndpoint.get("connectionSettings", "/connection-settings", { success: ConnectionSettings })
+      .annotate(OpenApi.Identifier, "getConnectionSettings")
+  )
   .prefix("/console-api") {}
 
 /** The Apple push key: Quai Cloud's own configuration (`QUAI_APNS_*`), never home data. */

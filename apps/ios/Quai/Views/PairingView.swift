@@ -30,19 +30,19 @@ struct PairingView: View {
                 ScanHint()
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Field(label: "Or type the server address") {
+                    FormField(label: "Or type the server address") {
                         TextField("Server address", text: $address, prompt: Text(verbatim: "http://umbrel.local:3078"))
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
-                    Field(label: "Code") {
+                    FormField(label: "Code") {
                         TextField("Code", text: $code, prompt: Text(verbatim: "ABCD2345"))
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()
                             .font(.body.monospaced())
                     }
-                    Field(label: "This iPhone's name in the console") {
+                    FormField(label: "This iPhone's name in the console") {
                         TextField("Name in the console", text: $name)
                     }
                 }
@@ -97,7 +97,7 @@ struct PairingView: View {
             try await connection.pair(target, name: name)
             error = nil
         } catch {
-            self.error = error.localizedDescription
+            self.error = error.quaiMessage
         }
     }
 }
@@ -114,24 +114,5 @@ private struct ScanHint: View {
         .frame(height: 200)
         .accessibilityElement()
         .accessibilityLabel("Scan the console's QR code with the Camera app")
-    }
-}
-
-/// A labelled text field on Quai's dark surface.
-private struct Field<Content: View>: View {
-    let label: String
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label).font(QuaiFont.eyebrow).foregroundStyle(Palette.secondaryText)
-            content
-                .font(QuaiFont.body)
-                .foregroundStyle(Palette.primaryText)
-                .padding(.horizontal, 14)
-                .frame(height: 50)
-                .background(Color(hex: "#16161C"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-        }
     }
 }

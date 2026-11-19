@@ -330,6 +330,25 @@ extension ListRow where Trailing == EmptyView {
     }
 }
 
+/// A labelled text field on Quai's dark surface.
+struct FormField<Content: View>: View {
+    let label: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label).font(QuaiFont.eyebrow).foregroundStyle(Palette.secondaryText)
+            content
+                .font(QuaiFont.body)
+                .foregroundStyle(Palette.primaryText)
+                .padding(.horizontal, 14)
+                .frame(height: 50)
+                .background(Color(hex: "#16161C"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        }
+    }
+}
+
 // MARK: Formatting
 
 enum Format {
