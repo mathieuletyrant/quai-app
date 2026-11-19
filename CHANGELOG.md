@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/mathieuletyrant/quai-app/compare/v0.6.0...v0.7.0) (2026-11-19)
+
+
+### ✨ Features
+
+* black redesign of the console and the app, Home and Library tabs ([#23](https://github.com/mathieuletyrant/quai-app/issues/23)) ([e2c5a80](https://github.com/mathieuletyrant/quai-app/commit/e2c5a8003143ef599e74980db8f1a91d4afb087f))
+
+
+### 🐛 Fixes
+
+* **testflight:** sign the archive again, revoke CI development certificates ([#21](https://github.com/mathieuletyrant/quai-app/issues/21)) ([0577f2f](https://github.com/mathieuletyrant/quai-app/commit/0577f2f6f937476cf9e49b97f5dca0c2293a96b4))
+
 ## [0.6.0](https://github.com/mathieuletyrant/quai-app/compare/v0.5.1...v0.6.0) (2026-11-19)
 
 
