@@ -98,6 +98,7 @@ const LibrarySeries = Schema.Struct({
   images: Schema.optional(Schema.Array(ArrImage)),
   statistics: Schema.optional(Schema.Struct({
     episodeFileCount: Schema.optional(Schema.Number),
+    /** Monitored episodes that aired, plus every episode with a file. */
     episodeCount: Schema.optional(Schema.Number),
     sizeOnDisk: Schema.optional(Schema.Number)
   }))
@@ -106,18 +107,19 @@ export const SonarrSeries = Schema.Array(LibrarySeries)
 export type SonarrSeries = typeof LibrarySeries.Type
 
 /**
- * A series as the library lists it. `episodeCount` is what Sonarr expects: monitored episodes
- * that aired (or have a file), 0 when nothing is monitored.
- * - wanted: monitored, and some expected episode has no file, or nothing aired yet but a
- *   monitored episode is coming (Sonarr grabs it when it airs);
+ * A series as the library lists it. `episodeCount` is Sonarr's own count: its monitored episodes
+ * that aired, plus every episode that has a file (monitored or not), 0 when none.
+ * - wanted: the series is monitored, and has no file yet (announced, nothing aired, or episodes
+ *   without an air date: Sonarr grabs them when they come) or fewer files than `episodeCount`;
  * - available: otherwise, once some episode has its file, monitored or not;
- * - not monitored: no file, and Sonarr looks for nothing.
+ * - not monitored: the series isn't monitored, and nothing is on disk.
+ * A monitored series whose episodes are all unmonitored can't be told apart from an announced one
+ * from these statistics: it shows as wanted.
  */
 const seriesStatus = (series: SonarrSeries, have: number, total: number): LibraryItem["status"] => {
   const monitored = series.monitored !== false
-  if (monitored && have < total) return "wanted"
-  if (have > 0) return "available"
-  return monitored && series.nextAiring !== undefined ? "wanted" : "notMonitored"
+  if (monitored && (have === 0 || have < total)) return "wanted"
+  return have > 0 ? "available" : "notMonitored"
 }
 
 export const librarySeries = (series: SonarrSeries): LibraryItem => {

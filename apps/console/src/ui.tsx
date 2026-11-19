@@ -337,15 +337,25 @@ export const posterThumbnail = (url: string) => url.replace("/t/p/original/", "/
  * A 2:3 poster thumbnail with a glyph badge on its corner. `fallback` shows while it loads,
  * when it fails, and when there is no poster.
  */
-export function PosterThumb({ src, badge, badgeClassName, fallback }: {
+export function PosterThumb(props: {
   src: string | undefined
   badge?: IconName
   badgeClassName?: string
   fallback: ReactNode
 }) {
+  if (props.src === undefined) return <>{props.fallback}</>
+  // Keyed by its URL: another poster starts over with its own load state.
+  return <LoadedPoster key={props.src} {...props} src={props.src} />
+}
+
+function LoadedPoster({ src, badge, badgeClassName, fallback }: {
+  src: string
+  badge?: IconName
+  badgeClassName?: string
+  fallback: ReactNode
+}) {
   const [state, setState] = useState<"loading" | "loaded" | "failed">("loading")
-  useEffect(() => setState("loading"), [src])
-  if (src === undefined || state === "failed") return <>{fallback}</>
+  if (state === "failed") return <>{fallback}</>
   return (
     <span className="relative inline-block shrink-0">
       {state === "loading" && <span className="absolute inset-0">{fallback}</span>}

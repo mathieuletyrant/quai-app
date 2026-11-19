@@ -92,9 +92,12 @@ struct LibraryView: View {
         }
     }
 
-    /// "137 titles · 759 GB free"
+    /// "137 titles · 759 GB free"; "Loading…" while it loads, "Not loaded" after a failure.
     private var summary: String {
-        guard let library = connection.library else { return connection.libraryError == nil ? "Loading…" : "Not loaded" }
+        guard let library = connection.library else {
+            if loading { return "Loading…" }
+            return connection.libraryError == nil ? "" : "Not loaded"
+        }
         var parts = [library.items.count == 1 ? "1 title" : "\(library.items.count) titles"]
         if let disk = library.disk {
             parts.append("\(Format.bytes(disk.freeBytes)) free")

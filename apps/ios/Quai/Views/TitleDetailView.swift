@@ -21,10 +21,11 @@ struct TitleDetailView: View {
         }
     }
 
-    /// "8 of 10 monitored", "3 on disk"; nil when the series has nothing on disk nor monitored.
+    /// "8 of 10 on disk", out of Sonarr's count (monitored aired episodes, plus every one with a
+    /// file); nil when that count is 0.
     private var episodesLine: String? {
-        guard let episodes = item.episodes, episodes.have > 0 || episodes.total > 0 else { return nil }
-        return episodes.total > 0 ? "\(episodes.have) of \(episodes.total) monitored" : "\(episodes.have) on disk"
+        guard let episodes = item.episodes, episodes.total > 0 else { return nil }
+        return "\(episodes.have) of \(episodes.total) on disk"
     }
 
     var body: some View {

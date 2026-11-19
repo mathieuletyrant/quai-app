@@ -72,10 +72,11 @@ describe("library adapters", () => {
         ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg"],
         ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg"]
       ])
-      // Nothing aired yet: wanted while a monitored episode is coming, not monitored otherwise.
+      // Nothing on disk: wanted while the series is monitored, coming episode or not.
       const empty = { episodeFileCount: 0, episodeCount: 0, sizeOnDisk: 0 }
       expect(librarySeries({ ...series[1]!, statistics: empty, nextAiring: "2026-12-01T02:00:00Z" }).status).toBe("wanted")
-      expect(librarySeries({ ...series[1]!, statistics: empty }).status).toBe("notMonitored")
+      expect(librarySeries({ ...series[1]!, statistics: empty }).status).toBe("wanted")
+      expect(librarySeries({ ...series[1]!, statistics: empty, monitored: false }).status).toBe("notMonitored")
       // Unmonitored with its files: on disk, whatever is missing.
       expect(librarySeries({ ...series[0]!, monitored: false }).status).toBe("available")
     }))
@@ -84,8 +85,13 @@ describe("library adapters", () => {
     Effect.gen(function*() {
       const [reacher] = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series-unmonitored.json"))
       expect(librarySeries(reacher!)).toMatchObject({ title: "Reacher", status: "notMonitored", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
-      // Monitored again, its episodes unmonitored: still nothing Sonarr looks for.
-      expect(librarySeries({ ...reacher!, monitored: true }).status).toBe("notMonitored")
+    }))
+
+  it.effect("an announced series, nothing aired nor dated yet, is wanted", () =>
+    Effect.gen(function*() {
+      const [announced] = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series-announced.json"))
+      expect(announced!.nextAiring).toBeUndefined()
+      expect(librarySeries(announced!)).toMatchObject({ title: "The Last of Us", status: "wanted", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
     }))
 
   it.effect("a movie without its file and unmonitored isn't wanted", () =>

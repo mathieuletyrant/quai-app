@@ -178,14 +178,15 @@ export class Fixes extends Context.Service<Fixes, {
       /**
        * Reclaimerr gives no poster: its scheduled deletions take theirs from the Radarr movie or
        * Sonarr series they are, read only when one is listed (the To fix reads don't hold titles
-       * with a file). Neither read can fail the list: without it, the deletion has no poster.
+       * with a file). A library that can't be read leaves the deletion without a poster; Quai Home
+       * gone offline fails the list, like every other read.
        */
       const deletionsWithPosters = (candidates: ReadonlyArray<Candidate>, reaches: ReadonlyArray<string>) =>
         Effect.gen(function*() {
           const due = deletionCandidates(candidates)
           const soft = <A, I>(wanted: boolean, service: "radarr" | "sonarr", path: string, schema: Schema.Codec<A, I>) =>
             wanted && reaches.includes(service)
-              ? Effect.map(Effect.option(read(service, path, schema)), Option.flatten)
+              ? read(service, path, schema)
               : Effect.succeed(Option.none<A>())
           const [movies, series] = yield* Effect.all([
             soft(due.some(isMovie), "radarr", "/api/v3/movie", RadarrMovies),
