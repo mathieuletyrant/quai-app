@@ -4,16 +4,23 @@ import { Schema } from "effect"
  * The Quai Home ↔ Quai Cloud protocol (docs/spec-v2-hosted.md). The Home runs at home, next to the
  * services, and opens one WebSocket to the Cloud. It holds the services' keys and the home's data;
  * the Cloud holds nothing and works in memory. Messages are JSON text frames. Bump
- * `protocolVersion` on any change an older Home couldn't follow.
+ * `protocolVersion` on any change an older Home couldn't follow; the Cloud keeps accepting Homes
+ * down to `minProtocolVersion`.
  *
  * Opening: Home `Hello` → Cloud `Challenge` → Home `Proof` → Cloud `Welcome` (or `Refused`). Then
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 1
+export const protocolVersion = 2
+
+/**
+ * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
+ * checks; a protocol 1 Home refuses those calls as not allowed, so what needs them stays empty.
+ */
+export const minProtocolVersion = 1
 
 /** The services a Home can reach. */
-export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin"])
+export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr"])
 export type HomeService = typeof HomeService.Type
 
 /** The services whose webhooks the Home receives and forwards. */
@@ -170,11 +177,14 @@ export const Refused = Schema.TaggedStruct("Refused", {
 /** How a request body is sent: JSON, or form-encoded (qBittorrent's writes). */
 export const BodyEncoding = Schema.Literals(["json", "form"])
 
+export const CallMethod = Schema.Literals(["GET", "POST", "DELETE"])
+export type CallMethod = typeof CallMethod.Type
+
 /** One HTTP call to a service, within the allowlist: a button press, or a one-off read. */
 export const Call = Schema.TaggedStruct("Call", {
   id: Schema.String,
   service: HomeService,
-  method: Schema.Literals(["GET", "POST"]),
+  method: CallMethod,
   /** Path and query, as the service expects them: `/api/v2/torrents/info?hashes=a|b`. */
   path: Schema.String,
   body: Schema.optionalKey(Schema.Unknown),
@@ -242,21 +252,96 @@ export type CloudMessage = typeof CloudMessage.Type
  */
 export const isStoreKey = (key: string) => /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/.test(key) && key.length <= 200
 
+/** One allowlisted endpoint of a service. */
+export interface AllowRule {
+  readonly method: CallMethod
+  /** Matched against the path without its query (the query is not checked). */
+  readonly path: RegExp
+  /**
+   * A write whose path alone would open too much (`POST /api/v3/command` runs any command): the
+   * body must pass this too (it gets `undefined` when there is none). Without it, the rule takes
+   * no body.
+   */
+  readonly body?: (body: unknown) => boolean
+  /** How long the Home waits for the service: 10 s unless the endpoint is known to be slow. */
+  readonly timeoutSeconds?: number
+}
+
+/** The Home waits this long for a service, unless the rule says otherwise. */
+export const defaultCallTimeoutSeconds = 10
+
+/** An interactive release search asks every indexer: it takes much longer than a read. */
+export const releaseSearchTimeoutSeconds = 50
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value)
+
+/** A JSON object with only these keys, each passing its check. Keys left out of `optional` are required. */
+const shape = (
+  required: Record<string, (value: unknown) => boolean>,
+  optional: Record<string, (value: unknown) => boolean> = {}
+) =>
+(body: unknown): boolean =>
+  isRecord(body) &&
+  Object.keys(body).every((key) => Object.hasOwn(required, key) || Object.hasOwn(optional, key)) &&
+  Object.entries(required).every(([key, check]) => Object.hasOwn(body, key) && check(body[key])) &&
+  Object.entries(optional).every(([key, check]) => !Object.hasOwn(body, key) || check(body[key]))
+
+const isString = (value: unknown) => typeof value === "string"
+const isId = (value: unknown) => typeof value === "number" && Number.isInteger(value) && value > 0
+const isIds = (value: unknown) => Array.isArray(value) && value.every(isId)
+const isAny = () => true
+
+/** Grabbing one release from the last search: its guid and indexer, nothing else. */
+const grabBody = shape({ guid: isString, indexerId: isId })
+
 /**
- * What the Cloud may ask a Home to call, per service: method and path pattern (the query is not
- * checked). The reads Quai needs, and the writes the action catalog offers. The Home enforces it:
- * a compromised Cloud can't delete a library or read the services' settings.
+ * The one command Quai runs: `ManualImport` of a finished download's files, in "auto" mode (move
+ * or copy as the download client allows). Every other command (a library rescan, a backup, a
+ * search of every title) is refused.
  */
-export const allowlist: Record<HomeService, ReadonlyArray<{ readonly method: "GET" | "POST"; readonly path: RegExp }>> = {
+const manualImportBody = (media: "movie" | "series") =>
+  shape({
+    name: (value) => value === "ManualImport",
+    importMode: (value) => value === "auto",
+    files: (value) =>
+      Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(shape(
+        { path: isString, downloadId: isString, ...(media === "movie" ? { movieId: isId } : { seriesId: isId, episodeIds: isIds }) },
+        { ...(media === "series" ? { seasonNumber: (n: unknown) => typeof n === "number" } : {}), quality: isAny, languages: isAny, releaseGroup: isString, indexerFlags: isAny }
+      ))
+  })
+
+/** What both *arr allow for the To fix list: the queue, what's missing, the grabs, releases and imports. */
+const arrFixes = (media: "movie" | "series"): ReadonlyArray<AllowRule> => [
+  { method: "GET", path: /^\/api\/v3\/queue$/ },
+  { method: "DELETE", path: /^\/api\/v3\/queue\/\d+$/ },
+  { method: "GET", path: /^\/api\/v3\/wanted\/missing$/ },
+  { method: "GET", path: /^\/api\/v3\/history\/since$/ },
+  { method: "GET", path: /^\/api\/v3\/release$/, timeoutSeconds: releaseSearchTimeoutSeconds },
+  { method: "POST", path: /^\/api\/v3\/release$/, body: grabBody },
+  { method: "GET", path: /^\/api\/v3\/manualimport$/ },
+  { method: "POST", path: /^\/api\/v3\/command$/, body: manualImportBody(media) }
+]
+
+/**
+ * What the Cloud may ask a Home to call, per service: method, path pattern (the query is not
+ * checked) and, for the writes that need it, a check of the body. The reads Quai needs, and the
+ * writes the action catalog and the To fix list offer. The Home enforces it: a compromised Cloud
+ * can't delete a library, run arbitrary commands or read the services' settings.
+ */
+export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
   radarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/movie$/ },
-    { method: "GET", path: /^\/api\/v3\/diskspace$/ }
+    { method: "GET", path: /^\/api\/v3\/diskspace$/ },
+    ...arrFixes("movie")
   ],
   sonarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/series$/ },
-    { method: "GET", path: /^\/api\/v3\/diskspace$/ }
+    { method: "GET", path: /^\/api\/v3\/diskspace$/ },
+    { method: "GET", path: /^\/api\/v3\/episode$/ },
+    ...arrFixes("series")
   ],
   qbittorrent: [
     { method: "GET", path: /^\/api\/v2\/app\/version$/ },
@@ -266,12 +351,32 @@ export const allowlist: Record<HomeService, ReadonlyArray<{ readonly method: "GE
     { method: "GET", path: /^\/System\/Info\/Public$/ },
     { method: "GET", path: /^\/Items$/ },
     { method: "GET", path: /^\/Sessions$/ },
-    { method: "POST", path: /^\/Sessions\/[\w-]+\/Playing\/(PlayPause|Stop)$/ }
+    // The remote commands take no meaningful body: whatever comes is passed on.
+    { method: "POST", path: /^\/Sessions\/[\w-]+\/Playing\/(PlayPause|Stop)$/, body: isAny }
+  ],
+  // Reclaimerr's external API (`/api/v1`, scoped bearer token): its status, the cleanup
+  // candidates, and protecting one of them for good.
+  reclaimerr: [
+    { method: "GET", path: /^\/api\/v1\/system$/ },
+    { method: "GET", path: /^\/api\/v1\/candidates$/ },
+    { method: "POST", path: /^\/api\/v1\/candidates\/\d+\/protect$/, body: shape({}, { reason: isString }) }
   ]
 }
 
-/** Whether the allowlist lets this call through. */
-export const allowed = (request: { readonly service: HomeService; readonly method: "GET" | "POST"; readonly path: string }): boolean => {
+/** The rule that lets this call through, if any. */
+export const allowRule = (request: {
+  readonly service: HomeService
+  readonly method: CallMethod
+  readonly path: string
+  readonly body?: unknown
+}): AllowRule | undefined => {
   const path = request.path.split("?")[0]!
-  return !path.includes("..") && allowlist[request.service].some((rule) => rule.method === request.method && rule.path.test(path))
+  if (path.includes("..")) return undefined
+  return allowlist[request.service].find((rule) =>
+    rule.method === request.method && rule.path.test(path) &&
+    (rule.body === undefined ? request.body === undefined : rule.body(request.body))
+  )
 }
+
+/** Whether the allowlist lets this call through. */
+export const allowed = (request: Parameters<typeof allowRule>[0]): boolean => allowRule(request) !== undefined

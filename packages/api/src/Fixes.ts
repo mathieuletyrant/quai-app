@@ -1,0 +1,240 @@
+import { Schema } from "effect"
+import { HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/http-api"
+import { DeviceAuth, HomeRequired } from "./Devices.ts"
+
+/**
+ * The To fix list: problems found by fixed rules (no AI) in what Quai Home reads, each with its own
+ * one-tap fix. Computed when asked, never stored; what the user chose to hide (snoozed, let go) is
+ * kept at home.
+ *
+ * - `importBlocked`: a finished download Radarr or Sonarr won't import.
+ * - `scheduledDeletion`: a title Reclaimerr is going to delete.
+ * - `noSource`: a monitored title still without a file, and no release grabbed for it, 2 hours
+ *   after it was added or became available (aired, for an episode).
+ */
+export const FixKind = Schema.Literals(["importBlocked", "scheduledDeletion", "noSource"]).annotate({ identifier: "FixKind" })
+export type FixKind = typeof FixKind.Type
+
+export const FixService = Schema.Literals(["radarr", "sonarr", "reclaimerr"]).annotate({ identifier: "FixService" })
+export type FixService = typeof FixService.Type
+
+/**
+ * What a problem offers:
+ * - `remove`: take the download out of the queue and the download client (optionally blocklist it);
+ * - `importAnyway`: import its files as Radarr or Sonarr matched them (or to the episodes chosen);
+ * - `keep`: protect the title in Reclaimerr, for good;
+ * - `dismiss`: let the deletion happen, and stop showing it;
+ * - `searchReleases`: list the releases the indexers have, to grab one;
+ * - `snooze`: hide it until a release is grabbed, or for some days.
+ */
+export const FixAction = Schema.Literals(["remove", "importAnyway", "keep", "dismiss", "searchReleases", "snooze"]).annotate({
+  identifier: "FixAction"
+})
+export type FixAction = typeof FixAction.Type
+
+/** `importBlocked`: the download in the queue, and what Radarr or Sonarr says about it. */
+export const BlockedDownload = Schema.Struct({
+  /** The release, as the download client names it. */
+  release: Schema.String,
+  /** Every message the *arr gave, in order (the first one is the fix's `reason`). */
+  messages: Schema.Array(Schema.String),
+  downloadClient: Schema.optionalKey(Schema.String)
+}).annotate({ identifier: "BlockedDownload" })
+
+/** `scheduledDeletion`: when Reclaimerr deletes (or moves) the title. */
+export const ScheduledDeletion = Schema.Struct({
+  /** Epoch seconds. In the past: it goes at Reclaimerr's next cleanup run. */
+  deletesAt: Schema.Finite,
+  operation: Schema.Literals(["delete", "move"])
+}).annotate({ identifier: "ScheduledDeletion" })
+
+/** `noSource`: what has no file. A series' missing episodes are grouped by season. */
+export const MissingMedia = Schema.Struct({
+  /** "S02E03", one per missing episode; empty for a movie. */
+  episodes: Schema.Array(Schema.String)
+}).annotate({ identifier: "MissingMedia" })
+
+export const Fix = Schema.Struct({
+  /** Stable while the problem lasts: `blocked-radarr-<queue id>`, `deletion-<candidate id>`, `missing-movie-<id>`, `missing-season-<series>-<season>`. */
+  id: Schema.String,
+  kind: FixKind,
+  service: FixService,
+  /** The title it is about: "Dune: Part Two", "Severance · S02E03". */
+  title: Schema.String,
+  year: Schema.optionalKey(Schema.Int),
+  /** The poster's public URL, when the service lists one. */
+  posterUrl: Schema.optionalKey(Schema.String),
+  /** Why, in the service's words when it gives them: "Not an upgrade for existing movie file". */
+  reason: Schema.String,
+  /** Epoch seconds the problem started, when known: the download was added, the title became available. */
+  since: Schema.optionalKey(Schema.Finite),
+  /** The actions offered, the main one first. */
+  actions: Schema.Array(FixAction),
+  download: Schema.optionalKey(BlockedDownload),
+  deletion: Schema.optionalKey(ScheduledDeletion),
+  missing: Schema.optionalKey(MissingMedia)
+}).annotate({ identifier: "Fix" })
+export type Fix = typeof Fix.Type
+
+export const Fixes = Schema.Struct({
+  items: Schema.Array(Fix),
+  /** How many problems are hidden for now (snoozed, or let go). */
+  hidden: Schema.Int,
+  /** Services Quai Home reaches that couldn't be read this time: their problems are missing. */
+  unavailable: Schema.Array(FixService)
+}).annotate({ identifier: "Fixes" })
+export type Fixes = typeof Fixes.Type
+
+/** One release an indexer offers for a title without a file. */
+export const Release = Schema.Struct({
+  guid: Schema.String,
+  indexerId: Schema.Int,
+  indexer: Schema.String,
+  title: Schema.String,
+  sizeBytes: Schema.Finite,
+  protocol: Schema.String,
+  seeders: Schema.optionalKey(Schema.Int),
+  leechers: Schema.optionalKey(Schema.Int),
+  /** "Bluray-1080p" */
+  quality: Schema.String,
+  languages: Schema.Array(Schema.String),
+  ageHours: Schema.Finite,
+  customFormatScore: Schema.optionalKey(Schema.Int),
+  /** Radarr or Sonarr wouldn't grab it on its own: `rejections` says why. It can still be grabbed. */
+  rejected: Schema.Boolean,
+  rejections: Schema.Array(Schema.String)
+}).annotate({ identifier: "Release" })
+export type Release = typeof Release.Type
+
+export const Releases = Schema.Struct({
+  /** Accepted ones first, then by seeders. */
+  items: Schema.Array(Release)
+}).annotate({ identifier: "Releases" })
+export type Releases = typeof Releases.Type
+
+export const GrabRelease = Schema.Struct({
+  guid: Schema.String,
+  indexerId: Schema.Int
+}).annotate({ identifier: "GrabRelease" })
+export type GrabRelease = typeof GrabRelease.Type
+
+export const RemoveDownload = Schema.Struct({
+  /** Also blocklist the release, so it's never grabbed again. */
+  blocklist: Schema.Boolean
+}).annotate({ identifier: "RemoveDownload" })
+export type RemoveDownload = typeof RemoveDownload.Type
+
+export const SnoozeFix = Schema.Struct({
+  /** Hide it this many days. Left out: until a release is grabbed for it. */
+  days: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 365 })))
+}).annotate({ identifier: "SnoozeFix" })
+export type SnoozeFix = typeof SnoozeFix.Type
+
+/** One file of a blocked download, as Radarr or Sonarr's manual import sees it. */
+export const ImportFile = Schema.Struct({
+  /** The file's path inside the download: names it in `ImportDownload`. */
+  file: Schema.String,
+  sizeBytes: Schema.optionalKey(Schema.Finite),
+  quality: Schema.optionalKey(Schema.String),
+  /** The episodes Sonarr matched ("S01E04"); empty when it couldn't, or for a movie. */
+  episodes: Schema.Array(Schema.String),
+  /** Sonarr couldn't tell which episode it is: one must be chosen. */
+  needsEpisodes: Schema.Boolean,
+  /** Why it wasn't imported on its own; importing anyway goes past these. */
+  rejections: Schema.Array(Schema.String)
+}).annotate({ identifier: "ImportFile" })
+export type ImportFile = typeof ImportFile.Type
+
+/** An episode a file can be imported as: one of the series' episodes that has no file. */
+export const EpisodeChoice = Schema.Struct({
+  id: Schema.Int,
+  seasonNumber: Schema.Int,
+  episodeNumber: Schema.Int,
+  title: Schema.optionalKey(Schema.String)
+}).annotate({ identifier: "EpisodeChoice" })
+export type EpisodeChoice = typeof EpisodeChoice.Type
+
+/** What "Import anyway" would import, read when it's asked. */
+export const ImportPreview = Schema.Struct({
+  files: Schema.Array(ImportFile),
+  /** For a Sonarr file that needs its episodes chosen; empty otherwise. */
+  episodes: Schema.Array(EpisodeChoice)
+}).annotate({ identifier: "ImportPreview" })
+export type ImportPreview = typeof ImportPreview.Type
+
+export const EpisodeAssignment = Schema.Struct({
+  file: Schema.String,
+  episodeIds: Schema.Array(Schema.Int).check(Schema.isMinLength(1))
+}).annotate({ identifier: "EpisodeAssignment" })
+
+export const ImportDownload = Schema.Struct({
+  /** The episodes chosen for files Sonarr couldn't match. Files left out import as matched. */
+  assignments: Schema.Array(EpisodeAssignment)
+}).annotate({ identifier: "ImportDownload" })
+export type ImportDownload = typeof ImportDownload.Type
+
+/** The action isn't one this problem offers, or what it needs is missing (an episode to choose). */
+export class InvalidFix extends Schema.TaggedError<InvalidFix>()("InvalidFix", {
+  message: Schema.String
+}, { httpApiStatus: 400 }) {}
+
+/** The service refused or failed the fix: its answer, in its words. */
+export class FixFailed extends Schema.TaggedError<FixFailed>()("FixFailed", {
+  message: Schema.String
+}, { httpApiStatus: 502 }) {}
+
+const id = { id: Schema.String }
+
+/**
+ * The routes of the To fix list, under one name per client (`listFixes`, `consoleListFixes`…):
+ * the iPhone's sit behind its token, the console's behind the host's login, like the other
+ * console routes.
+ */
+const endpoints = (operation: (name: string) => string) =>
+  [
+    HttpApiEndpoint.get("list", "/fixes", { success: Fixes }).annotate(OpenApi.Identifier, operation("listFixes")),
+    HttpApiEndpoint.post("remove", "/fixes/:id/remove", {
+      params: id,
+      payload: RemoveDownload,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    }).annotate(OpenApi.Identifier, operation("removeDownload")),
+    HttpApiEndpoint.get("importPreview", "/fixes/:id/import", {
+      params: id,
+      success: ImportPreview,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    }).annotate(OpenApi.Identifier, operation("previewImport")),
+    HttpApiEndpoint.post("import", "/fixes/:id/import", {
+      params: id,
+      payload: ImportDownload,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    }).annotate(OpenApi.Identifier, operation("importDownload")),
+    HttpApiEndpoint.post("keep", "/fixes/:id/keep", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, operation("keepTitle")),
+    HttpApiEndpoint.post("dismiss", "/fixes/:id/dismiss", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, operation("dismissFix")),
+    HttpApiEndpoint.post("snooze", "/fixes/:id/snooze", { params: id, payload: SnoozeFix, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, operation("snoozeFix")),
+    HttpApiEndpoint.get("releases", "/fixes/:id/releases", {
+      params: id,
+      success: Releases,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    }).annotate(OpenApi.Identifier, operation("searchReleases")),
+    HttpApiEndpoint.post("grab", "/fixes/:id/grab", {
+      params: id,
+      payload: GrabRelease,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    }).annotate(OpenApi.Identifier, operation("grabRelease"))
+  ] as const
+
+/** The To fix list, for the app. */
+export class FixesGroup extends HttpApiGroup.make("fixes")
+  .add(...endpoints((name) => name))
+  .middleware(DeviceAuth)
+  .middleware(HomeRequired)
+  .prefix("/api") {}
+
+/** The same list, for the console's To fix page. */
+export class ConsoleFixesGroup extends HttpApiGroup.make("consoleFixes")
+  .add(...endpoints((name) => `console${name[0]!.toUpperCase()}${name.slice(1)}`))
+  .middleware(HomeRequired)
+  .prefix("/console-api") {}
