@@ -74,10 +74,11 @@ Next in the catalog: "Other release" and "Retry" for downloads (spec v1, Live Ac
 
 ## Integrations
 
-On the server, each service is one module in `apps/server/src/integrations/`: everything Quai
-knows about it sits together, so its events and actions are readable at a glance.
+In Quai Cloud, each service is one module in `apps/cloud/src/integrations/`: everything Quai
+knows about it sits together, so its events and actions are readable at a glance. The Cloud never
+reaches a service itself: Quai Home forwards the webhooks, polls the watches and runs the calls.
 
-| Integration | Webhook (`/webhooks/<service>`) | Polling (only when a flow needs it) | Actions |
+| Integration | Webhook (forwarded by Quai Home) | Watch (polled by Quai Home, only when a flow needs it) | Actions (calls through Quai Home) |
 | --- | --- | --- | --- |
 | `radarr` | `media.added`, `download.grabbed`, `download.imported` | — | — |
 | `sonarr` | same, for episodes | — | — |
@@ -86,10 +87,13 @@ knows about it sits together, so its events and actions are readable at a glance
 | `quai` (health) | — | `service.down` / `service.up`, every minute, while a service flow is on | — |
 
 An integration is a plain value (`Integration` in `Integration.ts`): an optional `webhook` that
-reads payloads into catalog events, `pollers` (`every`, `needed`, `run`), and `actions` keyed by
-action type. The `Hub` runs it all: webhooks hand their events to it, a 15-second heartbeat runs
-the pollers that are due and needed, and a button press runs the action then refreshes that
-service at once. Adding a service: write its integration, list it in `All.ts`, add its events and
+reads payloads into catalog events, an optional `watcher` (`watches(context)`: the allowlisted
+GETs it needs polled now; `read(snapshot, context)`: what a snapshot means; `failed` and `tick`
+for health), and `actions` keyed by action type. The `Hub` runs it all: it sends Quai Home the
+watch list whenever what the flows and running activities need changes (and on each connection),
+hands each snapshot or webhook to its integration and the events to the engine, runs a 15-second
+heartbeat for the engine's housekeeping, and after a button press sends the watches again so Quai
+Home reads them at once. Adding a service: write its integration, list it in `All.ts`, add its events and
 actions to the catalog in `packages/api`.
 
 ## Engine rules

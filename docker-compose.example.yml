@@ -1,9 +1,8 @@
-# Quai must share a Docker network with the *arr apps it watches.
+# Quai Cloud: the API, the console and the pushes. It keeps nothing on disk; Quai Home
+# (apps/home) connects to it at ws://<this host>:8787/home and brings the home's data.
 services:
   quai:
     image: ghcr.io/mathieuletyrant/quai:latest
     restart: unless-stopped
     ports:
       - "8787:8787"
-    volumes:
-      - ./quai-data:/data

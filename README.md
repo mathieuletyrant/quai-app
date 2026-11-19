@@ -40,31 +40,70 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 - 📋 Live activities first, then today's events
 - 🎚️ One switch per activity kind, greyed out when the admin turned it off
 
-## 🚀 Run it
+## 🧭 How it works
 
-```sh
-docker run -d --name quai -p 8787:8787 -v ./data:/data \
-  --network <your-arr-network> \
-  ghcr.io/mathieuletyrant/quai:latest
+> [!NOTE]
+> This is where Quai is heading ([spec v2](docs/spec-v2-hosted.md)). Today the Home and the Cloud
+> run together in one server; they're being split.
+
+```mermaid
+flowchart LR
+  subgraph home["🏠 Your server"]
+    direction TB
+    services["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
+    relay(["<b>Quai Home</b><br/>your keys · your data"])
+    services -- "webhooks" --> relay
+    relay -- "polls, actions<br/>(Jellyfin play/pause)" --> services
+  end
+
+  core(["<b>Quai Cloud</b><br/>flows · console<br/>stores nothing"])
+  apple["Apple Push"]
+  phone["📱 iPhone"]
+
+  relay == "connects out,<br/>sends events" ==> core
+  core -. "what to watch,<br/>button presses" .-> relay
+  core -- "Live Activity" --> apple --> phone
+  phone -- "app, buttons" --> core
+
+  classDef relayStyle fill:#0f2e29,stroke:#6fd3c2,stroke-width:2px,color:#fff
+  classDef coreStyle fill:#231b3d,stroke:#b57edc,stroke-width:2px,color:#fff
+  classDef plain fill:#17171d,stroke:#3a3a44,color:#e5e5ea
+  class relay relayStyle
+  class core coreStyle
+  class services,apple,phone plain
+  style home fill:#0b0b0f,stroke:#2a2a33,color:#a1a1a6
 ```
 
-Open http://localhost:8787. Quai must share a Docker network with the *arr apps so it can reach them by container name. See [`docker-compose.example.yml`](docker-compose.example.yml).
+- **Quai Home** runs next to your services, and is the only thing that talks to them. It holds
+  their keys, sets up their webhooks, polls what the Cloud asks it to watch, and keeps the home's
+  data (flows, iPhones, preferences) in its `/data`. It connects out to the Cloud: no port to open,
+  no tunnel, and the Cloud never reaches your network.
+- **Quai Cloud** understands events and runs the flows, the console and the app's API. It keeps
+  nothing: when a Home connects, the Cloud loads that home from it, and writes every change back.
+- **The app** talks to the Cloud from anywhere and receives Live Activities through Apple. A button
+  on a Live Activity (Play/Pause) goes app → Cloud → Home, and the Home makes the call to Jellyfin.
+
+Self-hosting everything: one compose runs the Home and the Cloud side by side.
+
+## 🚀 Run it
+
+The image is Quai Cloud: the API, the console and the pushes. It keeps nothing on disk.
+
+```sh
+docker run -d --name quai -p 8787:8787 ghcr.io/mathieuletyrant/quai:latest
+```
+
+Quai Home (`apps/home`) runs next to your services with their URLs and keys, and connects to the
+Cloud's `/home` WebSocket (`QUAI_CLOUD_URL=ws://<cloud>:8787/home`). Until it does, the app's and
+the console's routes answer 503 "Quai Home is not connected".
 
 | Env | Default | |
 |---|---|---|
-| `QUAI_PORT` | `8787` | HTTP port (API + console) |
-| `QUAI_DATA_DIR` | `/data` | SQLite database (paired iPhones, webhook secret) |
-| `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the server |
-| `QUAI_INTERNAL_URL` | – | How Radarr and Sonarr reach Quai, e.g. `http://quai:8787`. Set it and Quai adds its webhook to them on start |
-| `QUAI_PUBLIC_URL` | – | Address from outside (behind Cloudflare Access, say), added to the pairing QR code |
-| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | – | Radarr |
-| `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | – | Sonarr |
-| `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | – | qBittorrent Web UI (user and password optional with its local auth bypass) |
-| `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | – | Jellyfin, to know when a title is ready |
-| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities. Easier: upload it in the console, where it's stored encrypted and wins over these |
+| `QUAI_PORT` | `8787` | HTTP port (API, console, `/home` WebSocket) |
+| `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the Cloud |
+| `QUAI_PUBLIC_URL` | – | Address from outside, added to the pairing QR code |
+| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities: the Cloud's own configuration |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The iOS app's bundle id |
-
-The console's guided setup will replace most of these.
 
 The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
 
@@ -74,7 +113,7 @@ On Umbrel, install **Quai** from [Mathieu's Umbrel App Store](https://github.com
 
 ```sh
 pnpm install
-pnpm dev:server      # API on :8787
+pnpm dev:cloud       # Quai Cloud on :8787
 pnpm dev:console     # console on http://localhost:5173
 pnpm test
 pnpm check
@@ -83,12 +122,13 @@ pnpm gen:openapi     # after changing packages/api
 
 ```
 packages/api     The contract: Effect HttpApi + Schema, exported as openapi.json
-apps/server      Effect 4 on Node: *arr adapters, activity engine, APNs over HTTP/2
+apps/home        Quai Home: the link to the Cloud, webhooks, allowlisted calls and watches, home documents
+apps/cloud       Quai Cloud, Effect 4 on Node: integrations, activity engine, APNs over HTTP/2, console
 apps/console     React · Vite, typed client derived from packages/api
 apps/ios         SwiftUI · WidgetKit Live Activities · App Intents (XcodeGen project.yml)
 ```
 
-One contract, three consumers: changing a route in `packages/api` breaks the server, the console and the iOS app at compile time.
+One contract, three consumers: changing a route in `packages/api` breaks the Cloud, the console and the iOS app at compile time.
 
 iOS (macOS): `cd apps/ios && xcodegen generate && open Quai.xcodeproj`. The **Quai Demo** scheme starts a demo Live Activity without a server.
 
@@ -100,7 +140,7 @@ Fully automatic, driven by [Conventional Commits](https://www.conventionalcommit
 2. Merging it creates the tag and GitHub release, then builds and publishes the Docker image.
 3. The same release is archived and uploaded to TestFlight, once the repo has the `ASC_KEY_P8` secret: the .p8 of the App Store Connect API key (Admin role, which cloud signing needs) whose ids are in `.github/workflows/testflight.yml`.
 
-📖 Spec: [docs/spec-v1.md](docs/spec-v1.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
+📖 Specs: [v1](docs/spec-v1.md) · [v2, Home and Cloud](docs/spec-v2-hosted.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
 
 ## 📄 License
 
