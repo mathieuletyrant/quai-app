@@ -43,7 +43,7 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 ## 🧭 How it works
 
 > [!NOTE]
-> This is where Quai is heading ([spec v2](docs/spec-v2-hosted.md)). Today the Relay and the Core
+> This is where Quai is heading ([spec v2](docs/spec-v2-hosted.md)). Today the Home and the Cloud
 > run together in one server; they're being split.
 
 ```mermaid
@@ -51,12 +51,12 @@ flowchart LR
   subgraph home["🏠 Your server"]
     direction TB
     services["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
-    relay(["<b>Quai Relay</b><br/>your keys · your data"])
+    relay(["<b>Quai Home</b><br/>your keys · your data"])
     services -- "webhooks" --> relay
     relay -- "polls, actions<br/>(Jellyfin play/pause)" --> services
   end
 
-  core(["<b>Quai Core</b><br/>flows · console<br/>stores nothing"])
+  core(["<b>Quai Cloud</b><br/>flows · console<br/>stores nothing"])
   apple["Apple Push"]
   phone["📱 iPhone"]
 
@@ -74,16 +74,16 @@ flowchart LR
   style home fill:#0b0b0f,stroke:#2a2a33,color:#a1a1a6
 ```
 
-- **Quai Relay** runs next to your services, and is the only thing that talks to them. It holds
-  their keys, sets up their webhooks, polls what the Core asks it to watch, and keeps the home's
-  data (flows, iPhones, preferences) in its `/data`. It connects out to the Core: no port to open,
-  no tunnel, and the Core never reaches your network.
-- **Quai Core** understands events and runs the flows, the console and the app's API. It keeps
-  nothing: when a Relay connects, the Core loads that home from it, and writes every change back.
-- **The app** talks to the Core from anywhere and receives Live Activities through Apple. A button
-  on a Live Activity (Play/Pause) goes app → Core → Relay, and the Relay makes the call to Jellyfin.
+- **Quai Home** runs next to your services, and is the only thing that talks to them. It holds
+  their keys, sets up their webhooks, polls what the Cloud asks it to watch, and keeps the home's
+  data (flows, iPhones, preferences) in its `/data`. It connects out to the Cloud: no port to open,
+  no tunnel, and the Cloud never reaches your network.
+- **Quai Cloud** understands events and runs the flows, the console and the app's API. It keeps
+  nothing: when a Home connects, the Cloud loads that home from it, and writes every change back.
+- **The app** talks to the Cloud from anywhere and receives Live Activities through Apple. A button
+  on a Live Activity (Play/Pause) goes app → Cloud → Home, and the Home makes the call to Jellyfin.
 
-Self-hosting everything: one compose runs the Relay and the Core side by side.
+Self-hosting everything: one compose runs the Home and the Cloud side by side.
 
 ## 🚀 Run it
 
@@ -145,7 +145,7 @@ Fully automatic, driven by [Conventional Commits](https://www.conventionalcommit
 2. Merging it creates the tag and GitHub release, then builds and publishes the Docker image.
 3. The same release is archived and uploaded to TestFlight, once the repo has the `ASC_KEY_P8` secret: the .p8 of the App Store Connect API key (Admin role, which cloud signing needs) whose ids are in `.github/workflows/testflight.yml`.
 
-📖 Specs: [v1](docs/spec-v1.md) · [v2, Relay and Core](docs/spec-v2-hosted.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
+📖 Specs: [v1](docs/spec-v1.md) · [v2, Home and Cloud](docs/spec-v2-hosted.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
 
 ## 📄 License
 

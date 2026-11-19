@@ -1,46 +1,46 @@
 import { Schema } from "effect"
 
 /**
- * The Relay ↔ Core protocol (docs/spec-v2-hosted.md). The Relay runs at home, next to the
- * services, and opens one WebSocket to the Core. It holds the services' keys and the home's data;
- * the Core holds nothing and works in memory. Messages are JSON text frames. Bump
- * `protocolVersion` on any change an older Relay couldn't follow.
+ * The Quai Home ↔ Quai Cloud protocol (docs/spec-v2-hosted.md). The Home runs at home, next to the
+ * services, and opens one WebSocket to the Cloud. It holds the services' keys and the home's data;
+ * the Cloud holds nothing and works in memory. Messages are JSON text frames. Bump
+ * `protocolVersion` on any change an older Home couldn't follow.
  *
- * Opening: Relay `Hello` → Core `Challenge` → Relay `Proof` → Core `Welcome` (or `Refused`). Then
- * either side may send anything below; the Core pings every 20 s and the Relay reconnects after
+ * Opening: Home `Hello` → Cloud `Challenge` → Home `Proof` → Cloud `Welcome` (or `Refused`). Then
+ * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
 export const protocolVersion = 1
 
-/** The services a Relay can reach. */
-export const RelayService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin"])
-export type RelayService = typeof RelayService.Type
+/** The services a Home can reach. */
+export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin"])
+export type HomeService = typeof HomeService.Type
 
-/** The services whose webhooks the Relay receives and forwards. */
-export const webhookServices: ReadonlyArray<RelayService> = ["radarr", "sonarr", "jellyfin"]
+/** The services whose webhooks the Home receives and forwards. */
+export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "jellyfin"]
 
-/** Largest response body the Relay forwards; bigger ones come back as a failure. */
+/** Largest response body the Home forwards; bigger ones come back as a failure. */
 export const maxBodyBytes = 1_000_000
 
-// Relay → Core
+// Home → Cloud
 
 export const Hello = Schema.TaggedStruct("Hello", {
   protocol: Schema.Number,
-  relayVersion: Schema.String,
+  homeVersion: Schema.String,
   /** The home's Ed25519 public key (SPKI, base64). The home id is its fingerprint. */
   publicKey: Schema.String,
-  /** The services this Relay has a URL (and key) for. */
-  services: Schema.Array(RelayService)
+  /** The services this Home has a URL (and key) for. */
+  services: Schema.Array(HomeService)
 })
 
-/** The Core's nonce, signed with the home's private key (Ed25519, base64). */
+/** The Cloud's nonce, signed with the home's private key (Ed25519, base64). */
 export const Proof = Schema.TaggedStruct("Proof", {
   signature: Schema.String
 })
 
 export const WebhookReceived = Schema.TaggedStruct("WebhookReceived", {
-  service: RelayService,
-  /** Epoch milliseconds on the Relay, to order it against polled snapshots. */
+  service: HomeService,
+  /** Epoch milliseconds on the Home, to order it against polled snapshots. */
   receivedAt: Schema.Number,
   body: Schema.Unknown
 })
@@ -79,7 +79,7 @@ export const Pong = Schema.TaggedStruct("Pong", {
   at: Schema.Number
 })
 
-export const RelayMessage = Schema.Union([
+export const HomeMessage = Schema.Union([
   Hello,
   Proof,
   WebhookReceived,
@@ -90,21 +90,21 @@ export const RelayMessage = Schema.Union([
   StoreDone,
   Pong
 ])
-export type RelayMessage = typeof RelayMessage.Type
+export type HomeMessage = typeof HomeMessage.Type
 
-// Core → Relay
+// Cloud → Home
 
 export const Challenge = Schema.TaggedStruct("Challenge", {
-  /** Random, base64: the Relay signs it to prove it holds the home's key. */
+  /** Random, base64: the Home signs it to prove it holds the home's key. */
   nonce: Schema.String
 })
 
-/** The Core accepted the Relay. */
+/** The Cloud accepted the Home. */
 export const Welcome = Schema.TaggedStruct("Welcome", {
   homeId: Schema.String
 })
 
-/** The Core turns the Relay away (protocol too old, bad proof): retry after the delay. */
+/** The Cloud turns the Home away (protocol too old, bad proof): retry after the delay. */
 export const Refused = Schema.TaggedStruct("Refused", {
   reason: Schema.String,
   retryAfterSeconds: Schema.Number
@@ -116,7 +116,7 @@ export const BodyEncoding = Schema.Literals(["json", "form"])
 /** One HTTP call to a service, within the allowlist: a button press, or a one-off read. */
 export const Call = Schema.TaggedStruct("Call", {
   id: Schema.String,
-  service: RelayService,
+  service: HomeService,
   method: Schema.Literals(["GET", "POST"]),
   /** Path and query, as the service expects them: `/api/v2/torrents/info?hashes=a|b`. */
   path: Schema.String,
@@ -127,14 +127,14 @@ export type Call = typeof Call.Type
 
 export const Watch = Schema.Struct({
   id: Schema.String,
-  service: RelayService,
+  service: HomeService,
   /** A GET within the allowlist. */
   path: Schema.String,
   everySeconds: Schema.Number.check(Schema.isBetween({ minimum: 5, maximum: 3600 }))
 })
 export type Watch = typeof Watch.Type
 
-/** Replaces every watch: the Relay polls these, and only these, until the next `SetWatches`. */
+/** Replaces every watch: the Home polls these, and only these, until the next `SetWatches`. */
 export const SetWatches = Schema.TaggedStruct("SetWatches", {
   watches: Schema.Array(Watch)
 })
@@ -160,7 +160,7 @@ export const Ping = Schema.TaggedStruct("Ping", {
   at: Schema.Number
 })
 
-export const CoreMessage = Schema.Union([
+export const CloudMessage = Schema.Union([
   Challenge,
   Welcome,
   Refused,
@@ -171,17 +171,17 @@ export const CoreMessage = Schema.Union([
   StoreDelete,
   Ping
 ])
-export type CoreMessage = typeof CoreMessage.Type
+export type CloudMessage = typeof CloudMessage.Type
 
 /** Keys of home documents: lowercase segments separated by slashes (`flows/download`). */
 export const isStoreKey = (key: string) => /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/i.test(key) && key.length <= 200
 
 /**
- * What the Core may ask a Relay to call, per service: method and path pattern (the query is not
- * checked). The reads Quai needs, and the writes the action catalog offers. The Relay enforces it:
- * a compromised Core can't delete a library or read the services' settings.
+ * What the Cloud may ask a Home to call, per service: method and path pattern (the query is not
+ * checked). The reads Quai needs, and the writes the action catalog offers. The Home enforces it:
+ * a compromised Cloud can't delete a library or read the services' settings.
  */
-export const allowlist: Record<RelayService, ReadonlyArray<{ readonly method: "GET" | "POST"; readonly path: RegExp }>> = {
+export const allowlist: Record<HomeService, ReadonlyArray<{ readonly method: "GET" | "POST"; readonly path: RegExp }>> = {
   radarr: [{ method: "GET", path: /^\/api\/v3\/system\/status$/ }],
   sonarr: [{ method: "GET", path: /^\/api\/v3\/system\/status$/ }],
   qbittorrent: [
@@ -197,7 +197,7 @@ export const allowlist: Record<RelayService, ReadonlyArray<{ readonly method: "G
 }
 
 /** Whether the allowlist lets this call through. */
-export const allowed = (request: { readonly service: RelayService; readonly method: "GET" | "POST"; readonly path: string }): boolean => {
+export const allowed = (request: { readonly service: HomeService; readonly method: "GET" | "POST"; readonly path: string }): boolean => {
   const path = request.path.split("?")[0]!
   return !path.includes("..") && allowlist[request.service].some((rule) => rule.method === request.method && rule.path.test(path))
 }
