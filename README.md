@@ -53,7 +53,7 @@ flowchart LR
     services["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
     relay(["<b>Quai Relay</b><br/>your keys · your data"])
     services -- "webhooks" --> relay
-    relay -- "polls" --> services
+    relay -- "polls, actions<br/>(Jellyfin play/pause)" --> services
   end
 
   core(["<b>Quai Core</b><br/>flows · console<br/>stores nothing"])
@@ -61,7 +61,7 @@ flowchart LR
   phone["📱 iPhone"]
 
   relay == "connects out,<br/>sends events" ==> core
-  core -. "what to watch" .-> relay
+  core -. "what to watch,<br/>button presses" .-> relay
   core -- "Live Activity" --> apple --> phone
   phone -- "app, buttons" --> core
 
@@ -80,7 +80,8 @@ flowchart LR
   no tunnel, and the Core never reaches your network.
 - **Quai Core** understands events and runs the flows, the console and the app's API. It keeps
   nothing: when a Relay connects, the Core loads that home from it, and writes every change back.
-- **The app** talks to the Core from anywhere and receives Live Activities through Apple.
+- **The app** talks to the Core from anywhere and receives Live Activities through Apple. A button
+  on a Live Activity (Play/Pause) goes app → Core → Relay, and the Relay makes the call to Jellyfin.
 
 Self-hosting everything: one compose runs the Relay and the Core side by side.
 
