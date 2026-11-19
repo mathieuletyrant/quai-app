@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { RelayProtocol } from "@quai/api"
+import { HomeProtocol } from "@quai/api"
 import { Effect, Fiber, Layer } from "effect"
 import { HttpClient } from "effect/http"
 import { TestClock } from "effect/testing"
@@ -13,7 +13,7 @@ type Route = Parameters<typeof fakeHttp>[0]
 const callsWith = (route: Route, seen: Array<Seen>, config = configLayer()) =>
   Calls.layer.pipe(Layer.provide(ServiceAuth.layer), Layer.provide([config, fakeHttp(route, seen)]))
 
-const request = (fields: Omit<RelayProtocol.Call, "_tag" | "id">): RelayProtocol.Call => ({
+const request = (fields: Omit<HomeProtocol.Call, "_tag" | "id">): HomeProtocol.Call => ({
   _tag: "Call",
   id: "r1",
   ...fields
@@ -94,13 +94,13 @@ describe("call bodies", () => {
       const calls = yield* Calls
       const status = request({ service: "radarr", method: "GET", path: "/api/v3/system/status" })
       expect(yield* calls.run(status)).toEqual({ _tag: "Failed", id: "r1", reason: "too large" })
-    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(RelayProtocol.maxBodyBytes + 1) }), []))))
+    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(HomeProtocol.maxBodyBytes + 1) }), []))))
 
   it.effect("a body of exactly maxBodyBytes goes through", () =>
     Effect.gen(function*() {
       const result = yield* (yield* Calls).run(request({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))
       expect(result).toMatchObject({ _tag: "CallResponse", status: 200 })
-    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(RelayProtocol.maxBodyBytes) }), []))))
+    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(HomeProtocol.maxBodyBytes) }), []))))
 })
 
 describe("call timeout", () => {

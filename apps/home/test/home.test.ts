@@ -1,3 +1,4 @@
+import { HomeProtocol } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, FileSystem } from "effect"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
@@ -30,14 +31,14 @@ describe("home key", () => {
         expect(other.webhookToken).not.toBe(first.webhookToken)
       })))
 
-  it.effect("signs the Core's nonce: the proof verifies against the public key in Hello", () =>
+  it.effect("signs the cloud's nonce: the proof verifies against the public key in Hello", () =>
     inTemp((dir) =>
       Effect.gen(function*() {
         const key = yield* HomeKey.make(join(dir, "home.key"))
         const nonce = randomBytes(32).toString("base64")
         const publicKey = createPublicKey({ key: Buffer.from(key.publicKey, "base64"), format: "der", type: "spki" })
         const signature = Buffer.from(key.sign(nonce), "base64")
-        expect(verify(null, Buffer.from(nonce, "base64"), publicKey, signature)).toBe(true)
+        expect(verify(null, Buffer.from(HomeProtocol.challengePayload(nonce)), publicKey, signature)).toBe(true)
         expect(verify(null, randomBytes(32), publicKey, signature)).toBe(false)
       })))
 

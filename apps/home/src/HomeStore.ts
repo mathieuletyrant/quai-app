@@ -1,8 +1,8 @@
-import { RelayProtocol } from "@quai/api"
+import { HomeProtocol } from "@quai/api"
 import { Context, Effect, FileSystem, Layer } from "effect"
 import { randomBytes } from "node:crypto"
 import { dirname, join, sep } from "node:path"
-import { RelayConfig } from "./Config.ts"
+import { HomeConfig } from "./Config.ts"
 import { StoreError } from "./Errors.ts"
 
 export interface HomeDocument {
@@ -11,8 +11,8 @@ export interface HomeDocument {
 }
 
 /**
- * The home's documents (flows, devices, activity state), kept for the Core, which stores nothing.
- * The Relay never reads them: one JSON file per key, `flows/download` → `flows/download.json`.
+ * The home's documents (flows, devices, activity state), kept for the cloud, which stores nothing.
+ * Quai Home never reads them: one JSON file per key, `flows/download` → `flows/download.json`.
  */
 export class HomeStore extends Context.Service<HomeStore, {
   /** Every document whose key starts with `prefix`, sorted by key. */
@@ -21,13 +21,13 @@ export class HomeStore extends Context.Service<HomeStore, {
   readonly put: (key: string, value: unknown) => Effect.Effect<void, StoreError>
   /** Deleting a missing document is not an error. */
   readonly delete: (key: string) => Effect.Effect<void, StoreError>
-}>()("quai-relay/HomeStore") {
+}>()("quai-home/HomeStore") {
   static readonly make = (root: string) =>
     Effect.gen(function*() {
       const fs = yield* FileSystem.FileSystem
       const fail = (message: string) => (cause: unknown) => new StoreError({ message, cause })
       const pathOf = (key: string) =>
-        RelayProtocol.isStoreKey(key)
+        HomeProtocol.isStoreKey(key)
           ? Effect.succeed(join(root, ...key.split("/")) + ".json")
           : Effect.fail(new StoreError({ message: `invalid key: ${key}` }))
 
@@ -40,7 +40,7 @@ export class HomeStore extends Context.Service<HomeStore, {
             const keys = files
               .filter((file) => file.endsWith(".json"))
               .map((file) => file.slice(0, -".json".length).split(sep).join("/"))
-              .filter((key) => RelayProtocol.isStoreKey(key) && key.startsWith(prefix))
+              .filter((key) => HomeProtocol.isStoreKey(key) && key.startsWith(prefix))
               .sort()
             return yield* Effect.forEach(keys, (key) =>
               fs.readFileString(join(root, ...key.split("/")) + ".json").pipe(
@@ -70,7 +70,7 @@ export class HomeStore extends Context.Service<HomeStore, {
   static readonly layer = Layer.effect(
     HomeStore,
     Effect.gen(function*() {
-      const { dataDir } = yield* RelayConfig
+      const { dataDir } = yield* HomeConfig
       return yield* HomeStore.make(join(dataDir, "home"))
     })
   )

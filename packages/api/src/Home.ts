@@ -33,7 +33,7 @@ export const Hello = Schema.TaggedStruct("Hello", {
   services: Schema.Array(HomeService)
 })
 
-/** The Cloud's nonce, signed with the home's private key (Ed25519, base64). */
+/** `challengePayload(nonce)` signed with the home's private key (Ed25519, base64). */
 export const Proof = Schema.TaggedStruct("Proof", {
   signature: Schema.String
 })
@@ -95,11 +95,17 @@ export type HomeMessage = typeof HomeMessage.Type
 // Cloud → Home
 
 export const Challenge = Schema.TaggedStruct("Challenge", {
-  /** Random, base64: the Home signs it to prove it holds the home's key. */
+  /** 32 random bytes, base64: the Home signs `challengePayload(nonce)` to prove it holds the key. */
   nonce: Schema.String
 })
 
-/** The Cloud accepted the Home. */
+/**
+ * What the Home signs for a Challenge. The prefix keeps a challenge signature from ever being
+ * reused as another signature made with the same key (the console link, say).
+ */
+export const challengePayload = (nonce: string) => `quai-challenge:${nonce}`
+
+/** The Cloud accepted the Home, under the home id it computed from the Hello's public key. */
 export const Welcome = Schema.TaggedStruct("Welcome", {
   homeId: Schema.String
 })
@@ -130,8 +136,12 @@ export const Watch = Schema.Struct({
   service: HomeService,
   /** A GET within the allowlist. */
   path: Schema.String,
-  everySeconds: Schema.Number.check(Schema.isBetween({ minimum: 5, maximum: 3600 }))
+  /** Between `minWatchSeconds` and `maxWatchSeconds`; the Home answers Failed for any other. */
+  everySeconds: Schema.Number
 })
+
+export const minWatchSeconds = 5
+export const maxWatchSeconds = 3600
 export type Watch = typeof Watch.Type
 
 /** Replaces every watch: the Home polls these, and only these, until the next `SetWatches`. */
@@ -156,6 +166,7 @@ export const StoreDelete = Schema.TaggedStruct("StoreDelete", {
   key: Schema.String
 })
 
+/** `at`: the Cloud's clock, epoch milliseconds; the Home echoes it in Pong to measure the round trip. */
 export const Ping = Schema.TaggedStruct("Ping", {
   at: Schema.Number
 })
@@ -173,8 +184,12 @@ export const CloudMessage = Schema.Union([
 ])
 export type CloudMessage = typeof CloudMessage.Type
 
-/** Keys of home documents: lowercase segments separated by slashes (`flows/download`). */
-export const isStoreKey = (key: string) => /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/i.test(key) && key.length <= 200
+/**
+ * Keys of home documents: lowercase segments separated by slashes (`flows/download`), lowercase so
+ * they can't collide on a case-insensitive disk. A key and a folder may share a name (`flows` and
+ * `flows/download`): they are separate documents, and `StoreList("flows")` returns both.
+ */
+export const isStoreKey = (key: string) => /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/.test(key) && key.length <= 200
 
 /**
  * What the Cloud may ask a Home to call, per service: method and path pattern (the query is not

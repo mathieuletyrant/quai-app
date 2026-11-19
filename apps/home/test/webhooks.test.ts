@@ -1,33 +1,31 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
-import type { AgentProtocol } from "@quai/api"
-import { Effect, Layer, Redacted } from "effect"
+import type { HomeProtocol } from "@quai/api"
+import { Effect, Layer } from "effect"
+import { TestClock } from "effect/testing"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { ensureWebhook } from "../src/ArrWebhooks.ts"
 import { Link } from "../src/Link.ts"
 import { ServiceAuth } from "../src/ServiceAuth.ts"
-import { webhookToken, WebhooksLive } from "../src/Webhooks.ts"
-import { configLayer, testConfig } from "./config.ts"
+import { HomeKey } from "../src/HomeKey.ts"
+import { WebhooksLive } from "../src/Webhooks.ts"
+import { configLayer } from "./config.ts"
 import { fakeHttp, type Seen } from "./fakeHttp.ts"
 
-const sent: Array<AgentProtocol.AgentMessage> = []
+const sent: Array<HomeProtocol.HomeMessage> = []
 const fakeLink = Layer.succeed(Link, {
   send: (message) => Effect.sync(() => void sent.push(message)),
   linked: Effect.succeed(true)
 })
 
+const homeKey = Layer.succeed(HomeKey, { publicKey: "pk", homeId: "0123456789abcdef0123456789abcdef", sign: () => "sig", webhookToken: "s3cret" })
+
 const server = HttpRouter.serve(WebhooksLive).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
-  Layer.provide([fakeLink, configLayer()])
+  Layer.provide([fakeLink, homeKey])
 )
 
 describe("webhook receiver", () => {
-  it("derives the token from the agent token", () => {
-    expect(webhookToken(testConfig.token)).toMatch(/^[0-9a-f]{32}$/)
-    expect(webhookToken(testConfig.token)).toBe(webhookToken(Redacted.make("agent-token")))
-    expect(webhookToken(Redacted.make("other"))).not.toBe(webhookToken(testConfig.token))
-  })
-
   it.effect("forwards a webhook with the right token, refuses the others", () =>
     Effect.gen(function*() {
       sent.length = 0
@@ -38,14 +36,15 @@ describe("webhook receiver", () => {
         ))
       expect((yield* post("nope")).status).toBe(401)
       expect(sent).toEqual([])
-      expect((yield* post(webhookToken(testConfig.token))).status).toBe(204)
-      expect(sent).toEqual([{ _tag: "WebhookReceived", service: "sonarr", body: { eventType: "Download" } }])
+      yield* TestClock.adjust("1234 millis")
+      expect((yield* post("s3cret")).status).toBe(204)
+      expect(sent).toEqual([{ _tag: "WebhookReceived", service: "sonarr", receivedAt: 1234, body: { eventType: "Download" } }])
     }).pipe(Effect.provide(server)))
 
-  it.effect("/health says whether the agent is linked", () =>
+  it.effect("/health says whether the home is linked, and its id", () =>
     Effect.gen(function*() {
       const response = yield* (yield* HttpClient.HttpClient).get("/health")
-      expect(yield* response.json).toEqual({ status: "ok", linked: true })
+      expect(yield* response.json).toEqual({ status: "ok", linked: true, homeId: "0123456789abcdef0123456789abcdef" })
     }).pipe(Effect.provide(server)))
 })
 
@@ -58,7 +57,7 @@ describe("webhook setup", () => {
       existing = [...existing, { id: 9, name: "Quai", implementation: "Webhook" }]
       return { status: r.method === "POST" ? 201 : 202, json: {} }
     }, seen)
-    const url = "http://quai-agent:8788/webhooks/radarr?token=t"
+    const url = "http://quai-home:8788/webhooks/radarr?token=t"
     return Effect.gen(function*() {
       expect(yield* ensureWebhook("radarr", url)).toBe("created")
       expect(yield* ensureWebhook("radarr", url)).toBe("updated")

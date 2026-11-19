@@ -1,9 +1,9 @@
-import type { RelayProtocol } from "@quai/api"
+import type { HomeProtocol } from "@quai/api"
 import { Data } from "effect"
 
-/** A service did not answer, refused the Relay, or isn't configured. */
+/** A service did not answer, refused Quai Home, or isn't configured. */
 export class ServiceError extends Data.TaggedError("ServiceError")<{
-  readonly service: RelayProtocol.RelayService
+  readonly service: HomeProtocol.HomeService
   readonly message: string
   readonly cause?: unknown
 }> {}

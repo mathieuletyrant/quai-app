@@ -5,7 +5,7 @@ import { Socket } from "effect/socket"
 import { createServer } from "node:http"
 import { WebhookSetupLive } from "./ArrWebhooks.ts"
 import { Calls } from "./Calls.ts"
-import { RelayConfig } from "./Config.ts"
+import { HomeConfig } from "./Config.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
 import { Link } from "./Link.ts"
@@ -16,15 +16,15 @@ import { WebhooksLive } from "./Webhooks.ts"
 // All configuration comes from environment variables: the image knows nothing about its host.
 const HttpLive = Layer.unwrap(
   Effect.gen(function*() {
-    const { port } = yield* RelayConfig
+    const { port } = yield* HomeConfig
     return NodeHttpServer.layer(createServer, { port })
   })
 )
 
 const SocketLive = Layer.unwrap(
   Effect.gen(function*() {
-    const { coreUrl } = yield* RelayConfig
-    return Socket.layerWebSocket(coreUrl, { openTimeout: "10 seconds" })
+    const { cloudUrl } = yield* HomeConfig
+    return Socket.layerWebSocket(cloudUrl, { openTimeout: "10 seconds" })
   })
 ).pipe(Layer.provide(NodeSocket.layerWebSocketConstructor))
 
@@ -41,7 +41,7 @@ const App = Layer.mergeAll(HttpRouter.serve(WebhooksLive), WebhookSetupLive).pip
   Layer.provideMerge(Link.layer),
   Layer.provide(SocketLive),
   Layer.provideMerge(Layer.mergeAll(Services, Home)),
-  Layer.provideMerge(RelayConfig.layer)
+  Layer.provideMerge(HomeConfig.layer)
 )
 
 App.pipe(Layer.launch, NodeRuntime.runMain)

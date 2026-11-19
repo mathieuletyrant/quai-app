@@ -6,7 +6,7 @@ WORKDIR /repo
 RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/api/package.json packages/api/
-COPY apps/relay/package.json apps/relay/
+COPY apps/home/package.json apps/home/
 COPY apps/server/package.json apps/server/
 COPY apps/console/package.json apps/console/
 RUN pnpm install --frozen-lockfile
