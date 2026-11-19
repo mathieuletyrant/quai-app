@@ -48,29 +48,36 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 
 ```mermaid
 flowchart LR
-  subgraph home["🏠 At home"]
+  subgraph home["🏠 Your server"]
     direction TB
-    arr["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
-    relay["<b>Quai Relay</b><br/>holds the keys · webhooks · polling<br/>stores the home's data in /data"]
-    arr -- "webhooks" --> relay
-    relay -- "allowlisted calls" --> arr
+    services["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
+    relay(["<b>Quai Relay</b><br/>your keys · your data"])
+    services -- "webhooks" --> relay
+    relay -- "polls" --> services
   end
 
-  subgraph core["☁️ Quai Core: hosted, or self-hosted"]
-    brain["<b>flows · engine · console · app API</b><br/>stores nothing"]
-  end
-
+  core(["<b>Quai Core</b><br/>flows · console<br/>stores nothing"])
   apple["Apple Push"]
-  iphone["📱 Quai app<br/>Live Activities"]
+  phone["📱 iPhone"]
 
-  relay <-- "one outbound WebSocket<br/>events · watches · home data" --> brain
-  brain -- "push" --> apple -- "Live Activity" --> iphone
-  iphone <-- "app API · buttons" --> brain
+  relay == "connects out,<br/>sends events" ==> core
+  core -. "what to watch" .-> relay
+  core -- "Live Activity" --> apple --> phone
+  phone -- "app, buttons" --> core
+
+  classDef relayStyle fill:#0f2e29,stroke:#6fd3c2,stroke-width:2px,color:#fff
+  classDef coreStyle fill:#231b3d,stroke:#b57edc,stroke-width:2px,color:#fff
+  classDef plain fill:#17171d,stroke:#3a3a44,color:#e5e5ea
+  class relay relayStyle
+  class core coreStyle
+  class services,apple,phone plain
+  style home fill:#0b0b0f,stroke:#2a2a33,color:#a1a1a6
 ```
 
-- **Quai Relay** runs next to your services. It holds their keys, sets up their webhooks, polls what
-  the Core asks it to watch, and keeps the home's data (flows, iPhones, preferences) in its `/data`.
-  It opens a single outbound connection: no port to open, no tunnel.
+- **Quai Relay** runs next to your services, and is the only thing that talks to them. It holds
+  their keys, sets up their webhooks, polls what the Core asks it to watch, and keeps the home's
+  data (flows, iPhones, preferences) in its `/data`. It connects out to the Core: no port to open,
+  no tunnel, and the Core never reaches your network.
 - **Quai Core** understands events and runs the flows, the console and the app's API. It keeps
   nothing: when a Relay connects, the Core loads that home from it, and writes every change back.
 - **The app** talks to the Core from anywhere and receives Live Activities through Apple.
