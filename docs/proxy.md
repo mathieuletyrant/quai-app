@@ -15,14 +15,16 @@ works (Cloudflare Access service tokens, Pangolin, Authentik or Authelia header 
 
 ## What to expose
 
-Expose **only `/api/*`**: it is what the app calls, and every route of it but `/api/health` and
-the pairing needs the device token as well.
+It depends on what the proxy checks.
 
-Never expose:
-
-- `/console-api/*` and the console itself: they have no login of their own and rely on the host's
-  (Umbrel's at home). Whoever reaches them can pair an iPhone.
-- `/home`: the WebSocket Quai Home connects to.
+- **The proxy guards every path** (Cloudflare Access, Authentik, Pangolin…): expose the whole of
+  Quai Cloud. The app gets in with its access headers, and you can open the console from outside
+  by signing in to the proxy (Google login, say). `/home` being reachable is harmless: nothing gets
+  past the proxy without a login or the headers, and Quai Home connects on the home network anyway.
+- **The proxy checks nothing** (a plain tunnel or port forward): expose **only `/api/*`**. It is
+  what the app calls, and every route of it but `/api/health` and the pairing needs the device
+  token. Keep `/console-api/*`, the console and `/home` on the home network: they have no login of
+  their own and rely on the host's (Umbrel's at home), and whoever reaches them can pair an iPhone.
 
 ## `QUAI_PUBLIC_HEADERS`
 
@@ -62,11 +64,13 @@ logged nor shown: the console's Settings page and pairing panel list the header 
 
 1. In Cloudflare Zero Trust, **Access → Service credentials → Service tokens**: create a token for
    Quai. Copy its Client ID and Client Secret (the secret is shown once).
-2. **Access → Applications**: add a self-hosted application for `quai.example.com`, path `api/`,
-   with a policy whose action is **Service Auth** and whose rule includes that service token.
-3. In the tunnel (**Networks → Tunnels → Public hostnames**), route `quai.example.com`, path
-   `^/api/`, to Quai Cloud (`http://<host>:8787`). Leave the other paths unrouted, so `/home`,
-   `/console-api` and the console stay on the home network.
+2. **Access → Applications**: add a self-hosted application for `quai.example.com` (every path)
+   with two policies: an **Allow** policy for you (your email, signed in with Google or any login
+   method) to open the console, and a **Service Auth** policy whose rule includes that service
+   token, for the app.
+3. In the tunnel (**Networks → Tunnels → Public hostnames**), route `quai.example.com` to Quai
+   Cloud (`http://<host>:8787`, the container's port, not one that goes through the host's own
+   login).
 4. Set on Quai Cloud and restart it:
 
    ```sh
