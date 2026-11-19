@@ -34,6 +34,7 @@ interface Pairing {
   readonly expiresAt: number
   readonly lifetime: number
   readonly qrSvg: string
+  readonly link: string
   readonly accessHeaderNames: ReadonlyArray<string>
 }
 
@@ -57,7 +58,7 @@ function usePairing(onPaired: () => void) {
       const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: [window.location.origin] } }))
       const qrSvg = await QRCode.toString(result.link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0b0b0f", light: "#ffffff" } })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
-      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, accessHeaderNames: result.accessHeaderNames })
+      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link: result.link, accessHeaderNames: result.accessHeaderNames })
       setNow(Date.now())
     } catch (e) {
       setError(e)
@@ -82,7 +83,7 @@ function usePairing(onPaired: () => void) {
 
 const steps = [
   { title: "Open Quai on the iPhone", text: "From TestFlight or an Xcode build." },
-  { title: "Scan this code", text: "Or type the code under it in the app. One code pairs one iPhone." },
+  { title: "Scan this code", text: "With the Camera app. On the iPhone itself, tap Open in Quai. One code pairs one iPhone." },
   { title: "Allow Live Activities", text: "The iPhone shows up below, ready to receive them." }
 ]
 
@@ -123,6 +124,7 @@ function PairingPanel({ pairing, left, onNew, onDone }: { pairing: Pairing; left
         <div className="flex shrink-0 flex-col items-center gap-4 rounded-card border border-line bg-bg/60 p-6 md:w-[300px]">
           <div className="size-[200px] rounded-[14px] bg-white p-3.5" role="img" aria-label="Pairing QR code" dangerouslySetInnerHTML={{ __html: pairing.qrSvg }} />
           <p className="font-mono text-[22px] font-semibold tracking-[0.2em] text-text" aria-label={`Pairing code ${pairing.code}`}>{pairing.code}</p>
+          <Button className="w-full md:hidden" onClick={() => { window.location.href = pairing.link }}>Open in Quai on this iPhone</Button>
           <div className="flex w-full flex-col gap-2">
             <div className="h-1 overflow-hidden rounded-full bg-white/8">
               <div className="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear" style={{ width: `${share * 100}%` }} />
