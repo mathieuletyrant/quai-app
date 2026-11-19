@@ -29,6 +29,14 @@ jobs:
       - if: steps.secrets.outputs.ready == 'true'
         uses: actions/checkout@v4
       - if: steps.secrets.outputs.ready == 'true'
+        name: Write the API key
+        run: printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+      # Each run makes Xcode create a development certificate, and the account allows only a few:
+      # clear the ones earlier runs left, and this run's once it's done.
+      - if: steps.secrets.outputs.ready == 'true'
+        name: Revoke CI development certificates
+        run: ASC_KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8" node .github/scripts/revoke-ci-certificates.mjs
+      - if: steps.secrets.outputs.ready == 'true'
         run: brew install xcodegen
       - if: steps.secrets.outputs.ready == 'true'
         name: Build and upload
@@ -40,7 +48,6 @@ jobs:
           # Build numbers must only go up, whichever workflow triggered the upload.
           BUILD="$(date -u +%Y%m%d%H%M)"
           key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
-          printf '%s' "$ASC_KEY_P8" > "$key"
           sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$version\"/; s/CURRENT_PROJECT_VERSION: \"[^\"]*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
           xcodegen generate
           auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
@@ -53,3 +60,6 @@ jobs:
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Quai.xcarchive" \
             -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export" "${auth[@]}"
           echo "Uploaded Quai $version ($BUILD) to App Store Connect." >> "$GITHUB_STEP_SUMMARY"
+      - if: always() && steps.secrets.outputs.ready == 'true'
+        name: Revoke this run's development certificate
+        run: ASC_KEY_PATH="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8" node .github/scripts/revoke-ci-certificates.mjs
