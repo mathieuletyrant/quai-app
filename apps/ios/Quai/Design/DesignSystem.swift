@@ -60,6 +60,7 @@ struct ScreenHeader<Trailing: View>: View {
                     Text(eyebrow)
                         .font(QuaiFont.eyebrow)
                         .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(1)
                 }
                 Text(title)
                     .font(QuaiFont.largeTitle)
@@ -84,6 +85,17 @@ struct ScreenHeader<Trailing: View>: View {
 extension ScreenHeader where Trailing == EmptyView {
     init(eyebrow: String? = nil, title: String, subtitle: String? = nil) {
         self.init(eyebrow: eyebrow, title: title, subtitle: subtitle) { EmptyView() }
+    }
+}
+
+/// A tab's large title, the same on every tab so it never moves when switching: one eyebrow
+/// line, always there (the date, a count, the connection), then the title.
+struct TabHeader: View {
+    let eyebrow: String
+    let title: String
+
+    var body: some View {
+        ScreenHeader(eyebrow: eyebrow.isEmpty ? " " : eyebrow.uppercased(), title: title)
     }
 }
 

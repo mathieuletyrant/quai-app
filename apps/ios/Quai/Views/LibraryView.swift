@@ -59,7 +59,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                ScreenHeader(title: "Library", subtitle: summary)
+                TabHeader(eyebrow: summary, title: "Library")
             } content: {
                 Picker("Show", selection: $scope) {
                     ForEach(LibraryScope.allCases) { Text($0.rawValue).tag($0) }
@@ -92,12 +92,12 @@ struct LibraryView: View {
         }
     }
 
-    /// "137 titles · 759 GB free of 1.8 TB"
-    private var summary: String? {
-        guard let library = connection.library else { return loading ? "Loading…" : nil }
+    /// "137 titles · 759 GB free"
+    private var summary: String {
+        guard let library = connection.library else { return connection.libraryError == nil ? "Loading…" : "Not loaded" }
         var parts = [library.items.count == 1 ? "1 title" : "\(library.items.count) titles"]
         if let disk = library.disk {
-            parts.append("\(Format.bytes(disk.freeBytes)) free of \(Format.bytes(disk.totalBytes))")
+            parts.append("\(Format.bytes(disk.freeBytes)) free")
         }
         return parts.joined(separator: " · ")
     }
