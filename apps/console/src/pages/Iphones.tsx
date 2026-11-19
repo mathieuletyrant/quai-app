@@ -34,7 +34,6 @@ interface Pairing {
   readonly expiresAt: number
   readonly lifetime: number
   readonly qrSvg: string
-  readonly link: string
   readonly accessHeaderNames: ReadonlyArray<string>
 }
 
@@ -58,7 +57,7 @@ function usePairing(onPaired: () => void) {
       const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: [window.location.origin] } }))
       const qrSvg = await QRCode.toString(result.link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0b0b0f", light: "#ffffff" } })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
-      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link: result.link, accessHeaderNames: result.accessHeaderNames })
+      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, accessHeaderNames: result.accessHeaderNames })
       setNow(Date.now())
     } catch (e) {
       setError(e)
