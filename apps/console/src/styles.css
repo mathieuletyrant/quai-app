@@ -1,23 +1,72 @@
 @import "tailwindcss";
 
+/*
+ * The console's design tokens. Surfaces stack from the page up: bg → panel → raised → hover.
+ * Text: text (titles), text-2 (body on panels), muted (secondary, ≥ 7:1 on panel), faint
+ * (tertiary, ≥ 5:1 on panel). Never use a lighter grey for text.
+ */
 @theme {
-  --font-sans: Inter, -apple-system, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --color-bg: #0b0b0f;
-  --color-panel: #15151a;
-  --color-raised: #1f1f26;
-  --color-field: #16161c;
-  --color-line: rgb(255 255 255 / 0.08);
+  --font-sans: "Inter", -apple-system, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+
+  --color-bg: #09090b;
+  --color-sidebar: #0b0b0f;
+  --color-canvas: #0c0c10;
+  --color-panel: #121216;
+  --color-raised: #1a1a20;
+  --color-hover: #222229;
+  --color-field: #0e0e12;
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.12);
+
   --color-text: #f5f5f7;
+  --color-text-2: #d1d1d6;
   --color-muted: #a1a1a6;
+  --color-faint: #8e8e93;
+
   --color-accent: #6fd3c2;
+  --color-accent-hover: #9fe5d8;
   --color-on-accent: #04201b;
+  --color-accent-soft: #15302b;
+  --color-accent-soft-text: #8fe3d3;
+
   --color-ok: #30d158;
+  --color-ok-soft: #10261a;
+  --color-warn: #ffb340;
+  --color-warn-soft: #33261a;
+  --color-warn-text: #ffc278;
   --color-danger: #ff6b5b;
+  --color-danger-soft: #331b1b;
+  --color-danger-text: #ff9a90;
+  --color-info-soft: #241f38;
+  --color-info-text: #c3b8ff;
+
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-panel: 16px;
+
+  --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 48px -8px rgb(0 0 0 / 0.7), 0 4px 12px rgb(0 0 0 / 0.4);
+
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  --animate-pop: pop 120ms ease-out;
+  @keyframes pop {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
 }
 
 @layer base {
   :root { color-scheme: dark; }
-  body { @apply bg-bg font-sans text-[15px] text-text antialiased; }
+  body {
+    @apply bg-bg font-sans text-[14px] leading-[1.5] text-text antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03";
+  }
   select { @apply cursor-pointer; }
+  :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  ::selection { background: rgb(111 211 194 / 0.3); }
+  * { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.14) transparent; }
 }
