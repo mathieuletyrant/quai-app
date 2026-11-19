@@ -15,12 +15,14 @@ struct PairingLinkHeaderTests {
     }
 
     @Test func aLinkWithoutHeadersStillPairs() throws {
-        let link = try #require(PairingLink(try #require(URL(string: "quai://pair?code=ABCD2345&url=http%3A%2F%2Fumbrel.local%3A3078"))))
+        let url = try #require(URL(string: "quai://pair?code=ABCD2345&url=http%3A%2F%2Fumbrel.local%3A3078"))
+        let link = try #require(PairingLink(url))
         #expect(link.accessHeaders.isEmpty)
     }
 
     @Test func skipsAHeaderTheAppOwns() throws {
-        let link = try #require(PairingLink(try #require(URL(string: "quai://pair?code=A&header=Authorization%3A%20x&header=X-Token%3A%20y"))))
+        let url = try #require(URL(string: "quai://pair?code=A&header=Authorization%3A%20x&header=X-Token%3A%20y"))
+        let link = try #require(PairingLink(url))
         #expect(link.accessHeaders == [AccessHeader(name: "X-Token", value: "y")])
     }
 }
