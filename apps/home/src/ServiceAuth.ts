@@ -60,7 +60,8 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
           switch (service) {
             case "radarr":
             case "sonarr":
-            case "jellyfin": {
+            case "jellyfin":
+            case "reclaimerr": {
               const endpoint = config[service]
               if (endpoint === null) return Effect.fail(new ServiceError({ service, message: "not configured" }))
               const key = Redacted.value(endpoint.apiKey)
@@ -68,6 +69,8 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
                 HttpClientRequest.prependUrl(endpoint.url),
                 service === "jellyfin"
                   ? HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${key}"`)
+                  : service === "reclaimerr"
+                  ? HttpClientRequest.bearerToken(key)
                   : HttpClientRequest.setHeader("X-Api-Key", key)
               ))
             }

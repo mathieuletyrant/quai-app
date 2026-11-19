@@ -13,7 +13,8 @@ export const testConfig = {
   radarr: { url: "http://radarr:7878", apiKey: key },
   sonarr: { url: "http://sonarr:8989", apiKey: key },
   qbittorrent: { url: "http://qbittorrent:8080", username: "admin", password: Redacted.make("pw") },
-  jellyfin: { url: "http://jellyfin:8096", apiKey: key }
+  jellyfin: { url: "http://jellyfin:8096", apiKey: key },
+  reclaimerr: { url: "http://reclaimerr:8000", apiKey: key }
 } satisfies HomeConfig["Service"]
 
 export const configLayer = (overrides: Partial<HomeConfig["Service"]> = {}) =>

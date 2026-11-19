@@ -29,6 +29,8 @@ export class HomeConfig extends Context.Service<HomeConfig, {
   readonly sonarr: ServiceEndpoint | null
   readonly qbittorrent: QBittorrentEndpoint | null
   readonly jellyfin: ServiceEndpoint | null
+  /** Reclaimerr's external API: a token from its Settings > Integrations, with `candidates:manage`. */
+  readonly reclaimerr: ServiceEndpoint | null
 }>()("quai-home/HomeConfig") {
   static readonly layer = Layer.effect(
     HomeConfig,
@@ -55,6 +57,7 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         radarr: yield* endpoint("RADARR"),
         sonarr: yield* endpoint("SONARR"),
         jellyfin: yield* endpoint("JELLYFIN"),
+        reclaimerr: yield* endpoint("RECLAIMERR"),
         qbittorrent: Option.isSome(qbUrl)
           ? { url: trimSlash(qbUrl.value), username: Option.getOrNull(qbUser), password: Option.getOrNull(qbPassword) }
           : null
@@ -65,6 +68,6 @@ export class HomeConfig extends Context.Service<HomeConfig, {
 
 /** The services this home can reach, in the order the protocol lists them. */
 export const configuredServices = (config: HomeConfig["Service"]): ReadonlyArray<HomeProtocol.HomeService> =>
-  (["radarr", "sonarr", "qbittorrent", "jellyfin"] as const).filter((service) => config[service] !== null)
+  (["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr"] as const).filter((service) => config[service] !== null)
 
 const trimSlash = (url: string) => url.replace(/\/+$/, "")
