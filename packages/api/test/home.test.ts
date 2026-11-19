@@ -19,3 +19,20 @@ describe("home id", () => {
     }
   })
 })
+
+describe("allowlist", () => {
+  it("lets the library reads through: Radarr's movies and disk, Sonarr's series and disk", () => {
+    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/movie" })).toBe(true)
+    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/diskspace" })).toBe(true)
+    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/series" })).toBe(true)
+    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/diskspace" })).toBe(true)
+  })
+
+  it("keeps the library read-only: no write, no single title, no other service's path", () => {
+    expect(HomeProtocol.allowed({ service: "radarr", method: "POST", path: "/api/v3/movie" })).toBe(false)
+    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/movie/12" })).toBe(false)
+    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/series" })).toBe(false)
+    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/movie" })).toBe(false)
+    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/series/3/../../config/host" })).toBe(false)
+  })
+})

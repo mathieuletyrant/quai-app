@@ -56,6 +56,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
             id: f.id,
             name: f.name,
             enabled: f.enabled,
+            subject: f.subject,
             color: f.color,
             icon: f.icon,
             steps: f.steps.map((s) => ({ id: s.id, label: s.label, icon: s.icon }))

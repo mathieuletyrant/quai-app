@@ -493,6 +493,52 @@
         }
       }
     },
+    "/api/library": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "operationId": "getLibrary",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Library",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Library"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/console-api/pairing-codes": {
       "post": {
         "tags": [
@@ -1380,6 +1426,137 @@
         ],
         "additionalProperties": false
       },
+      "Library": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryItem"
+            }
+          },
+          "disk": {
+            "$ref": "#/components/schemas/DiskSpace"
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryService"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "unavailable"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr"
+        ]
+      },
+      "DiskSpace": {
+        "type": "object",
+        "properties": {
+          "freeBytes": {
+            "type": "number"
+          },
+          "totalBytes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "freeBytes",
+          "totalBytes"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/LibraryKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/LibraryStatus"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "addedAt": {
+            "type": "number"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "episodes": {
+            "$ref": "#/components/schemas/EpisodeCount"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status",
+          "sizeBytes"
+        ],
+        "additionalProperties": false
+      },
+      "EpisodeCount": {
+        "type": "object",
+        "properties": {
+          "have": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "have",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "downloading",
+          "wanted"
+        ]
+      },
+      "LibraryKind": {
+        "type": "string",
+        "enum": [
+          "movie",
+          "series"
+        ]
+      },
       "RunningActivity": {
         "type": "object",
         "properties": {
@@ -1554,6 +1731,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "subject": {
+            "$ref": "#/components/schemas/FlowSubject"
+          },
           "color": {
             "type": "string"
           },
@@ -1571,6 +1751,7 @@
           "id",
           "name",
           "enabled",
+          "subject",
           "color",
           "icon",
           "steps"
@@ -1750,6 +1931,9 @@
     },
     {
       "name": "devices"
+    },
+    {
+      "name": "library"
     },
     {
       "name": "console"

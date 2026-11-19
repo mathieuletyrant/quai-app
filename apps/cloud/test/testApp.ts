@@ -8,16 +8,18 @@ import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
 import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
+import { LibraryHandlers } from "../src/http/LibraryHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
 import { SystemHandlers } from "../src/http/SystemHandlers.ts"
 import { Apns } from "../src/push/Apns.ts"
+import { Library } from "../src/library/Library.ts"
 import { ServerInfo } from "../src/Version.ts"
 import { cloudLive, makeFakeHome } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
+export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
-  Layer.provideMerge(TestRunner.layer),
+  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer)),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
   Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
   Layer.provideMerge(cloudLive),
