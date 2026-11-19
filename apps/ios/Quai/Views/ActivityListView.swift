@@ -4,18 +4,14 @@ import SwiftUI
 struct ActivityListView: View {
     @Environment(Connection.self) private var connection
 
-    private var subtitle: String {
-        switch connection.activities.count {
-        case 0: "Nothing in progress"
-        case 1: "1 in progress"
-        case let count: "\(count) in progress"
-        }
+    private var eyebrow: String {
+        connection.activities.isEmpty ? "Nothing live" : "\(connection.activities.count) live"
     }
 
     var body: some View {
         NavigationStack {
             Screen {
-                ScreenHeader(eyebrow: Date.now.eyebrow, title: "Activity", subtitle: subtitle)
+                TabHeader(eyebrow: eyebrow, title: "Activity")
             } content: {
                 if let error = connection.lastError {
                     MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)

@@ -14,6 +14,7 @@ import {
   HomeOfflineState,
   Icon,
   type IconName,
+  IconTile,
   MenuItem,
   MenuLabel,
   type Notice,
@@ -21,6 +22,7 @@ import {
   PageBody,
   Panel,
   Popover,
+  PosterThumb,
   Select,
   Skeleton,
   Toast
@@ -231,7 +233,12 @@ function FixRow({ fix, open, setOpen, act }: {
   return (
     <li className="flex flex-col">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
-        <span className={cx("grid size-9 shrink-0 place-items-center rounded-[10px] bg-bg", kind.color)}><Icon name={kind.icon} size={18} strokeWidth={2.1} /></span>
+        <PosterThumb
+          src={fix.posterUrl}
+          badge={kind.icon}
+          badgeClassName={kind.color}
+          fallback={<IconTile icon={kind.icon} className={kind.color} />}
+        />
         <div className="min-w-[min(100%,14rem)] flex-1">
           <p className="text-[14.5px] font-semibold [overflow-wrap:anywhere]">{fixTitle(fix)}</p>
           <p className="mt-0.5 text-[13px] text-muted [overflow-wrap:anywhere]">{fixDetail(fix)}</p>

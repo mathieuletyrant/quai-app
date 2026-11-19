@@ -10,10 +10,10 @@ extension Components.Schemas.LibraryItem {
     /// "Movie · 2024"
     var caption: String { [kindLabel, year.map { String($0) }].compactMap { $0 }.joined(separator: " · ") }
 
-    /// TMDB lists the original poster (several MB): the grid asks for a 342 px wide one.
-    var posterThumbnail: URL? { posterUrl.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/w342/")) } }
+    /// The grid's poster, 342 px wide.
+    var posterThumbnail: URL? { PosterSize.grid.url(posterUrl) }
 
-    var posterLarge: URL? { posterUrl.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/w500/")) } }
+    var posterLarge: URL? { PosterSize.large.url(posterUrl) }
 }
 
 /// What the segmented control shows.
@@ -59,7 +59,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                ScreenHeader(title: "Library", subtitle: summary)
+                TabHeader(eyebrow: summary, title: "Library")
             } content: {
                 Picker("Show", selection: $scope) {
                     ForEach(LibraryScope.allCases) { Text($0.rawValue).tag($0) }
@@ -92,12 +92,15 @@ struct LibraryView: View {
         }
     }
 
-    /// "137 titles · 759 GB free of 1.8 TB"
-    private var summary: String? {
-        guard let library = connection.library else { return loading ? "Loading…" : nil }
+    /// "137 titles · 759 GB free"; "Loading…" while it loads, "Not loaded" after a failure.
+    private var summary: String {
+        guard let library = connection.library else {
+            if loading { return "Loading…" }
+            return connection.libraryError == nil ? "" : "Not loaded"
+        }
         var parts = [library.items.count == 1 ? "1 title" : "\(library.items.count) titles"]
         if let disk = library.disk {
-            parts.append("\(Format.bytes(disk.freeBytes)) free of \(Format.bytes(disk.totalBytes))")
+            parts.append("\(Format.bytes(disk.freeBytes)) free")
         }
         return parts.joined(separator: " · ")
     }
@@ -186,41 +189,13 @@ struct PosterCell: View {
     }
 }
 
-/// A poster loaded from its public URL; the title on a plain tile until (or unless) it loads.
-struct Poster: View {
-    let url: URL?
-    let title: String
-    var cornerRadius: CGFloat = 12
-
-    var body: some View {
-        Color.clear
-            .aspectRatio(2.0 / 3.0, contentMode: .fit)
-            .background(Palette.poster)
-            .overlay {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Text(title)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Palette.tertiaryText)
-                            .multilineTextAlignment(.center)
-                            .padding(8)
-                    }
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .accessibilityHidden(true)
-    }
-}
-
-/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk.
+/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk, nor when not monitored.
 struct StatusBadge: View {
     let item: LibraryItem
 
     var body: some View {
         switch item.status {
-        case .available:
+        case .available, .notMonitored:
             EmptyView()
         case .wanted:
             Badge(text: "wanted", fill: Palette.wantedFill, color: Palette.wantedText)

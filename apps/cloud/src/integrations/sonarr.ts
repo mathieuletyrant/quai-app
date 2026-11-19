@@ -89,11 +89,16 @@ const LibrarySeries = Schema.Struct({
   title: Schema.String,
   year: Schema.optional(Schema.Number),
   tvdbId: Schema.Number,
+  tmdbId: Schema.optional(Schema.Number),
   added: Schema.optional(Schema.String),
+  monitored: Schema.optional(Schema.Boolean),
+  /** The next monitored episode's air date, when one is coming. */
+  nextAiring: Schema.optional(Schema.String),
   overview: Schema.optional(Schema.String),
   images: Schema.optional(Schema.Array(ArrImage)),
   statistics: Schema.optional(Schema.Struct({
     episodeFileCount: Schema.optional(Schema.Number),
+    /** Monitored episodes that aired, plus every episode with a file. */
     episodeCount: Schema.optional(Schema.Number),
     sizeOnDisk: Schema.optional(Schema.Number)
   }))
@@ -102,9 +107,21 @@ export const SonarrSeries = Schema.Array(LibrarySeries)
 export type SonarrSeries = typeof LibrarySeries.Type
 
 /**
- * A series as the library lists it. `episodeCount` is what Sonarr expects (monitored, aired):
- * available once every one of them has a file, wanted while some miss (or none aired yet).
+ * A series as the library lists it. `episodeCount` is Sonarr's own count: its monitored episodes
+ * that aired, plus every episode that has a file (monitored or not), 0 when none.
+ * - wanted: the series is monitored, and has no file yet (announced, nothing aired, or episodes
+ *   without an air date: Sonarr grabs them when they come) or fewer files than `episodeCount`;
+ * - available: otherwise, once some episode has its file, monitored or not;
+ * - not monitored: the series isn't monitored, and nothing is on disk.
+ * A monitored series whose episodes are all unmonitored can't be told apart from an announced one
+ * from these statistics: it shows as wanted.
  */
+const seriesStatus = (series: SonarrSeries, have: number, total: number): LibraryItem["status"] => {
+  const monitored = series.monitored !== false
+  if (monitored && (have === 0 || have < total)) return "wanted"
+  return have > 0 ? "available" : "notMonitored"
+}
+
 export const librarySeries = (series: SonarrSeries): LibraryItem => {
   const year = knownYear(series.year)
   const posterUrl = posterOf(series.images)
@@ -117,7 +134,7 @@ export const librarySeries = (series: SonarrSeries): LibraryItem => {
     title: series.title,
     ...(year === undefined ? {} : { year }),
     ...(posterUrl === undefined ? {} : { posterUrl }),
-    status: (total > 0 ? have >= total : have > 0) ? "available" : "wanted",
+    status: seriesStatus(series, have, total),
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: series.statistics?.sizeOnDisk ?? 0,
     ...(series.overview === undefined || series.overview === "" ? {} : { overview: series.overview }),

@@ -321,6 +321,61 @@ export function StatusDot({ tone, pulse }: { tone: Tone; pulse?: boolean }) {
   )
 }
 
+/** A glyph on a dark rounded square: what a row is about, when it has no picture. */
+export function IconTile({ icon, className }: { icon: IconName; className?: string }) {
+  return (
+    <span className={cx("grid size-9 shrink-0 place-items-center rounded-[10px] bg-bg", className)}>
+      <Icon name={icon} size={18} strokeWidth={2.1} />
+    </span>
+  )
+}
+
+/** TMDB lists the original poster (several MB): a thumbnail asks for a 185 px wide one. */
+export const posterThumbnail = (url: string) => url.replace("/t/p/original/", "/t/p/w185/")
+
+/**
+ * A 2:3 poster thumbnail with a glyph badge on its corner. `fallback` shows while it loads,
+ * when it fails, and when there is no poster.
+ */
+export function PosterThumb(props: {
+  src: string | undefined
+  badge?: IconName
+  badgeClassName?: string
+  fallback: ReactNode
+}) {
+  if (props.src === undefined) return <>{props.fallback}</>
+  // Keyed by its URL: another poster starts over with its own load state.
+  return <LoadedPoster key={props.src} {...props} src={props.src} />
+}
+
+function LoadedPoster({ src, badge, badgeClassName, fallback }: {
+  src: string
+  badge?: IconName
+  badgeClassName?: string
+  fallback: ReactNode
+}) {
+  const [state, setState] = useState<"loading" | "loaded" | "failed">("loading")
+  if (state === "failed") return <>{fallback}</>
+  return (
+    <span className="relative inline-block shrink-0">
+      {state === "loading" && <span className="absolute inset-0">{fallback}</span>}
+      <img
+        src={posterThumbnail(src)}
+        alt=""
+        loading="lazy"
+        onLoad={() => setState("loaded")}
+        onError={() => setState("failed")}
+        className={cx("block h-[60px] w-10 rounded-lg bg-bg object-cover", state === "loading" && "invisible")}
+      />
+      {badge !== undefined && state === "loaded" && (
+        <span className={cx("absolute -right-1.5 -bottom-1.5 grid size-5 place-items-center rounded-full bg-bg ring-2 ring-panel", badgeClassName)}>
+          <Icon name={badge} size={11} strokeWidth={2.4} />
+        </span>
+      )}
+    </span>
+  )
+}
+
 /** A status in words, coloured: "● Configured". */
 export function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
   const text = { neutral: "text-muted", accent: "text-accent", ok: "text-ok", warn: "text-warn", danger: "text-danger-text", info: "text-info-text" }[tone]

@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The tabs of the floating tab bar. Settings opens from the Home header.
+/// The tabs of the floating tab bar.
 enum AppTab: Hashable {
-    case home, library, activity
+    case home, library, activity, settings
 }
 
 @main
@@ -20,6 +20,7 @@ struct QuaiApp: App {
                         Tab("Home", systemImage: "house.fill", value: AppTab.home) { HomeView(tab: $tab) }
                         Tab("Library", systemImage: "film.stack", value: AppTab.library) { LibraryView() }
                         Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityListView() }
+                        Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
                     }
                 } else {
                     PairingView(link: $pendingLink)

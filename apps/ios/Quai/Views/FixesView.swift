@@ -94,8 +94,7 @@ struct FixesView: View {
     private var summary: String? {
         guard let fixes = connection.fixes else { return nil }
         if fixes.items.isEmpty { return "Nothing to fix" }
-        let count = fixes.items.count == 1 ? "1 point" : "\(fixes.items.count) points"
-        return "\(count) · each settled in one tap"
+        return "\(fixes.items.count) to fix · each settled in one tap"
     }
 
     var body: some View {
@@ -199,7 +198,26 @@ enum FixCardAction {
     case snooze(days: Int?)
 }
 
-/// One problem: its symbol, what's wrong, and its buttons (the main one in the accent).
+/// The title's poster with the kind's symbol on its corner; the symbol alone without a poster.
+struct FixPoster: View {
+    let fix: Fix
+    var width: CGFloat = 52
+    var fallbackSize: CGFloat = 34
+
+    /// A thumbnail too small for a badge goes without.
+    private var badge: (systemImage: String, color: Color)? {
+        guard width >= 40 else { return nil }
+        return (systemImage: fix.symbol.name, color: fix.symbol.color)
+    }
+
+    var body: some View {
+        PosterThumbnail(url: PosterSize.small.url(fix.posterUrl), width: width, cornerRadius: width * 0.2, badge: badge) {
+            SymbolSquare(systemImage: fix.symbol.name, color: fix.symbol.color, size: fallbackSize)
+        }
+    }
+}
+
+/// One problem: its poster, what's wrong, and its buttons (the main one in the accent).
 private struct FixCard: View {
     let fix: Fix
     let busy: Bool
@@ -208,11 +226,7 @@ private struct FixCard: View {
     var body: some View {
         Card(spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: fix.symbol.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(fix.symbol.color)
-                    .frame(width: 34, height: 34)
-                    .background(Color.black, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                FixPoster(fix: fix)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(fix.headline)
                         .font(.system(size: 16, weight: .semibold))
