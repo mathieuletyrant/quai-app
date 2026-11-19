@@ -3,6 +3,7 @@ import { Clock, Context, Effect, Layer, Queue, Ref, Schema, Semaphore } from "ef
 import { Socket } from "effect/socket"
 import { Calls } from "./Calls.ts"
 import { RelayConfig, configuredServices } from "./Config.ts"
+import type { StoreError } from "./Errors.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
 import { relayVersion } from "./Version.ts"
@@ -62,13 +63,14 @@ export class Link extends Context.Service<Link, {
 
       const runStore = (request: StoreRequest): Effect.Effect<RelayMessage> => {
         const done = RelayProtocol.StoreDone.make({ id: request.id })
-        const operation = request._tag === "StoreList"
+        const operation: Effect.Effect<RelayMessage, StoreError> = request._tag === "StoreList"
           ? Effect.map(store.list(request.prefix), (documents) => RelayProtocol.StoreDocuments.make({ id: request.id, documents }))
           : request._tag === "StorePut"
           ? Effect.as(store.put(request.key, request.value), done)
           : Effect.as(store.delete(request.key), done)
-        return Effect.catchTag(operation, "StoreError", (error) =>
-          Effect.succeed(RelayProtocol.Failed.make({ id: request.id, reason: error.message })))
+        return operation.pipe(
+          Effect.catchTag("StoreError", (error) => Effect.succeed(RelayProtocol.Failed.make({ id: request.id, reason: error.message })))
+        )
       }
 
       const connection = Effect.gen(function*() {

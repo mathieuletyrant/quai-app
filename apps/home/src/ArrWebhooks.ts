@@ -1,9 +1,10 @@
 import { Effect, Layer, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
-import { AgentConfig } from "./Config.ts"
+import { RelayConfig } from "./Config.ts"
 import { ServiceError } from "./Errors.ts"
+import { HomeKey } from "./HomeKey.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
-import { webhookToken, webhookUrl } from "./Webhooks.ts"
+import { webhookUrl } from "./Webhooks.ts"
 
 const Notifications = Schema.Array(Schema.Struct({
   id: Schema.Number,
@@ -31,8 +32,8 @@ export const webhookBody = (service: "radarr" | "sonarr", url: string) => ({
 })
 
 /**
- * Makes sure Radarr or Sonarr calls the agent: creates the webhook, or points the existing one at
- * `url`. The agent's own write to the stack, outside the cloud's allowlist.
+ * Makes sure Radarr or Sonarr calls the Relay: creates the webhook, or points the existing one at
+ * `url`. The Relay's own write to the stack, outside the Core's allowlist.
  */
 export const ensureWebhook = (service: "radarr" | "sonarr", url: string) =>
   Effect.gen(function*() {
@@ -57,17 +58,17 @@ export const ensureWebhook = (service: "radarr" | "sonarr", url: string) =>
   }).pipe(Effect.mapError((cause) => new ServiceError({ service, message: "could not set up the webhook", cause })))
 
 /**
- * On start, makes sure Radarr and Sonarr post their webhooks to the agent. A service that doesn't
+ * On start, makes sure Radarr and Sonarr post their webhooks to the Relay. A service that doesn't
  * answer is logged and skipped: the next start tries again.
  */
 export const WebhookSetupLive = Layer.effectDiscard(
   Effect.gen(function*() {
-    const config = yield* AgentConfig
+    const config = yield* RelayConfig
+    const { webhookToken: token } = yield* HomeKey
     if (config.internalUrl === null) {
       yield* Effect.logInfo("QUAI_INTERNAL_URL not set: not setting up the Radarr and Sonarr webhooks")
       return
     }
-    const token = webhookToken(config.token)
     for (const service of ["radarr", "sonarr"] as const) {
       if (config[service] === null) continue
       yield* ensureWebhook(service, webhookUrl(config.internalUrl, service, token)).pipe(
