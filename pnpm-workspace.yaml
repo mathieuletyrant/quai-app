@@ -1,6 +1,6 @@
 packages:
   - packages/*
-  - apps/agent
+  - apps/relay
   - apps/server
   - apps/console
 

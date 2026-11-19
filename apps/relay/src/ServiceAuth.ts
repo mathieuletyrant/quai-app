@@ -1,15 +1,15 @@
-import type { AgentProtocol } from "@quai/api"
+import type { RelayProtocol } from "@quai/api"
 import { Clock, Context, Effect, Layer, Redacted, Ref } from "effect"
 import { HttpClient, HttpClientRequest, type HttpClientResponse } from "effect/http"
-import { AgentConfig, configuredServices, type QBittorrentEndpoint } from "./Config.ts"
+import { RelayConfig, configuredServices, type QBittorrentEndpoint } from "./Config.ts"
 import { ServiceError } from "./Errors.ts"
 
-type AgentService = AgentProtocol.AgentService
+type RelayService = RelayProtocol.RelayService
 
 /**
  * After failed logins, wait before trying again: 30 s, 1 min, 2 min, then every 5 min.
  * qBittorrent bans an address after 5 failures in a row; this keeps well under that pace.
- * A right password never waits, and changing it restarts the agent, which starts over.
+ * A right password never waits, and changing it restarts the Relay, which starts over.
  */
 export const loginBackoffMs = (failures: number) => Math.min(30_000 * 2 ** (failures - 1), 5 * 60_000)
 
@@ -27,29 +27,29 @@ export const sessionCookie = (header: string | ReadonlyArray<string> | undefined
 }
 
 /**
- * Sends requests to the services with their credentials. The keys stay here: the cloud only
+ * Sends requests to the services with their credentials. The keys stay here: the Core only
  * names a service and a path.
  */
 export class ServiceAuth extends Context.Service<ServiceAuth, {
   /** The services with a URL (and key where needed). */
-  readonly configured: ReadonlyArray<AgentService>
+  readonly configured: ReadonlyArray<RelayService>
   /**
    * Sends `request`, whose URL is a path on the service (query included), with the service's
    * credentials. qBittorrent: a 403 logs in (with backoff) and retries once.
    */
   readonly execute: (
-    service: AgentService,
+    service: RelayService,
     request: HttpClientRequest.HttpClientRequest
   ) => Effect.Effect<HttpClientResponse.HttpClientResponse, ServiceError>
-}>()("quai-agent/ServiceAuth") {
+}>()("quai-relay/ServiceAuth") {
   static readonly layer = Layer.effect(
     ServiceAuth,
     Effect.gen(function*() {
-      const config = yield* AgentConfig
+      const config = yield* RelayConfig
       const client = yield* HttpClient.HttpClient
       const qbittorrent = config.qbittorrent === null ? null : yield* qbittorrentSession(client, config.qbittorrent)
 
-      const send = (service: AgentService, request: HttpClientRequest.HttpClientRequest) =>
+      const send = (service: RelayService, request: HttpClientRequest.HttpClientRequest) =>
         client.execute(request).pipe(
           Effect.mapError((cause) => new ServiceError({ service, message: "unreachable", cause }))
         )
