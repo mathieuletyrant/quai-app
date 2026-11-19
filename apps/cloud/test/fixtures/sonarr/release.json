@@ -175,10 +175,10 @@
     "guid": "https://eztv.example/3",
     "quality": {
       "quality": {
-        "id": 3,
-        "name": "WEBDL-1080p",
+        "id": 5,
+        "name": "WEBDL-720p",
         "source": "web",
-        "resolution": 1080
+        "resolution": 720
       },
       "revision": {
         "version": 1,
