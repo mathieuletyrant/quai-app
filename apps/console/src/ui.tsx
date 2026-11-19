@@ -153,7 +153,7 @@ export function PageBar({ title, subtitle, children }: { title: ReactNode; subti
 
 /** A page's content, under its bar. */
 export function PageBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx("mx-auto flex w-full max-w-[1120px] flex-col gap-6 px-4 py-6 md:px-8 md:py-8", className)}>{children}</div>
+  return <div className={cx("flex w-full max-w-[1120px] flex-col gap-6 px-4 py-6 md:px-8 md:py-8", className)}>{children}</div>
 }
 
 /** A surface on the page, with an optional header. */
