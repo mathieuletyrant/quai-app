@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// Settings, opened from the Home header: this iPhone's Live Activities, the connection, disconnecting.
+/// The Settings tab: this iPhone's Live Activities, the connection, disconnecting.
 struct SettingsView: View {
     @Environment(Connection.self) private var connection
-    @Environment(\.dismiss) private var dismiss
     @State private var confirmDisconnect = false
 
     private var host: String { connection.serverURL?.host() ?? connection.serverURL?.absoluteString ?? "—" }
@@ -23,9 +22,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                ScreenHeader(title: "Settings") {
-                    GlassIconButton(systemImage: "xmark", label: "Close") { dismiss() }
-                }
+                TabHeader(eyebrow: connection.lastError == nil ? "Connected · \(host)" : "Not reachable · \(host)", title: "Settings")
             } content: {
                 VStack(alignment: .leading, spacing: 18) {
                     GroupedSection {
@@ -89,12 +86,8 @@ struct SettingsView: View {
                 }
             }
             .confirmationDialog("Disconnect from the server?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
-                Button("Disconnect", role: .destructive) {
-                    dismiss()
-                    connection.disconnect()
-                }
+                Button("Disconnect", role: .destructive) { connection.disconnect() }
             }
         }
-        .presentationBackground(Palette.background)
     }
 }

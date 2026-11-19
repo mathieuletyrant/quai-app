@@ -52,16 +52,13 @@ extension RunningActivity {
 struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
-    @State private var showSettings = false
 
     private var tonight: Tonight { Tonight(connection.activities, subjects: connection.flowSubjects) }
 
     var body: some View {
         NavigationStack {
             Screen {
-                ScreenHeader(eyebrow: Date.now.eyebrow, title: "Tonight") {
-                    GlassIconButton(systemImage: "gearshape", label: "Settings") { showSettings = true }
-                }
+                TabHeader(eyebrow: Date.now.eyebrow, title: "Tonight")
             } content: {
                 if let error = connection.lastError {
                     MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
@@ -86,7 +83,6 @@ struct HomeView: View {
                 }
             }
         }
-        .sheet(isPresented: $showSettings) { SettingsView() }
     }
 
     @ViewBuilder private func tiles(_ tonight: Tonight) -> some View {
