@@ -3,7 +3,7 @@ import { ConsoleGroup, DevicesGroup, FlowsGroup, PushGroup } from "./Devices.ts"
 import { SystemGroup } from "./System.ts"
 
 export * from "./Activity.ts"
-export * as AgentProtocol from "./Agent.ts"
+export * as RelayProtocol from "./Relay.ts"
 export * from "./Devices.ts"
 export * from "./Catalog.ts"
 export * from "./System.ts"
