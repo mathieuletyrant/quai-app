@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/mathieuletyrant/quai-app/compare/v0.7.0...v0.8.0) (2026-11-19)
+
+
+### ✨ Features
+
+* To fix — blocked imports, no source, scheduled deletions ([#24](https://github.com/mathieuletyrant/quai-app/issues/24)) ([f37699a](https://github.com/mathieuletyrant/quai-app/commit/f37699a517c5da6622115ae8957075ee8cd63ac5))
+
 ## [0.7.0](https://github.com/mathieuletyrant/quai-app/compare/v0.6.0...v0.7.0) (2026-11-19)
 
 
