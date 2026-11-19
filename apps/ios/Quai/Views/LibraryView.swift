@@ -1,0 +1,231 @@
+import SwiftUI
+
+typealias LibraryItem = Components.Schemas.LibraryItem
+
+extension Components.Schemas.LibraryItem: Identifiable {}
+
+extension Components.Schemas.LibraryItem {
+    var kindLabel: String { kind == .movie ? "Movie" : "Series" }
+
+    /// "Movie · 2024"
+    var caption: String { [kindLabel, year.map { String($0) }].compactMap { $0 }.joined(separator: " · ") }
+
+    /// TMDB lists the original poster (several MB): the grid asks for a 342 px wide one.
+    var posterThumbnail: URL? { posterUrl.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/w342/")) } }
+
+    var posterLarge: URL? { posterUrl.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/w500/")) } }
+}
+
+/// What the segmented control shows.
+enum LibraryScope: String, CaseIterable, Identifiable {
+    case all = "All", movies = "Movies", series = "Series"
+    var id: Self { self }
+
+    func includes(_ item: LibraryItem) -> Bool {
+        switch self {
+        case .all: true
+        case .movies: item.kind == .movie
+        case .series: item.kind == .series
+        }
+    }
+}
+
+/// The chips under it: everything newest first, or only what's missing or downloading.
+enum LibraryFilter: Hashable {
+    case recent, wanted, downloading
+
+    func includes(_ item: LibraryItem) -> Bool {
+        switch self {
+        case .recent: true
+        case .wanted: item.status == .wanted
+        case .downloading: item.status == .downloading
+        }
+    }
+}
+
+/// The Library tab: the home's movies and series, as posters.
+struct LibraryView: View {
+    @Environment(Connection.self) private var connection
+    @State private var scope = LibraryScope.all
+    @State private var filter = LibraryFilter.recent
+    @State private var selected: LibraryItem?
+    @State private var loading = false
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 3)
+
+    private var inScope: [LibraryItem] { (connection.library?.items ?? []).filter(scope.includes) }
+    private var shown: [LibraryItem] { inScope.filter(filter.includes) }
+
+    var body: some View {
+        NavigationStack {
+            Screen {
+                ScreenHeader(title: "Library", subtitle: summary)
+            } content: {
+                Picker("Show", selection: $scope) {
+                    ForEach(LibraryScope.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                chips
+                if let error = connection.libraryError {
+                    MessageTile(title: "Can't load the library", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
+                }
+                if let unavailable = connection.library?.unavailable, !unavailable.isEmpty {
+                    Text(unavailableNote(unavailable))
+                        .font(QuaiFont.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .padding(.horizontal, 4)
+                }
+                grid
+            }
+            .refreshable { await connection.loadLibrary() }
+            .task {
+                guard connection.library == nil else { return }
+                loading = true
+                await connection.loadLibrary()
+                loading = false
+            }
+        }
+        .sheet(item: $selected) { item in
+            TitleDetailView(item: item)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    /// "137 titles · 759 GB free of 1.8 TB"
+    private var summary: String? {
+        guard let library = connection.library else { return loading ? "Loading…" : nil }
+        var parts = [library.items.count == 1 ? "1 title" : "\(library.items.count) titles"]
+        if let disk = library.disk {
+            parts.append("\(Format.bytes(disk.freeBytes)) free of \(Format.bytes(disk.totalBytes))")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private func unavailableNote(_ services: [Components.Schemas.LibraryService]) -> String {
+        let names = services.map { $0 == .radarr ? "Radarr" : "Sonarr" }.joined(separator: " and ")
+        return "\(names) didn't answer: \(services.count == 1 ? "its" : "their") titles are missing. Pull to try again."
+    }
+
+    private var chips: some View {
+        let wanted = inScope.filter { $0.status == .wanted }.count
+        let downloading = inScope.filter { $0.status == .downloading }.count
+        return ScrollView(.horizontal) {
+            HStack(spacing: 8) {
+                Chip(title: "Recent", selected: filter == .recent) { filter = .recent }
+                if downloading > 0 || filter == .downloading {
+                    Chip(title: "Downloading · \(downloading)", selected: filter == .downloading) { filter = .downloading }
+                }
+                Chip(title: "Wanted · \(wanted)", selected: filter == .wanted) { filter = .wanted }
+            }
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    @ViewBuilder private var grid: some View {
+        if connection.library != nil && shown.isEmpty {
+            MessageTile(
+                title: filter == .recent ? "Nothing here yet" : "Nothing to show",
+                message: filter == .recent
+                    ? "Movies from Radarr and series from Sonarr show up here."
+                    : "No title matches this filter.",
+                systemImage: "film.stack",
+                color: Palette.accent
+            )
+        } else if connection.library == nil && loading {
+            ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
+        } else {
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                ForEach(shown) { item in
+                    Button { selected = item } label: { PosterCell(item: item) }
+                        .buttonStyle(.plain)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+}
+
+private struct Chip: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(QuaiFont.eyebrow)
+                .padding(.horizontal, 12)
+                .frame(height: 34)
+                .foregroundStyle(selected ? Palette.accent : Color(hex: "#D1D1D6"))
+                .overlay(Capsule().strokeBorder(selected ? Palette.accent : Color.white.opacity(0.12), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// One poster of the grid, 2:3, with its title and caption under it.
+struct PosterCell: View {
+    let item: LibraryItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Poster(url: item.posterThumbnail, title: item.title, cornerRadius: 12)
+                .overlay(alignment: .topTrailing) { StatusBadge(item: item).padding(6) }
+            Text(item.title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Palette.primaryText)
+                .lineLimit(1)
+            Text(item.caption)
+                .font(.system(size: 11))
+                .foregroundStyle(Palette.tertiaryText)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A poster loaded from its public URL; the title on a plain tile until (or unless) it loads.
+struct Poster: View {
+    let url: URL?
+    let title: String
+    var cornerRadius: CGFloat = 12
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .background(Palette.poster)
+            .overlay {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Text(title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Palette.tertiaryText)
+                            .multilineTextAlignment(.center)
+                            .padding(8)
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
+/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk.
+struct StatusBadge: View {
+    let item: LibraryItem
+
+    var body: some View {
+        switch item.status {
+        case .available:
+            EmptyView()
+        case .wanted:
+            Badge(text: "wanted", fill: Palette.wantedFill, color: Palette.wantedText)
+        case .downloading:
+            Badge(text: item.progress.map(Format.percent) ?? "downloading", fill: Color(hex: "#3A3220"), color: Palette.downloads)
+        }
+    }
+}

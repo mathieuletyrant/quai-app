@@ -25,7 +25,13 @@ enum ConnectionError: LocalizedError {
 final class Connection {
     private(set) var serverURL: URL?
     private(set) var activities: [Components.Schemas.RunningActivity] = []
+    /// What each flow's activities follow, by flow id: the Home groups activities by it.
+    private(set) var flowSubjects: [String: Components.Schemas.FlowSubject] = [:]
+    /// The last error of the activities' refresh (the Home and Activity tabs show it).
     private(set) var lastError: String?
+    /// The home's movies and series, once loaded.
+    private(set) var library: Components.Schemas.Library?
+    private(set) var libraryError: String?
     private var session: ServerSession?
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
@@ -80,6 +86,9 @@ final class Connection {
         session = nil
         serverURL = nil
         activities = []
+        flowSubjects = [:]
+        library = nil
+        libraryError = nil
     }
 
     // MARK: Preferences
@@ -123,6 +132,7 @@ final class Connection {
             case let .ok(ok):
                 activities = try ok.body.json
                 lastError = nil
+                await learnSubjects()
             case .unauthorized:
                 lastError = "This iPhone was removed from the console. Pair it again."
             case .serviceUnavailable:
@@ -132,6 +142,38 @@ final class Connection {
             }
         } catch {
             lastError = error.localizedDescription
+        }
+    }
+
+    /// A flow seen for the first time (a new custom one, or the first refresh): learn what it follows.
+    private func learnSubjects() async {
+        guard activities.contains(where: { flowSubjects[$0.attributes.flowId] == nil }),
+              let all = try? await flows()
+        else { return }
+        flowSubjects = Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    // MARK: Library
+
+    func loadLibrary() async {
+        guard let client = await authenticatedClient() else {
+            libraryError = ConnectionError.unreachable.localizedDescription
+            return
+        }
+        do {
+            switch try await client.getLibrary() {
+            case let .ok(ok):
+                library = try ok.body.json
+                libraryError = nil
+            case .unauthorized:
+                libraryError = "This iPhone was removed from the console. Pair it again."
+            case .serviceUnavailable:
+                libraryError = ConnectionError.homeOffline.localizedDescription
+            case let .undocumented(statusCode, _):
+                libraryError = ConnectionError.server(statusCode).localizedDescription
+            }
+        } catch {
+            libraryError = error.localizedDescription
         }
     }
 

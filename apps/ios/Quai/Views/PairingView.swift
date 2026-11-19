@@ -10,45 +10,76 @@ struct PairingView: View {
     @State private var error: String?
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Connect to your Quai server").font(.title2.bold())
-                        Text("In Quai's console, open **iPhones** and show a QR code. Scan it with the Camera app: it opens Quai and fills this in.")
-                            .foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("PAIR THIS IPHONE")
+                        .font(QuaiFont.eyebrow)
+                        .foregroundStyle(Palette.accent)
+                    Text("Connect the app to your Quai server")
+                        .font(.system(size: 30, weight: .bold))
+                        .tracking(-0.4)
+                        .foregroundStyle(Palette.primaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("In Quai's console, open **iPhones** and show a QR code. Scan it with the Camera app: it opens Quai and fills this in.")
+                        .font(QuaiFont.subheadline)
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                ScanHint()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Field(label: "Or type the server address") {
+                        TextField("Server address", text: $address, prompt: Text(verbatim: "http://umbrel.local:3078"))
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
                     }
-                    .padding(.vertical, 4)
+                    Field(label: "Code") {
+                        TextField("Code", text: $code, prompt: Text(verbatim: "ABCD2345"))
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                            .font(.body.monospaced())
+                    }
+                    Field(label: "This iPhone's name in the console") {
+                        TextField("Name in the console", text: $name)
+                    }
                 }
-                Section("Or type it") {
-                    TextField("Server address", text: $address, prompt: Text(verbatim: "http://umbrel.local:3078"))
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField("Code", text: $code, prompt: Text(verbatim: "ABCD2345"))
-                        .textInputAutocapitalization(.characters)
-                        .autocorrectionDisabled()
-                        .font(.body.monospaced())
-                }
-                Section("This iPhone") {
-                    TextField("Name in the console", text: $name)
-                }
-                Section {
+
+                VStack(spacing: 10) {
                     Button {
                         Task { await submit() }
                     } label: {
-                        HStack {
+                        HStack(spacing: 8) {
+                            if busy { ProgressView().tint(Palette.onAccent) }
                             Text("Connect")
-                            if busy { Spacer(); ProgressView() }
                         }
                     }
+                    .buttonStyle(PillButtonStyle())
                     .disabled(busy || code.isEmpty || address.isEmpty)
-                } footer: {
-                    if let error { Text(error).foregroundStyle(.red) }
+                    .opacity(busy || code.isEmpty || address.isEmpty ? 0.5 : 1)
+
+                    if let error {
+                        Text(error)
+                            .font(QuaiFont.caption)
+                            .foregroundStyle(Palette.incident)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Then allow Live Activities when iOS asks.")
+                            .font(QuaiFont.caption)
+                            .foregroundStyle(Palette.secondaryText)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
-            .navigationTitle("Quai")
+            .padding(.horizontal, 24)
+            .padding(.top, 48)
+            .padding(.bottom, 32)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Palette.background.ignoresSafeArea())
         .onChange(of: link, initial: true) { _, link in
             guard let link else { return }
             code = link.code
@@ -67,6 +98,40 @@ struct PairingView: View {
             error = nil
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+}
+
+/// The console's QR code, as a reminder: the Camera app reads it and opens Quai.
+private struct ScanHint: View {
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color(hex: "#16161C"))
+            Image(systemName: "qrcode.viewfinder")
+                .font(.system(size: 72, weight: .regular))
+                .foregroundStyle(Palette.accent)
+        }
+        .frame(height: 200)
+        .accessibilityElement()
+        .accessibilityLabel("Scan the console's QR code with the Camera app")
+    }
+}
+
+/// A labelled text field on Quai's dark surface.
+private struct Field<Content: View>: View {
+    let label: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(label).font(QuaiFont.eyebrow).foregroundStyle(Palette.secondaryText)
+            content
+                .font(QuaiFont.body)
+                .foregroundStyle(Palette.primaryText)
+                .padding(.horizontal, 14)
+                .frame(height: 50)
+                .background(Color(hex: "#16161C"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
         }
     }
 }

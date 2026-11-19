@@ -1,18 +1,25 @@
 import SwiftUI
 
+/// The tabs of the floating tab bar. Settings opens from the Home header.
+enum AppTab: Hashable {
+    case home, library, activity
+}
+
 @main
 struct QuaiApp: App {
     @State private var connection = Connection()
     @State private var pendingLink: PairingLink?
+    @State private var tab = AppTab.home
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             Group {
                 if connection.isPaired {
-                    TabView {
-                        Tab("Activity", systemImage: "dot.radiowaves.left.and.right") { ActivityListView() }
-                        Tab("Settings", systemImage: "gearshape") { SettingsView() }
+                    TabView(selection: $tab) {
+                        Tab("Home", systemImage: "house.fill", value: AppTab.home) { HomeView(tab: $tab) }
+                        Tab("Library", systemImage: "film.stack", value: AppTab.library) { LibraryView() }
+                        Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityListView() }
                     }
                 } else {
                     PairingView(link: $pendingLink)
