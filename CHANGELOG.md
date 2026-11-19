@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/mathieuletyrant/quai-app/compare/v0.8.0...v0.9.0) (2026-11-19)
+
+
+### ✨ Features
+
+* access headers for a reverse proxy in front of Quai Cloud ([#27](https://github.com/mathieuletyrant/quai-app/issues/27)) ([fa954ca](https://github.com/mathieuletyrant/quai-app/commit/fa954ca3180127f6edbded827dd4990ed3674096))
+
 ## [0.8.0](https://github.com/mathieuletyrant/quai-app/compare/v0.7.0...v0.8.0) (2026-11-19)
 
 
