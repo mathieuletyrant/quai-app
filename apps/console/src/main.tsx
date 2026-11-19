@@ -1,7 +1,8 @@
 import type { Health } from "@quai/api"
 import { StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
-import { call, type HomeStatus, probeHome, useHome, useHomeProbe } from "./client.ts"
+import { call, type HomeStatus, probeHome, useFixCount, useFixCountProbe, useHome, useHomeProbe } from "./client.ts"
+import { FixesPage } from "./pages/Fixes.tsx"
 import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
@@ -10,6 +11,7 @@ import "./styles.css"
 
 const pages = {
   iphones: { label: "iPhones", icon: "phone", render: () => <IphonesPage /> },
+  fixes: { label: "To fix", icon: "wrench", render: () => <FixesPage /> },
   flows: { label: "Flows", icon: "flows", render: () => <FlowsPage /> },
   settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> }
 } as const satisfies Record<string, { label: string; icon: IconName; render: () => React.ReactNode }>
@@ -27,6 +29,7 @@ const homeLabel: Record<HomeStatus, { readonly tone: Tone; readonly text: string
 }
 
 function NavLink({ page, current }: { page: Page; current: boolean }) {
+  const fixes = useFixCount()
   return (
     <a
       href={`#${page}`}
@@ -38,6 +41,9 @@ function NavLink({ page, current }: { page: Page; current: boolean }) {
     >
       <Icon name={pages[page].icon} size={17} className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"} />
       {pages[page].label}
+      {page === "fixes" && fixes !== null && fixes > 0 && (
+        <span className="ml-auto rounded-md bg-fix-soft px-1.5 py-0.5 text-[11.5px] font-semibold text-fix-text tabular-nums">{fixes}</span>
+      )}
     </a>
   )
 }
@@ -104,6 +110,7 @@ function App() {
   const [cloudDown, setCloudDown] = useState(false)
   const { status } = useHome()
   useHomeProbe()
+  useFixCountProbe()
 
   useEffect(() => {
     const onHash = () => setPage(fromHash())

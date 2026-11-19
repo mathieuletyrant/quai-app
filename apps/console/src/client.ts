@@ -60,3 +60,32 @@ export const useHomeProbe = () => {
     }
   }, [status])
 }
+
+/**
+ * How many problems the To fix list has, for the sidebar's badge: read when the console opens,
+ * every few minutes, and set by the To fix page each time it reads the list.
+ */
+let fixCount: number | null = null
+const fixListeners = new Set<() => void>()
+export const setFixCount = (count: number | null) => {
+  if (fixCount === count) return
+  fixCount = count
+  fixListeners.forEach((l) => l())
+}
+export const useFixCount = () =>
+  useSyncExternalStore((l) => {
+    fixListeners.add(l)
+    return () => { fixListeners.delete(l) }
+  }, () => fixCount)
+
+/** Keeps the badge's count fresh while the console is open. */
+export const useFixCountProbe = () => {
+  const { status, epoch } = useHome()
+  useEffect(() => {
+    if (status !== "online") return
+    const load = () => void call((c) => c.consoleFixes.list()).then((list) => setFixCount(list.items.length), () => undefined)
+    load()
+    const timer = setInterval(load, 5 * 60_000)
+    return () => clearInterval(timer)
+  }, [status, epoch])
+}
