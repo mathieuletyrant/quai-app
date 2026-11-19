@@ -1,4 +1,4 @@
-# Quai — spec v2: a thin agent at home, the logic hosted
+# Quai — spec v2: Quai Relay at home, Quai Core hosted
 
 Nov 19, 2026 · Mathieu Le Tyrant
 
@@ -48,6 +48,33 @@ Quai's own key, the console, and the API the app uses. Each home is a tenant.
 
 **The app** talks only to the cloud: one fixed URL, signed in, reachable everywhere. Pairing
 becomes linking a home to an account.
+
+## Names and roles
+
+- **Quai Relay** runs at home, next to the services. It holds their keys, sets up their webhooks,
+  polls what the Core asks it to watch, and forwards what comes in. It knows nothing about Live
+  Activities.
+- **Quai Core** is the brain: integrations (what an event means), flows, the engine, the console,
+  pushes, accounts and the app's API. We host it; it's open source like the Relay.
+
+### Polling at home, meaning in the Core
+
+The Core sends the Relay **watches**: a service, an allowlisted path and a period ("qBittorrent
+`/api/v2/torrents/info?hashes=…` every 15 s", "Jellyfin `/Sessions` every 15 s while a playback
+flow is on"). The Relay polls on the LAN and forwards a snapshot only when it changed. The Core
+replaces the watch list whenever what its flows need changes. One-off calls (a Play/Pause button)
+stay request/response.
+
+So a new flow or a fix in how an event is read ships from the Core alone; the Relay changes only
+for a new service or a new allowlisted endpoint.
+
+### Self-hosting
+
+The Relay and the Core are two images; a compose file runs both on one machine for those who
+want everything at home. It's the same code, not a second mode. Apple only accepts pushes to the
+App Store app signed with Quai's key, so a self-hosted Core sends its pushes through a small push
+gateway we host, which sees only the notification itself; or it brings its own APNs key and its
+own build of the app.
 
 ## Open source
 
@@ -117,4 +144,5 @@ v1 keeps working for me until step 4 ships; then the Umbrel app switches to the 
 | Hosting of the cloud | A small Node server (VPS or Fly.io) | Runs today's Effect code almost as is; cheap; Cloudflare would mean rewriting for its runtime |
 | Accounts | Sign in with Apple, for the app and the console | One tap on iPhone, no passwords, no email to send |
 | How dumb the agent is | Allowlisted proxy | The agent almost never changes; every fix and flow ships from the cloud |
-| Self-hosted all-in-one | Dropped | One architecture to build and test; the cloud stays open source and self-hostable |
+| Self-hosted all-in-one | Relay + Core in one compose, pushes through our gateway | Same code as hosted, no second mode to maintain |
+| Polling | In the Relay, driven by the Core's watches | Polling stays on the LAN; what it means stays in the Core |
