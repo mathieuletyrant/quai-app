@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/mathieuletyrant/quai-app/compare/v0.9.0...v0.10.0) (2026-11-19)
+
+
+### ✨ Features
+
+* posters on To fix, settings tab, unmonitored titles ([#31](https://github.com/mathieuletyrant/quai-app/issues/31)) ([e45edb6](https://github.com/mathieuletyrant/quai-app/commit/e45edb6c270b27adfce6cfdae599dfdd7031d69a))
+
+
+### 🐛 Fixes
+
+* **console:** open the pairing link in Quai when the console is on the iPhone ([#29](https://github.com/mathieuletyrant/quai-app/issues/29)) ([4ca0354](https://github.com/mathieuletyrant/quai-app/commit/4ca03548d4e5c5c6f52f36db9dc6cea6015b9a83))
+
 ## [0.9.0](https://github.com/mathieuletyrant/quai-app/compare/v0.8.0...v0.9.0) (2026-11-19)
 
 
