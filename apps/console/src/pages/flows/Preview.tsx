@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Segmented } from "../../ui.tsx"
+import { InspectorSection, Segmented } from "../../ui.tsx"
 import type { Draft } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 
@@ -40,21 +40,24 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
   ].filter(Boolean)
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <h3 className="flex-1 text-[13px] font-bold tracking-wide text-muted uppercase">Preview</h3>
-        {canPause && (
-          <Segmented
-            label="Preview the activity"
-            value={isPaused ? "paused" : "playing"}
-            options={[{ value: "playing", label: "▶ Playing" }, { value: "paused", label: "⏸ Paused" }]}
-            onChange={(v) => setPaused(v === "paused")}
-          />
-        )}
-      </div>
+    <InspectorSection
+      title="Lock Screen preview"
+      actions={canPause && (
+        <Segmented
+          label="Preview the activity"
+          value={isPaused ? "paused" : "playing"}
+          options={[
+            { value: "playing", label: <><Glyph name="play.fill" color="currentColor" size={10} />Playing</> },
+            { value: "paused", label: <><Glyph name="pause.fill" color="currentColor" size={10} />Paused</> }
+          ]}
+          onChange={(v) => setPaused(v === "paused")}
+        />
+      )}
+    >
       <div
         aria-label="Lock Screen preview"
-        className="relative overflow-hidden rounded-[28px] border border-line bg-[radial-gradient(120%_90%_at_20%_0%,#3a2f5c_0%,#141420_55%,#0b0b0f_100%)] px-4 pt-4 pb-5"
+        className="relative overflow-hidden rounded-[28px] border border-line px-4 pt-4 pb-5 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]"
+        style={{ background: `radial-gradient(120% 90% at 15% 0%, ${flow.color}38 0%, #15151c 52%, #09090b 100%)` }}
       >
         {/* Dynamic Island, compact */}
         <div className="mx-auto flex h-8 w-44 items-center justify-between rounded-full bg-black px-2.5">
@@ -104,8 +107,8 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
       </div>
 
       {flow.steps.length > 1 && (
-        <div className="flex items-center gap-2">
-          <span className="text-[13px] text-muted">Preview step</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[12px] font-medium text-muted">Step</span>
           <input
             type="range"
             aria-label="Preview step"
@@ -115,9 +118,9 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
             onChange={(e) => onStep(Number(e.target.value))}
             className="flex-1 accent-accent"
           />
-          <span className="w-10 text-right text-[13px] tabular-nums text-muted">{step + 1}/{flow.steps.length}</span>
+          <span className="w-10 text-right text-[12px] tabular-nums text-muted">{step + 1} / {flow.steps.length}</span>
         </div>
       )}
-    </div>
+    </InspectorSection>
   )
 }

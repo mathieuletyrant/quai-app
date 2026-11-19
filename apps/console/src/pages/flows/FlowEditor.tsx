@@ -1,6 +1,6 @@
 import { type DeviceId, flowProblem } from "@quai/api"
 import { type ReactNode, useState } from "react"
-import { Button, IconButton, MenuItem, PageBar, Popover, Toggle } from "../../ui.tsx"
+import { Button, cx, Icon, IconButton, MenuItem, PageBar, Popover, Toggle, Workspace } from "../../ui.tsx"
 import { type Catalogs, type Draft, newStep, stepActions, stepEvents } from "./draft.ts"
 import { EndPanel, FlowPanel, StepPanel } from "./Inspector.tsx"
 import { type Selection, Pipeline } from "./Pipeline.tsx"
@@ -44,19 +44,25 @@ export function FlowEditor(props: {
   return (
     <>
       <PageBar title={props.switcher}>
-        <label className="flex h-9 cursor-pointer items-center gap-2.5 rounded-lg px-3 text-sm font-semibold ring-1 ring-white/12 ring-inset">
+        <label className="flex h-9 cursor-pointer items-center gap-2.5 rounded-control bg-raised px-3 text-[13px] font-semibold ring-1 ring-line-strong ring-inset transition-colors hover:bg-hover">
           <Toggle label="Flow enabled" checked={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
-          {draft.enabled ? "Enabled" : "Disabled"}
+          <span className={cx("w-[58px]", !draft.enabled && "text-muted")}>{draft.enabled ? "Enabled" : "Disabled"}</span>
         </label>
         {props.dirty || props.isNew
           ? (
             <>
-              <span className={`flex items-center gap-2 px-1 text-sm ${problem ? "text-danger" : "text-muted"}`}>
-                {!problem && <span className="size-1.5 rounded-full bg-[#ffc230]" aria-hidden="true" />}
+              <span
+                role="status"
+                className={cx(
+                  "flex h-9 items-center gap-2 rounded-control px-2.5 text-[13px] font-medium",
+                  problem ? "text-danger-text" : "text-warn-text"
+                )}
+              >
+                <Icon name={problem ? "alert" : "info"} size={14} />
                 {problem ?? (props.isNew ? "Not saved yet" : "Unsaved changes")}
               </span>
               <Button variant="secondary" onClick={props.onDiscard}>{props.isNew ? "Cancel" : "Discard"}</Button>
-              <Button disabled={problem !== null} onClick={props.onSave}>{props.isNew ? "Create" : "Save"}</Button>
+              <Button icon="check" disabled={problem !== null} onClick={props.onSave}>{props.isNew ? "Create" : "Save"}</Button>
             </>
           )
           : (
@@ -64,12 +70,15 @@ export function FlowEditor(props: {
               <TestMenu phones={props.phones} onTest={props.onTest} />
               <Popover
                 align="right"
-                trigger={({ open, toggle }) => <IconButton label="More" aria-expanded={open} onClick={toggle} className="text-lg ring-1 ring-white/12 ring-inset">⋯</IconButton>}
+                className="w-64"
+                trigger={({ open, toggle }) => <IconButton outlined icon="more" label="More" aria-expanded={open} onClick={toggle} />}
               >
                 {(close) => (
                   <>
-                    <MenuItem onClick={() => { close(); props.onDuplicate() }}>Duplicate</MenuItem>
-                    <MenuItem danger onClick={() => { close(); props.onRemove() }}>{draft.builtIn ? "Reset to how Quai ships it" : "Delete"}</MenuItem>
+                    <MenuItem icon="copy" onClick={() => { close(); props.onDuplicate() }}>Duplicate</MenuItem>
+                    <MenuItem danger icon={draft.builtIn ? "reset" : "trash"} onClick={() => { close(); props.onRemove() }}>
+                      {draft.builtIn ? "Reset to how Quai ships it" : "Delete"}
+                    </MenuItem>
                   </>
                 )}
               </Popover>
@@ -77,8 +86,8 @@ export function FlowEditor(props: {
           )}
       </PageBar>
 
-      <div className="grid flex-1 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="min-w-0 p-4 md:p-6">
+      <Workspace
+        canvas={
           <Pipeline
             flow={draft}
             events={events}
@@ -91,11 +100,10 @@ export function FlowEditor(props: {
               }
               : null}
           />
-        </div>
-
-        <aside className="flex flex-col gap-6 border-t border-line p-4 md:p-6 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:overflow-y-auto lg:border-t-0 lg:border-l">
-          <Preview flow={draft} step={shown} onStep={(index) => select({ _tag: "Step", index })} />
-          <div className="border-t border-line pt-6">
+        }
+        inspector={
+          <>
+            <Preview flow={draft} step={shown} onStep={(index) => select({ _tag: "Step", index })} />
             {selection._tag === "Flow" && <FlowPanel flow={draft} onChange={onChange} />}
             {selection._tag === "End" && <EndPanel flow={draft} events={events} onChange={onChange} />}
             {selection._tag === "Step" && draft.steps[selection.index] && (
@@ -118,9 +126,9 @@ export function FlowEditor(props: {
                 }}
               />
             )}
-          </div>
-        </aside>
-      </div>
+          </>
+        }
+      />
     </>
   )
 }

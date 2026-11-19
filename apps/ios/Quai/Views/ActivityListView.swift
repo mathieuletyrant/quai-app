@@ -1,30 +1,40 @@
 import SwiftUI
 
+/// The Activity tab: every running activity, as its Live Activity tells it.
 struct ActivityListView: View {
     @Environment(Connection.self) private var connection
 
+    private var subtitle: String {
+        switch connection.activities.count {
+        case 0: "Nothing in progress"
+        case 1: "1 in progress"
+        case let count: "\(count) in progress"
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            List {
+            Screen {
+                ScreenHeader(eyebrow: Date.now.eyebrow, title: "Activity", subtitle: subtitle)
+            } content: {
                 if let error = connection.lastError {
-                    Section { Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange) }
+                    MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
                 }
                 if connection.activities.isEmpty {
-                    ContentUnavailableView(
-                        "Nothing in progress",
-                        systemImage: "tray",
-                        description: Text("Add a movie in Seerr or Radarr: it shows up here and on the Lock Screen.")
-                    )
-                    .listRowBackground(Color.clear)
+                    if connection.lastError == nil {
+                        MessageTile(
+                            title: "Nothing in progress",
+                            message: "Add a movie in Seerr or Radarr: it shows up here and on the Lock Screen.",
+                            systemImage: "tray",
+                            color: Palette.accent
+                        )
+                    }
                 } else {
-                    Section("In progress") {
-                        ForEach(connection.activities, id: \.attributes.key) { activity in
-                            ActivityRow(activity: activity)
-                        }
+                    ForEach(connection.activities, id: \.attributes.key) { activity in
+                        ActivityRow(activity: activity)
                     }
                 }
             }
-            .navigationTitle("Activity")
             .refreshable { await connection.refresh() }
             .task {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
@@ -37,35 +47,67 @@ struct ActivityListView: View {
     }
 }
 
+/// One activity: its flow's symbol and color, the step it's on, its progress or countdown.
 struct ActivityRow: View {
-    let activity: Components.Schemas.RunningActivity
+    let activity: RunningActivity
 
-    private var tint: Color { Palette.tint(tone: activity.content.tone.rawValue, color: activity.attributes.color) }
-
-    private var stepLabel: String {
-        let steps = activity.attributes.steps
-        return steps.indices.contains(activity.content.step) ? steps[activity.content.step].label : ""
+    private var details: String {
+        var parts = [activity.stepLabel]
+        if let remaining = activity.content.remainingSeconds { parts.append(Format.remaining(remaining)) }
+        if let speed = activity.content.bytesPerSecond, speed > 0 { parts.append(Format.speed(speed)) }
+        if let detail = activity.content.detail { parts.append(detail) }
+        if activity.content.tone == .stalled { parts.append("stalled") }
+        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        Tile {
             HStack(spacing: 10) {
-                Image(systemName: activity.attributes.icon).foregroundStyle(tint)
-                Text(activity.attributes.title).font(.headline).lineLimit(1)
-                Spacer()
-                if let progress = activity.content.progress {
-                    Text(progress, format: .percent.precision(.fractionLength(0)))
+                Image(systemName: activity.attributes.icon)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(activity.tint)
+                    .frame(width: 30, height: 30)
+                    .background(activity.tint.opacity(0.18), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Text(activity.attributes.title)
+                    .font(QuaiFont.headline)
+                    .foregroundStyle(Palette.primaryText)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                if let progress = activity.content.progress, activity.content.endsAt == nil {
+                    Text(Format.percent(progress))
+                        .font(.system(size: 17, weight: .bold))
                         .monospacedDigit()
-                        .foregroundStyle(tint)
+                        .foregroundStyle(activity.tint)
+                } else if activity.content.endsAt != nil || activity.content.paused != nil {
+                    PlaybackClock(content: activity.content)
                 }
             }
             if let progress = activity.content.progress {
-                ProgressView(value: progress).tint(tint)
+                ProgressBar(value: progress, color: activity.tint)
             }
-            Text([stepLabel, activity.content.detail].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · "))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            StepTrack(activity: activity)
+            Text(details)
+                .font(QuaiFont.caption)
+                .foregroundStyle(Palette.secondaryText)
         }
-        .padding(.vertical, 4)
+    }
+}
+
+/// The flow's steps as short segments, lit up to the current one (as on the Lock Screen).
+private struct StepTrack: View {
+    let activity: RunningActivity
+
+    var body: some View {
+        let steps = activity.attributes.steps
+        if steps.count > 1 {
+            HStack(spacing: 4) {
+                ForEach(Array(steps.enumerated()), id: \.element.id) { index, _ in
+                    Capsule()
+                        .fill(index <= activity.content.step ? activity.tint : Palette.barTrack)
+                        .frame(height: 3)
+                }
+            }
+            .accessibilityHidden(true)
+        }
     }
 }

@@ -55,3 +55,57 @@ struct PairingLinkTests {
         #expect(PairingLink(try #require(URL(string: "quai://pair"))) == nil)
     }
 }
+
+struct TonightTests {
+    private func activity(_ flowId: String, _ title: String, tone: String = "active", progress: Double? = nil) throws -> RunningActivity {
+        let progressField = progress.map { #","progress":\#($0)"# } ?? ""
+        let json = """
+        {"attributes":{"key":"\(flowId)|\(title)","flowId":"\(flowId)","title":"\(title)","color":"#FFC230","icon":"arrow.down",\
+        "steps":[{"id":"a","label":"Searching","icon":"magnifyingglass"},{"id":"b","label":"Downloading","icon":"arrow.down"}]},\
+        "content":{"step":0,"tone":"\(tone)"\(progressField)}}
+        """
+        return try JSONDecoder().decode(RunningActivity.self, from: Data(json.utf8))
+    }
+
+    @Test func groupsActivitiesByWhatTheyFollow() throws {
+        let tonight = try Tonight([
+            activity("download", "Dune", progress: 0.2),
+            activity("download", "Runner", progress: 0.6),
+            activity("download", "Nero"),
+            activity("download", "Severance", tone: "done"),
+            activity("playback", "The Bear"),
+            activity("incident", "Radarr"),
+            activity("incident", "Sonarr", tone: "done"),
+        ], subjects: ["download": .media, "playback": .playback, "incident": .service])
+        #expect(tonight.downloading.map(\.attributes.title) == ["Runner", "Dune"])
+        #expect(tonight.requested.map(\.attributes.title) == ["Nero"])
+        #expect(tonight.ready.map(\.attributes.title) == ["Severance"])
+        #expect(tonight.playing.map(\.attributes.title) == ["The Bear"])
+        #expect(tonight.incidents.map(\.attributes.title) == ["Radarr"])
+        #expect(!tonight.isEmpty)
+    }
+
+    @Test func anUnknownFlowIsMediaAndNothingIsEmpty() throws {
+        #expect(Tonight([], subjects: [:]).isEmpty)
+        let tonight = try Tonight([activity("anime", "Frieren")], subjects: [:])
+        #expect(tonight.requested.count == 1)
+    }
+}
+
+struct LibraryItemTests {
+    @Test func decodesTheServersLibrary() throws {
+        let json = #"{"items":[{"id":"movie:48","kind":"movie","title":"Runner","year":2026,"posterUrl":"https://image.tmdb.org/t/p/original/a.jpg","status":"downloading","progress":0.63,"addedAt":1795035524,"sizeBytes":0},{"id":"series:7","kind":"series","title":"The Bear","status":"available","sizeBytes":9663676416,"episodes":{"have":8,"total":8}}],"disk":{"freeBytes":759102349312,"totalBytes":1800360124416},"unavailable":[]}"#
+        let library = try JSONDecoder().decode(Components.Schemas.Library.self, from: Data(json.utf8))
+        #expect(library.items.map(\.caption) == ["Movie · 2026", "Series"])
+        #expect(library.items[0].posterThumbnail?.absoluteString == "https://image.tmdb.org/t/p/w342/a.jpg")
+        #expect(library.items[0].status == .downloading)
+        #expect(library.items[1].episodes?.total == 8)
+    }
+
+    @Test func scopesAndFilters() throws {
+        let json = #"[{"id":"movie:1","kind":"movie","title":"A","status":"wanted","sizeBytes":0},{"id":"series:2","kind":"series","title":"B","status":"available","sizeBytes":1}]"#
+        let items = try JSONDecoder().decode([LibraryItem].self, from: Data(json.utf8))
+        #expect(items.filter(LibraryScope.series.includes).map(\.id) == ["series:2"])
+        #expect(items.filter(LibraryFilter.wanted.includes).map(\.id) == ["movie:1"])
+    }
+}

@@ -1,7 +1,7 @@
 import type { DeviceId, Flow } from "@quai/api"
 import { useCallback, useEffect, useState } from "react"
-import { call } from "../../client.ts"
-import { errorText, type Notice, Toast } from "../../ui.tsx"
+import { call, isHomeOffline, useHome } from "../../client.ts"
+import { Callout, errorText, HomeOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui.tsx"
 import { type Catalogs, clone, type Draft, sameFlow, slug } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
 import { FlowSwitcher } from "./FlowSwitcher.tsx"
@@ -16,6 +16,9 @@ export function FlowsPage() {
   const [original, setOriginal] = useState<Flow | null>(null)
   const [draft, setDraft] = useState<Draft | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
+  /** Why the flows couldn't be read, while none is open. */
+  const [failure, setFailure] = useState<unknown>(null)
+  const { epoch } = useHome()
   const clearNotice = useCallback(() => setNotice(null), [])
 
   const isNew = draft !== null && original === null
@@ -41,8 +44,10 @@ export function FlowsPage() {
   }
 
   useEffect(() => {
-    load().catch((e: unknown) => setNotice({ ok: false, text: errorText(e) }))
-  }, [])
+    if (draft !== null) return
+    setFailure(null)
+    load().catch(setFailure)
+  }, [epoch])
 
   /** Leaving unsaved changes asks first. */
   const leave = () => !(dirty || isNew) || window.confirm("Discard the unsaved changes?")
@@ -92,6 +97,7 @@ export function FlowsPage() {
 
   return (
     <>
+      {draft === null && (failure === null ? <EditorSkeleton /> : <LoadFailed error={failure} />)}
       {draft && (
         <FlowEditor
           key={original?.id ?? "new"}
@@ -122,6 +128,46 @@ export function FlowsPage() {
         />
       )}
       <Toast notice={notice} onDone={clearNotice} />
+    </>
+  )
+}
+
+/** The editor's outline while the flows load. */
+function EditorSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading the flows" className="flex flex-1 flex-col">
+      <div className="flex min-h-16 items-center gap-3 border-b border-line px-4 md:px-8">
+        <Skeleton className="size-9 rounded-control" />
+        <div className="flex flex-col gap-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
+      </div>
+      <Workspace
+        canvas={
+          <div className="mx-auto flex max-w-[600px] flex-col gap-8">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[76px] w-full rounded-card" />)}
+          </div>
+        }
+        inspector={
+          <div className="flex flex-col gap-4 p-5">
+            <Skeleton className="h-3 w-32" />
+            <Skeleton className="h-64 w-full rounded-[28px]" />
+            <Skeleton className="mt-4 h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        }
+      />
+    </div>
+  )
+}
+
+function LoadFailed({ error }: { error: unknown }) {
+  return (
+    <>
+      <PageBar title="Flows" subtitle="What starts a Live Activity, what it shows, how it ends" />
+      <PageBody>
+        {isHomeOffline(error)
+          ? <Panel><HomeOfflineState what="Flows" /></Panel>
+          : <Callout tone="danger" icon="alert" title="The flows couldn't be read">{errorText(error)}</Callout>}
+      </PageBody>
     </>
   )
 }

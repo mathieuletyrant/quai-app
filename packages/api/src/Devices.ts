@@ -1,6 +1,6 @@
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
-import { ActionType, ActivityAttributes, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow } from "./Activity.ts"
+import { ActionType, ActivityAttributes, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow, FlowSubject } from "./Activity.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
 export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
@@ -87,6 +87,8 @@ export const FlowSummary = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   enabled: Schema.Boolean,
+  /** What its activities follow: the app's Home groups them by it. */
+  subject: FlowSubject,
   color: Schema.String,
   icon: Schema.String,
   steps: Schema.Array(ActivityStep)

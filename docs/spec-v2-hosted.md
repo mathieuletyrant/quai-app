@@ -117,7 +117,9 @@ that self-hosts the Cloud.
   endpoints: the Home refuses anything outside it. Writes are limited to the actions the catalog
   offers (Jellyfin play/pause/stop, later search or retry).
 - **What leaves home:** titles, progress, playback sessions and service health — what a Live
-  Activity shows — in transit only (see above).
+  Activity shows — in transit only (see above). The app's Library tab adds the movie and series
+  list (titles, years, public poster URLs, sizes, free disk), read from Radarr and Sonarr through
+  the Home when the app asks, never kept.
 - **Home ↔ cloud:** TLS, one token per Home, issued at linking, revocable from the console.
 - **App ↔ Cloud:** the device token the Home issued at pairing, checked against the Home.
 

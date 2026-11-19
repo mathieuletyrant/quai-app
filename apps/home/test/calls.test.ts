@@ -68,6 +68,22 @@ describe("calls allowlist", () => {
     }).pipe(Effect.provide(callsWith(() => ({ json: { version: "5.0" } }), seen)))
   })
 
+  it.effect("runs the library reads with the service's key", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      const calls = yield* Calls
+      for (const [service, path] of [["radarr", "/api/v3/movie"], ["radarr", "/api/v3/diskspace"], ["sonarr", "/api/v3/series"]] as const) {
+        expect(yield* calls.run(request({ service, method: "GET", path }))).toMatchObject({ _tag: "CallResponse", status: 200 })
+      }
+      expect(seen.map((s) => `${s.method} ${s.url.host}${s.url.pathname}`)).toEqual([
+        "GET radarr:7878/api/v3/movie",
+        "GET radarr:7878/api/v3/diskspace",
+        "GET sonarr:8989/api/v3/series"
+      ])
+      expect(seen.every((s) => s.headers["x-api-key"] === "masked")).toBe(true)
+    }).pipe(Effect.provide(callsWith(() => ({ json: [] }), seen)))
+  })
+
   it.effect("a service that doesn't answer is a failure, not an error", () =>
     Effect.gen(function*() {
       const result = yield* (yield* Calls).run(request({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))

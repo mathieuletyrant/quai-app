@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings → On this iPhone: per flow, whether this iPhone shows it and which steps. Saved on the
+/// Settings → Live Activities: per flow, whether this iPhone shows it and which steps. Saved on the
 /// server, per iPhone. Flows themselves are made, and tested, in the console.
 struct LiveActivitySettingsView: View {
     @Environment(Connection.self) private var connection
@@ -10,25 +10,35 @@ struct LiveActivitySettingsView: View {
     @State private var loaded = false
 
     var body: some View {
-        List {
-            Section {} footer: {
-                Text("Which Live Activities this iPhone shows, and which of their steps. Flows are made, and tested, in Quai's console.")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if !loaded {
+                    ProgressView().frame(maxWidth: .infinity).padding(.vertical, 24)
+                } else if !flows.isEmpty {
+                    GroupedSection(footer: "Which Live Activities this iPhone shows, and which of their steps. These settings are only for this iPhone: flows are made, and tested, in Quai's console.") {
+                        ForEach(flows, id: \.id) { flow in
+                            FlowSection(
+                                flow: flow,
+                                preference: preference(flow.id),
+                                onChange: { change in update(flow.id, change) }
+                            )
+                        }
+                    }
+                }
+                if let status {
+                    Text(status)
+                        .font(QuaiFont.caption)
+                        .foregroundStyle(Palette.toFix)
+                        .padding(.horizontal, 8)
+                }
             }
-            if !loaded {
-                ProgressView().frame(maxWidth: .infinity)
-            }
-            ForEach(flows, id: \.id) { flow in
-                FlowSection(
-                    flow: flow,
-                    preference: preference(flow.id),
-                    onChange: { change in update(flow.id, change) }
-                )
-            }
-            if let status {
-                Section { Text(status).font(.footnote).foregroundStyle(.secondary) }
-            }
+            .padding(.horizontal, Metrics.gutter)
+            .padding(.vertical, 8)
         }
-        .navigationTitle("On this iPhone")
+        .background(Palette.background.ignoresSafeArea())
+        .navigationTitle("Live Activities")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar(.visible, for: .navigationBar)
         .task { await load() }
         .refreshable { await load() }
     }
@@ -72,23 +82,34 @@ private struct FlowSection: View {
     let onChange: ((inout Components.Schemas.FlowPreference) -> Void) -> Void
 
     var body: some View {
-        Section {
+        VStack(alignment: .leading, spacing: 10) {
             Toggle(isOn: Binding(get: { preference.enabled }, set: { value in onChange { $0.enabled = value } })) {
-                Label {
-                    Text(flow.name)
-                } icon: {
-                    Image(systemName: flow.icon).foregroundStyle(Color(hex: flow.color))
+                HStack(spacing: 12) {
+                    Circle().fill(Color(hex: flow.color)).frame(width: 10, height: 10)
+                    Text(flow.name).font(QuaiFont.bodyEmphasized).foregroundStyle(Palette.primaryText)
                 }
             }
             .tint(.quaiAccent)
             .disabled(!flow.enabled)
 
-            if preference.enabled && flow.enabled {
+            if !flow.enabled {
+                Text("Turned off in the console, for every iPhone.")
+                    .font(QuaiFont.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .padding(.leading, 22)
+            } else if preference.enabled {
                 ForEach(Array(flow.steps.enumerated()), id: \.element.id) { index, step in
                     if index == flow.steps.count - 1 {
-                        LabeledContent(step.label, value: "Always")
+                        HStack {
+                            Text(step.label)
+                            Spacer()
+                            Text("Always").foregroundStyle(Palette.secondaryText)
+                        }
+                        .font(QuaiFont.subheadline)
+                        .foregroundStyle(Palette.primaryText)
+                        .padding(.leading, 22)
                     } else {
-                        Toggle(step.label, isOn: Binding(
+                        Toggle(isOn: Binding(
                             get: { !preference.hiddenSteps.contains(step.id) },
                             set: { shown in
                                 onChange { pref in
@@ -97,16 +118,17 @@ private struct FlowSection: View {
                                     pref.hiddenSteps = flow.steps.map(\.id).filter(hidden.contains)
                                 }
                             }
-                        ))
+                        )) {
+                            Text(step.label).font(QuaiFont.subheadline).foregroundStyle(Palette.primaryText)
+                        }
                         .tint(.quaiAccent)
-                        .padding(.leading, 8)
+                        .padding(.leading, 22)
                     }
                 }
             }
-        } footer: {
-            if !flow.enabled {
-                Text("Turned off in the console, for every iPhone.")
-            }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .opacity(flow.enabled ? 1 : 0.55)
     }
 }

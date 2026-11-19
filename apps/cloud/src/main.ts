@@ -11,6 +11,7 @@ import { Devices } from "./home/Devices.ts"
 import { HomeLink, HomeRoute } from "./home/HomeLink.ts"
 import { IntegrationsLive } from "./integrations/All.ts"
 import { Hub } from "./integrations/Hub.ts"
+import { Library } from "./library/Library.ts"
 import { Apns } from "./push/Apns.ts"
 import { Notifier } from "./push/Notifier.ts"
 import { ServerInfo } from "./Version.ts"
@@ -41,7 +42,7 @@ const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
 )
 
 const Engine = ActionRunner.layer.pipe(
-  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer)),
+  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer)),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Activities.layer),
   Layer.provideMerge(Layer.mergeAll(Apns.layer, IntegrationsLive)),

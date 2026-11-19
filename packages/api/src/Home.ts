@@ -19,8 +19,11 @@ export type HomeService = typeof HomeService.Type
 /** The services whose webhooks the Home receives and forwards. */
 export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "jellyfin"]
 
-/** Largest response body the Home forwards; bigger ones come back as a failure. */
-export const maxBodyBytes = 1_000_000
+/**
+ * Largest response body the Home forwards; bigger ones come back as a failure. Sized for the
+ * library lists: Radarr's `/api/v3/movie` runs to a few kilobytes per title.
+ */
+export const maxBodyBytes = 16_000_000
 
 // Home → Cloud
 
@@ -245,8 +248,16 @@ export const isStoreKey = (key: string) => /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z
  * a compromised Cloud can't delete a library or read the services' settings.
  */
 export const allowlist: Record<HomeService, ReadonlyArray<{ readonly method: "GET" | "POST"; readonly path: RegExp }>> = {
-  radarr: [{ method: "GET", path: /^\/api\/v3\/system\/status$/ }],
-  sonarr: [{ method: "GET", path: /^\/api\/v3\/system\/status$/ }],
+  radarr: [
+    { method: "GET", path: /^\/api\/v3\/system\/status$/ },
+    { method: "GET", path: /^\/api\/v3\/movie$/ },
+    { method: "GET", path: /^\/api\/v3\/diskspace$/ }
+  ],
+  sonarr: [
+    { method: "GET", path: /^\/api\/v3\/system\/status$/ },
+    { method: "GET", path: /^\/api\/v3\/series$/ },
+    { method: "GET", path: /^\/api\/v3\/diskspace$/ }
+  ],
   qbittorrent: [
     { method: "GET", path: /^\/api\/v2\/app\/version$/ },
     { method: "GET", path: /^\/api\/v2\/torrents\/info$/ }
