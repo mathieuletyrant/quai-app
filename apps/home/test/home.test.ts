@@ -4,7 +4,7 @@ import { Effect, FileSystem } from "effect"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
 import { statSync } from "node:fs"
 import { join } from "node:path"
-import { HomeKey, homeId } from "../src/HomeKey.ts"
+import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { NodeFileSystem, tempDir } from "./config.ts"
 
@@ -23,7 +23,7 @@ describe("home key", () => {
         expect(second.homeId).toBe(first.homeId)
         expect(second.webhookToken).toBe(first.webhookToken)
         expect(first.homeId).toMatch(/^[0-9a-f]{32}$/)
-        expect(first.homeId).toBe(homeId(first.publicKey))
+        expect(first.homeId).toBe(HomeProtocol.homeId(first.publicKey))
         expect(first.webhookToken).toMatch(/^[0-9a-f]{32}$/)
 
         const other = yield* HomeKey.make(join(dir, "other.key"))

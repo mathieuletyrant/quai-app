@@ -1,14 +1,13 @@
 packages:
   - packages/*
   - apps/home
-  - apps/server
+  - apps/cloud
   - apps/console
 
 # Effect 4 is pinned everywhere: its HTTP, HttpApi and SQL modules are marked unstable.
 catalog:
   effect: 4.1.4
   "@effect/platform-node": 4.1.4
-  "@effect/sql-sqlite-node": 4.1.4
   "@effect/vitest": 4.1.4
   vitest: 5.1.1
   typescript: 7.0.2

@@ -87,29 +87,23 @@ Self-hosting everything: one compose runs the Home and the Cloud side by side.
 
 ## 🚀 Run it
 
+The image is Quai Cloud: the API, the console and the pushes. It keeps nothing on disk.
+
 ```sh
-docker run -d --name quai -p 8787:8787 -v ./data:/data \
-  --network <your-arr-network> \
-  ghcr.io/mathieuletyrant/quai:latest
+docker run -d --name quai -p 8787:8787 ghcr.io/mathieuletyrant/quai:latest
 ```
 
-Open http://localhost:8787. Quai must share a Docker network with the *arr apps so it can reach them by container name. See [`docker-compose.example.yml`](docker-compose.example.yml).
+Quai Home (`apps/home`) runs next to your services with their URLs and keys, and connects to the
+Cloud's `/home` WebSocket (`QUAI_CLOUD_URL=ws://<cloud>:8787/home`). Until it does, the app's and
+the console's routes answer 503 "Quai Home is not connected".
 
 | Env | Default | |
 |---|---|---|
-| `QUAI_PORT` | `8787` | HTTP port (API + console) |
-| `QUAI_DATA_DIR` | `/data` | SQLite database (paired iPhones, webhook secret) |
-| `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the server |
-| `QUAI_INTERNAL_URL` | – | How Radarr and Sonarr reach Quai, e.g. `http://quai:8787`. Set it and Quai adds its webhook to them on start |
-| `QUAI_PUBLIC_URL` | – | Address from outside (behind Cloudflare Access, say), added to the pairing QR code |
-| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | – | Radarr |
-| `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | – | Sonarr |
-| `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | – | qBittorrent Web UI (user and password optional with its local auth bypass) |
-| `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | – | Jellyfin, to know when a title is ready |
-| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities. Easier: upload it in the console, where it's stored encrypted and wins over these |
+| `QUAI_PORT` | `8787` | HTTP port (API, console, `/home` WebSocket) |
+| `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the Cloud |
+| `QUAI_PUBLIC_URL` | – | Address from outside, added to the pairing QR code |
+| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities: the Cloud's own configuration |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The iOS app's bundle id |
-
-The console's guided setup will replace most of these.
 
 The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
 
@@ -119,7 +113,7 @@ On Umbrel, install **Quai** from [Mathieu's Umbrel App Store](https://github.com
 
 ```sh
 pnpm install
-pnpm dev:server      # API on :8787
+pnpm dev:cloud       # Quai Cloud on :8787
 pnpm dev:console     # console on http://localhost:5173
 pnpm test
 pnpm check
@@ -128,12 +122,13 @@ pnpm gen:openapi     # after changing packages/api
 
 ```
 packages/api     The contract: Effect HttpApi + Schema, exported as openapi.json
-apps/server      Effect 4 on Node: *arr adapters, activity engine, APNs over HTTP/2
+apps/home        Quai Home: the link to the Cloud, webhooks, allowlisted calls and watches, home documents
+apps/cloud       Quai Cloud, Effect 4 on Node: integrations, activity engine, APNs over HTTP/2, console
 apps/console     React · Vite, typed client derived from packages/api
 apps/ios         SwiftUI · WidgetKit Live Activities · App Intents (XcodeGen project.yml)
 ```
 
-One contract, three consumers: changing a route in `packages/api` breaks the server, the console and the iOS app at compile time.
+One contract, three consumers: changing a route in `packages/api` breaks the Cloud, the console and the iOS app at compile time.
 
 iOS (macOS): `cd apps/ios && xcodegen generate && open Quai.xcodeproj`. The **Quai Demo** scheme starts a demo Live Activity without a server.
 

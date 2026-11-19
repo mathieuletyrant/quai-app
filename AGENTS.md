@@ -7,7 +7,8 @@ Rules for agents working on Quai. Read the product spec, [`docs/spec-v1.md`](doc
 | Path | Role |
 | --- | --- |
 | `packages/api` | The contract: Effect `HttpApi` + `Schema`. Single source of truth for routes and types. Generates `openapi.json`. |
-| `apps/server` | Effect server on Node: implements the contract, listens to the stack, pushes to APNs, serves the console. |
+| `apps/home` | Quai Home: runs next to the services with their keys, links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents. |
+| `apps/cloud` | Quai Cloud, Effect on Node: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, serves the console. Keeps nothing: the home's data lives in Quai Home. |
 | `apps/console` | React + Vite web console, with a typed client derived from `packages/api`. |
 | `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json`. |
 | `Dockerfile` | The only server deliverable: one generic image. |
@@ -27,8 +28,8 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 - `effect` and `@effect/*` are pinned to **4.1.4** through the `catalog:` in `pnpm-workspace.yaml`. Never bump them unasked: `effect/http`, `effect/http-api` and `effect/sql` are marked unstable.
 - Reference docs: https://effect.website/llms.txt (v4). When unsure of a signature, read the `.d.ts` files in `node_modules/effect/dist/`.
-- One service = one `Context.Service` + one `Layer` (`static readonly layer`). One `Layer` per *arr service client (`apps/server/src/stack/`).
-- Each service's events (webhook or polling) and actions live in one integration module, `apps/server/src/integrations/<service>.ts` (see [`docs/flows.md`](docs/flows.md#integrations)).
+- One service = one `Context.Service` + one `Layer` (`static readonly layer`). The Cloud never calls a service itself: it goes through `HomeLink` (calls and watches).
+- Each service's events (webhook or polling) and actions live in one integration module, `apps/cloud/src/integrations/<service>.ts` (see [`docs/flows.md`](docs/flows.md#integrations)).
 - Errors: `Data.TaggedError` (or `Schema.TaggedError` when they cross the API). No `throw`.
 - No bare `Promise` or `async` on the server: everything is an `Effect`. `Promise` is only allowed at the console's React boundary.
 - Time goes through `Clock` (never `Date.now()` in logic) so `TestClock` works. One exception: the start time in `ServerInfo.layer`.
@@ -54,7 +55,7 @@ pnpm install
 pnpm check        # tsc in every package
 pnpm test         # vitest in every package
 pnpm gen:openapi  # regenerate packages/api/openapi.json
-pnpm dev:server   # server on :8787
+pnpm dev:cloud    # Quai Cloud on :8787
 pnpm dev:console  # console on :5173 (proxies /api to :8787)
 ```
 

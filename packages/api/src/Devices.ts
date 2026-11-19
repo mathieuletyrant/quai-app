@@ -14,9 +14,22 @@ export class CurrentDevice extends Context.Service<CurrentDevice, { readonly id:
   "quai/CurrentDevice"
 ) {}
 
+/**
+ * Quai Cloud keeps nothing: the paired iPhones, the flows and the activities live at home, in Quai
+ * Home. While it isn't connected, the routes that need them answer 503.
+ */
+export class HomeOffline extends Schema.TaggedError<HomeOffline>()("HomeOffline", {
+  message: Schema.String
+}, { httpApiStatus: 503 }) {}
+
+/** Every route that reads or writes the home's data: answers `HomeOffline` while Quai Home isn't connected. */
+export class HomeRequired extends HttpApiMiddleware.Service<HomeRequired>()("quai/HomeRequired", {
+  error: HomeOffline
+}) {}
+
 /** Every iPhone route: `Authorization: Bearer <device token>`, the token the pairing returned. */
 export class DeviceAuth extends HttpApiMiddleware.Service<DeviceAuth, { provides: CurrentDevice }>()("quai/DeviceAuth", {
-  error: HttpApiError.Unauthorized,
+  error: [HttpApiError.Unauthorized, HomeOffline],
   security: { bearer: HttpApiSecurity.bearer }
 }) {}
 
@@ -96,7 +109,7 @@ export const RunningActivity = Schema.Struct({
   content: ActivityContent
 }).annotate({ identifier: "RunningActivity" })
 
-/** Routes the iPhone app calls. Reachable without the host's login (see deploy notes). */
+/** Routes the iPhone app calls. */
 export class DevicesGroup extends HttpApiGroup.make("devices")
   .add(HttpApiEndpoint.post("pair", "/devices", { payload: PairDevice, success: PairedDevice, error: InvalidPairingCode }).annotate(OpenApi.Identifier, "pairDevice"))
   .add(
@@ -136,6 +149,7 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
     HttpApiEndpoint.get("activities", "/activities", { success: Schema.Array(RunningActivity) }).annotate(OpenApi.Identifier, "listActivities")
       .middleware(DeviceAuth)
   )
+  .middleware(HomeRequired)
   .prefix("/api") {}
 
 export const PairingCode = Schema.Struct({
@@ -164,37 +178,22 @@ export class ConsoleGroup extends HttpApiGroup.make("console")
   )
   .add(HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }).annotate(OpenApi.Identifier, "listDevices"))
   .add(HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound }).annotate(OpenApi.Identifier, "removeDevice"))
+  .middleware(HomeRequired)
   .prefix("/console-api") {}
 
+/** The Apple push key: Quai Cloud's own configuration (`QUAI_APNS_*`), never home data. */
 export const PushSettings = Schema.Struct({
   configured: Schema.Boolean,
-  /** Where the key comes from: saved in the console, or the `QUAI_APNS_*` environment variables. */
-  source: Schema.optionalKey(Schema.Literals(["console", "environment"])),
   keyId: Schema.optionalKey(Schema.String),
   teamId: Schema.optionalKey(Schema.String),
   /** The iOS app's bundle id the pushes target. */
   topic: Schema.String
 }).annotate({ identifier: "PushSettings" })
+export type PushSettings = typeof PushSettings.Type
 
-export const SavePushKey = Schema.Struct({
-  /** The .p8 file's text, as Apple gives it. Never sent back. */
-  keyPem: Schema.String,
-  keyId: Schema.String,
-  teamId: Schema.String
-}).annotate({ identifier: "SavePushKey" })
-
-export class InvalidPushKey extends Schema.TaggedError<InvalidPushKey>()("InvalidPushKey", {
-  message: Schema.String
-}, { httpApiStatus: 400 }) {}
-
-/** The Apple push key, set from the console's Settings. */
+/** What the console's Settings page shows of the push key. Read-only: it is set on Quai Cloud. */
 export class PushGroup extends HttpApiGroup.make("push")
   .add(HttpApiEndpoint.get("pushSettings", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "getPushSettings"))
-  .add(
-    HttpApiEndpoint.put("savePushKey", "/push-settings", { payload: SavePushKey, success: PushSettings, error: InvalidPushKey })
-      .annotate(OpenApi.Identifier, "savePushKey")
-  )
-  .add(HttpApiEndpoint.delete("removePushKey", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "removePushKey"))
   .prefix("/console-api") {}
 
 export class InvalidFlow extends Schema.TaggedError<InvalidFlow>()("InvalidFlow", {
@@ -230,4 +229,5 @@ export class FlowsGroup extends HttpApiGroup.make("flows")
     HttpApiEndpoint.post("test", "/flows/:id/test", { params: { id: Schema.String }, payload: TestFlow, error: HttpApiError.NotFound })
       .annotate(OpenApi.Identifier, "testFlow")
   )
+  .middleware(HomeRequired)
   .prefix("/console-api") {}

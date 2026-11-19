@@ -1,13 +1,9 @@
 import { Context, Effect, FileSystem, Layer } from "effect"
 import { HomeProtocol } from "@quai/api"
-import { createHash, createHmac, createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
+import { createHmac, createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
 import { dirname, join } from "node:path"
 import { HomeConfig } from "./Config.ts"
 import { HomeKeyError } from "./Errors.ts"
-
-/** The home id: the fingerprint of its public key (SPKI DER, base64), first 32 hex chars of SHA-256. */
-export const homeId = (publicKey: string) =>
-  createHash("sha256").update(Buffer.from(publicKey, "base64")).digest("hex").slice(0, 32)
 
 /**
  * The home's Ed25519 key pair, created on first start. It is the home's identity: the cloud
@@ -64,7 +60,7 @@ const fromPrivateKey = (privateKey: KeyObject): HomeKey["Service"] => {
   const raw = Buffer.from(privateKey.export({ format: "jwk" }).d!, "base64url")
   return {
     publicKey,
-    homeId: homeId(publicKey),
+    homeId: HomeProtocol.homeId(publicKey),
     sign: (nonce) => sign(null, Buffer.from(HomeProtocol.challengePayload(nonce)), privateKey).toString("base64"),
     webhookToken: createHmac("sha256", raw).update("webhooks").digest("hex").slice(0, 32)
   }
