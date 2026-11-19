@@ -6,6 +6,8 @@ import OpenAPIURLSession
 
 enum ConnectionError: LocalizedError {
     case unreachable
+    /// A reverse proxy in front of Quai Cloud refused the request, not Quai.
+    case blockedByProxy
     case invalidCode
     case homeOffline
     case server(Int)
@@ -17,6 +19,7 @@ enum ConnectionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unreachable: "Can't reach the Quai server. On Wi-Fi at home, or check the address."
+        case .blockedByProxy: "Blocked by your proxy: check the access headers in Settings → Connection."
         case .homeOffline: "Quai Home isn't connected to Quai Cloud. Check that it runs on your server."
         case .invalidCode: "This code is unknown, already used or expired. Show a new one in the console."
         case let .server(status): "The server answered \(status)."
@@ -46,6 +49,10 @@ final class Connection {
     private var pushToStartToken: String?
 
     var isPaired: Bool { session != nil }
+    /// Every address this iPhone may reach the server at, the local one first.
+    var serverURLs: [URL] { session?.urls ?? [] }
+    /// What the proxy in front of the public address requires.
+    var accessHeaders: [AccessHeader] { session?.accessHeaders ?? [] }
 
     /// Builds from Xcode reach APNs development; TestFlight and the App Store, production.
     static var apnsEnvironment: Components.Schemas.ApnsEnvironment {
@@ -64,8 +71,8 @@ final class Connection {
     // MARK: Pairing
 
     func pair(_ link: PairingLink, name: String) async throws {
-        guard let url = await ServerSession.firstReachable(link.serverURLs) else { throw ConnectionError.unreachable }
-        let client = Client(serverURL: url, transport: URLSessionTransport())
+        let url = try await ServerSession.firstReachable(link.serverURLs, accessHeaders: link.accessHeaders)
+        let client = Client(serverURL: url, transport: URLSessionTransport(), middlewares: [AccessHeadersMiddleware(headers: link.accessHeaders)])
         let body = Components.Schemas.PairDevice(
             code: link.code,
             name: name,
@@ -75,7 +82,11 @@ final class Connection {
         switch try await client.pairDevice(body: .json(body)) {
         case let .ok(ok):
             let paired = try ok.body.json
-            let session = ServerSession(token: paired.token, urls: [url] + link.serverURLs.filter { $0 != url })
+            let session = ServerSession(
+                token: paired.token,
+                urls: [url] + link.serverURLs.filter { $0 != url },
+                accessHeaders: link.accessHeaders
+            )
             session.save()
             self.session = session
             serverURL = url
@@ -88,6 +99,15 @@ final class Connection {
         case let .undocumented(statusCode, _):
             throw ConnectionError.server(statusCode)
         }
+    }
+
+    /// Typed in Settings → Connection, for a proxy set up after pairing. Saved in the Keychain.
+    func setAccessHeaders(_ headers: [AccessHeader]) async {
+        guard var session else { return }
+        session.accessHeaders = headers
+        session.save()
+        self.session = session
+        await refresh()
     }
 
     func disconnect() {
@@ -105,7 +125,7 @@ final class Connection {
     // MARK: Preferences
 
     func preferences() async throws -> Components.Schemas.DevicePreferences {
-        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        let client = try await requiredClient()
         switch try await client.getPreferences() {
         case let .ok(ok): return try ok.body.json
         case .unauthorized: throw ConnectionError.server(401)
@@ -115,7 +135,7 @@ final class Connection {
     }
 
     func save(_ preferences: Components.Schemas.DevicePreferences) async throws {
-        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        let client = try await requiredClient()
         switch try await client.savePreferences(body: .json(preferences)) {
         case .ok: return
         case .unauthorized: throw ConnectionError.server(401)
@@ -125,7 +145,7 @@ final class Connection {
     }
 
     func flows() async throws -> [Components.Schemas.FlowSummary] {
-        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
+        let client = try await requiredClient()
         switch try await client.listFlows() {
         case let .ok(ok): return try ok.body.json
         case .unauthorized: throw ConnectionError.server(401)
@@ -152,7 +172,7 @@ final class Connection {
                 lastError = ConnectionError.server(statusCode).localizedDescription
             }
         } catch {
-            lastError = error.localizedDescription
+            lastError = error.quaiMessage
         }
     }
 
@@ -167,11 +187,8 @@ final class Connection {
     // MARK: Library
 
     func loadLibrary() async {
-        guard let client = await authenticatedClient() else {
-            libraryError = ConnectionError.unreachable.localizedDescription
-            return
-        }
         do {
+            let client = try await requiredClient()
             switch try await client.getLibrary() {
             case let .ok(ok):
                 library = try ok.body.json
@@ -184,18 +201,15 @@ final class Connection {
                 libraryError = ConnectionError.server(statusCode).localizedDescription
             }
         } catch {
-            libraryError = error.localizedDescription
+            libraryError = error.quaiMessage
         }
     }
 
     // MARK: To fix
 
     func loadFixes() async {
-        guard let client = await authenticatedClient() else {
-            fixesError = ConnectionError.unreachable.localizedDescription
-            return
-        }
         do {
+            let client = try await requiredClient()
             switch try await client.listFixes() {
             case let .ok(ok):
                 fixes = try ok.body.json
@@ -208,7 +222,7 @@ final class Connection {
                 fixesError = ConnectionError.server(statusCode).localizedDescription
             }
         } catch {
-            fixesError = error.localizedDescription
+            fixesError = error.quaiMessage
         }
     }
 
@@ -338,9 +352,17 @@ final class Connection {
         await loadFixes()
     }
 
+    /// Prefers the address that answered last; on another network, tries the others.
     private func requiredClient() async throws -> Client {
-        guard let client = await authenticatedClient() else { throw ConnectionError.unreachable }
-        return client
+        guard let session else { throw ConnectionError.unreachable }
+        do {
+            let (url, client) = try await session.connect(preferring: serverURL)
+            serverURL = url
+            return client
+        } catch {
+            lastError = error.quaiMessage
+            throw error
+        }
     }
 
     /// The token that lets the server start a Live Activity on this iPhone. Runs as long as the app does.
@@ -405,18 +427,13 @@ final class Connection {
 
     private func send(_ call: (Client) async throws -> Void) async {
         guard let client = await authenticatedClient() else { return }
-        do { try await call(client) } catch { lastError = error.localizedDescription }
+        do { try await call(client) } catch { lastError = error.quaiMessage }
     }
 
-    /// Prefers the address that answered last; on another network, tries the others.
+    /// `requiredClient`, for the calls that have nowhere to report a failure but `lastError`.
     private func authenticatedClient() async -> Client? {
-        guard let session else { return nil }
-        guard let (url, client) = await session.connect(preferring: serverURL) else {
-            lastError = ConnectionError.unreachable.localizedDescription
-            return nil
-        }
-        serverURL = url
-        return client
+        guard session != nil else { return nil }
+        return try? await requiredClient()
     }
 }
 

@@ -1,12 +1,24 @@
 import SwiftUI
 
-/// Settings, opened from the Home header: this iPhone's Live Activities, the server, disconnecting.
+/// Settings, opened from the Home header: this iPhone's Live Activities, the connection, disconnecting.
 struct SettingsView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
     @State private var confirmDisconnect = false
 
     private var host: String { connection.serverURL?.host() ?? connection.serverURL?.absoluteString ?? "—" }
+
+    /// "umbrel.local:3078", "quai.example.com".
+    private static func address(_ url: URL) -> String {
+        guard let host = url.host() else { return url.absoluteString }
+        return url.port.map { "\(host):\($0)" } ?? host
+    }
+
+    /// The header names, never their values: "CF-Access-Client-Id, CF-Access-Client-Secret".
+    private var headerSummary: String {
+        let names = connection.accessHeaders.map(\.name)
+        return names.isEmpty ? "None" : names.joined(separator: ", ")
+    }
 
     var body: some View {
         NavigationStack {
@@ -45,8 +57,20 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
 
-                    GroupedSection(header: "Server") {
-                        ListRow(title: "Address", value: connection.serverURL?.absoluteString ?? "—")
+                    GroupedSection(header: "Connection", footer: "The app tries each address, the one that answered last first.") {
+                        ForEach(connection.serverURLs, id: \.self) { url in
+                            ListRow(title: Self.address(url)) {
+                                if url == connection.serverURL { Text("In use") }
+                            }
+                        }
+                        NavigationLink {
+                            AccessHeadersView()
+                        } label: {
+                            ListRow(title: "Access headers", chevron: true) {
+                                Text(headerSummary).lineLimit(1)
+                            }
+                        }
+                        .buttonStyle(.plain)
                         ListRow(title: "Push server", value: Connection.apnsEnvironment == .development ? "Development (Xcode)" : "Production")
                     }
 

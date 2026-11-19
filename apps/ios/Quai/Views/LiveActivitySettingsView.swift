@@ -55,7 +55,7 @@ struct LiveActivitySettingsView: View {
             preferences = try await saved.flows.additionalProperties
             loaded = true
         } catch {
-            status = error.localizedDescription
+            status = error.quaiMessage
             loaded = true
         }
     }
@@ -70,7 +70,7 @@ struct LiveActivitySettingsView: View {
                 try await connection.save(.init(flows: .init(additionalProperties: all)))
                 status = nil
             } catch {
-                status = error.localizedDescription
+                status = error.quaiMessage
             }
         }
     }
