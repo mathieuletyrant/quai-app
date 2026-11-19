@@ -91,6 +91,9 @@ const LibrarySeries = Schema.Struct({
   tvdbId: Schema.Number,
   tmdbId: Schema.optional(Schema.Number),
   added: Schema.optional(Schema.String),
+  monitored: Schema.optional(Schema.Boolean),
+  /** The next monitored episode's air date, when one is coming. */
+  nextAiring: Schema.optional(Schema.String),
   overview: Schema.optional(Schema.String),
   images: Schema.optional(Schema.Array(ArrImage)),
   statistics: Schema.optional(Schema.Struct({
@@ -103,9 +106,20 @@ export const SonarrSeries = Schema.Array(LibrarySeries)
 export type SonarrSeries = typeof LibrarySeries.Type
 
 /**
- * A series as the library lists it. `episodeCount` is what Sonarr expects (monitored, aired):
- * available once every one of them has a file, wanted while some miss (or none aired yet).
+ * A series as the library lists it. `episodeCount` is what Sonarr expects: monitored episodes
+ * that aired (or have a file), 0 when nothing is monitored.
+ * - wanted: monitored, and some expected episode has no file, or nothing aired yet but a
+ *   monitored episode is coming (Sonarr grabs it when it airs);
+ * - available: otherwise, once some episode has its file, monitored or not;
+ * - not monitored: no file, and Sonarr looks for nothing.
  */
+const seriesStatus = (series: SonarrSeries, have: number, total: number): LibraryItem["status"] => {
+  const monitored = series.monitored !== false
+  if (monitored && have < total) return "wanted"
+  if (have > 0) return "available"
+  return monitored && series.nextAiring !== undefined ? "wanted" : "notMonitored"
+}
+
 export const librarySeries = (series: SonarrSeries): LibraryItem => {
   const year = knownYear(series.year)
   const posterUrl = posterOf(series.images)
@@ -118,7 +132,7 @@ export const librarySeries = (series: SonarrSeries): LibraryItem => {
     title: series.title,
     ...(year === undefined ? {} : { year }),
     ...(posterUrl === undefined ? {} : { posterUrl }),
-    status: (total > 0 ? have >= total : have > 0) ? "available" : "wanted",
+    status: seriesStatus(series, have, total),
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: series.statistics?.sizeOnDisk ?? 0,
     ...(series.overview === undefined || series.overview === "" ? {} : { overview: series.overview }),

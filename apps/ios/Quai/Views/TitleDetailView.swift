@@ -8,12 +8,23 @@ struct TitleDetailView: View {
     private var statusLine: (text: String, color: Color) {
         switch item.status {
         case .available:
+            if let have = item.episodes?.have, have > 0 {
+                return ("Available · \(have == 1 ? "1 episode" : "\(have) episodes") on disk", Palette.ok)
+            }
             return ("Available", Palette.ok)
         case .downloading:
             return (["Downloading", item.progress.map(Format.percent)].compactMap { $0 }.joined(separator: " · "), Palette.downloads)
         case .wanted:
             return (item.kind == .movie ? "Wanted · no file yet" : "Wanted · episodes missing", Palette.wantedText)
+        case .notMonitored:
+            return ("Not monitored", Palette.secondaryText)
         }
+    }
+
+    /// "8 of 10 monitored", "3 on disk"; nil when the series has nothing on disk nor monitored.
+    private var episodesLine: String? {
+        guard let episodes = item.episodes, episodes.have > 0 || episodes.total > 0 else { return nil }
+        return episodes.total > 0 ? "\(episodes.have) of \(episodes.total) monitored" : "\(episodes.have) on disk"
     }
 
     var body: some View {
@@ -45,10 +56,10 @@ struct TitleDetailView: View {
                     ProgressBar(value: progress, color: Palette.downloads)
                 }
                 GroupedSection {
-                    if let episodes = item.episodes {
-                        ListRow(title: "Episodes", value: "\(episodes.have) of \(episodes.total)")
+                    if let episodesLine {
+                        ListRow(title: "Episodes", value: episodesLine)
                     }
-                    ListRow(title: "On disk", value: item.sizeBytes > 0 ? Format.bytes(item.sizeBytes) : "Nothing yet")
+                    ListRow(title: "On disk", value: item.sizeBytes > 0 ? Format.bytes(item.sizeBytes) : (item.status == .notMonitored ? "Nothing" : "Nothing yet"))
                     if let addedAt = item.addedAt {
                         ListRow(title: "Added", value: Date(timeIntervalSince1970: addedAt).formatted(date: .abbreviated, time: .omitted))
                     }

@@ -6,15 +6,22 @@ export const LibraryKind = Schema.Literals(["movie", "series"]).annotate({ ident
 export type LibraryKind = typeof LibraryKind.Type
 
 /**
- * Where a title stands: on disk, being downloaded now (a running activity follows its torrent),
- * or wanted: in Radarr or Sonarr without its file (or, for a series, without every episode).
+ * Where a title stands:
+ * - `available`: on disk (a series: some episodes have their file, and none Sonarr still looks for);
+ * - `downloading`: a running activity follows its torrent;
+ * - `wanted`: Radarr or Sonarr looks for it: monitored, without its file (a series: monitored
+ *   episodes without one, aired or coming);
+ * - `notMonitored`: without a file, and Radarr or Sonarr isn't looking for it (often watched,
+ *   then deleted).
  */
-export const LibraryStatus = Schema.Literals(["available", "downloading", "wanted"]).annotate({ identifier: "LibraryStatus" })
+export const LibraryStatus = Schema.Literals(["available", "downloading", "wanted", "notMonitored"]).annotate({ identifier: "LibraryStatus" })
 export type LibraryStatus = typeof LibraryStatus.Type
 
-/** Episodes of a series that have a file, out of those Sonarr expects. */
+/** A series' episodes: those with a file, and the monitored ones Sonarr expects (aired, or with a file). */
 export const EpisodeCount = Schema.Struct({
+  /** On disk. */
   have: Schema.Int,
+  /** Monitored, aired or with a file; 0 when nothing is monitored. */
   total: Schema.Int
 }).annotate({ identifier: "EpisodeCount" })
 

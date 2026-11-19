@@ -8,7 +8,9 @@ recordings from the real stack once `record-fixtures` exists (docs/spec-v1.md, T
 
 The library reads (`radarr/movies.json`, `radarr/diskspace.json`, `sonarr/series.json`) follow
 the shape of Radarr v5's `GET /api/v3/movie` and `GET /api/v3/diskspace` and Sonarr v4's
-`GET /api/v3/series`, trimmed to a few titles.
+`GET /api/v3/series`, trimmed to a few titles. `radarr/movie-unmonitored.json` and
+`sonarr/series-unmonitored.json` are a movie and a series left unmonitored without a file (watched,
+then deleted).
 
 The To fix reads follow Radarr v5 and Sonarr v4's `GET /api/v3/queue` (with `includeMovie`, or
 `includeSeries` and `includeEpisode`), `GET /api/v3/wanted/missing`, `GET /api/v3/history/since`,

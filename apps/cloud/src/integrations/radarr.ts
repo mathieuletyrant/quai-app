@@ -70,6 +70,7 @@ const LibraryMovie = Schema.Struct({
   tmdbId: Schema.Number,
   added: Schema.optional(Schema.String),
   hasFile: Schema.optional(Schema.Boolean),
+  monitored: Schema.optional(Schema.Boolean),
   sizeOnDisk: Schema.optional(Schema.Number),
   overview: Schema.optional(Schema.String),
   images: Schema.optional(Schema.Array(ArrImage))
@@ -99,7 +100,10 @@ export const epochSeconds = (iso: string | undefined): number | undefined => {
 /** A year the *arr knows: they write 0 when they don't. */
 export const knownYear = (year: number | undefined) => year !== undefined && year > 0 ? Math.trunc(year) : undefined
 
-/** A movie as the library lists it: on disk when it has its file, wanted otherwise. */
+/**
+ * A movie as the library lists it: on disk when it has its file; else wanted while Radarr is
+ * monitoring it (before it's out too: Radarr grabs it once it is), not monitored otherwise.
+ */
 export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
   const year = knownYear(movie.year)
   const posterUrl = posterOf(movie.images)
@@ -110,7 +114,7 @@ export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
     title: movie.title,
     ...(year === undefined ? {} : { year }),
     ...(posterUrl === undefined ? {} : { posterUrl }),
-    status: movie.hasFile === true ? "available" : "wanted",
+    status: movie.hasFile === true ? "available" : movie.monitored === false ? "notMonitored" : "wanted",
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: movie.sizeOnDisk ?? 0,
     ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview })

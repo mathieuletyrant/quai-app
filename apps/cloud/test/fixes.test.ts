@@ -129,6 +129,16 @@ describe("To fix rules", () => {
     expect(moviesWithoutSource(missing, queue, grabs, arco + noSourceAfterMs).map((d) => d.fix.id)).toContain("missing-movie-52")
   })
 
+  it("no source: never a title Radarr or Sonarr isn't monitoring", () => {
+    const missing = decode(RadarrMissing, "radarr/wanted-missing.json").records
+    expect(moviesWithoutSource(missing, [], [], now + 3600_000).map((d) => d.fix.id)).toContain("missing-movie-48")
+    const unmonitored = missing.map((m) => ({ ...m, monitored: false }))
+    expect(moviesWithoutSource(unmonitored, [], [], now + 3600_000)).toEqual([])
+    const episodes = decode(SonarrMissing, "sonarr/wanted-missing.json").records
+    expect(episodesWithoutSource(episodes, [], [], now)).not.toEqual([])
+    expect(episodesWithoutSource(episodes.map((e) => ({ ...e, monitored: false })), [], [], now)).toEqual([])
+  })
+
   it("no source: a movie added before it came out waits from its release", () => {
     const [runner] = decode(RadarrMissing, "radarr/wanted-missing.json").records.filter((m) => m.id === 48)
     const early = { ...runner!, added: "2026-10-01T00:00:00Z", digitalRelease: "2026-11-19T10:30:00Z" }
@@ -181,7 +191,7 @@ describe("To fix rules", () => {
     expect(candidatePoster(unknownId, { movies })).toBe(upPoster)
     // Another year, or two movies of that name: not this one.
     expect(candidatePoster({ ...unknownId, year: 1980 }, { movies })).toBeUndefined()
-    const twice = Schema.decodeUnknownSync(RadarrMovies)([...moviesWithCandidates(), { ...(moviesWithCandidates()[3] as object), id: 999, tmdbId: 1 }])
+    const twice = Schema.decodeUnknownSync(RadarrMovies)([...moviesWithCandidates(), { ...(moviesWithCandidates().find((m) => (m as { title: string }).title === "Up") as object), id: 999, tmdbId: 1 }])
     expect(candidatePoster(unknownId, { movies: twice })).toBeUndefined()
     // A movie is never matched with a series, and nothing listed means no poster.
     expect(candidatePoster(unknownId, { series: Schema.decodeUnknownSync(SonarrSeries)(fixture("sonarr/series.json")) })).toBeUndefined()

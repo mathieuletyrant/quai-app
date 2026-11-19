@@ -186,13 +186,13 @@ struct PosterCell: View {
     }
 }
 
-/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk.
+/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk, nor when not monitored.
 struct StatusBadge: View {
     let item: LibraryItem
 
     var body: some View {
         switch item.status {
-        case .available:
+        case .available, .notMonitored:
             EmptyView()
         case .wanted:
             Badge(text: "wanted", fill: Palette.wantedFill, color: Palette.wantedText)
