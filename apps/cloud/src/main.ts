@@ -15,6 +15,7 @@ import { Hub } from "./integrations/Hub.ts"
 import { Library } from "./library/Library.ts"
 import { Apns } from "./push/Apns.ts"
 import { Notifier } from "./push/Notifier.ts"
+import { PublicAccess } from "./PublicAccess.ts"
 import { ServerInfo } from "./Version.ts"
 
 // All configuration comes from environment variables. Nothing about a home is kept here: it
@@ -46,7 +47,7 @@ const Engine = ActionRunner.layer.pipe(
   Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer)),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Activities.layer),
-  Layer.provideMerge(Layer.mergeAll(Apns.layer, IntegrationsLive)),
+  Layer.provideMerge(Layer.mergeAll(Apns.layer, PublicAccess.layer, IntegrationsLive)),
   Layer.provideMerge(Home)
 )
 
