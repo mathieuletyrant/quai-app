@@ -40,6 +40,43 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 - 📋 Live activities first, then today's events
 - 🎚️ One switch per activity kind, greyed out when the admin turned it off
 
+## 🧭 How it works
+
+> [!NOTE]
+> This is where Quai is heading ([spec v2](docs/spec-v2-hosted.md)). Today the Relay and the Core
+> run together in one server; they're being split.
+
+```mermaid
+flowchart LR
+  subgraph home["🏠 At home"]
+    direction TB
+    arr["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
+    relay["<b>Quai Relay</b><br/>holds the keys · webhooks · polling<br/>stores the home's data in /data"]
+    arr -- "webhooks" --> relay
+    relay -- "allowlisted calls" --> arr
+  end
+
+  subgraph core["☁️ Quai Core: hosted, or self-hosted"]
+    brain["<b>flows · engine · console · app API</b><br/>stores nothing"]
+  end
+
+  apple["Apple Push"]
+  iphone["📱 Quai app<br/>Live Activities"]
+
+  relay <-- "one outbound WebSocket<br/>events · watches · home data" --> brain
+  brain -- "push" --> apple -- "Live Activity" --> iphone
+  iphone <-- "app API · buttons" --> brain
+```
+
+- **Quai Relay** runs next to your services. It holds their keys, sets up their webhooks, polls what
+  the Core asks it to watch, and keeps the home's data (flows, iPhones, preferences) in its `/data`.
+  It opens a single outbound connection: no port to open, no tunnel.
+- **Quai Core** understands events and runs the flows, the console and the app's API. It keeps
+  nothing: when a Relay connects, the Core loads that home from it, and writes every change back.
+- **The app** talks to the Core from anywhere and receives Live Activities through Apple.
+
+Self-hosting everything: one compose runs the Relay and the Core side by side.
+
 ## 🚀 Run it
 
 ```sh
@@ -100,7 +137,7 @@ Fully automatic, driven by [Conventional Commits](https://www.conventionalcommit
 2. Merging it creates the tag and GitHub release, then builds and publishes the Docker image.
 3. The same release is archived and uploaded to TestFlight, once the repo has the `ASC_KEY_P8` secret: the .p8 of the App Store Connect API key (Admin role, which cloud signing needs) whose ids are in `.github/workflows/testflight.yml`.
 
-📖 Spec: [docs/spec-v1.md](docs/spec-v1.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
+📖 Specs: [v1](docs/spec-v1.md) · [v2, Relay and Core](docs/spec-v2-hosted.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
 
 ## 📄 License
 
