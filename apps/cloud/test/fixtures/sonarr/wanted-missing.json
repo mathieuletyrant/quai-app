@@ -1,0 +1,137 @@
+{
+  "page": 1,
+  "pageSize": 1000,
+  "sortKey": "episodes.airDateUtc",
+  "sortDirection": "descending",
+  "totalRecords": 4,
+  "records": [
+    {
+      "seriesId": 7,
+      "tvdbId": 9701,
+      "episodeFileId": 0,
+      "seasonNumber": 4,
+      "episodeNumber": 1,
+      "title": "Next",
+      "airDate": "2026-11-19",
+      "airDateUtc": "2026-11-19T11:30:00Z",
+      "runtime": 55,
+      "hasFile": false,
+      "monitored": true,
+      "unverifiedSceneNumbering": false,
+      "id": 701,
+      "series": {
+        "title": "The Bear",
+        "sortTitle": "bear",
+        "status": "continuing",
+        "year": 2022,
+        "added": "2024-07-01T10:00:00Z",
+        "monitored": true,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "/MediaCover/7/poster.jpg",
+            "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg"
+          }
+        ],
+        "tvdbId": 403245,
+        "id": 7
+      }
+    },
+    {
+      "seriesId": 3,
+      "tvdbId": 9310,
+      "episodeFileId": 0,
+      "seasonNumber": 2,
+      "episodeNumber": 10,
+      "title": "Cold Harbor",
+      "airDate": "2026-11-19",
+      "airDateUtc": "2026-11-19T02:00:00Z",
+      "runtime": 55,
+      "hasFile": false,
+      "monitored": true,
+      "unverifiedSceneNumbering": false,
+      "id": 310,
+      "series": {
+        "title": "Severance",
+        "sortTitle": "severance",
+        "status": "continuing",
+        "year": 2022,
+        "added": "2025-01-04T19:23:51Z",
+        "monitored": true,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "/MediaCover/3/poster.jpg",
+            "remoteUrl": "https://artworks.thetvdb.com/banners/posters/371980-2.jpg"
+          }
+        ],
+        "tvdbId": 371980,
+        "id": 3
+      }
+    },
+    {
+      "seriesId": 3,
+      "tvdbId": 9309,
+      "episodeFileId": 0,
+      "seasonNumber": 2,
+      "episodeNumber": 9,
+      "title": "The We We Are",
+      "airDate": "2026-11-18",
+      "airDateUtc": "2026-11-18T02:00:00Z",
+      "runtime": 55,
+      "hasFile": false,
+      "monitored": true,
+      "unverifiedSceneNumbering": false,
+      "id": 309,
+      "series": {
+        "title": "Severance",
+        "sortTitle": "severance",
+        "status": "continuing",
+        "year": 2022,
+        "added": "2025-01-04T19:23:51Z",
+        "monitored": true,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "/MediaCover/3/poster.jpg",
+            "remoteUrl": "https://artworks.thetvdb.com/banners/posters/371980-2.jpg"
+          }
+        ],
+        "tvdbId": 371980,
+        "id": 3
+      }
+    },
+    {
+      "seriesId": 7,
+      "tvdbId": 9605,
+      "episodeFileId": 0,
+      "seasonNumber": 3,
+      "episodeNumber": 5,
+      "title": "Children",
+      "airDate": "2026-11-15",
+      "airDateUtc": "2026-11-15T02:00:00Z",
+      "runtime": 55,
+      "hasFile": false,
+      "monitored": true,
+      "unverifiedSceneNumbering": false,
+      "id": 605,
+      "series": {
+        "title": "The Bear",
+        "sortTitle": "bear",
+        "status": "continuing",
+        "year": 2022,
+        "added": "2024-07-01T10:00:00Z",
+        "monitored": true,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "/MediaCover/7/poster.jpg",
+            "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg"
+          }
+        ],
+        "tvdbId": 403245,
+        "id": 7
+      }
+    }
+  ]
+}

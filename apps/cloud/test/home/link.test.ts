@@ -47,6 +47,16 @@ describe("home link", () => {
       expect(Option.map(yield* l.home, (h) => h.homeId)).toEqual(Option.some(first.homeId))
     }).pipe(Effect.provide(link)))
 
+  it.effect("a Home one protocol behind is still served; one from the future is refused", () =>
+    Effect.gen(function*() {
+      const future = yield* makeFakeHome({ protocol: HomeProtocol.protocolVersion + 1 })
+      yield* future.open
+      expect(future.state.refused?.retryAfterSeconds).toBe(3600)
+      const older = yield* makeFakeHome({ protocol: HomeProtocol.minProtocolVersion })
+      yield* older.connect
+      expect(older.state.welcomed).toBe(older.homeId)
+    }).pipe(Effect.provide(link)))
+
   it.effect("the same home connecting again replaces its old connection", () =>
     Effect.gen(function*() {
       const first = yield* makeFakeHome()

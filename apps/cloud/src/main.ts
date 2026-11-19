@@ -4,6 +4,7 @@ import { HttpRouter, HttpStaticServer } from "effect/http"
 import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
 import { ActionRunner } from "./flows/ActionRunner.ts"
+import { Fixes } from "./fixes/Fixes.ts"
 import { Activities } from "./flows/Activities.ts"
 import { FlowStore } from "./flows/FlowStore.ts"
 import { TestRunner } from "./flows/TestRunner.ts"
@@ -42,7 +43,7 @@ const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
 )
 
 const Engine = ActionRunner.layer.pipe(
-  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer)),
+  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer)),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Activities.layer),
   Layer.provideMerge(Layer.mergeAll(Apns.layer, IntegrationsLive)),

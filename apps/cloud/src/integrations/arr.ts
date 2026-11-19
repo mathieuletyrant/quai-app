@@ -1,0 +1,198 @@
+import type { Release } from "@quai/api"
+import { Schema } from "effect"
+
+/**
+ * What Radarr and Sonarr share for the To fix list: they run on the same framework, so their
+ * queue, release search and manual import differ only in the fields naming the media. Only the
+ * fields Quai reads; Radarr v5/v6 and Sonarr v4.
+ */
+
+const Images = Schema.optional(Schema.Array(Schema.Struct({
+  coverType: Schema.String,
+  remoteUrl: Schema.optional(Schema.String)
+})))
+
+const StatusMessage = Schema.Struct({
+  title: Schema.optional(Schema.NullOr(Schema.String)),
+  messages: Schema.optional(Schema.NullOr(Schema.Array(Schema.String)))
+})
+
+/** One row of `GET /api/v3/queue`, with `includeMovie` (Radarr) or `includeSeries` + `includeEpisode` (Sonarr). */
+export const QueueRecord = Schema.Struct({
+  id: Schema.Number,
+  title: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
+  /** ok, warning, error. */
+  trackedDownloadStatus: Schema.optional(Schema.String),
+  /** downloading, importBlocked, importPending, importing, imported, failedPending, failed, ignored. */
+  trackedDownloadState: Schema.optional(Schema.String),
+  statusMessages: Schema.optional(Schema.NullOr(Schema.Array(StatusMessage))),
+  downloadId: Schema.optional(Schema.NullOr(Schema.String)),
+  downloadClient: Schema.optional(Schema.NullOr(Schema.String)),
+  added: Schema.optional(Schema.String),
+  // Radarr
+  movieId: Schema.optional(Schema.NullOr(Schema.Number)),
+  movie: Schema.optional(Schema.Struct({
+    title: Schema.String,
+    year: Schema.optional(Schema.Number),
+    hasFile: Schema.optional(Schema.Boolean),
+    images: Images
+  })),
+  // Sonarr
+  seriesId: Schema.optional(Schema.NullOr(Schema.Number)),
+  episodeId: Schema.optional(Schema.NullOr(Schema.Number)),
+  seasonNumber: Schema.optional(Schema.NullOr(Schema.Number)),
+  series: Schema.optional(Schema.Struct({
+    title: Schema.String,
+    year: Schema.optional(Schema.Number),
+    images: Images
+  })),
+  episode: Schema.optional(Schema.Struct({
+    seasonNumber: Schema.Number,
+    episodeNumber: Schema.Number,
+    hasFile: Schema.optional(Schema.Boolean)
+  }))
+})
+export type QueueRecord = typeof QueueRecord.Type
+
+export const QueuePage = Schema.Struct({ records: Schema.Array(QueueRecord) })
+
+/** The queue's largest page: one read covers any home's queue. */
+export const queuePageSize = 500
+
+/** How far back the grabs are read: a grab older than this, still without a file, doesn't count. */
+export const grabLookbackMs = 30 * 24 * 3600_000
+
+/**
+ * A finished download the *arr won't import on its own: blocked (a sample, not an upgrade, no
+ * match), or waiting for a manual import with a warning ("name doesn't match any episode").
+ */
+export const isImportBlocked = (record: QueueRecord) => {
+  const state = record.trackedDownloadState
+  return state === "importBlocked" || state === "importFailed" ||
+    (state === "importPending" && record.trackedDownloadStatus === "warning")
+}
+
+/** The *arr's messages, flattened: each entry is titled with a file name, or is the message itself. */
+export const queueMessages = (record: QueueRecord): ReadonlyArray<string> => {
+  const lines = (record.statusMessages ?? []).flatMap((m) => {
+    const messages = (m.messages ?? []).filter((text) => text !== "")
+    return messages.length > 0 ? messages : m.title !== undefined && m.title !== null && m.title !== "" ? [m.title] : []
+  })
+  return [...new Set(lines)]
+}
+
+/** One release of `GET /api/v3/release` (an interactive search). */
+export const ReleaseRecord = Schema.Struct({
+  guid: Schema.String,
+  indexerId: Schema.Number,
+  indexer: Schema.optional(Schema.NullOr(Schema.String)),
+  title: Schema.optional(Schema.NullOr(Schema.String)),
+  size: Schema.optional(Schema.Number),
+  protocol: Schema.optional(Schema.String),
+  seeders: Schema.optional(Schema.NullOr(Schema.Number)),
+  leechers: Schema.optional(Schema.NullOr(Schema.Number)),
+  quality: Schema.optional(Schema.Struct({ quality: Schema.optional(Schema.Struct({ name: Schema.optional(Schema.String) })) })),
+  languages: Schema.optional(Schema.NullOr(Schema.Array(Schema.Struct({ name: Schema.optional(Schema.String) })))),
+  ageHours: Schema.optional(Schema.Number),
+  age: Schema.optional(Schema.Number),
+  customFormatScore: Schema.optional(Schema.Number),
+  rejected: Schema.optional(Schema.Boolean),
+  rejections: Schema.optional(Schema.NullOr(Schema.Array(Schema.Union([Schema.String, Schema.Struct({ reason: Schema.optional(Schema.String) })])))),
+  /** Sonarr: the episodes the release covers. */
+  mappedEpisodeInfo: Schema.optional(Schema.NullOr(Schema.Array(Schema.Struct({ id: Schema.optional(Schema.Number) }))))
+})
+export type ReleaseRecord = typeof ReleaseRecord.Type
+export const ReleaseRecords = Schema.Array(ReleaseRecord)
+
+const reasonsOf = (rejections: ReadonlyArray<string | { readonly reason?: string | undefined }> | null | undefined) =>
+  (rejections ?? []).map((r) => typeof r === "string" ? r : r.reason ?? "").filter((r) => r !== "")
+
+export const toRelease = (r: ReleaseRecord): Release => {
+  const rejections = reasonsOf(r.rejections)
+  return {
+    guid: r.guid,
+    indexerId: r.indexerId,
+    indexer: r.indexer ?? "",
+    title: r.title ?? "",
+    sizeBytes: r.size ?? 0,
+    protocol: r.protocol ?? "unknown",
+    ...(r.seeders === undefined || r.seeders === null ? {} : { seeders: Math.trunc(r.seeders) }),
+    ...(r.leechers === undefined || r.leechers === null ? {} : { leechers: Math.trunc(r.leechers) }),
+    quality: r.quality?.quality?.name ?? "Unknown",
+    languages: (r.languages ?? []).flatMap((l) => l.name === undefined ? [] : [l.name]),
+    ageHours: r.ageHours ?? (r.age ?? 0) * 24,
+    ...(r.customFormatScore === undefined ? {} : { customFormatScore: Math.trunc(r.customFormatScore) }),
+    rejected: r.rejected ?? rejections.length > 0,
+    rejections
+  }
+}
+
+/** Accepted ones first, then the best seeded. */
+export const byPreference = (a: Release, b: Release) =>
+  Number(a.rejected) - Number(b.rejected) || (b.seeders ?? -1) - (a.seeders ?? -1) || a.ageHours - b.ageHours
+
+/** One file of `GET /api/v3/manualimport?downloadId=`, as the *arr matched it. */
+export const ManualImportRow = Schema.Struct({
+  path: Schema.optional(Schema.String),
+  relativePath: Schema.optional(Schema.NullOr(Schema.String)),
+  name: Schema.optional(Schema.NullOr(Schema.String)),
+  size: Schema.optional(Schema.Number),
+  quality: Schema.optional(Schema.Unknown),
+  languages: Schema.optional(Schema.Unknown),
+  releaseGroup: Schema.optional(Schema.NullOr(Schema.String)),
+  indexerFlags: Schema.optional(Schema.Number),
+  movie: Schema.optional(Schema.NullOr(Schema.Struct({ id: Schema.Number, hasFile: Schema.optional(Schema.Boolean) }))),
+  series: Schema.optional(Schema.NullOr(Schema.Struct({ id: Schema.Number }))),
+  seasonNumber: Schema.optional(Schema.NullOr(Schema.Number)),
+  episodes: Schema.optional(Schema.NullOr(Schema.Array(Schema.Struct({
+    id: Schema.Number,
+    seasonNumber: Schema.Number,
+    episodeNumber: Schema.Number,
+    hasFile: Schema.optional(Schema.Boolean)
+  })))),
+  rejections: Schema.optional(Schema.NullOr(Schema.Array(Schema.Union([Schema.String, Schema.Struct({ reason: Schema.optional(Schema.String) })]))))
+})
+export type ManualImportRow = typeof ManualImportRow.Type
+export const ManualImportRows = Schema.Array(ManualImportRow)
+
+/** How a file is named to the user and in `ImportDownload`: its path inside the download. */
+export const fileOf = (row: ManualImportRow) => row.relativePath ?? row.name ?? row.path?.split("/").pop() ?? ""
+
+export const rejectionsOf = (row: ManualImportRow) => reasonsOf(row.rejections)
+
+/** The quality's name in a manual import row (`{ quality: { name } }`), when it has one. */
+export const qualityName = (quality: unknown): string | undefined => {
+  if (typeof quality !== "object" || quality === null || !("quality" in quality)) return undefined
+  const inner = quality.quality
+  return typeof inner === "object" && inner !== null && "name" in inner && typeof inner.name === "string" ? inner.name : undefined
+}
+
+/** The parts of a row `ManualImport` takes back as they were read: inventing a quality imports a file as what it isn't. */
+export const echoed = (row: ManualImportRow) => ({
+  ...(row.quality === undefined ? {} : { quality: row.quality }),
+  ...(row.languages === undefined ? {} : { languages: row.languages }),
+  ...(typeof row.releaseGroup === "string" ? { releaseGroup: row.releaseGroup } : {}),
+  ...(row.indexerFlags === undefined ? {} : { indexerFlags: row.indexerFlags })
+})
+
+const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
+
+const field = (value: unknown, key: string): unknown =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>)[key] : undefined
+
+/**
+ * The error message of a failed call, in the service's words: `[{ errorMessage }]` (an *arr's
+ * validation), `{ message }`, `{ detail }` (Reclaimerr), or the body itself when it's short.
+ */
+export const serviceError = (status: number, body: string): string => {
+  const parsed = decodeJson(body)
+  if (parsed._tag === "Some") {
+    const value = parsed.value
+    const candidates = [Array.isArray(value) ? field(value[0], "errorMessage") : undefined, field(value, "message"), field(value, "detail"), field(value, "error")]
+    const found = candidates.find((c): c is string => typeof c === "string" && c !== "")
+    if (found !== undefined) return found
+  }
+  const text = body.trim()
+  return text !== "" && text.length <= 200 && !text.startsWith("<") ? text : `HTTP ${status}`
+}

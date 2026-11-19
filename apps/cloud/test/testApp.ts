@@ -7,19 +7,21 @@ import { HomeRequiredLive } from "../src/home/HomeLink.ts"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
+import { ConsoleFixesHandlers, FixesHandlers } from "../src/http/FixesHandlers.ts"
 import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
 import { LibraryHandlers } from "../src/http/LibraryHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
 import { SystemHandlers } from "../src/http/SystemHandlers.ts"
 import { Apns } from "../src/push/Apns.ts"
+import { Fixes } from "../src/fixes/Fixes.ts"
 import { Library } from "../src/library/Library.ts"
 import { ServerInfo } from "../src/Version.ts"
 import { cloudLive, makeFakeHome } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
+export const TestApp = Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, ConsoleHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
-  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer)),
+  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer)),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
   Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
   Layer.provideMerge(cloudLive),

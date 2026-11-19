@@ -9,3 +9,10 @@ recordings from the real stack once `record-fixtures` exists (docs/spec-v1.md, T
 The library reads (`radarr/movies.json`, `radarr/diskspace.json`, `sonarr/series.json`) follow
 the shape of Radarr v5's `GET /api/v3/movie` and `GET /api/v3/diskspace` and Sonarr v4's
 `GET /api/v3/series`, trimmed to a few titles.
+
+The To fix reads follow Radarr v5 and Sonarr v4's `GET /api/v3/queue` (with `includeMovie`, or
+`includeSeries` and `includeEpisode`), `GET /api/v3/wanted/missing`, `GET /api/v3/history/since`,
+`GET /api/v3/release`, `GET /api/v3/manualimport` and Sonarr's `GET /api/v3/episode`;
+`reclaimerr/candidates.json` follows Reclaimerr 0.6's `GET /api/v1/candidates`
+(`CandidateListResponse`, backend/models/api_v1/candidates.py). Hashes, guids and magnets are
+masked.
