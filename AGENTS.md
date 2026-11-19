@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for agents working on Quai. Read the product spec, [`docs/spec-v1.md`](docs/spec-v1.md), before building a feature.
+Rules for agents working on Quai. Read the specs before building a feature: [`docs/spec-v1.md`](docs/spec-v1.md) (product) and [`docs/spec-v2-hosted.md`](docs/spec-v2-hosted.md) (Quai Home and Quai Cloud).
 
 ## Layout
 
@@ -11,11 +11,12 @@ Rules for agents working on Quai. Read the product spec, [`docs/spec-v1.md`](doc
 | `apps/cloud` | Quai Cloud, Effect on Node: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, serves the console. Keeps nothing: the home's data lives in Quai Home. |
 | `apps/console` | React + Vite web console, with a typed client derived from `packages/api`. |
 | `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json`. |
-| `Dockerfile` | The only server deliverable: one generic image. |
+| `Dockerfile` | The two server deliverables, one build: `--target home` and `--target cloud` (default). |
 
 ## Host-agnostic
 
-- Quai ships **one generic Docker image**. No code, type or route may assume Umbrel or any other host.
+- Quai ships **two generic Docker images**, `quai-home` and `quai` (the Cloud). No code, type or route may assume Umbrel or any other host.
+- Quai Cloud stores nothing about a home: no database, nothing on disk. A home's data lives in Quai Home, behind the home store.
 - The contract (`packages/api`) only talks about Quai: *arr services, activities, devices. Never the host.
 - All configuration comes from `QUAI_*` environment variables and the `/data` volume.
 - The Umbrel packaging lives in `mathieuletyrant/umbrel-community-app-store` (`mathieu-quai`), not here.
@@ -34,7 +35,6 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - No bare `Promise` or `async` on the server: everything is an `Effect`. `Promise` is only allowed at the console's React boundary.
 - Time goes through `Clock` (never `Date.now()` in logic) so `TestClock` works. One exception: the start time in `ServerInfo.layer`.
 - In `HttpApiBuilder.group`, get services in the outer `Effect.gen`, not inside each handler.
-- No Kysely: `@effect/sql-kysely` has no v4 release. Use `SqlClient` from `effect/sql`.
 
 ## Tests
 
