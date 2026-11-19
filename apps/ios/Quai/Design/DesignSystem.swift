@@ -183,7 +183,105 @@ struct Badge: View {
     }
 }
 
-/// A round glass button: the Home header's Settings, a sheet's close.
+// MARK: Posters
+
+/// TMDB lists the original poster (several MB): screens ask for one as wide as they show it.
+/// Other hosts (TheTVDB) have one size: their URL is kept.
+enum PosterSize: String {
+    /// A row's thumbnail.
+    case small = "w185"
+    /// The Library grid.
+    case grid = "w342"
+    /// A title's detail.
+    case large = "w500"
+
+    func url(_ poster: String?) -> URL? {
+        poster.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/\(rawValue)/")) }
+    }
+}
+
+/// A poster loaded from its public URL; the title on a plain tile until (or unless) it loads.
+struct Poster: View {
+    let url: URL?
+    let title: String
+    var cornerRadius: CGFloat = 12
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .background(Palette.poster)
+            .overlay {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Text(title)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Palette.tertiaryText)
+                            .multilineTextAlignment(.center)
+                            .padding(8)
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
+/// A symbol on a black rounded square: a card's kind when it has no poster.
+struct SymbolSquare: View {
+    let systemImage: String
+    let color: Color
+    var size: CGFloat = 34
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: size * 0.47, weight: .semibold))
+            .foregroundStyle(color)
+            .frame(width: size, height: size)
+            .background(Color.black, in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
+            .accessibilityHidden(true)
+    }
+}
+
+/// A small 2:3 poster, with a symbol badge on its corner. `fallback` shows while it loads, when
+/// it fails, and when there is no poster.
+struct PosterThumbnail<Fallback: View>: View {
+    let url: URL?
+    var width: CGFloat = 52
+    var cornerRadius: CGFloat = 10
+    var badge: (systemImage: String, color: Color)?
+    @ViewBuilder var fallback: Fallback
+
+    var body: some View {
+        AsyncImage(url: url) { phase in
+            if let image = phase.image {
+                image
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: width, height: width * 1.5)
+                    .background(Palette.poster)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .overlay(alignment: .bottomTrailing) {
+                        if let badge {
+                            Image(systemName: badge.systemImage)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(badge.color)
+                                .frame(width: 22, height: 22)
+                                .background(Color.black, in: Circle())
+                                .overlay(Circle().strokeBorder(Palette.tile, lineWidth: 2))
+                                .offset(x: 5, y: 5)
+                        }
+                    }
+            } else {
+                fallback
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A round glass button: a sheet's close, a pushed screen's back.
 struct GlassIconButton: View {
     var systemImage: String
     var label: String

@@ -10,10 +10,10 @@ extension Components.Schemas.LibraryItem {
     /// "Movie · 2024"
     var caption: String { [kindLabel, year.map { String($0) }].compactMap { $0 }.joined(separator: " · ") }
 
-    /// TMDB lists the original poster (several MB): the grid asks for a 342 px wide one.
-    var posterThumbnail: URL? { posterUrl.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/w342/")) } }
+    /// The grid's poster, 342 px wide.
+    var posterThumbnail: URL? { PosterSize.grid.url(posterUrl) }
 
-    var posterLarge: URL? { posterUrl.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/w500/")) } }
+    var posterLarge: URL? { PosterSize.large.url(posterUrl) }
 }
 
 /// What the segmented control shows.
@@ -183,34 +183,6 @@ struct PosterCell: View {
                 .lineLimit(1)
         }
         .accessibilityElement(children: .combine)
-    }
-}
-
-/// A poster loaded from its public URL; the title on a plain tile until (or unless) it loads.
-struct Poster: View {
-    let url: URL?
-    let title: String
-    var cornerRadius: CGFloat = 12
-
-    var body: some View {
-        Color.clear
-            .aspectRatio(2.0 / 3.0, contentMode: .fit)
-            .background(Palette.poster)
-            .overlay {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Text(title)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Palette.tertiaryText)
-                            .multilineTextAlignment(.center)
-                            .padding(8)
-                    }
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .accessibilityHidden(true)
     }
 }
 
