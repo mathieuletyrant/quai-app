@@ -85,6 +85,21 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `qbittorrent` | — | download progress, every 15 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
 | `quai` (health) | — | `service.down` / `service.up`, every minute, while a service flow is on | — |
+| `reclaimerr` | — | — | — (only feeds the To fix list) |
+
+### The To fix list
+
+Not a flow: fixed rules the Cloud runs when the app or the console asks (`GET /api/fixes`,
+`/console-api/fixes`), on what Quai Home reads then. Nothing is kept; what the user hid lives in
+home documents (`fixes/snoozed/<id>`, `fixes/dismissed/<id>`), cleared once the problem is gone.
+The reads and the rules sit in each service's integration module (`radarr.ts`, `sonarr.ts`,
+`arr.ts`, `reclaimerr.ts`); `fixes/Fixes.ts` runs them and the fixes.
+
+| Problem | Rule | Fixes |
+| --- | --- | --- |
+| Import blocked | A queue item at `importBlocked`, or `importPending` with a warning | Remove (`DELETE /api/v3/queue/{id}`, optionally blocklisted, never searched again); Import anyway (`ManualImport` of the files as matched, or to the episode chosen, never over a file) |
+| No source | Monitored, available (aired), no file, nothing in the queue, no grab since, for 2 hours (since it was added or came out; grabs read 30 days back) | Search releases (interactive search; for a season, only releases covering nothing but missing episodes) and Grab; Ignore and wait (until a release is grabbed, or some days) |
+| Scheduled deletion | A Reclaimerr candidate `scheduled`, `eligible` or `postponed`, not protected | Keep (Reclaimerr's `protect`); Let it go (hidden in Quai) |
 
 An integration is a plain value (`Integration` in `Integration.ts`): an optional `webhook` that
 reads payloads into catalog events, an optional `watcher` (`watches(context)`: the allowlisted
