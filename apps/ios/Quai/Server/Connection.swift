@@ -7,11 +7,13 @@ import OpenAPIURLSession
 enum ConnectionError: LocalizedError {
     case unreachable
     case invalidCode
+    case homeOffline
     case server(Int)
 
     var errorDescription: String? {
         switch self {
         case .unreachable: "Can't reach the Quai server. On Wi-Fi at home, or check the address."
+        case .homeOffline: "Quai Home isn't connected to Quai Cloud. Check that it runs on your server."
         case .invalidCode: "This code is unknown, already used or expired. Show a new one in the console."
         case let .server(status): "The server answered \(status)."
         }
@@ -66,6 +68,8 @@ final class Connection {
             await refresh()
         case .forbidden:
             throw ConnectionError.invalidCode
+        case .serviceUnavailable:
+            throw ConnectionError.homeOffline
         case let .undocumented(statusCode, _):
             throw ConnectionError.server(statusCode)
         }
@@ -85,6 +89,7 @@ final class Connection {
         switch try await client.getPreferences() {
         case let .ok(ok): return try ok.body.json
         case .unauthorized: throw ConnectionError.server(401)
+        case .serviceUnavailable: throw ConnectionError.homeOffline
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
@@ -94,6 +99,7 @@ final class Connection {
         switch try await client.savePreferences(body: .json(preferences)) {
         case .ok: return
         case .unauthorized: throw ConnectionError.server(401)
+        case .serviceUnavailable: throw ConnectionError.homeOffline
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
@@ -103,6 +109,7 @@ final class Connection {
         switch try await client.listFlows() {
         case let .ok(ok): return try ok.body.json
         case .unauthorized: throw ConnectionError.server(401)
+        case .serviceUnavailable: throw ConnectionError.homeOffline
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
     }
@@ -118,6 +125,8 @@ final class Connection {
                 lastError = nil
             case .unauthorized:
                 lastError = "This iPhone was removed from the console. Pair it again."
+            case .serviceUnavailable:
+                lastError = ConnectionError.homeOffline.localizedDescription
             case let .undocumented(statusCode, _):
                 lastError = ConnectionError.server(statusCode).localizedDescription
             }
