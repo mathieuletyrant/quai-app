@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/mathieuletyrant/quai-app/compare/v0.5.1...v0.6.0) (2026-11-19)
+
+
+### ✨ Features
+
+* Quai Home and Quai Cloud (spec v2) ([#18](https://github.com/mathieuletyrant/quai-app/issues/18)) ([1eda107](https://github.com/mathieuletyrant/quai-app/commit/1eda1079c71334f7cac86834148c1436166e3732))
+
 ## [0.5.1](https://github.com/mathieuletyrant/quai-app/compare/v0.5.0...v0.5.1) (2026-11-18)
 
 
