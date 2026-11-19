@@ -87,6 +87,29 @@ of the app (Apple ties pushes to the app's key). It's documented, not the defaul
 
 The trademark policy (TRADEMARKS.md) keeps the Quai name and logo for the hosted service.
 
+## Nothing stored in the Core
+
+The hosted Core keeps nothing: no database, nothing on disk, no account. Everything that lasts
+lives at home, in the Relay's `/data`:
+
+- flows and their settings;
+- paired iPhones, their push tokens and preferences;
+- the state of running activities, written back as it changes.
+
+The Relay stores and returns these documents without reading them, so it stays dumb. The Core
+works in memory: when a Relay connects, the Core loads its home from it; every change is written
+back to the Relay before it's acknowledged. A restarted Core loses nothing, it reloads as Relays
+reconnect.
+
+**No accounts.** An iPhone pairs with the Relay, as in v1 (QR code from the console). The app then
+talks to the Core with its home id and device token, and the Core checks the token against the
+Relay. Sign in with Apple and an accounts table aren't needed.
+
+**What we can promise:** nothing about a home is kept by the Core; logs carry no titles, names or
+tokens. What we can't: the Core sees titles and progress while it computes and pushes them. A
+public privacy page says exactly that, and the code is open to check it. Who doesn't want even
+that self-hosts the Core.
+
 ## Security and privacy
 
 - **The *arr keys never leave home.** The agent holds them; the cloud only asks for calls.
@@ -94,21 +117,21 @@ The trademark policy (TRADEMARKS.md) keeps the Quai name and logo for the hosted
   endpoints: the agent refuses anything outside it. Writes are limited to the actions the catalog
   offers (Jellyfin play/pause/stop, later search or retry).
 - **What leaves home:** titles, progress, playback sessions and service health — what a Live
-  Activity shows. The cloud keeps running activities and preferences, not the library. A privacy
-  policy says so.
+  Activity shows — in transit only (see above).
 - **Agent ↔ cloud:** TLS, one token per agent, issued at linking, revocable from the console.
-- **App ↔ cloud:** account session (see decisions).
+- **App ↔ Core:** the device token the Relay issued at pairing, checked against the Relay.
 
 ## Linking a home
 
-1. The user installs the app and creates an account.
-2. The app shows a short code (or a link).
-3. The user installs the agent (Umbrel, Docker) and enters the code in its settings, along with
-   the service keys as today.
-4. The agent claims the code, gets its token, connects. The home appears in the app and the
-   console.
+1. The user installs the Relay (Umbrel, Docker) with the service keys, as today.
+2. On first start the Relay creates its home key pair in `/data`. Its home id is the public key's
+   fingerprint: the Core recognizes a home by proof of the private key (a signed challenge), so it
+   needs nothing stored to tell homes apart or to stop one impersonating another.
+3. The Relay's tile opens the console on the Core with a short-lived link the Relay signs.
+4. In the console, "Pair an iPhone" shows a QR code as in v1; the app scans it, gets its device
+   token from the Relay and talks to the Core from then on, from anywhere.
 
-Several iPhones (Julie's) join the home by invitation, each with its own account and preferences.
+Several iPhones (Julie's) pair the same way, each with its own preferences.
 
 ## What it changes in this repo
 
@@ -142,7 +165,8 @@ v1 keeps working for me until step 4 ships; then the Umbrel app switches to the 
 | Question | Decision | Why |
 | --- | --- | --- |
 | Hosting of the cloud | A small Node server (VPS or Fly.io) | Runs today's Effect code almost as is; cheap; Cloudflare would mean rewriting for its runtime |
-| Accounts | Sign in with Apple, for the app and the console | One tap on iPhone, no passwords, no email to send |
+| Accounts | None: iPhones pair with the Relay; the Core checks tokens against it | The Core stores nothing about anyone |
+| Storage | All state in the Relay's `/data`; the Core is memory-only | "We keep nothing" must be true, and checkable in the code |
 | How dumb the agent is | Allowlisted proxy | The agent almost never changes; every fix and flow ships from the cloud |
 | Self-hosted all-in-one | Relay + Core in one compose, pushes through our gateway | Same code as hosted, no second mode to maintain |
 | Polling | In the Relay, driven by the Core's watches | Polling stays on the LAN; what it means stays in the Core |
