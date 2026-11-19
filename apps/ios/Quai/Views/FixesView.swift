@@ -94,8 +94,7 @@ struct FixesView: View {
     private var summary: String? {
         guard let fixes = connection.fixes else { return nil }
         if fixes.items.isEmpty { return "Nothing to fix" }
-        let count = fixes.items.count == 1 ? "1 point" : "\(fixes.items.count) points"
-        return "\(count) · each settled in one tap"
+        return "\(fixes.items.count) to fix · each settled in one tap"
     }
 
     var body: some View {

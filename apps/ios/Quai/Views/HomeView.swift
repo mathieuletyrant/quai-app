@@ -58,7 +58,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                TabHeader(eyebrow: Date.now.eyebrow, title: "Tonight")
+                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay)
             } content: {
                 if let error = connection.lastError {
                     MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
@@ -90,7 +90,7 @@ struct HomeView: View {
             if connection.lastError == nil {
                 MessageTile(
                     title: "All quiet",
-                    message: "Nothing is downloading or playing. Add a movie in Seerr or Radarr: it shows up here and on the Lock Screen.",
+                    message: "Nothing downloading or playing right now.",
                     systemImage: "moon.stars.fill",
                     color: Palette.accent
                 )
@@ -133,44 +133,45 @@ struct HomeView: View {
     }
 }
 
-/// What needs a tap: the count, and the first problems.
+/// What needs a tap: the count, and the first problems with their posters.
 private struct FixesTile: View {
     let fixes: [Fix]
 
     var body: some View {
         Tile {
-            HStack {
-                TileLabel(title: "To fix", systemImage: "wrench.and.screwdriver.fill", color: Palette.toFix)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.tertiaryText)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(fixes.count, format: .number)
                     .font(QuaiFont.value)
                     .monospacedDigit()
                     .foregroundStyle(Palette.toFix)
-                Text(fixes.count == 1 ? "point to settle" : "points to settle")
-                    .font(QuaiFont.caption)
-                    .foregroundStyle(Palette.secondaryText)
+                Text("to fix")
+                    .font(QuaiFont.headline)
+                    .foregroundStyle(Palette.primaryText)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.tertiaryText)
             }
-            ForEach(fixes.prefix(2)) { fix in
-                HStack(spacing: 8) {
-                    Image(systemName: fix.symbol.name)
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(fix.symbol.color)
-                        .frame(width: 16)
-                    Text(fix.headline)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Palette.primaryText)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(fixes.prefix(3)) { fix in
+                    HStack(spacing: 10) {
+                        FixPoster(fix: fix, width: 24, fallbackSize: 24)
+                            .frame(width: 24, height: 36)
+                        Text(fix.headline)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.primaryText)
+                            .lineLimit(1)
+                    }
+                }
+                if fixes.count > 3 {
+                    Text("and \(fixes.count - 3) more")
+                        .font(QuaiFont.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .padding(.leading, 34)
                 }
             }
-            if fixes.count > 2 {
-                Text("and \(fixes.count - 2) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
-            }
         }
+        .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens the To fix list")
     }

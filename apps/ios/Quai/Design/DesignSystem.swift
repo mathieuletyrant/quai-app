@@ -104,6 +104,15 @@ extension Date {
     var eyebrow: String {
         formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased()
     }
+
+    /// The Home's title: "Morning" until noon, "Afternoon" until 6 pm, then "Tonight".
+    var partOfDay: String {
+        switch Calendar.current.component(.hour, from: self) {
+        case 5..<12: "Morning"
+        case 12..<18: "Afternoon"
+        default: "Tonight"
+        }
+    }
 }
 
 // MARK: Tiles and cards
