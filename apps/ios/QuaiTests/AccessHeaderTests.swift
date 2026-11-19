@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Quai
 
-struct PairingLinkTests {
+struct PairingLinkHeaderTests {
     @Test func readsTheAddressesAndTheAccessHeaders() throws {
         let url = try #require(URL(string: "quai://pair?code=ABCD2345&url=http%3A%2F%2Fumbrel.local%3A3078&url=https%3A%2F%2Fquai.example.com&header=CF-Access-Client-Id%3A%20abc.access&header=CF-Access-Client-Secret%3A%20s3cr3t%2B%2F%3D%3D"))
         let link = try #require(PairingLink(url))
