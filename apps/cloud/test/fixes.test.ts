@@ -6,9 +6,9 @@ import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { noSourceAfterMs } from "../src/fixes/Detected.ts"
 import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
-import { blockedMovie, moviesWithoutSource, RadarrGrabs, RadarrMissing } from "../src/integrations/radarr.ts"
-import { CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
-import { blockedEpisodes, episodesWithoutSource, SonarrGrabs, SonarrMissing } from "../src/integrations/sonarr.ts"
+import { blockedMovie, moviesWithoutSource, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
+import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
+import { blockedEpisodes, episodesWithoutSource, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHome, type FakeHomeOptions, makeFakeHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp } from "./testApp.ts"
@@ -18,6 +18,24 @@ const now = Date.parse("2026-11-19T12:00:00Z")
 const iphone = { name: "iPhone", apnsEnvironment: "development" as const }
 
 const decode = <A, I>(schema: Schema.Codec<A, I>, path: string) => Schema.decodeUnknownSync(schema)(fixture(path))
+
+const upPoster = "https://image.tmdb.org/t/p/original/up-poster.jpg"
+const carsPoster = "https://image.tmdb.org/t/p/original/cars-2-poster.jpg"
+const lostPoster = "https://artworks.thetvdb.com/banners/posters/73739-1.jpg"
+
+/** Radarr's library with Reclaimerr's movies in it: the recorded Dune, renamed. */
+const moviesWithCandidates = (): ReadonlyArray<unknown> => {
+  const movies = fixture("radarr/movies.json") as Array<Record<string, unknown>>
+  const like = (id: number, title: string, year: number, tmdbId: number, poster: string) => ({
+    ...movies[0],
+    id,
+    title,
+    year,
+    tmdbId,
+    images: [{ coverType: "poster", url: `/MediaCover/${id}/poster.jpg`, remoteUrl: poster }]
+  })
+  return [...movies, like(142, "Up", 2009, 2042, upPoster), like(143, "Cars 2", 2011, 99999, carsPoster)]
+}
 
 /** Quai Home answering from the recordings; `overrides` win (a route set to null answers 404). */
 const recorded = (overrides: Record<string, FakeHomeOptions["answer"] | undefined> = {}): NonNullable<FakeHomeOptions["answer"]> => (call) => {
@@ -145,6 +163,40 @@ describe("To fix rules", () => {
       ["Up", { deletesAt: Date.parse("2026-11-24T03:00:00Z") / 1000, operation: "delete" }]
     ])
     expect(deletions[1]!.fix).toMatchObject({ id: "deletion-42", reason: "Unwatched for a year: Last watched more than 365 days ago", actions: ["keep", "dismiss"] })
+    expect(deletions.every((d) => d.fix.posterUrl === undefined)).toBe(true)
+  })
+
+  it("scheduled deletion: the poster of the Radarr movie it is, by TMDB id, else by title and year", () => {
+    const candidates = decode(CandidatePage, "reclaimerr/candidates.json").items
+    const movies = Schema.decodeUnknownSync(RadarrMovies)(moviesWithCandidates())
+    const deletions = scheduledDeletions(candidates, { movies })
+    // Up: same TMDB id. Cars 2: Radarr has another TMDB id for it, its title and year match.
+    expect(deletions.map((d) => [d.fix.id, d.fix.posterUrl])).toEqual([["deletion-43", carsPoster], ["deletion-42", upPoster]])
+  })
+
+  it("scheduled deletion: no poster when the title can't be told apart", () => {
+    const [up] = decode(CandidatePage, "reclaimerr/candidates.json").items
+    const movies = Schema.decodeUnknownSync(RadarrMovies)(moviesWithCandidates())
+    const unknownId = { ...up!, tmdb_id: null }
+    expect(candidatePoster(unknownId, { movies })).toBe(upPoster)
+    // Another year, or two movies of that name: not this one.
+    expect(candidatePoster({ ...unknownId, year: 1980 }, { movies })).toBeUndefined()
+    const twice = Schema.decodeUnknownSync(RadarrMovies)([...moviesWithCandidates(), { ...(moviesWithCandidates()[3] as object), id: 999, tmdbId: 1 }])
+    expect(candidatePoster(unknownId, { movies: twice })).toBeUndefined()
+    // A movie is never matched with a series, and nothing listed means no poster.
+    expect(candidatePoster(unknownId, { series: Schema.decodeUnknownSync(SonarrSeries)(fixture("sonarr/series.json")) })).toBeUndefined()
+    expect(candidatePoster(up!, {})).toBeUndefined()
+  })
+
+  it("scheduled deletion: a series takes its poster from Sonarr, by TMDB id", () => {
+    const lost = decode(CandidatePage, "reclaimerr/candidates.json").items.find((c) => c.title === "Lost")!
+    const recorded = fixture("sonarr/series.json") as Array<Record<string, unknown>>
+    const series = Schema.decodeUnknownSync(SonarrSeries)([
+      ...recorded,
+      { ...recorded[0], id: 30, title: "LOST", year: 2004, tvdbId: 73739, tmdbId: 2044, images: [{ coverType: "poster", remoteUrl: lostPoster }] }
+    ])
+    expect(candidatePoster(lost, { series })).toBe(lostPoster)
+    expect(candidatePoster({ ...lost, tmdb_id: null }, { series })).toBe(lostPoster)
   })
 })
 
@@ -165,6 +217,30 @@ describe("GET /api/fixes", () => {
       ])
       expect(list.unavailable).toEqual([])
       expect(list.hidden).toBe(0)
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("Reclaimerr's deletions show the poster Radarr has, read once", () =>
+    Effect.gen(function*() {
+      const { home, api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": () => ({ json: moviesWithCandidates() }) }) })
+      const list = yield* api.list()
+      expect(list.items.filter((f) => f.kind === "scheduledDeletion").map((f) => [f.id, f.posterUrl])).toEqual([
+        ["deletion-43", carsPoster],
+        ["deletion-42", upPoster]
+      ])
+      const paths = home.calls.map((c) => `${c.service} ${c.path.split("?")[0]}`)
+      expect(paths.filter((p) => p === "radarr /api/v3/movie")).toHaveLength(1)
+      // No series is going to be deleted: Sonarr's series aren't read.
+      expect(paths).not.toContain("sonarr /api/v3/series")
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("without Radarr's library, the deletions still show, without a poster", () =>
+    Effect.gen(function*() {
+      const { api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": () => ({ failed: "unreachable" }) }) })
+      const list = yield* api.list()
+      const deletions = list.items.filter((f) => f.kind === "scheduledDeletion")
+      expect(deletions.map((f) => f.id)).toEqual(["deletion-43", "deletion-42"])
+      expect(deletions.every((f) => f.posterUrl === undefined)).toBe(true)
+      expect(list.unavailable).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a title without a source shows up 2 hours after it was added", () =>
@@ -280,6 +356,7 @@ describe("fixes", () => {
     Effect.gen(function*() {
       const { home, api } = yield* setUp()
       yield* api.keep({ params: { id: "deletion-42" } })
+      expect(home.calls.some((c) => c.path.startsWith("/api/v3/movie"))).toBe(false)
       expect(writes(home)).toEqual([{ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: "Kept from Quai" } }])
     }).pipe(Effect.provide(TestApp)))
 

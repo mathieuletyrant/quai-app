@@ -89,6 +89,7 @@ const LibrarySeries = Schema.Struct({
   title: Schema.String,
   year: Schema.optional(Schema.Number),
   tvdbId: Schema.Number,
+  tmdbId: Schema.optional(Schema.Number),
   added: Schema.optional(Schema.String),
   overview: Schema.optional(Schema.String),
   images: Schema.optional(Schema.Array(ArrImage)),

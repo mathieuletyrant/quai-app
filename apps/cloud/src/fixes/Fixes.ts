@@ -29,8 +29,26 @@ import {
   toRelease
 } from "../integrations/arr.ts"
 import { readJson } from "../integrations/Integration.ts"
-import { blockedMovie, grabsSincePath, moviesWithoutSource, RadarrGrabs, RadarrMissing, radarrMissingPath, radarrQueuePath } from "../integrations/radarr.ts"
-import { CandidatePage, candidatesPath, protectPath, protectReason, scheduledDeletions } from "../integrations/reclaimerr.ts"
+import {
+  blockedMovie,
+  grabsSincePath,
+  moviesWithoutSource,
+  RadarrGrabs,
+  RadarrMissing,
+  radarrMissingPath,
+  RadarrMovies,
+  radarrQueuePath
+} from "../integrations/radarr.ts"
+import {
+  type Candidate,
+  CandidatePage,
+  candidatesPath,
+  deletionCandidates,
+  isMovie,
+  protectPath,
+  protectReason,
+  scheduledDeletions
+} from "../integrations/reclaimerr.ts"
 import {
   blockedEpisodes,
   episodeCode,
@@ -40,7 +58,8 @@ import {
   SonarrGrabs,
   SonarrMissing,
   sonarrMissingPath,
-  sonarrQueuePath
+  sonarrQueuePath,
+  SonarrSeries
 } from "../integrations/sonarr.ts"
 import type { Detected, FixTarget } from "./Detected.ts"
 
@@ -156,6 +175,25 @@ export class Fixes extends Context.Service<Fixes, {
           ])
         })
 
+      /**
+       * Reclaimerr gives no poster: its scheduled deletions take theirs from the Radarr movie or
+       * Sonarr series they are, read only when one is listed (the To fix reads don't hold titles
+       * with a file). Neither read can fail the list: without it, the deletion has no poster.
+       */
+      const deletionsWithPosters = (candidates: ReadonlyArray<Candidate>, reaches: ReadonlyArray<string>) =>
+        Effect.gen(function*() {
+          const due = deletionCandidates(candidates)
+          const soft = <A, I>(wanted: boolean, service: "radarr" | "sonarr", path: string, schema: Schema.Codec<A, I>) =>
+            wanted && reaches.includes(service)
+              ? Effect.map(Effect.option(read(service, path, schema)), Option.flatten)
+              : Effect.succeed(Option.none<A>())
+          const [movies, series] = yield* Effect.all([
+            soft(due.some(isMovie), "radarr", "/api/v3/movie", RadarrMovies),
+            soft(due.some((c) => !isMovie(c)), "sonarr", "/api/v3/series", SonarrSeries)
+          ], { concurrency: "unbounded" })
+          return scheduledDeletions(candidates, { movies: Option.getOrUndefined(movies), series: Option.getOrUndefined(series) })
+        })
+
       /** Runs the rules on the services asked (those Quai Home reaches). */
       const detect = (only?: FixService) =>
         Effect.gen(function*(): Effect.fn.Return<Detection, HomeOffline> {
@@ -167,7 +205,13 @@ export class Fixes extends Context.Service<Fixes, {
           const results = yield* Effect.forEach(services, (service) =>
             Effect.map(
               service === "reclaimerr"
-                ? Effect.map(read("reclaimerr", candidatesPath, CandidatePage), Option.map((page) => scheduledDeletions(page.items)))
+                ? Effect.flatMap(read("reclaimerr", candidatesPath, CandidatePage), (page) =>
+                  Option.isNone(page)
+                    ? Effect.succeed(Option.none<ReadonlyArray<Detected>>())
+                    : only === undefined
+                    // Acting on a deletion needs no poster.
+                    ? Effect.map(deletionsWithPosters(page.value.items, home.value.services), Option.some)
+                    : Effect.succeed(Option.some(scheduledDeletions(page.value.items))))
                 : arrProblems(service, nowMs),
               (found) => [service, found] as const
             ), { concurrency: "unbounded" })
