@@ -34,6 +34,7 @@ interface Pairing {
   readonly expiresAt: number
   readonly lifetime: number
   readonly qrSvg: string
+  readonly accessHeaderNames: ReadonlyArray<string>
 }
 
 const ago = (date: DateTime.Utc | undefined) => {
@@ -56,7 +57,7 @@ function usePairing(onPaired: () => void) {
       const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: [window.location.origin] } }))
       const qrSvg = await QRCode.toString(result.link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: { dark: "#0b0b0f", light: "#ffffff" } })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
-      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg })
+      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, accessHeaderNames: result.accessHeaderNames })
       setNow(Date.now())
     } catch (e) {
       setError(e)
@@ -94,6 +95,13 @@ function PairingPanel({ pairing, left, onNew, onDone }: { pairing: Pairing; left
           <div>
             <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Pair an iPhone</h2>
             <p className="mt-1 text-[13px] text-muted">The code carries this Quai Cloud's address and a one-time invitation.</p>
+            {pairing.accessHeaderNames.length > 0 && (
+              <p className="mt-1 text-[13px] text-muted">
+                It also carries the access headers for your proxy: {pairing.accessHeaderNames.map((name, i) => (
+                  <span key={name}>{i > 0 && ", "}<Mono>{name}</Mono></span>
+                ))}.
+              </p>
+            )}
           </div>
           <ol className="flex flex-col gap-4">
             {steps.map((s, i) => (

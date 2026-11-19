@@ -74,6 +74,31 @@ function CloudPanel() {
   )
 }
 
+/** The address from outside and the proxy's access headers: Quai Cloud's own configuration, names only. */
+function PublicAccessPanel() {
+  const { value: settings, error } = useLoad(() => call((c) => c.connection.connectionSettings()))
+  return (
+    <Panel
+      title="Access from outside"
+      description={<>Where the app reaches Quai Cloud away from home, set with <Code>QUAI_PUBLIC_URL</Code>, and the headers the reverse proxy in front of it requires, set with <Code>QUAI_PUBLIC_HEADERS</Code>. Both go into the pairing QR code.</>}
+    >
+      {failed(error)}
+      {settings === null
+        ? error === null && loadingRows(["Public address", "Access headers"])
+        : (
+          <Rows>
+            <Row label="Public address">{settings.publicUrl === undefined ? <span className="text-muted">Not set</span> : <Mono>{settings.publicUrl}</Mono>}</Row>
+            <Row label="Access headers">
+              {settings.accessHeaderNames.length === 0
+                ? <span className="text-muted">None</span>
+                : <span className="flex flex-col items-end gap-1">{settings.accessHeaderNames.map((name) => <Mono key={name}>{name}: ••••••</Mono>)}</span>}
+            </Row>
+          </Rows>
+        )}
+    </Panel>
+  )
+}
+
 function HomePanel() {
   const { status } = useHome()
   return (
@@ -99,7 +124,10 @@ export function SettingsPage() {
       <PageBar title="Settings" subtitle="How this Quai is set up. Everything here comes from environment variables." />
       <PageBody>
         <div className="grid items-start gap-6 lg:grid-cols-2">
-          <PushKeyPanel />
+          <div className="flex flex-col gap-6">
+            <PushKeyPanel />
+            <PublicAccessPanel />
+          </div>
           <div className="flex flex-col gap-6">
             <HomePanel />
             <CloudPanel />
