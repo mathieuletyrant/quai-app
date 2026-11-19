@@ -204,13 +204,14 @@ struct FixPoster: View {
     var width: CGFloat = 52
     var fallbackSize: CGFloat = 34
 
+    /// A thumbnail too small for a badge goes without.
+    private var badge: (systemImage: String, color: Color)? {
+        guard width >= 40 else { return nil }
+        return (systemImage: fix.symbol.name, color: fix.symbol.color)
+    }
+
     var body: some View {
-        PosterThumbnail(
-            url: PosterSize.small.url(fix.posterUrl),
-            width: width,
-            cornerRadius: width * 0.2,
-            badge: width >= 40 ? (systemImage: fix.symbol.name, color: fix.symbol.color) : nil
-        ) {
+        PosterThumbnail(url: PosterSize.small.url(fix.posterUrl), width: width, cornerRadius: width * 0.2, badge: badge) {
             SymbolSquare(systemImage: fix.symbol.name, color: fix.symbol.color, size: fallbackSize)
         }
     }
