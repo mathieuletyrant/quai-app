@@ -13,9 +13,14 @@ const signature = createSign("SHA256").update(unsigned).sign({ key: readFileSync
 const headers = { Authorization: `Bearer ${unsigned}.${b64(signature)}` }
 const api = "https://api.appstoreconnect.apple.com/v1/certificates"
 
-const response = await fetch(`${api}?filter[certificateType]=DEVELOPMENT,IOS_DEVELOPMENT&limit=200`, { headers })
+const response = await fetch(`${api}?limit=200`, { headers })
 if (!response.ok) throw new Error(`listing certificates: HTTP ${response.status} ${await response.text()}`)
-const ci = (await response.json()).data.filter((c) => c.attributes.name === "Created via API")
+const all = (await response.json()).data
+for (const c of all) console.log(`${c.id} ${c.attributes.certificateType} name=${JSON.stringify(c.attributes.name)} displayName=${JSON.stringify(c.attributes.displayName)}`)
+// Development certificates Xcode made through the API key; the Apple Developer site lists them as
+// "Created via API". Distribution ones and the ones made by hand are never touched.
+const createdByCi = (c) => [c.attributes.name, c.attributes.displayName].some((n) => /created via api/i.test(n ?? ""))
+const ci = all.filter((c) => /DEVELOPMENT/.test(c.attributes.certificateType) && createdByCi(c))
 for (const certificate of ci) {
   const revoked = await fetch(`${api}/${certificate.id}`, { method: "DELETE", headers })
   console.log(`${revoked.ok ? "revoked" : `could not revoke (HTTP ${revoked.status})`} ${certificate.id}, expiring ${certificate.attributes.expirationDate}`)
