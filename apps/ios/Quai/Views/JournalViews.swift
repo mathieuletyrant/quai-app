@@ -11,8 +11,8 @@ extension JournalEntry {
         case "media.imported": ("tray.and.arrow.down.fill", Palette.downloads)
         case "media.available": ("checkmark.circle.fill", Palette.ok)
         case "playback.started", "playback.stopped": ("play.fill", Palette.playback)
-        case "service.down": ("exclamationmark.triangle.fill", Palette.incident)
-        case "service.up": ("checkmark.circle.fill", Palette.ok)
+        case "alert.raised": ("exclamationmark.triangle.fill", Palette.incident)
+        case "alert.over": ("checkmark.circle.fill", Palette.ok)
         case "request.pending", "request.approved", "request.declined": ("person.fill.questionmark", Palette.requests)
         case "releases.available": ("calendar", Palette.releases)
         default: ("circle.fill", Palette.secondaryText)
@@ -90,11 +90,15 @@ struct DiskReading: Equatable {
 /// The media disk: free space, and a bar that fills up.
 struct StorageTile: View {
     let reading: DiskReading
+    /// The Low disk space alert is going on.
+    var isLow = false
+
+    private var color: Color { isLow ? Palette.toFix : Palette.accent }
 
     var body: some View {
         Tile {
             HStack {
-                TileLabel(title: "Storage", systemImage: "internaldrive.fill", color: Palette.accent)
+                TileLabel(title: "Storage", systemImage: "internaldrive.fill", color: color)
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
@@ -104,7 +108,7 @@ struct StorageTile: View {
                 Text(Format.bytes(reading.freeBytes))
                     .font(QuaiFont.value)
                     .monospacedDigit()
-                    .foregroundStyle(Palette.primaryText)
+                    .foregroundStyle(isLow ? Palette.toFix : Palette.primaryText)
                 Text("free")
                     .font(QuaiFont.headline)
                     .foregroundStyle(Palette.primaryText)
@@ -113,7 +117,7 @@ struct StorageTile: View {
                     .font(QuaiFont.caption)
                     .foregroundStyle(Palette.secondaryText)
             }
-            ProgressBar(value: reading.usedShare, color: Palette.accent, height: 8)
+            ProgressBar(value: reading.usedShare, color: color, height: 8)
                 .accessibilityHidden(true)
             Text(reading.caption)
                 .font(QuaiFont.caption)

@@ -55,6 +55,8 @@ final class Connection {
     /// Today's releases, once loaded.
     private(set) var releases: Components.Schemas.DayReleases?
     private(set) var releasesError: String?
+    /// The alerts going on, and the kinds turned on.
+    private(set) var alerts: Components.Schemas.ActiveAlerts?
     /// The journal, newest first: the first page, then the older ones the Activity tab asked for.
     private(set) var journal: [Components.Schemas.JournalEntry] = []
     private(set) var journalHasMore = false
@@ -132,6 +134,7 @@ final class Connection {
         requestsError = nil
         releases = nil
         releasesError = nil
+        alerts = nil
         journal = []
         journalHasMore = false
         journalError = nil
@@ -251,6 +254,13 @@ final class Connection {
         }
     }
 
+    // MARK: Alerts
+
+    /// Read with the Home's other tiles; a failure keeps what was shown.
+    func loadAlerts() async {
+        if let read = try? await requiredClient().listAlerts().ok.body.json { alerts = read }
+    }
+
     // MARK: Journal
 
     /// The newest page of the journal: what happened to the titles, the requests and the server.
@@ -353,6 +363,15 @@ final class Connection {
         }
         for await activity in Activity<QuaiActivityAttributes>.activityUpdates {
             watch(activity)
+        }
+    }
+
+    /// The notification token for alerts, each time APNs gives one.
+    func watchNotificationTokens() async {
+        for await hex in AppDelegate.tokens.stream {
+            await send { client in
+                _ = try await client.updateDevice(body: .json(.init(notificationToken: hex)))
+            }
         }
     }
 

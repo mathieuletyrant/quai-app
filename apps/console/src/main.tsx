@@ -2,6 +2,7 @@ import type { Health } from "@quai/api"
 import { type ReactNode, StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { call, type HomeStatus, probeHome, useHome, useHomeProbe } from "./client.ts"
+import { AlertsPage } from "./pages/Alerts.tsx"
 import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
 import { JournalPage } from "./pages/journal/JournalPage.tsx"
@@ -13,6 +14,7 @@ import "./styles.css"
 const pages = {
   settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> },
   flows: { label: "Flows", icon: "flows", render: () => <FlowsPage /> },
+  alerts: { label: "Alerts", icon: "bell", render: () => <AlertsPage /> },
   iphones: { label: "iPhones", icon: "phone", render: () => <IphonesPage /> },
   journal: { label: "Journal", icon: "journal", render: () => <JournalPage /> }
 } as const satisfies Record<string, { label: string; icon: IconName; render: () => ReactNode }>

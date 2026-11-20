@@ -52,6 +52,12 @@ struct SettingsView: View {
                             ListRow(title: "Live Activities", systemImage: "iphone", iconColor: Palette.downloads, chevron: true)
                         }
                         .buttonStyle(.plain)
+                        NavigationLink {
+                            NotificationSettingsView()
+                        } label: {
+                            ListRow(title: "Notifications", systemImage: "bell.badge.fill", iconColor: Palette.incident, chevron: true)
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     if let console = connection.serverURL {

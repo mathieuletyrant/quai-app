@@ -74,14 +74,11 @@ struct TodayTests {
             activity("download", "Nero"),
             activity("download", "Severance", tone: "done"),
             activity("playback", "The Bear"),
-            activity("incident", "Radarr"),
-            activity("incident", "Sonarr", tone: "done"),
-        ], subjects: ["download": .media, "playback": .playback, "incident": .service])
+        ], subjects: ["download": .media, "playback": .playback])
         #expect(today.downloading.map(\.attributes.title) == ["Runner", "Dune"])
         #expect(today.requested.map(\.attributes.title) == ["Nero"])
         #expect(today.ready.map(\.attributes.title) == ["Severance"])
         #expect(today.playing.map(\.attributes.title) == ["The Bear"])
-        #expect(today.incidents.map(\.attributes.title) == ["Radarr"])
         #expect(!today.isEmpty)
     }
 

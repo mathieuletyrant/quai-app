@@ -7,6 +7,7 @@ enum AppTab: Hashable {
 
 @main
 struct QuaiApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var connection = Connection()
     @State private var pendingLink: PairingLink?
     @State private var tab = AppTab.home
@@ -35,6 +36,11 @@ struct QuaiApp: App {
             }
             .task { await connection.watchPushToStartTokens() }
             .task { await connection.watchActivities() }
+            .task { await connection.watchNotificationTokens() }
+            // Asked once paired: alerts mean nothing before there is a server to send them.
+            .task(id: connection.isPaired) {
+                if connection.isPaired { await Notifications.register() }
+            }
             .task { DemoActivity.startIfRequested() }
             // Activities swiped away while the app wasn't running: the server learns it here.
             .onChange(of: scenePhase, initial: true) { _, phase in

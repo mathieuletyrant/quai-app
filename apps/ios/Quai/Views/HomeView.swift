@@ -10,10 +10,9 @@ struct Today {
     /// Titles that reached their last step: ready to watch.
     var ready: [RunningActivity] = []
     var playing: [RunningActivity] = []
-    var incidents: [RunningActivity] = []
 
     var isEmpty: Bool {
-        downloading.isEmpty && requested.isEmpty && ready.isEmpty && playing.isEmpty && incidents.isEmpty
+        downloading.isEmpty && requested.isEmpty && ready.isEmpty && playing.isEmpty
     }
 
     /// `subjects`: what each flow follows, by flow id; a flow left out is read as media.
@@ -23,8 +22,6 @@ struct Today {
             switch subjects[activity.attributes.flowId] ?? .media {
             case .playback:
                 if !done { playing.append(activity) }
-            case .service:
-                if !done { incidents.append(activity) }
             case .request, .day:
                 // Requests and today's releases have their own tiles, read when the screen opens.
                 break
@@ -57,6 +54,7 @@ struct HomeView: View {
     @Binding var tab: AppTab
 
     private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
+    private var diskIsLow: Bool { connection.alerts?.items.contains { $0.kind == .diskLow } ?? false }
 
     var body: some View {
         NavigationStack {
@@ -84,7 +82,7 @@ struct HomeView: View {
                         .buttonStyle(.plain)
                 }
                 if let disk = connection.library?.disk {
-                    Button { tab = .library } label: { StorageTile(reading: DiskReading(disk)) }
+                    Button { tab = .library } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
                         .buttonStyle(.plain)
                 }
             }
@@ -95,6 +93,7 @@ struct HomeView: View {
                 await connection.loadReleases()
                 await connection.loadJournal()
                 await connection.loadLibrary()
+                await connection.loadAlerts()
             }
             // The To fix list asks Radarr, Sonarr and Reclaimerr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
@@ -110,6 +109,7 @@ struct HomeView: View {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
                 while !Task.isCancelled {
                     await connection.refresh()
+                    await connection.loadAlerts()
                     try? await Task.sleep(for: .seconds(15))
                 }
             }
@@ -126,6 +126,10 @@ struct HomeView: View {
                     color: Palette.accent
                 )
             }
+            // An alert lasts: it shows even when nothing moves.
+            if let alerts = connection.alerts?.items, !alerts.isEmpty {
+                IncidentsTile(alerts: alerts)
+            }
         } else {
             if let first = today.downloading.first {
                 openActivity { DownloadsTile(top: first, others: today.downloading.count - 1) }
@@ -141,14 +145,7 @@ struct HomeView: View {
                         caption: today.ready.isEmpty ? "nothing new yet" : (today.ready.count == 1 ? "title to watch" : "titles to watch")
                     )
                 }
-                openActivity {
-                    CountTile(
-                        title: "Incidents", systemImage: "exclamationmark.triangle.fill",
-                        color: today.incidents.isEmpty ? Palette.ok : Palette.incident,
-                        count: today.incidents.count,
-                        caption: today.incidents.isEmpty ? "all services up" : today.incidents.map(\.attributes.title).joined(separator: ", ")
-                    )
-                }
+                IncidentsTile(alerts: connection.alerts?.items ?? [])
             }
             if !today.playing.isEmpty {
                 openActivity { PlayingTile(activities: today.playing) }
@@ -376,6 +373,25 @@ private struct OnTheirWayTile: View {
                 Text("and \(activities.count - 3) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
             }
         }
+    }
+}
+
+/// The alerts going on (a service down, the disk low, a problem an *arr reports), or all good.
+private struct IncidentsTile: View {
+    let alerts: [Components.Schemas.ActiveAlert]
+
+    private var caption: String {
+        if alerts.isEmpty { return "all good" }
+        return alerts.map { alert in alert.detail.map { "\(alert.title): \($0)" } ?? alert.title }.joined(separator: " · ")
+    }
+
+    var body: some View {
+        CountTile(
+            title: "Incidents", systemImage: "exclamationmark.triangle.fill",
+            color: alerts.isEmpty ? Palette.ok : Palette.incident,
+            count: alerts.count,
+            caption: caption
+        )
     }
 }
 

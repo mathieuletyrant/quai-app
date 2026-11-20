@@ -30,10 +30,13 @@ ready to watch.
 - ▶️ **Playback**: what's playing on Jellyfin, time left, and Play/Pause from the Lock Screen.
 - 🙋 **Requests**: a Seerr request waiting for your approval, with Approve and Decline buttons.
 - 📅 **Today**: one activity for the day, ticking off today's episodes and movies as they arrive.
-- 🚨 **Incidents**: a service that stops answering.
 
 You choose which ones run, and what each step shows, in a small flow editor in the web console.
-The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the journal of what Quai did.
+
+**Alerts**
+- 🚨 **Notifications** for what may last: a service that stops answering, the media disk running low, a problem Radarr, Sonarr or Prowlarr report. One when it starts, one when it's over; set up in the console, muted per iPhone.
+
+The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the alerts and the journal of what Quai did.
 
 **The app**
 - 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you, what happened lately and how full the disk is.
