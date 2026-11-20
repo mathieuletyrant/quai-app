@@ -60,7 +60,7 @@ becomes linking a home to an account.
 ### Polling at home, meaning in the Cloud
 
 The Cloud sends the Home **watches**: a service, an allowlisted path and a period ("qBittorrent
-`/api/v2/torrents/info?hashes=…` every 15 s", "Jellyfin `/Sessions` every 15 s while a playback
+`/api/v2/torrents/info?hashes=…` every 5 s", "Jellyfin `/Sessions` every 15 s while a playback
 flow is on"). The Home polls on the LAN and forwards a snapshot only when it changed. The Cloud
 replaces the watch list whenever what its flows need changes. One-off calls (a Play/Pause button)
 stay request/response.

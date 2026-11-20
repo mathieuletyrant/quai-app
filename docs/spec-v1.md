@@ -160,7 +160,7 @@ The core to protect is the activity engine: a given sequence of events must alwa
 | Contract | Schemas decode and re-encode losslessly; the OpenAPI does not change by accident | `@effect/vitest`, `openapi.json` snapshot |
 | Adapters | Every webhook and API response from Radarr, Sonarr, Prowlarr, Seerr, qBittorrent, Bazarr and Jellyfin is read correctly | Recorded real responses (fixtures), one set per service version |
 | Activity engine | Full scenarios: add → grab → progress → import → available; duplicates merged; "no source for 2 h"; missed webhook caught up | Scenarios replayed with Effect's `TestClock` to move time without waiting |
-| Push | Right environment (development or production), right push type, at most one send every 15 s | Fake local HTTP/2 APNs server that records every send |
+| Push | Right environment (development or production), right push type, at most one data send every 5 s per activity | Fake local HTTP/2 APNs server that records every send |
 | Console | Guided setup end to end | Playwright against fake services |
 | iOS app | State decoding; rendering of each Live Activity (Lock Screen, Dynamic Island expanded, compact, minimal) | Swift Testing; image snapshot tests on typical states |
 
@@ -174,7 +174,7 @@ The core to protect is the activity engine: a given sequence of events must alwa
 - **No port to open.** Webhooks arrive internally; remote access goes through the existing tunnel.
 - **Secrets.** API keys and the push key are stored encrypted on the server, never sent back in clear to the app or the console. The app holds no service key.
 - **Read-only by default.** In v1, Quai only writes twice: setting up and removing its webhooks. The action buttons (other release, retry) are the only other writes.
-- **Push budget.** Updates on step changes, and at most one every 15 s while downloading; playback time left runs on the iPhone.
+- **Push budget.** Updates on step changes, and at most one every 5 s while downloading; playback time left runs on the iPhone.
 - **Frugal.** Polling only while an activity needs it; target: under 100 MB of memory and near-zero idle CPU on an N100.
 - **Reliable.** A missed webhook is caught up by reading the state on reconnection; a silent service does not block the others.
 - **Clean removal.** Uninstalling Quai removes its webhooks and unlinks the iPhones.

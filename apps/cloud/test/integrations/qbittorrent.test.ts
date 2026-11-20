@@ -35,7 +35,7 @@ describe("qBittorrent", () => {
       id: torrentsWatchId,
       service: "qbittorrent",
       path: "/api/v2/torrents/info?hashes=a%7Cb",
-      everySeconds: 15
+      everySeconds: 5
     }])
   })
 

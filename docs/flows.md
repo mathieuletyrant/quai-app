@@ -82,7 +82,7 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | --- | --- | --- | --- |
 | `radarr` | `media.added`, `download.grabbed`, `download.imported` | — | — |
 | `sonarr` | same, for episodes | — | — |
-| `qbittorrent` | — | download progress, every 15 s, while a download runs | — |
+| `qbittorrent` | — | download progress, every 5 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
 | `quai` (health) | — | `service.down` / `service.up`, every minute, while a service flow is on | — |
 | `reclaimerr` | — | — | — (only feeds the To fix list) |
@@ -120,7 +120,7 @@ actions to the catalog in `packages/api`.
 3. A step event moves the activity forward to its step, never backwards.
 4. Reaching the last step ends the activity, unless the flow has `endOn`: then only that event
    (or expiry) does. The end stays on screen `lingerMinutes`, then is forgotten.
-5. Data events update the current step's values; pushes for them go out at most every 15 s per
+5. Data events update the current step's values; pushes for them go out at most every 5 s per
    activity. Step changes, a pause or a resume, and a stalled download moving again go at once.
    Times are compared to 10 s: a playback's end drifting by milliseconds between polls is not news,
    since the iPhone animates the timeline itself.
@@ -162,7 +162,10 @@ only known once the app opens.
 ## Limits
 
 - 2 to 6 steps: more doesn't fit on the Lock Screen.
-- At most one data update every 15 s per activity, so iOS doesn't throttle Quai.
+- At most one data update every 5 s per activity (12 a minute at most), so iOS doesn't throttle
+  Quai; what is held back goes out with the next heartbeat (every 5 s). Step changes, a pause, a
+  resume or a download moving again go at once. Nothing is pushed when nothing visible changed.
+- qBittorrent is read every 5 s (the Home protocol's minimum) while a step shows progress.
 - Polling only runs for what an enabled flow needs: qBittorrent while a step shows progress,
   Jellyfin availability while an import awaits it, Jellyfin sessions while a playback flow is on,
   health checks while a service flow is on.

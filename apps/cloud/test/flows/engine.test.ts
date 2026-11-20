@@ -32,20 +32,34 @@ describe("download flow", () => {
       expect((yield* engine.snapshot).activities.size).toBe(0)
     })))
 
-  it.effect("one push of progress every 15 s at most, the last one flushed on tick", () =>
+  it.effect("one push of progress every 5 s at most, the last one flushed on tick", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities
       yield* engine.handle(ev.grabbed())
       const sent: Array<Push> = []
-      for (let i = 1; i <= 10; i++) {
-        yield* TestClock.adjust("2 seconds")
+      for (let i = 1; i <= 12; i++) {
+        yield* TestClock.adjust("1 second")
         sent.push(...(yield* engine.handle(ev.progress(i / 100))))
       }
-      expect(sent).toHaveLength(1)
-      yield* TestClock.adjust("15 seconds")
-      const flushed = yield* engine.tick
-      expect(flushed.map((p) => p.activity.values.progress)).toEqual([0.1])
+      // The grab went at 0 s: then 5 s, 10 s.
+      expect(sent.map((p) => p.activity.values.progress)).toEqual([0.05, 0.1])
+      yield* TestClock.adjust("2 seconds")
       expect(yield* engine.tick).toEqual([])
+      yield* TestClock.adjust("1 second")
+      const flushed = yield* engine.tick
+      expect(flushed.map((p) => p.activity.values.progress)).toEqual([0.12])
+      expect(yield* engine.tick).toEqual([])
+    })))
+
+  it.effect("an ETA that turns unknown clears the last one", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(ev.grabbed())
+      yield* TestClock.adjust("10 seconds")
+      expect((yield* engine.handle(ev.progress(0.3)))[0]!.activity.values.remainingSeconds).toBe(60)
+      yield* TestClock.adjust("10 seconds")
+      const paused = yield* engine.handle({ type: "download.progress", downloadId: "abc", values: { progress: 0.31, bytesPerSecond: 0 } })
+      expect(paused[0]!.activity.values.remainingSeconds).toBeUndefined()
     })))
 
   it.effect("one activity per title; never backwards; a missed webhook starts at its step", () =>
@@ -103,7 +117,7 @@ describe("playback flow", () => {
       expect(stop[0]!.activity.tone).toBe("done")
     }), [playback]))
 
-  it.effect("the end time drifting by milliseconds pushes nothing; a pause goes at once; a seek within 15 s", () =>
+  it.effect("the end time drifting by milliseconds pushes nothing; a pause goes at once; a seek within 5 s", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities
       yield* engine.handle(playing(3_600_000))

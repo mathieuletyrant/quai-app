@@ -8,7 +8,7 @@ import { Notifier } from "../push/Notifier.ts"
 import { type Integration, Integrations, type WatchContext } from "./Integration.ts"
 
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
-export const heartbeat = "15 seconds"
+export const heartbeat = "5 seconds"
 
 interface Sent {
   /** The watch list as sent, to send it again only when it changes. */

@@ -3,8 +3,8 @@ import type { FlowEvent, MediaLookup, Subject, Values } from "./Events.ts"
 
 /** Timings from the spec (docs/flows.md, Limits). */
 export const Timing = {
-  /** At most one data update per activity every 15 s. */
-  throttleMs: 15_000
+  /** At most one data update per activity every 5 s (the heartbeat flushes what it held back). */
+  throttleMs: 5_000
 } as const
 
 export type Tone = "active" | "stalled" | "done"
@@ -107,7 +107,10 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
         ? event.downloadId !== undefined && activity.downloadId === event.downloadId && step.show.progress === true
         : event.subject !== undefined && activity.subjectKey === event.subject.key
       if (!concerned) continue
-      const values = { ...activity.values, ...event.values }
+      // A progress reading replaces the whole download reading: an ETA that turns unknown (paused,
+      // no peers) is left out of the event and must not keep the last one on screen.
+      const { remainingSeconds: _, ...kept } = activity.values
+      const values = { ...(event.type === "download.progress" ? kept : activity.values), ...event.values }
       const moved = (event.values?.progress ?? -1) > (activity.values.progress ?? -1)
       const next: Activity = {
         ...activity,

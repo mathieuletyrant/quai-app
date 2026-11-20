@@ -33,7 +33,7 @@ const downloading = (context: WatchContext): ReadonlyArray<Activity> =>
 export const torrentsWatchId = "qbittorrent:torrents"
 
 /**
- * qBittorrent doesn't push: Quai Home reads the progress of the torrents every 15 s, only while a
+ * qBittorrent doesn't push: Quai Home reads the progress of the torrents every 5 s (the Home protocol's minimum), only while a
  * running activity's current step shows it. (Quai Home logs in to qBittorrent itself.)
  */
 export const qbittorrent: Integration = {
@@ -45,7 +45,7 @@ export const qbittorrent: Integration = {
         id: torrentsWatchId,
         service: "qbittorrent",
         path: `/api/v2/torrents/info?hashes=${encodeURIComponent(hashes.join("|"))}`,
-        everySeconds: 15
+        everySeconds: 5
       }]
     },
     read: ({ status, body }) => {
