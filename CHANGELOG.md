@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/mathieuletyrant/quai-app/compare/v0.12.0...v0.12.1) (2026-11-20)
+
+
+### 🐛 Fixes
+
+* **cloud:** Library and Tonight answer 503 when Quai Home drops mid-read ([#37](https://github.com/mathieuletyrant/quai-app/issues/37)) ([8d12886](https://github.com/mathieuletyrant/quai-app/commit/8d12886da86d9bf52eece222316faf757413f65a))
+
 ## [0.12.0](https://github.com/mathieuletyrant/quai-app/compare/v0.11.0...v0.12.0) (2026-11-20)
 
 
