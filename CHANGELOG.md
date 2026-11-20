@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/mathieuletyrant/quai-app/compare/v0.10.0...v0.11.0) (2026-11-20)
+
+
+### ✨ Features
+
+* refresh download progress every 5 s ([#32](https://github.com/mathieuletyrant/quai-app/issues/32)) ([012574b](https://github.com/mathieuletyrant/quai-app/commit/012574b7f923edc3c7e324f37fee31ca4f8fe49e))
+
 ## [0.10.0](https://github.com/mathieuletyrant/quai-app/compare/v0.9.0...v0.10.0) (2026-11-19)
 
 
