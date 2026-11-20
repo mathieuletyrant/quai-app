@@ -153,6 +153,9 @@ private struct TodayReleasesTile: View {
     let releases: [DayRelease]
 
     private var here: Int { releases.filter { $0.status == .available }.count }
+    private var lines: [TodayLine] { TodayLine.lines(releases) }
+    /// Releases on the lines past the fourth.
+    private var hiddenCount: Int { lines.dropFirst(4).reduce(0) { $0 + $1.releaseCount } }
 
     var body: some View {
         Tile {
@@ -167,22 +170,30 @@ private struct TodayReleasesTile: View {
                     .foregroundStyle(Palette.tertiaryText)
             }
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(releases.prefix(4), id: \.id) { release in
+                ForEach(lines.prefix(4), id: \.id) { line in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(release.airTime)
+                        Text(line.airTime)
                             .font(QuaiFont.caption.monospacedDigit())
                             .foregroundStyle(Palette.secondaryText)
                             .frame(width: 44, alignment: .leading)
-                        Text(release.headline)
+                        Text(line.title)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Palette.primaryText)
                             .lineLimit(1)
+                        // The episode code never truncates: it's what tells two lines apart.
+                        if let episodes = line.episodes {
+                            Text(episodes)
+                                .font(QuaiFont.caption.monospacedDigit())
+                                .foregroundStyle(Palette.secondaryText)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
                         Spacer(minLength: 8)
-                        ReleaseStatusLabel(status: release.status)
+                        ReleaseStatusLabel(status: line.status)
                     }
                 }
-                if releases.count > 4 {
-                    Text("and \(releases.count - 4) more")
+                if hiddenCount > 0 {
+                    Text("and \(hiddenCount) more")
                         .font(QuaiFont.caption)
                         .foregroundStyle(Palette.secondaryText)
                         .padding(.leading, 54)
