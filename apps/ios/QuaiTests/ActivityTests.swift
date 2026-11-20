@@ -27,7 +27,7 @@ struct ActivityStateTests {
 
 struct ActivityActionTests {
     @Test func namesMatchTheServersCatalog() {
-        #expect(ActivityAction.allCases.map(\.rawValue) == ["playback.playPause", "playback.stop"])
+        #expect(ActivityAction.allCases.map(\.rawValue) == ["playback.playPause", "playback.stop", "request.approve", "request.decline"])
     }
 
     @Test func playPauseShowsWhatATapWillDo() {
