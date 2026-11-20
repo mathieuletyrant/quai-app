@@ -1,4 +1,4 @@
-import { type DependencyList, useCallback, useEffect, useState } from "react"
+import { type DependencyList, useCallback, useEffect, useRef, useState } from "react"
 import { isHomeOffline } from "./client.ts"
 
 /**
@@ -32,8 +32,10 @@ export const viewOf = <A>({ data, error }: Loaded<A>): View<A> =>
  */
 export function useLoad<A>(load: () => Promise<A>, deps: DependencyList) {
   const [state, setState] = useState<Loaded<A>>({ data: null, error: null })
+  const latest = useRef(load)
+  latest.current = load
   const refresh = useCallback(() => {
-    load().then(
+    latest.current().then(
       (data) => setState({ data, error: null }),
       (error: unknown) => setState((s) => ({ ...s, error }))
     )
