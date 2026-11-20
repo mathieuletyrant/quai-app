@@ -17,7 +17,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     /// An alert that comes while the app is open still shows as a banner.
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
     }
 }
