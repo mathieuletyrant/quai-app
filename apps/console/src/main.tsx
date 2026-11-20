@@ -124,6 +124,11 @@ function OfflineBanner() {
   )
 }
 
+/** The phone top bar's logo, back to the first page. */
+function HomeLink() {
+  return <a href="#iphones" aria-label="Quai, iPhones" className="rounded-logo"><Logo size={26} /></a>
+}
+
 function App() {
   const [page, setPage] = useState<Page>(fromHash)
   const [health, setHealth] = useState<Health | null>(null)
@@ -148,6 +153,7 @@ function App() {
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar brand={<Brand />} footer={connection}>{nav()}</Sidebar>
       <TopBar
+        logo={<HomeLink />}
         title={pages[page].label}
         status={<StatusDot tone={homeState(status, cloudDown).tone} label={homeDotLabel(status, cloudDown)} />}
         menuOpen={menuOpen}

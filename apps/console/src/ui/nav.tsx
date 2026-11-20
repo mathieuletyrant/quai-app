@@ -59,8 +59,9 @@ export function Sidebar({ brand, footer, children }: { brand: ReactNode; footer:
   )
 }
 
-/** The bar at the top on phones: the button that opens the menu, where you are, and a status. */
-export function TopBar({ title, status, menuOpen, onMenu }: {
+/** The bar at the top on phones: the button that opens the menu, the logo, where you are, and a status. */
+export function TopBar({ logo, title, status, menuOpen, onMenu }: {
+  logo: ReactNode
   title: string
   status: ReactNode
   menuOpen: boolean
@@ -69,6 +70,7 @@ export function TopBar({ title, status, menuOpen, onMenu }: {
   return (
     <header className="sticky top-0 z-40 flex h-top-bar items-center gap-3 border-b border-line bg-sidebar px-4 md:hidden">
       <IconButton label="Open menu" icon="menu" className="-ml-2" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={onMenu} />
+      {logo}
       <p className="min-w-0 flex-1 truncate text-heading font-semibold tracking-heading">{title}</p>
       {status}
     </header>
