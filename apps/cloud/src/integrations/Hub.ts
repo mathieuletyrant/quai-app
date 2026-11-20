@@ -1,5 +1,6 @@
-import { HomeProtocol, journalSourceNames, type ServiceName } from "@quai/api"
+import { defaultAlertSettings, HomeProtocol, journalSourceNames, type ServiceName } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schedule } from "effect"
+import { Alerts } from "../alerts/Alerts.ts"
 import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
@@ -8,7 +9,7 @@ import { eventNote, type From } from "../journal/describe.ts"
 import { Journal } from "../journal/Journal.ts"
 import { Notifier } from "../push/Notifier.ts"
 import { HomeTime } from "../releases/HomeTime.ts"
-import { type Integration, Integrations, type WatchContext } from "./Integration.ts"
+import { type Integration, Integrations, isAlertState, type Signal, type Watcher, type WatchContext } from "./Integration.ts"
 
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
 export const heartbeat = "5 seconds"
@@ -35,11 +36,21 @@ const makeRepeats = () => {
   }
 }
 
+interface Owner {
+  readonly integration: Integration
+  readonly watcher: Watcher<Signal>
+  readonly watch: HomeProtocol.Watch
+}
+
 interface Sent {
   /** The watch list as sent, to send it again only when it changes. */
   readonly fingerprint: string
-  readonly owners: ReadonlyMap<string, { readonly integration: Integration; readonly watch: HomeProtocol.Watch }>
+  readonly owners: ReadonlyMap<string, Owner>
 }
+
+/** An integration's watchers: its flow events', then its alerts'. */
+const watchersOf = (integration: Integration): ReadonlyArray<Watcher<Signal>> =>
+  [integration.watcher, integration.alertWatcher].filter((watcher) => watcher !== undefined)
 
 /**
  * Where what Quai Home sends meets the engine. Webhooks and watch snapshots go to their
@@ -65,6 +76,7 @@ export class Hub extends Context.Service<Hub, {
     const link = yield* HomeLink
     const time = yield* HomeTime
     const journal = yield* Journal
+    const alerts = yield* Alerts
     /** What Quai Home polls; null until sent to the home connected now. */
     let sent: Sent | null = null
     const repeated = makeRepeats()
@@ -72,8 +84,15 @@ export class Hub extends Context.Service<Hub, {
     const apply = (events: ReadonlyArray<FlowEvent>) =>
       Effect.forEach(events, (event) => Effect.flatMap(engine.handle(event), notifier.send), { discard: true })
 
+    /** Alert states go to the alerts; flow events are logged, then applied. */
+    const applyFrom = (service: From, signals: ReadonlyArray<Signal>) =>
+      Effect.andThen(
+        Effect.forEach(signals.filter(isAlertState), alerts.apply, { discard: true }),
+        applyEvents(service, signals.filter((signal): signal is FlowEvent => !isAlertState(signal)))
+      )
+
     /** Logs what the events of one service mean, then applies them. */
-    const applyFrom = (service: From, events: ReadonlyArray<FlowEvent>) =>
+    const applyEvents = (service: From, events: ReadonlyArray<FlowEvent>) =>
       Effect.andThen(
         Effect.forEach(events, (event) => {
           const note = eventNote(event, service)
@@ -92,7 +111,9 @@ export class Hub extends Context.Service<Hub, {
         running: [...activities.values()].filter((a) => a.endedAt === null),
         services: home.value.services,
         now: yield* Clock.currentTimeMillis,
-        timeZone: yield* time.zone
+        timeZone: yield* time.zone,
+        alerts: yield* alerts.settings.pipe(Effect.orElseSucceed(() => defaultAlertSettings)),
+        protocol: home.value.protocol
       })
     }).pipe(Effect.orElseSucceed(() => Option.none()))
 
@@ -100,11 +121,13 @@ export class Hub extends Context.Service<Hub, {
       Effect.gen(function*() {
         const ctx = yield* context
         if (Option.isNone(ctx)) return
-        const owners = new Map<string, { integration: Integration; watch: HomeProtocol.Watch }>()
+        const owners = new Map<string, Owner>()
         for (const integration of integrations) {
-          for (const watch of integration.watcher?.watches(ctx.value) ?? []) {
-            if (!ctx.value.services.includes(watch.service) || owners.has(watch.id)) continue
-            owners.set(watch.id, { integration, watch })
+          for (const watcher of watchersOf(integration)) {
+            for (const watch of watcher.watches(ctx.value)) {
+              if (!ctx.value.services.includes(watch.service) || owners.has(watch.id)) continue
+              owners.set(watch.id, { integration, watcher, watch })
+            }
           }
         }
         const watches = [...owners.values()].map((o) => o.watch).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
@@ -118,7 +141,7 @@ export class Hub extends Context.Service<Hub, {
     const sync = send(false)
 
     /** Runs one integration's reading, then what it means, then the watches it may change. */
-    const fromHome = (service: From, read: (ctx: WatchContext) => Effect.Effect<ReadonlyArray<FlowEvent>>) =>
+    const fromHome = (service: From, read: (ctx: WatchContext) => Effect.Effect<ReadonlyArray<Signal>>) =>
       Effect.gen(function*() {
         const ctx = yield* context
         if (Option.isNone(ctx)) return
@@ -141,13 +164,12 @@ export class Hub extends Context.Service<Hub, {
           return journal.noted(event.entries)
         case "Snapshot": {
           const owner = sent?.owners.get(event.watchId)
-          if (owner?.integration.watcher === undefined) return Effect.void
-          const watcher = owner.integration.watcher
-          return fromHome(owner.integration.service, (ctx) => watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx))
+          if (owner === undefined) return Effect.void
+          return fromHome(owner.integration.service, (ctx) => owner.watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx))
         }
         case "WatchFailed": {
           const owner = sent?.owners.get(event.watchId)
-          const failed = owner?.integration.watcher?.failed
+          const failed = owner?.watcher.failed
           if (owner === undefined || failed === undefined) {
             return Effect.logDebug(`Quai Home could not read ${event.watchId}: ${event.reason}`)
           }
@@ -175,8 +197,9 @@ export class Hub extends Context.Service<Hub, {
       const ctx = yield* context
       if (Option.isNone(ctx)) return
       for (const integration of integrations) {
-        const tick = integration.watcher?.tick
-        if (tick !== undefined) yield* applyFrom(integration.service, yield* tick(ctx.value))
+        for (const watcher of watchersOf(integration)) {
+          if (watcher.tick !== undefined) yield* applyFrom(integration.service, yield* watcher.tick(ctx.value))
+        }
       }
       yield* notifier.send(yield* engine.tick)
       yield* sync

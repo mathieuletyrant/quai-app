@@ -52,7 +52,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 `apps/console/src` (React 19, Tailwind v4). A page reads as a short list of sections; the look lives in `ui/`.
 
-- **The app to live with Quai, the console to set it up.** The console only has setup pages (Settings, Flows, iPhones) and the Journal, to see what Quai did. What's used day to day (requests, fixes, today's releases, the library) lives in the iOS app only: no console page, no `/console-api` route for it.
+- **The app to live with Quai, the console to set it up.** The console only has setup pages (Settings, Flows, Alerts, iPhones) and the Journal, to see what Quai did. What's used day to day (requests, fixes, today's releases, the library) lives in the iOS app only: no console page, no `/console-api` route for it.
 - `ui/` is the single source of the look, one file per job (buttons, layout, feedback, forms, menus, nav, log, status, table, icons), re-exported by `ui/index.ts`: import `from "../ui"`. A page that needs a new look adds or extends a `ui/` component; delete what nothing imports.
 - Loading, offline, failed and ready go through one primitive: read with `useLoad` (`load.ts`), show with `<Async state loading offline failed>{(data) => …}</Async>`, report with `<ErrorCallout unlessOffline>`. Data-specific states (empty, not configured) are early returns in the component that gets the data. No ternary chains for states.
 - Rows and items are named components with explicit props (`DeviceName`, `StepNode`).

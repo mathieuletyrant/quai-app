@@ -6,12 +6,6 @@ export type From = ServiceName | HomeProtocol.HomeService
 
 export const sourceOf = (service: From): JournalSource => service === "quai" ? "cloud" : service
 
-/** The service a `service:<name>` subject is about. */
-const serviceOfSubject = (key: string): JournalSource | null => {
-  const name = key.startsWith("service:") ? key.slice("service:".length) : ""
-  return Object.hasOwn(journalSourceNames, name) ? (name as JournalSource) : null
-}
-
 /**
  * What an event from a service means, in one plain line; null for the data events (a download's
  * progress, a playback's position), which change only numbers.
@@ -19,7 +13,7 @@ const serviceOfSubject = (key: string): JournalSource | null => {
 export const eventNote = (event: FlowEvent, from: From): JournalNote | null => {
   const subject = event.subject
   if (isDataEvent(event.type) || subject === undefined) return null
-  const source = subject.kind === "service" ? serviceOfSubject(subject.key) ?? sourceOf(from) : sourceOf(from)
+  const source = sourceOf(from)
   const name = journalSourceNames[source]
   const title = subject.title
   const about = subject.kind === "media" || subject.kind === "request" || subject.kind === "playback"
@@ -47,10 +41,6 @@ export const eventNote = (event: FlowEvent, from: From): JournalNote | null => {
       return note(`${title} started playing${subject.kind === "playback" ? ` on ${subject.device}` : ""}`)
     case "playback.stopped":
       return note(`${title} stopped${subject.kind === "playback" ? ` on ${subject.device}` : ""}`)
-    case "service.down":
-      return note(`${title} hasn't answered for 5 minutes`, "error")
-    case "service.up":
-      return note(`${title} answers again`)
     case "request.pending":
       return note(`${subject.kind === "request" ? subject.requester : "Someone"} asked for ${title}: waiting for approval`)
     case "request.approved":

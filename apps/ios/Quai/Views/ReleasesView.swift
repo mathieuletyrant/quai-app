@@ -13,6 +13,78 @@ extension DayRelease {
     }
 }
 
+/// One line of the Home's Today tile: a movie, or every episode of one series out today.
+struct TodayLine: Equatable {
+    let id: String
+    let airTime: String
+    let title: String
+    /// "S01E03", "S02E04–E05", "S02E04, E07"; nil for a movie.
+    let episodes: String?
+    /// The least advanced of its releases: "here" only once they all are.
+    let status: Components.Schemas.DayReleaseStatus
+    let releaseCount: Int
+
+    /// The releases in their order, a series' episodes folded into its first line.
+    static func lines(_ releases: [DayRelease]) -> [TodayLine] {
+        var groups: [[DayRelease]] = []
+        for release in releases {
+            let sameSeries = groups.firstIndex { group in
+                release.kind.rawValue == "episode" && group[0].kind.rawValue == "episode" && group[0].title == release.title
+            }
+            if let sameSeries {
+                groups[sameSeries].append(release)
+            } else {
+                groups.append([release])
+            }
+        }
+        return groups.map { group in
+            TodayLine(
+                id: group[0].id,
+                airTime: group[0].airTime,
+                title: group[0].title,
+                episodes: episodeCodes(group.compactMap(\.episode)),
+                status: group.map(\.status).min { rank($0) < rank($1) } ?? group[0].status,
+                releaseCount: group.count
+            )
+        }
+    }
+
+    /// "S02E04" + "S02E05" → "S02E04–E05"; "S02E04" + "S02E07" → "S02E04, E07".
+    static func episodeCodes(_ codes: [String]) -> String? {
+        guard let first = codes.first else { return nil }
+        guard codes.count > 1 else { return first }
+        let parsed = codes.compactMap(parse)
+        let oneSeason = parsed.count == codes.count && Set(parsed.map(\.season)).count == 1
+        guard oneSeason else { return codes.joined(separator: ", ") }
+        let numbers = parsed.map(\.episode).sorted()
+        let season = first.prefix { $0 != "E" }
+        let consecutive = zip(numbers, numbers.dropFirst()).allSatisfy { previous, next in next == previous + 1 }
+        if consecutive {
+            return "\(season)\(episodeLabel(numbers[0]))–\(episodeLabel(numbers[numbers.count - 1]))"
+        }
+        return season + numbers.map(episodeLabel).joined(separator: ", ")
+    }
+
+    private static func parse(_ code: String) -> (season: Int, episode: Int)? {
+        let parts = code.dropFirst().split(separator: "E")
+        guard code.hasPrefix("S"), parts.count == 2, let season = Int(parts[0]), let episode = Int(parts[1]) else { return nil }
+        return (season, episode)
+    }
+
+    private static func episodeLabel(_ number: Int) -> String {
+        number < 10 ? "E0\(number)" : "E\(number)"
+    }
+
+    private static func rank(_ status: Components.Schemas.DayReleaseStatus) -> Int {
+        switch status {
+        case .missing: 0
+        case .grabbed: 1
+        case .downloading: 2
+        case .available: 3
+        }
+    }
+}
+
 /// Where a release stands, in a word and a color.
 struct ReleaseStatusLabel: View {
     let status: Components.Schemas.DayReleaseStatus

@@ -86,8 +86,6 @@ function FilterFields({ flow, onChange }: { flow: Draft; onChange: Change }) {
           />
         </Field>
       )
-    case "service":
-      return null
   }
 }
 

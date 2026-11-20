@@ -12,7 +12,7 @@ import { JournalEntry, JournalQuery } from "./Journal.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 5
+export const protocolVersion = 6
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -21,15 +21,20 @@ export const protocolVersion = 5
  * `JournalRead`): the Cloud sends them only to a Home at `journalProtocolVersion` or later, and
  * keeps the journal in memory only for an older one. Protocol 5 added Cleanuparr and `PUT`, a write
  * the Home checks against what the service holds (`AllowRule.against`); an older Home doesn't list
- * Cleanuparr, so nothing asks it for them.
+ * Cleanuparr, so nothing asks it for them. Protocol 6 added Prowlarr and the *arr health checks
+ * (`/api/v3/health`), for the alerts: an older Home refuses the health watch, so that alert stays
+ * quiet, and doesn't list Prowlarr.
  */
 export const minProtocolVersion = 1
 
 /** The first protocol whose Home keeps the journal. */
 export const journalProtocolVersion = 4
 
+/** The first protocol whose Home allows the *arr health checks and Prowlarr. */
+export const arrHealthProtocolVersion = 6
+
 /** The services a Home can reach. */
-export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr"])
+export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"])
 export type HomeService = typeof HomeService.Type
 
 /** The services whose webhooks the Home receives and forwards. Jellyfin is polled (its sessions). */
@@ -376,6 +381,7 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/movie$/ },
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
+    { method: "GET", path: /^\/api\/v3\/health$/ },
     ...arrFixes("movie")
   ],
   sonarr: [
@@ -384,7 +390,12 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
+    { method: "GET", path: /^\/api\/v3\/health$/ },
     ...arrFixes("series")
+  ],
+  prowlarr: [
+    { method: "GET", path: /^\/api\/v1\/system\/status$/ },
+    { method: "GET", path: /^\/api\/v1\/health$/ }
   ],
   qbittorrent: [
     { method: "GET", path: /^\/api\/v2\/app\/version$/ },

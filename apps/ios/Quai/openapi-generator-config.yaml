@@ -12,3 +12,5 @@ filter:
     - fixes
     - requests
     - releases
+    - journal
+    - alerts

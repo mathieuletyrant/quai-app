@@ -1,3 +1,4 @@
+import { Alerts } from "../src/alerts/Alerts.ts"
 import { HomeProtocol, type JournalEntry, journalPage } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
@@ -79,10 +80,12 @@ export const recordedHome = (
 /**
  * The protocol a Home first allowed this call in: an older Home refuses it as not allowed
  * (`HomeProtocol.minProtocolVersion`). Protocol 2 added Reclaimerr and `DELETE`, protocol 3 Seerr
- * and the calendars, protocol 5 Cleanuparr and `PUT`.
+ * and the calendars, protocol 5 Cleanuparr and `PUT`, protocol 6 Prowlarr and the *arr health checks.
  */
 const allowedSince = (call: Pick<Call, "service" | "method" | "path">): number =>
-  call.service === "cleanuparr" || call.method === "PUT"
+  call.service === "prowlarr" || /\/health$/.test(call.path.split("?")[0]!)
+    ? 6
+    : call.service === "cleanuparr" || call.method === "PUT"
     ? 5
     : call.service === "seerr" || /\/calendar$/.test(call.path.split("?")[0]!)
     ? 3
@@ -294,7 +297,7 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
  */
 export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link: Layer.Layer<HomeLink> = HomeLink.layer) =>
   Hub.layerFed.pipe(
-    Layer.provideMerge(Notifier.layer),
+    Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
     Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
     Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),

@@ -1,4 +1,5 @@
 import {
+  type AlertKind,
   type ApnsEnvironment,
   ApnsEnvironment as ApnsEnvironmentSchema,
   type DeviceId,
@@ -64,6 +65,12 @@ export interface Recipient {
   readonly token: string
 }
 
+/** Where an alert's notification goes: one row per iPhone. */
+export interface AlertRecipient extends Recipient {
+  /** As its owner named it: for the journal. */
+  readonly name: string
+}
+
 /** `devices/<id>`: one paired iPhone. Its bearer token is kept as a SHA-256 hash only. */
 export const DeviceDocument = Schema.Struct({
   id: Schema.String,
@@ -78,6 +85,8 @@ export const DeviceDocument = Schema.Struct({
   timeZone: Schema.optional(Schema.String),
   /** Activity key → the push token this iPhone reported for it. */
   activityTokens: Schema.Record(Schema.String, Schema.String),
+  /** The APNs token for notifications (alerts); absent until the user allows them. */
+  notificationToken: Schema.optional(Schema.String),
   /** Activity key → where it was when swiped away. */
   dismissed: Schema.Record(Schema.String, Schema.Struct({ stepIndex: Schema.Number, paused: Schema.NullOr(Schema.Boolean) }))
 })
@@ -115,7 +124,12 @@ export class Devices extends Context.Service<Devices, {
   readonly authenticate: (token: string) => Effect.Effect<Option.Option<Device>, HomeOffline>
   readonly update: (
     id: DeviceId,
-    patch: { readonly name?: string | undefined; readonly pushToStartToken?: string | undefined; readonly timeZone?: string | undefined }
+    patch: {
+      readonly name?: string | undefined
+      readonly pushToStartToken?: string | undefined
+      readonly timeZone?: string | undefined
+      readonly notificationToken?: string | undefined
+    }
   ) => Effect.Effect<void, HomeOffline>
   /** The time zone of the most recently seen iPhone that reported a valid one. */
   readonly timeZone: Effect.Effect<Option.Option<string>, HomeOffline>
@@ -139,6 +153,8 @@ export class Devices extends Context.Service<Devices, {
   readonly clearDismissed: (id: DeviceId, activityKey: string) => Effect.Effect<void, HomeOffline>
   /** APNs said this token is dead: forget it. */
   readonly dropToken: (token: string) => Effect.Effect<void, HomeOffline>
+  /** The iPhones that get an alert of this kind: notifications allowed, the alert not muted. */
+  readonly alertRecipients: (kind: AlertKind) => Effect.Effect<ReadonlyArray<AlertRecipient>, HomeOffline>
 }>()("quai/Devices") {
   /** The paired iPhones, as home documents. */
   static readonly layer = Layer.effect(
@@ -234,7 +250,8 @@ export class Devices extends Context.Service<Devices, {
             ...d,
             ...(patch.name === undefined ? {} : { name: patch.name }),
             ...(patch.pushToStartToken === undefined ? {} : { pushToStartToken: patch.pushToStartToken }),
-            ...(patch.timeZone === undefined || !isTimeZone(patch.timeZone) ? {} : { timeZone: patch.timeZone })
+            ...(patch.timeZone === undefined || !isTimeZone(patch.timeZone) ? {} : { timeZone: patch.timeZone }),
+            ...(patch.notificationToken === undefined ? {} : { notificationToken: patch.notificationToken })
           })),
 
         timeZone: Effect.map(all, (devices) =>
@@ -301,15 +318,28 @@ export class Devices extends Context.Service<Devices, {
         dropToken: (token) =>
           Effect.gen(function*() {
             for (const device of yield* all) {
-              const holds = device.pushToStartToken === token || Object.values(device.activityTokens).includes(token)
+              const holds = device.pushToStartToken === token || device.notificationToken === token ||
+                Object.values(device.activityTokens).includes(token)
               if (!holds) continue
-              yield* change(device.id as DeviceId, (d) => ({
-                ...d,
-                pushToStartToken: d.pushToStartToken === token ? null : d.pushToStartToken,
-                activityTokens: Object.fromEntries(Object.entries(d.activityTokens).filter(([, t]) => t !== token))
-              }))
+              yield* change(device.id as DeviceId, (d) => {
+                const { notificationToken, ...rest } = d
+                return {
+                  ...rest,
+                  ...(notificationToken === undefined || notificationToken === token ? {} : { notificationToken }),
+                  pushToStartToken: d.pushToStartToken === token ? null : d.pushToStartToken,
+                  activityTokens: Object.fromEntries(Object.entries(d.activityTokens).filter(([, t]) => t !== token))
+                }
+              })
             }
-          })
+          }),
+
+        alertRecipients: (kind) =>
+          Effect.map(all, (devices) =>
+            devices.flatMap((d): ReadonlyArray<AlertRecipient> =>
+              d.notificationToken === undefined || (d.preferences.mutedAlerts ?? []).includes(kind)
+                ? []
+                : [{ deviceId: d.id as DeviceId, name: d.name, apnsEnvironment: d.apnsEnvironment, token: d.notificationToken }]
+            ))
       }
     })
   )

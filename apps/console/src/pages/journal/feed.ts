@@ -92,6 +92,7 @@ export const levelTone: Record<JournalEntry["level"], Tone> = { info: "neutral",
 export const sourceIcon: Record<JournalSource, IconName> = {
   radarr: "film",
   sonarr: "tv",
+  prowlarr: "search",
   qbittorrent: "download",
   jellyfin: "play",
   seerr: "person",

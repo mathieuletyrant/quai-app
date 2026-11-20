@@ -1,6 +1,6 @@
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
-import { ActionType, ActivityAttributes, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow, FlowSubject } from "./Activity.ts"
+import { ActionType, ActivityAttributes, AlertKind, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow, FlowSubject } from "./Activity.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
 export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
@@ -56,7 +56,9 @@ export const PairedDevice = Schema.Struct({
 export const UpdateDevice = Schema.Struct({
   name: Schema.optionalKey(Schema.String),
   pushToStartToken: Schema.optionalKey(Schema.String),
-  timeZone: Schema.optionalKey(Schema.String)
+  timeZone: Schema.optionalKey(Schema.String),
+  /** The APNs device token for notifications (alerts), once the user allowed them. */
+  notificationToken: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "UpdateDevice" })
 
 export const ActivityToken = Schema.Struct({
@@ -81,7 +83,9 @@ export type FlowPreference = typeof FlowPreference.Type
 
 /** What this iPhone wants to receive, per flow id. A flow left out: on, every step. */
 export const DevicePreferences = Schema.Struct({
-  flows: Schema.Record(Schema.String, FlowPreference)
+  flows: Schema.Record(Schema.String, FlowPreference),
+  /** Alerts this iPhone doesn't want notified. Absent: every alert. */
+  mutedAlerts: Schema.optionalKey(Schema.Array(AlertKind))
 }).annotate({ identifier: "DevicePreferences" })
 export type DevicePreferences = typeof DevicePreferences.Type
 

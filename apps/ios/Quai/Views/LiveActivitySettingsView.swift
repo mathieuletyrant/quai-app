@@ -6,6 +6,8 @@ struct LiveActivitySettingsView: View {
     @Environment(Connection.self) private var connection
     @State private var flows: [Components.Schemas.FlowSummary] = []
     @State private var preferences: [String: Components.Schemas.FlowPreference] = [:]
+    /// Kept as loaded: saved again with the flows, so this screen never unmutes an alert.
+    @State private var mutedAlerts: [Components.Schemas.AlertKind]?
     @State private var status: String?
     @State private var loaded = false
 
@@ -52,7 +54,9 @@ struct LiveActivitySettingsView: View {
             async let all = connection.flows()
             async let saved = connection.preferences()
             flows = try await all
-            preferences = try await saved.flows.additionalProperties
+            let read = try await saved
+            preferences = read.flows.additionalProperties
+            mutedAlerts = read.mutedAlerts
             loaded = true
         } catch {
             status = error.quaiMessage
@@ -65,9 +69,10 @@ struct LiveActivitySettingsView: View {
         change(&next)
         preferences[id] = next
         let all = preferences
+        let muted = mutedAlerts
         Task {
             do {
-                try await connection.save(.init(flows: .init(additionalProperties: all)))
+                try await connection.save(.init(flows: .init(additionalProperties: all), mutedAlerts: muted))
                 status = nil
             } catch {
                 status = error.quaiMessage

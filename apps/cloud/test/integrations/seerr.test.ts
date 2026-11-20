@@ -1,4 +1,4 @@
-import { builtInFlows, DeviceAuth, QuaiApi } from "@quai/api"
+import { builtInFlows, defaultAlertSettings, DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Exit, Layer, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
@@ -174,7 +174,7 @@ describe("Seerr requests", () => {
       const watch = { id: pendingWatchId, service: "seerr" as const, path: "/api/v1/request", everySeconds: 60 }
       const events = yield* integration.watcher!.read(
         { watch, status: 200, body: JSON.stringify(fixture("seerr/requests-pending.json")) },
-        { flows: [series], running: [], services, now, timeZone: "UTC" }
+        { flows: [series], running: [], services, now, timeZone: "UTC", alerts: defaultAlertSettings }
       )
       expect(events.map((e) => e.subject?.key)).toEqual(["request:13"])
     }).pipe(Effect.provide(engine)))

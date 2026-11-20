@@ -2090,11 +2090,350 @@
           }
         }
       }
+    },
+    "/api/journal": {
+      "get": {
+        "tags": [
+          "journal"
+        ],
+        "operationId": "listJournal",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JournalPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/alerts": {
+      "get": {
+        "tags": [
+          "alerts"
+        ],
+        "operationId": "listAlerts",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ActiveAlerts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveAlerts"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/alerts": {
+      "get": {
+        "tags": [
+          "consoleAlerts"
+        ],
+        "operationId": "getAlertSettings",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "AlertSettings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertSettings"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "consoleAlerts"
+        ],
+        "operationId": "saveAlertSettings",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "AlertSettings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlertSettings"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertSettings"
+              }
+            }
+          },
+          "required": true
+        }
+      }
     }
   },
   "components": {
     "schemas": {
-      "JournalTail": {
+      "HomeOfflineEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "HomeOffline"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "AlertSettings": {
+        "type": "object",
+        "properties": {
+          "serviceDown": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "afterMinutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 240
+              }
+            },
+            "required": [
+              "enabled",
+              "afterMinutes"
+            ],
+            "additionalProperties": false
+          },
+          "diskLow": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "belowPercent": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              }
+            },
+            "required": [
+              "enabled",
+              "belowPercent"
+            ],
+            "additionalProperties": false
+          },
+          "arrHealth": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "warning",
+                  "error"
+                ]
+              }
+            },
+            "required": [
+              "enabled",
+              "level"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "serviceDown",
+          "diskLow",
+          "arrHealth"
+        ],
+        "additionalProperties": false
+      },
+      "effect_HttpApiError_UnauthorizedEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "Unauthorized"
+            ]
+          }
+        },
+        "required": [
+          "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "ActiveAlerts": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActiveAlert"
+            }
+          },
+          "enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertKind"
+            }
+          }
+        },
+        "required": [
+          "items",
+          "enabled"
+        ],
+        "additionalProperties": false
+      },
+      "AlertKind": {
+        "type": "string",
+        "enum": [
+          "serviceDown",
+          "diskLow",
+          "arrHealth"
+        ]
+      },
+      "ActiveAlert": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AlertKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "since": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "since"
+        ],
+        "additionalProperties": false
+      },
+      "JournalPage": {
         "type": "object",
         "properties": {
           "entries": {
@@ -2103,15 +2442,26 @@
               "$ref": "#/components/schemas/JournalEntry"
             }
           },
-          "cursor": {
-            "type": "string"
+          "more": {
+            "type": "boolean"
+          },
+          "kept": {
+            "$ref": "#/components/schemas/JournalKept"
           }
         },
         "required": [
           "entries",
-          "cursor"
+          "more",
+          "kept"
         ],
         "additionalProperties": false
+      },
+      "JournalKept": {
+        "type": "string",
+        "enum": [
+          "home",
+          "memory"
+        ]
       },
       "JournalEntry": {
         "type": "object",
@@ -2120,19 +2470,7 @@
             "type": "string"
           },
           "at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "Infinity",
-                  "-Infinity",
-                  "NaN"
-                ]
-              }
-            ]
+            "type": "number"
           },
           "level": {
             "$ref": "#/components/schemas/JournalLevel"
@@ -2174,6 +2512,7 @@
         "enum": [
           "radarr",
           "sonarr",
+          "prowlarr",
           "qbittorrent",
           "jellyfin",
           "seerr",
@@ -2192,7 +2531,7 @@
           "error"
         ]
       },
-      "JournalPage": {
+      "JournalTail": {
         "type": "object",
         "properties": {
           "entries": {
@@ -2201,43 +2540,13 @@
               "$ref": "#/components/schemas/JournalEntry"
             }
           },
-          "more": {
-            "type": "boolean"
-          },
-          "kept": {
-            "$ref": "#/components/schemas/JournalKept"
-          }
-        },
-        "required": [
-          "entries",
-          "more",
-          "kept"
-        ],
-        "additionalProperties": false
-      },
-      "JournalKept": {
-        "type": "string",
-        "enum": [
-          "home",
-          "memory"
-        ]
-      },
-      "HomeOfflineEncoded": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "HomeOffline"
-            ]
-          },
-          "message": {
+          "cursor": {
             "type": "string"
           }
         },
         "required": [
-          "_tag",
-          "message"
+          "entries",
+          "cursor"
         ],
         "additionalProperties": false
       },
@@ -2353,8 +2662,6 @@
           "playback.started",
           "playback.progress",
           "playback.stopped",
-          "service.down",
-          "service.up",
           "request.pending",
           "request.approved",
           "request.declined",
@@ -2461,7 +2768,6 @@
         "enum": [
           "media",
           "playback",
-          "service",
           "request",
           "day"
         ]
@@ -2653,21 +2959,6 @@
           "expiresAt",
           "link",
           "accessHeaderNames"
-        ],
-        "additionalProperties": false
-      },
-      "effect_HttpApiError_UnauthorizedEncoded": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "Unauthorized"
-            ]
-          }
-        },
-        "required": [
-          "_tag"
         ],
         "additionalProperties": false
       },
@@ -3743,6 +4034,12 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/FlowPreference"
             }
+          },
+          "mutedAlerts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlertKind"
+            }
           }
         },
         "required": [
@@ -3810,6 +4107,9 @@
             "type": "string"
           },
           "timeZone": {
+            "type": "string"
+          },
+          "notificationToken": {
             "type": "string"
           }
         },
@@ -3941,6 +4241,15 @@
     },
     {
       "name": "consoleJournal"
+    },
+    {
+      "name": "journal"
+    },
+    {
+      "name": "alerts"
+    },
+    {
+      "name": "consoleAlerts"
     }
   ]
 }

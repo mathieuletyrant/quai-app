@@ -1,7 +1,11 @@
 import { Schema } from "effect"
 
 /** What one activity follows. */
-export const FlowSubject = Schema.Literals(["media", "playback", "service", "request", "day"]).annotate({ identifier: "FlowSubject" })
+/** What an alert is about (Alerts.ts): a service down, the media disk low, a problem an *arr reports. */
+export const AlertKind = Schema.Literals(["serviceDown", "diskLow", "arrHealth"]).annotate({ identifier: "AlertKind" })
+export type AlertKind = typeof AlertKind.Type
+
+export const FlowSubject = Schema.Literals(["media", "playback", "request", "day"]).annotate({ identifier: "FlowSubject" })
 export type FlowSubject = typeof FlowSubject.Type
 
 /** The normalized events flows are built from (docs/flows.md, Event catalog). */
@@ -14,8 +18,6 @@ export const EventType = Schema.Literals([
   "playback.started",
   "playback.progress",
   "playback.stopped",
-  "service.down",
-  "service.up",
   "request.pending",
   "request.approved",
   "request.declined",

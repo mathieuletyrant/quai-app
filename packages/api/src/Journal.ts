@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
+import { DeviceAuth } from "./Devices.ts"
 
 /**
  * The journal: what Quai did, in plain words, one line per thing. Quai Cloud writes most of it,
@@ -12,7 +13,7 @@ export const JournalLevel = Schema.Literals(["info", "warn", "error"]).annotate(
 export type JournalLevel = typeof JournalLevel.Type
 
 /** Where a line comes from: a service, Apple (pushes), Quai Home or Quai Cloud itself. */
-export const JournalSource = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr", "apple", "home", "cloud"])
+export const JournalSource = Schema.Literals(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr", "apple", "home", "cloud"])
   .annotate({ identifier: "JournalSource" })
 export type JournalSource = typeof JournalSource.Type
 export const journalSources: ReadonlyArray<JournalSource> = JournalSource.literals
@@ -21,6 +22,7 @@ export const journalSources: ReadonlyArray<JournalSource> = JournalSource.litera
 export const journalSourceNames: Record<JournalSource, string> = {
   radarr: "Radarr",
   sonarr: "Sonarr",
+  prowlarr: "Prowlarr",
   qbittorrent: "qBittorrent",
   jellyfin: "Jellyfin",
   seerr: "Seerr",
@@ -35,7 +37,7 @@ export const JournalEntry = Schema.Struct({
   /** `journalId`: sorts as the entries happened. */
   id: Schema.String,
   /** Epoch milliseconds. */
-  at: Schema.Number,
+  at: Schema.Finite,
   level: JournalLevel,
   source: JournalSource,
   /** A short code of what happened: `media.grabbed`, `push.refused`, `home.offline`. */
@@ -80,7 +82,9 @@ export const JournalQuery = Schema.Struct({
   level: Schema.optionalKey(JournalLevel),
   subject: Schema.optionalKey(Schema.String),
   /** Words in the text or the title, any case. */
-  search: Schema.optionalKey(Schema.String)
+  search: Schema.optionalKey(Schema.String),
+  /** Only these kinds (`media.grabbed`). */
+  kinds: Schema.optionalKey(Schema.Array(Schema.String))
 }).annotate({ identifier: "JournalQuery" })
 export type JournalQuery = typeof JournalQuery.Type
 
@@ -89,6 +93,7 @@ export const journalMatches = (entry: JournalEntry, query: Omit<JournalQuery, "b
   if (query.sources !== undefined && query.sources.length > 0 && !query.sources.includes(entry.source)) return false
   if (query.level !== undefined && levelRank[entry.level] < levelRank[query.level]) return false
   if (query.subject !== undefined && entry.subject !== query.subject) return false
+  if (query.kinds !== undefined && !query.kinds.includes(entry.kind)) return false
   const search = query.search?.trim().toLowerCase() ?? ""
   if (search !== "" && !`${entry.text} ${entry.title ?? ""} ${entry.deviceName ?? ""}`.toLowerCase().includes(search)) return false
   return true
@@ -152,3 +157,37 @@ export class ConsoleJournalGroup extends HttpApiGroup.make("consoleJournal")
     }).annotate(OpenApi.Identifier, "consoleJournalSince")
   )
   .prefix("/console-api") {}
+
+/**
+ * What the app's journal shows: what happened to the titles, the requests and the server, not
+ * Quai's own plumbing (webhooks, pushes, watches, activities).
+ */
+export const appJournalKinds: ReadonlyArray<string> = [
+  "media.added",
+  "media.grabbed",
+  "media.imported",
+  "media.available",
+  "playback.started",
+  "playback.stopped",
+  "alert.raised",
+  "alert.over",
+  "request.pending",
+  "request.approved",
+  "request.declined",
+  "releases.available"
+]
+
+/** The app's journal: the Home's recent entries and the Activity tab's history, a page at a time. */
+export class JournalGroup extends HttpApiGroup.make("journal")
+  .add(
+    HttpApiEndpoint.get("recent", "/journal", {
+      query: {
+        /** An entry id: entries older than it. */
+        before: Schema.optionalKey(Schema.String),
+        limit: Schema.optionalKey(Schema.FiniteFromString)
+      },
+      success: JournalPage
+    }).annotate(OpenApi.Identifier, "listJournal")
+  )
+  .middleware(DeviceAuth)
+  .prefix("/api") {}
