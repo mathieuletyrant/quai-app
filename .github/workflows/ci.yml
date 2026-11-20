@@ -101,6 +101,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CODE: ${{ steps.model.outputs.code }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           case "$CODE" in
             0) verdict="✅ every result as expected: the code as it is keeps every invariant, the design before the fix still fails (the check can fail)." ;;
@@ -110,7 +111,7 @@ jobs:
           {
             echo "### 🔁 Live Activity pushes, model-checked (TLA+)"
             echo
-            echo "$verdict at ${GITHUB_SHA:0:7} · [run](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) · [what it proves](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/.claude/skills/verify/live-activity-pushes/README.md)"
+            echo "$verdict at ${HEAD_SHA:0:7} · [run](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) · [what it proves](https://github.com/${GITHUB_REPOSITORY}/blob/${HEAD_SHA}/.claude/skills/verify/live-activity-pushes/README.md)"
             echo
             echo '```'
             grep -v "^Picked up" model.txt
@@ -205,4 +206,5 @@ jobs:
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: .github/scripts/ios-screenshots.sh screenshots ${{ github.event.pull_request.number }}

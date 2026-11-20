@@ -2,7 +2,7 @@
 # Publishes the ios job's screenshots: commits them to the ios-screenshots branch (so a PR comment
 # can show them), writes them in the job summary, and keeps one comment on the PR up to date
 # (pr-comment.sh).
-# Needs GH_TOKEN (contents and pull-requests: write), GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_SHA.
+# Needs GH_TOKEN (contents and pull-requests: write), GITHUB_REPOSITORY, GITHUB_RUN_ID, HEAD_SHA (the commit shown).
 # Usage: ios-screenshots.sh <folder of PNGs> [PR number]
 set -euo pipefail
 
@@ -31,7 +31,7 @@ for attempt in 1 2 3; do
   cp "$shots"/*.png "$work/$folder/"
   git -C "$work" add "$folder"
   git -C "$work" -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-    commit -q -m "Screenshots of run $GITHUB_RUN_ID (${GITHUB_SHA:0:7})"
+    commit -q -m "Screenshots of run $GITHUB_RUN_ID (${HEAD_SHA:0:7})"
   if git -C "$work" push -q origin "HEAD:refs/heads/$branch"; then break; fi
   [ "$attempt" = 3 ] && { echo "Couldn't push the screenshots"; exit 1; }
   sleep $((attempt * 5))
@@ -42,7 +42,7 @@ run="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 {
   echo "### 📱 iOS screenshots"
   echo
-  echo "The app on the simulator, paired to the preview server (Quai Cloud + a fake Quai Home on the recorded fixtures), at ${GITHUB_SHA:0:7} · [run]($run)"
+  echo "The app on the simulator, paired to the preview server (Quai Cloud + a fake Quai Home on the recorded fixtures), at ${HEAD_SHA:0:7} · [run]($run)"
   echo
   cells=""
   heads=""
