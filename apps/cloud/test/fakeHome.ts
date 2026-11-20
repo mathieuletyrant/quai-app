@@ -5,7 +5,8 @@ import { createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node
 import { Activities } from "../src/flows/Activities.ts"
 import { FlowStore } from "../src/flows/FlowStore.ts"
 import { Devices } from "../src/home/Devices.ts"
-import { HomeLink } from "../src/home/HomeLink.ts"
+import { HomeError, HomeLink, offlineMessage } from "../src/home/HomeLink.ts"
+import { HomeReads } from "../src/home/HomeReads.ts"
 import { Hub } from "../src/integrations/Hub.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
 import type { Integrations } from "../src/integrations/Integration.ts"
@@ -259,13 +260,30 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
  * Quai Cloud without its HTTP server: the home link, the home's data on it, the engine and the
  * Hub (without heartbeat: tests call `beat`). Needs `Apns`; `integrations` may use the link.
  */
-export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>) =>
+export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link: Layer.Layer<HomeLink> = HomeLink.layer) =>
   Hub.layerFed.pipe(
     Layer.provideMerge(Notifier.layer),
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
     Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
-    Layer.provideMerge(HomeLink.documents),
-    Layer.provideMerge(HomeLink.layer)
+    Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
+    Layer.provideMerge(link)
+  )
+
+/**
+ * The real link, but the calls of these routes (`routeOf`) find Quai Home gone, as if it dropped
+ * during the call and was back by the next one: the documents and the other calls still answer.
+ */
+export const linkDroppingOn = (...routes: ReadonlyArray<string>) =>
+  Layer.effect(
+    HomeLink,
+    Effect.map(HomeLink.make, (link) =>
+      HomeLink.of({
+        ...link,
+        call: (request, options) =>
+          routes.includes(routeOf(request))
+            ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
+            : link.call(request, options)
+      }))
   )
 
 /** With the real integrations. */

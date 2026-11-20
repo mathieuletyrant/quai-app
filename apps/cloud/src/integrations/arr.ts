@@ -176,23 +176,3 @@ export const echoed = (row: ManualImportRow) => ({
   ...(row.indexerFlags === undefined ? {} : { indexerFlags: row.indexerFlags })
 })
 
-const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
-
-const field = (value: unknown, key: string): unknown =>
-  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>)[key] : undefined
-
-/**
- * The error message of a failed call, in the service's words: `[{ errorMessage }]` (an *arr's
- * validation), `{ message }`, `{ detail }` (Reclaimerr), or the body itself when it's short.
- */
-export const serviceError = (status: number, body: string): string => {
-  const parsed = decodeJson(body)
-  if (parsed._tag === "Some") {
-    const value = parsed.value
-    const candidates = [Array.isArray(value) ? field(value[0], "errorMessage") : undefined, field(value, "message"), field(value, "detail"), field(value, "error")]
-    const found = candidates.find((c): c is string => typeof c === "string" && c !== "")
-    if (found !== undefined) return found
-  }
-  const text = body.trim()
-  return text !== "" && text.length <= 200 && !text.startsWith("<") ? text : `HTTP ${status}`
-}

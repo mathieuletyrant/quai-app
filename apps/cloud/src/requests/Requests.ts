@@ -2,7 +2,7 @@ import { HomeOffline, type MediaRequests, RequestFailed } from "@quai/api"
 import { Context, Effect, Layer, Option } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { HomeLink, offlineMessage, toOffline } from "../home/HomeLink.ts"
-import { serviceError } from "../integrations/arr.ts"
+import { serviceError } from "../home/HomeReads.ts"
 import { Hub } from "../integrations/Hub.ts"
 import { decisionPath, RequestStatus, SeerrTitles } from "../integrations/seerr.ts"
 

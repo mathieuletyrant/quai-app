@@ -13,6 +13,7 @@ import {
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { HomeDocuments, HomeLink, offlineMessage, toOffline } from "../home/HomeLink.ts"
+import { serviceError } from "../home/HomeReads.ts"
 import {
   byPreference,
   echoed,
@@ -25,7 +26,6 @@ import {
   QueuePage,
   rejectionsOf,
   ReleaseRecords,
-  serviceError,
   toRelease
 } from "../integrations/arr.ts"
 import { readJson } from "../integrations/Integration.ts"
