@@ -24,7 +24,7 @@ export const catalog: ReadonlyArray<{
   { type: "request.pending", subject: "request", label: "Request waiting for approval (Seerr)", data: false, services: ["seerr"] },
   { type: "request.approved", subject: "request", label: "Request approved (Seerr)", data: false, services: ["seerr"] },
   { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] },
-  { type: "releases.today", subject: "day", label: "Tonight's releases begin (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "releases.today", subject: "day", label: "Today's releases begin (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
   { type: "releases.progress", subject: "day", label: "A release grabbed or available (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
   { type: "releases.available", subject: "day", label: "Every release available (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
   { type: "releases.dayOver", subject: "day", label: "Midnight", data: false, services: ["quai"] }
@@ -174,8 +174,8 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     lingerMinutes: 5
   },
   {
-    id: "tonight",
-    name: "Tonight's releases",
+    id: "today",
+    name: "Today's releases",
     builtIn: true,
     enabled: true,
     color: "#4FC3F7",
@@ -183,7 +183,7 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     subject: "day",
     filter: { startsAt: defaultStartsAt },
     steps: [
-      { id: "tonight", label: "Tonight", icon: "calendar", on: "releases.today", show: { list: true } },
+      { id: "today", label: "Today", icon: "calendar", on: "releases.today", show: { list: true } },
       { id: "all-here", label: "All here", icon: "checkmark", on: "releases.available", show: { list: true } }
     ],
     endOn: "releases.dayOver",

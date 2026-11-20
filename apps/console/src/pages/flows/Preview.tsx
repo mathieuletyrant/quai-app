@@ -14,7 +14,7 @@ const sample = {
   playback: { title: "Big Buck Bunny", detail: "TV Salon" },
   service: { title: "Radarr", detail: null },
   request: { title: "Big Buck Bunny", detail: "Julie · Movie · 2008" },
-  day: { title: "Tonight", detail: "1 of 3 here" }
+  day: { title: "Today", detail: "1 of 3 here" }
 } as const
 
 /** Sample lines of a step showing a list. */

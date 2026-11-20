@@ -3,7 +3,7 @@ import { Devices } from "../home/Devices.ts"
 import { isTimeZone } from "./Day.ts"
 
 /**
- * The home's time zone, for "tonight" and "midnight". A home has no clock of its own: it follows
+ * The home's time zone, for "today" and "midnight". A home has no clock of its own: it follows
  * the iPhones, which report theirs (the most recently seen one wins). Before any did, Quai Cloud's
  * `QUAI_TZ`, else UTC.
  */

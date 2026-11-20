@@ -3,10 +3,10 @@ import { Clock, Context, Effect, Layer, Option } from "effect"
 import { HomeReads } from "../home/HomeReads.ts"
 import { dayOf } from "./Day.ts"
 import { HomeTime } from "./HomeTime.ts"
-import { dayInputs, dayReads, dayReleases } from "./Tonight.ts"
+import { dayInputs, dayReads, dayReleases } from "./Today.ts"
 
 /**
- * Today's releases for the app's Tonight tile, read through Quai Home when it asks (nothing is
+ * Today's releases for the app's Today tile, read through Quai Home when it asks (nothing is
  * kept): the day's reads (`dayReads`), in the home's day.
  */
 export class Releases extends Context.Service<Releases, {

@@ -21,7 +21,7 @@ export const subjects: Record<Flow["subject"], { readonly label: string; readonl
   playback: { label: "Playback", description: "What plays on Jellyfin, with remote buttons.", icon: "play.fill" },
   service: { label: "Server health", description: "A service that stops answering.", icon: "server.rack" },
   request: { label: "Requests", description: "A Seerr request waiting for approval, with Approve and Decline.", icon: "person.fill.questionmark" },
-  day: { label: "Tonight's releases", description: "The day's episodes and movies from Sonarr and Radarr, from a time you pick.", icon: "calendar" }
+  day: { label: "Today's releases", description: "The day's episodes and movies from Sonarr and Radarr, from a time you pick.", icon: "calendar" }
 }
 
 /** How the console names each service an event comes from. */
