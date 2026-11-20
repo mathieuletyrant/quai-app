@@ -9,8 +9,10 @@
 (*   "beat":   Hub.layer, every 5 s -> beat -> engine.tick,                *)
 (*             then notifier.send                                          *)
 (* Activities.run (apps/cloud/src/flows/Activities.ts) computes the        *)
-(* pushes under a Semaphore of 1 permit and releases it before the caller  *)
-(* hands them to Notifier.send (apps/cloud/src/push/Notifier.ts).          *)
+(* pushes under a Semaphore of 1 permit and, holding it, runs the `send`   *)
+(* the Hub passes: Notifier.send (apps/cloud/src/push/Notifier.ts).        *)
+(* SendUnderLock = FALSE is the design before that: the permit released    *)
+(* first, the caller sending after.                                        *)
 (*                                                                         *)
 (* One Deliver step is Notifier.one for one push and one iPhone:           *)
 (* deliveryFor (apps/cloud/src/flows/Targeting.ts), the update of the      *)
@@ -22,7 +24,7 @@ EXTENDS Naturals, Sequences
 
 CONSTANTS
     MaxRuns,       \* bound on engine runs (Activities.run calls)
-    SendUnderLock  \* FALSE: the code as it is. TRUE: pushes sent before the permit is released.
+    SendUnderLock  \* TRUE: the code as it is. FALSE: sent after the permit is released (before the fix).
 
 Fibers == {"events", "beat"}
 

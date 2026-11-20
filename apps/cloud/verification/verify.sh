@@ -14,12 +14,12 @@ fi
 
 # design (SendUnderLock) | max engine runs | invariant | expected
 checks=(
-  "FALSE 5 OneActivity pass"
-  "FALSE 5 ActivityWhileRunning fail"
-  "FALSE 5 LatestShown fail"
   "TRUE 7 OneActivity pass"
   "TRUE 7 ActivityWhileRunning pass"
   "TRUE 7 LatestShown pass"
+  "FALSE 5 OneActivity pass"
+  "FALSE 5 ActivityWhileRunning fail"
+  "FALSE 5 LatestShown fail"
 )
 
 work=$(mktemp -d)
@@ -27,7 +27,7 @@ trap 'rm -rf "$work"' EXIT
 changed=0
 for check in "${checks[@]}"; do
   read -r underLock runs invariant expected <<< "$check"
-  design=$([ "$underLock" = TRUE ] && echo "sent under the lock" || echo "code as it is")
+  design=$([ "$underLock" = TRUE ] && echo "code as it is" || echo "sent after the lock")
   printf 'SPECIFICATION Spec\nCONSTANTS\n    MaxRuns = %s\n    SendUnderLock = %s\nINVARIANTS\n    TypeOK\n    %s\n' \
     "$runs" "$underLock" "$invariant" > "$work/check.cfg"
   log="$work/$underLock-$invariant.log"

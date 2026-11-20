@@ -82,7 +82,7 @@ export class Hub extends Context.Service<Hub, {
     const repeated = makeRepeats()
 
     const apply = (events: ReadonlyArray<FlowEvent>) =>
-      Effect.forEach(events, (event) => Effect.flatMap(engine.handle(event), notifier.send), { discard: true })
+      Effect.forEach(events, (event) => engine.handle(event, notifier.send), { discard: true })
 
     /** Alert states go to the alerts; flow events are logged, then applied. */
     const applyFrom = (service: From, signals: ReadonlyArray<Signal>) =>
@@ -201,7 +201,7 @@ export class Hub extends Context.Service<Hub, {
           if (watcher.tick !== undefined) yield* applyFrom(integration.service, yield* watcher.tick(ctx.value))
         }
       }
-      yield* notifier.send(yield* engine.tick)
+      yield* engine.tick(notifier.send)
       yield* sync
     })
 

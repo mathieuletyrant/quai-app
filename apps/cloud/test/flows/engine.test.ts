@@ -1,9 +1,10 @@
 import type { Flow } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Deferred, Effect, Fiber } from "effect"
 import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
 import { emptyState, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
+import { settle } from "../fakeHome.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 
 const tags = (pushes: ReadonlyArray<Push>) => pushes.map((p) => `${p._tag}:${p.activity.stepIndex}`)
@@ -28,7 +29,7 @@ describe("download flow", () => {
       expect(tags(end)).toEqual(["End:3"])
       expect(end[0]!.activity.tone).toBe("done")
       yield* TestClock.adjust("15 minutes")
-      yield* engine.tick
+      yield* engine.tick()
       expect((yield* engine.snapshot).activities.size).toBe(0)
     })))
 
@@ -44,11 +45,11 @@ describe("download flow", () => {
       // The grab went at 0 s: then 5 s, 10 s.
       expect(sent.map((p) => p.activity.values.progress)).toEqual([0.05, 0.1])
       yield* TestClock.adjust("2 seconds")
-      expect(yield* engine.tick).toEqual([])
+      expect(yield* engine.tick()).toEqual([])
       yield* TestClock.adjust("1 second")
-      const flushed = yield* engine.tick
+      const flushed = yield* engine.tick()
       expect(flushed.map((p) => p.activity.values.progress)).toEqual([0.12])
-      expect(yield* engine.tick).toEqual([])
+      expect(yield* engine.tick()).toEqual([])
     })))
 
   it.effect("an ETA that turns unknown clears the last one", () =>
@@ -78,9 +79,9 @@ describe("download flow", () => {
       const engine = yield* Activities
       yield* engine.handle(ev.grabbed())
       yield* TestClock.adjust("119 minutes")
-      expect(yield* engine.tick).toEqual([])
+      expect(yield* engine.tick()).toEqual([])
       yield* TestClock.adjust("1 minute")
-      expect((yield* engine.tick).map((p) => p.activity.tone)).toEqual(["stalled"])
+      expect((yield* engine.tick()).map((p) => p.activity.tone)).toEqual(["stalled"])
       yield* TestClock.adjust("5 seconds")
       expect((yield* engine.handle(ev.progress(0.01))).map((p) => p.activity.tone)).toEqual(["active"])
     })))
@@ -94,6 +95,25 @@ describe("download flow", () => {
       expect((yield* engine.handle(ev.grabbed("x", show))).map((p) => p.activity.flowId)).toEqual(["download", "anime"])
     }), [download, anime])
   })
+
+  it.effect("pushes leave in the order the engine made them, even from two fibers (verify-live-activity-pushes)", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      const sent: Array<string> = []
+      const apnsBusy = yield* Deferred.make<void>()
+      const slowSend = (pushes: ReadonlyArray<Push>) => Effect.andThen(Deferred.await(apnsBusy), Effect.sync(() => sent.push(...tags(pushes))))
+      const send = (pushes: ReadonlyArray<Push>) => Effect.sync(() => sent.push(...tags(pushes)))
+      const first = yield* Effect.forkChild(engine.handle(ev.added(), slowSend))
+      yield* settle
+      const second = yield* Effect.forkChild(engine.handle(ev.grabbed(), send))
+      yield* settle
+      // The second change waits for the first one's pushes to leave.
+      expect(sent).toEqual([])
+      yield* Deferred.succeed(apnsBusy, undefined)
+      yield* Fiber.join(first)
+      yield* Fiber.join(second)
+      expect(sent).toEqual(["Start:0", "Update:1"])
+    })))
 
   it.effect("a turned-off flow starts nothing", () =>
     run(Effect.gen(function*() {
@@ -135,7 +155,7 @@ describe("playback flow", () => {
       const engine = yield* Activities
       yield* engine.handle(playing(999_000))
       yield* TestClock.adjust("16 minutes")
-      expect(tags(yield* engine.tick)).toEqual(["End:0"])
+      expect(tags(yield* engine.tick())).toEqual(["End:0"])
     }), [playback]))
 
   it.effect("filtered to a device: other devices start nothing", () =>
