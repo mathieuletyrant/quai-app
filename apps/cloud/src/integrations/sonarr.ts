@@ -282,3 +282,28 @@ export const episodesWithoutSource = (
     }
   })
 }
+
+// Tonight's releases: the episodes airing today, `GET /api/v3/calendar` with their series.
+
+/** Monitored episodes airing between two instants (epoch milliseconds), with their series. */
+export const sonarrCalendarPath = (startMs: number, endMs: number) =>
+  `/api/v3/calendar?start=${encodeURIComponent(new Date(startMs).toISOString())}&end=${encodeURIComponent(new Date(endMs).toISOString())}&unmonitored=false&includeSeries=true`
+
+export const SonarrCalendar = Schema.Array(Schema.Struct({
+  id: Schema.Number,
+  seriesId: Schema.Number,
+  seasonNumber: Schema.Number,
+  episodeNumber: Schema.Number,
+  title: Schema.optional(Schema.String),
+  airDateUtc: Schema.optional(Schema.String),
+  hasFile: Schema.optional(Schema.Boolean),
+  monitored: Schema.optional(Schema.Boolean),
+  series: Schema.optional(Schema.Struct({
+    title: Schema.String,
+    images: Schema.optional(Schema.Array(ArrImage))
+  }))
+}))
+export type SonarrCalendarEpisode = (typeof SonarrCalendar.Type)[number]
+
+/** The queue's rows, without the series and episodes: which episode, and whether it downloads. */
+export const sonarrCalendarQueuePath = `/api/v3/queue?page=1&pageSize=${queuePageSize}`

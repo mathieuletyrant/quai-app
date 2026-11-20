@@ -68,7 +68,7 @@ describe("Jellyfin sessions", () => {
 describe("Jellyfin integration", () => {
   const withJellyfin = <A, E>(test: (integration: Effect.Success<typeof jellyfin>) => Effect.Effect<A, E, HomeLink>) =>
     Effect.flatMap(jellyfin, test).pipe(Effect.provide(HomeLink.layer))
-  const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"] })
+  const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC" })
 
   it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once found by its TMDB id", () =>
     withJellyfin((integration) =>

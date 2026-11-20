@@ -18,7 +18,10 @@ export const icons: ReadonlyArray<{ readonly name: string; readonly label: strin
   { name: "bell.fill", label: "Bell", path: "M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0" },
   { name: "clock.fill", label: "Clock", path: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2" },
   { name: "star.fill", label: "Star", path: "M12 3l2.8 5.8 6.2.9-4.5 4.4 1 6.2L12 17.4 6.5 20.3l1-6.2L3 9.7l6.2-.9z" },
-  { name: "server.rack", label: "Server", path: "M4 4h16v6H4zM4 14h16v6H4zM7 7h.01M7 17h.01" }
+  { name: "server.rack", label: "Server", path: "M4 4h16v6H4zM4 14h16v6H4zM7 7h.01M7 17h.01" },
+  { name: "person.fill.questionmark", label: "Request", path: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM3 20c0-3.3 2.7-6 6-6s6 2.7 6 6zM17 7.5a2 2 0 1 1 2.5 1.9V11M19.5 14v.5" },
+  { name: "xmark", label: "Decline", path: "M6 6l12 12M18 6L6 18" },
+  { name: "calendar", label: "Calendar", path: "M4 6h16v14H4zM4 10h16M8 3v5M16 3v5" }
 ]
 
 export function Glyph({ name, color, size = 18 }: { name: string; color: string; size?: number }) {

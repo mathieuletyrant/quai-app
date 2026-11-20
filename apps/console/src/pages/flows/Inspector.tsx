@@ -1,4 +1,4 @@
-import { type CatalogAction, type CatalogEvent, stepShows } from "@quai/api"
+import { type CatalogAction, type CatalogEvent, defaultStartsAt, stepShows } from "@quai/api"
 import { Callout, Chip, Field, FieldLabel, IconButton, Input, InspectorSection as Section, Segmented, Select } from "../../ui.tsx"
 import { type Draft, type DraftStep, eventName, type EventType, palette, serviceNames, showLabels, skippedFor } from "./draft.ts"
 import { IconPicker } from "./IconPicker.tsx"
@@ -31,7 +31,7 @@ export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: (change: 
         <FieldLabel>Icon</FieldLabel>
         <IconPicker label="Flow icon" value={flow.icon} color={flow.color} onChange={(icon) => onChange((d) => { d.icon = icon })} />
       </div>
-      {flow.subject === "media" && (
+      {(flow.subject === "media" || flow.subject === "request") && (
         <div className="flex flex-col gap-1.5">
           <FieldLabel>Titles</FieldLabel>
           <Segmented
@@ -41,6 +41,15 @@ export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: (change: 
             onChange={(v) => onChange((d) => { d.filter.mediaType = v })}
           />
         </div>
+      )}
+      {flow.subject === "day" && (
+        <Field label="Starts at" hint="In the iPhones' time zone. Earlier when a release airs before; ends when all are here, or at midnight.">
+          <Input
+            type="time"
+            value={flow.filter.startsAt ?? defaultStartsAt}
+            onChange={(e) => onChange((d) => { if (/^\d{2}:\d{2}$/.test(e.target.value)) d.filter.startsAt = e.target.value })}
+          />
+        </Field>
       )}
       {flow.subject === "playback" && (
         <Field label="Jellyfin devices" hint="Comma-separated, as Jellyfin names them. Empty: every device.">
@@ -145,12 +154,12 @@ export function EndPanel({ flow, events, onChange }: { flow: Draft; events: Read
     })
   return (
     <Section title="Ends">
-      <Field label="Ends when">
+      <Field label={flow.steps.length > 1 ? "Ends at the last step, or when" : "Ends when"}>
         <Select value={flow.endOn ?? ""} onChange={(e) => onChange((d) => {
           if (e.target.value === "") delete d.endOn
           else d.endOn = e.target.value as EventType
         })}>
-          <option value="">The last step is reached</option>
+          <option value="">{flow.steps.length > 1 ? "Nothing else" : "The last step is reached"}</option>
           {events.filter((e) => !flow.steps.some((s) => s.on === e.type)).map((e) => <option key={e.type} value={e.type}>{eventName(e)} — {e.services.map((s) => serviceNames[s]).join(", ")}</option>)}
         </Select>
       </Field>
@@ -166,11 +175,13 @@ export function EndPanel({ flow, events, onChange }: { flow: Draft; events: Read
           </Select>
         </Field>
       )}
-      <Field label="Ends anyway with no news for">
-        <Select value={flow.expireAfterMinutes ?? 0} onChange={optional("expireAfterMinutes")}>
-          {[0, 15, 60, 240, 1440].map((m) => <option key={m} value={m}>{minutes(m)}</option>)}
-        </Select>
-      </Field>
+      {flow.subject !== "request" && (
+        <Field label="Ends anyway with no news for">
+          <Select value={flow.expireAfterMinutes ?? 0} onChange={optional("expireAfterMinutes")}>
+            {[0, 15, 60, 240, 1440].map((m) => <option key={m} value={m}>{minutes(m)}</option>)}
+          </Select>
+        </Field>
+      )}
     </Section>
   )
 }

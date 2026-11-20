@@ -1,5 +1,6 @@
-import type { Flow } from "@quai/api"
-import { type Activity, activityKey, type Push } from "./Engine.ts"
+import type { ActivityItem, Flow } from "@quai/api"
+import { type Activity, activityKey, endsAtStep, type Push } from "./Engine.ts"
+import type { Values } from "./Events.ts"
 
 /** One beat of a test: wait, then push. */
 export interface Beat {
@@ -11,13 +12,44 @@ export interface Beat {
  * A pretend run of a flow, about 30 to 45 s: every step in turn, with fake live values where a
  * step shows them. It goes through the same per-iPhone filtering as real activities.
  */
+const titles: Record<Flow["subject"], string> = {
+  media: "Big Buck Bunny (test)",
+  playback: "Big Buck Bunny · TV (test)",
+  service: "Radarr (test)",
+  request: "Big Buck Bunny (test)",
+  day: "Tonight (test)"
+}
+
+/** Sample lines of a list, `done` of them here: tonight's releases, airing from `at`. */
+const sampleItems = (at: number, done: number): Values => {
+  const titles = ["Big Buck Bunny S01E01", "Sintel S01E02", "Tears of Steel", "Elephants Dream S02E01"]
+  const items = titles.map((title, i): ActivityItem => ({
+    title,
+    ...(i < 3 ? { at: Math.floor(at / 1000) + 3600 * (i + 1) } : {}),
+    state: i < done ? "done" : i === done ? "active" : "waiting"
+  }))
+  return { items, here: done, total: titles.length, detail: `${done} of ${titles.length} here` }
+}
+
+/** What a step shows in the test, with values like a real run's. */
+const sampleValues = (flow: Flow, step: Flow["steps"][number], at: number, last: boolean): Values =>
+  step.show.timer
+    ? { paused: false, startsAt: at, endsAt: at + 40_000, detail: "TV Salon" }
+    : step.show.since
+    ? { since: at, detail: "Not answering" }
+    : step.show.list
+    ? sampleItems(at, last ? 4 : 1)
+    : flow.subject === "request"
+    ? { detail: last ? "Julie" : "Julie · Movie · 2008" }
+    : {}
+
 export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<Beat> => {
   const subjectKey = `test:${id}`
   let activity: Activity = {
     key: activityKey(flow.id, subjectKey),
     flowId: flow.id,
     subjectKey,
-    title: flow.subject === "service" ? "Radarr (test)" : flow.subject === "playback" ? "Big Buck Bunny · TV (test)" : "Big Buck Bunny (test)",
+    title: titles[flow.subject],
     stepIndex: 0,
     tone: "active",
     values: {},
@@ -39,13 +71,9 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
   }
 
   flow.steps.forEach((step, index) => {
-    const ends = flow.endOn === undefined && index === flow.steps.length - 1
+    const ends = endsAtStep(flow, index)
     const at = clock + (index === 0 ? 0 : 5_000)
-    const values = step.show.timer
-      ? { paused: false, startsAt: at, endsAt: at + 40_000, detail: "TV Salon" }
-      : step.show.since
-      ? { since: at, detail: "Not answering" }
-      : {}
+    const values = sampleValues(flow, step, at, index === flow.steps.length - 1)
     beat(index === 0 ? 0 : 5_000, index === 0 ? "Start" : ends ? "End" : "Update", {
       stepIndex: index,
       enteredAt: at,
@@ -57,6 +85,9 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
       for (const p of [0.12, 0.31, 0.52, 0.74, 0.93, 1]) {
         beat(4_000, "Update", { values: { progress: p, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - p) * 24) } })
       }
+    }
+    if (step.show.list && !ends) {
+      beat(5_000, "Update", { values: sampleItems(clock + 5_000, 2) })
     }
     if (step.actions?.includes("playback.playPause")) {
       // Shows the button's two states: a pause, then playing again from where it was.

@@ -1,0 +1,14 @@
+{
+  "notification_type": "MEDIA_DECLINED",
+  "subject": "Paddington in Peru (2024)",
+  "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1ffZAucqfvQu36x1C49XfOdjuOG.jpg",
+  "media": {
+    "media_type": "movie",
+    "tmdbId": "516729",
+    "status": "UNKNOWN"
+  },
+  "request": {
+    "request_id": "12",
+    "requestedBy_username": "Julie"
+  }
+}

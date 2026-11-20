@@ -11,20 +11,21 @@ import { Schema } from "effect"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 2
+export const protocolVersion = 3
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
- * checks; a protocol 1 Home refuses those calls as not allowed, so what needs them stays empty.
+ * checks; protocol 3 added Seerr and the *arr calendars. An older Home refuses those calls as not
+ * allowed, so what needs them stays empty.
  */
 export const minProtocolVersion = 1
 
 /** The services a Home can reach. */
-export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr"])
+export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"])
 export type HomeService = typeof HomeService.Type
 
 /** The services whose webhooks the Home receives and forwards. */
-export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "jellyfin"]
+export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "jellyfin", "seerr"]
 
 /**
  * Largest response body the Home forwards; bigger ones come back as a failure. Sized for the
@@ -333,12 +334,14 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
   radarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/movie$/ },
+    { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     ...arrFixes("movie")
   ],
   sonarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/series$/ },
+    { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
     ...arrFixes("series")
@@ -360,6 +363,17 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v1\/system$/ },
     { method: "GET", path: /^\/api\/v1\/candidates$/ },
     { method: "POST", path: /^\/api\/v1\/candidates\/\d+\/protect$/, body: shape({}, { reason: isString }) }
+  ],
+  // Seerr (Jellyseerr, Overseerr): its status, the requests and the titles they ask for, and
+  // approving or declining one request. Never creating, editing or deleting a request, and never
+  // its settings: Quai Home sets up Seerr's webhook itself, at start, outside this list.
+  seerr: [
+    { method: "GET", path: /^\/api\/v1\/status$/ },
+    { method: "GET", path: /^\/api\/v1\/request$/ },
+    { method: "GET", path: /^\/api\/v1\/request\/\d+$/ },
+    { method: "POST", path: /^\/api\/v1\/request\/\d+\/(approve|decline)$/ },
+    { method: "GET", path: /^\/api\/v1\/movie\/\d+$/ },
+    { method: "GET", path: /^\/api\/v1\/tv\/\d+$/ }
   ]
 }
 

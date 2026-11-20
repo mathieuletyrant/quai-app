@@ -8,6 +8,7 @@ import {
 } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
+import { isTimeZone } from "../releases/Day.ts"
 import { HomeDocuments, toOffline } from "./HomeLink.ts"
 
 export const Timing = {
@@ -31,6 +32,7 @@ export interface Device {
   readonly pushToStartToken: string | null
   readonly pairedAt: number
   readonly lastSeenAt: number | null
+  readonly timeZone: string | null
 }
 
 /** One iPhone as the notifier sees it for one activity. */
@@ -70,6 +72,8 @@ export const DeviceDocument = Schema.Struct({
   pairedAt: Schema.Number,
   lastSeenAt: Schema.NullOr(Schema.Number),
   preferences: DevicePreferencesSchema,
+  /** IANA, as the iPhone reported it; absent on iPhones paired before. */
+  timeZone: Schema.optional(Schema.String),
   /** Activity key → the push token this iPhone reported for it. */
   activityTokens: Schema.Record(Schema.String, Schema.String),
   /** Activity key → where it was when swiped away. */
@@ -92,7 +96,8 @@ const toDevice = (d: DeviceDocument): Device => ({
   apnsEnvironment: d.apnsEnvironment,
   pushToStartToken: d.pushToStartToken,
   pairedAt: d.pairedAt,
-  lastSeenAt: d.lastSeenAt
+  lastSeenAt: d.lastSeenAt,
+  timeZone: d.timeZone ?? null
 })
 
 export class Devices extends Context.Service<Devices, {
@@ -103,12 +108,15 @@ export class Devices extends Context.Service<Devices, {
     readonly name: string
     readonly apnsEnvironment: ApnsEnvironment
     readonly pushToStartToken?: string | undefined
+    readonly timeZone?: string | undefined
   }) => Effect.Effect<Option.Option<{ readonly deviceId: DeviceId; readonly token: string }>, HomeOffline>
   readonly authenticate: (token: string) => Effect.Effect<Option.Option<Device>, HomeOffline>
   readonly update: (
     id: DeviceId,
-    patch: { readonly name?: string | undefined; readonly pushToStartToken?: string | undefined }
+    patch: { readonly name?: string | undefined; readonly pushToStartToken?: string | undefined; readonly timeZone?: string | undefined }
   ) => Effect.Effect<void, HomeOffline>
+  /** The time zone of the most recently seen iPhone that reported a valid one. */
+  readonly timeZone: Effect.Effect<Option.Option<string>, HomeOffline>
   readonly setActivityToken: (id: DeviceId, activityKey: string, pushToken: string) => Effect.Effect<void, HomeOffline>
   readonly list: Effect.Effect<ReadonlyArray<Device>, HomeOffline>
   readonly remove: (id: DeviceId) => Effect.Effect<boolean, HomeOffline>
@@ -199,6 +207,7 @@ export class Devices extends Context.Service<Devices, {
               pairedAt: now,
               lastSeenAt: now,
               preferences: defaultPreferences,
+              ...(input.timeZone !== undefined && isTimeZone(input.timeZone) ? { timeZone: input.timeZone } : {}),
               activityTokens: {},
               dismissed: {}
             })
@@ -222,8 +231,16 @@ export class Devices extends Context.Service<Devices, {
           change(id, (d) => ({
             ...d,
             ...(patch.name === undefined ? {} : { name: patch.name }),
-            ...(patch.pushToStartToken === undefined ? {} : { pushToStartToken: patch.pushToStartToken })
+            ...(patch.pushToStartToken === undefined ? {} : { pushToStartToken: patch.pushToStartToken }),
+            ...(patch.timeZone === undefined || !isTimeZone(patch.timeZone) ? {} : { timeZone: patch.timeZone })
           })),
+
+        timeZone: Effect.map(all, (devices) =>
+          Option.fromNullishOr(
+            [...devices]
+              .filter((d) => d.timeZone !== undefined && isTimeZone(d.timeZone))
+              .sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]?.timeZone
+          )),
 
         setActivityToken: (id, activityKey, pushToken) =>
           change(id, (d) => ({

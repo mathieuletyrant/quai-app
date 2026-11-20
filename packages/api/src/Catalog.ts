@@ -20,7 +20,14 @@ export const catalog: ReadonlyArray<{
   { type: "playback.progress", subject: "playback", label: "Playback position (Jellyfin)", data: true, services: ["jellyfin"] },
   { type: "playback.stopped", subject: "playback", label: "Playback stopped (Jellyfin)", data: false, services: ["jellyfin"] },
   { type: "service.down", subject: "service", label: "Service down for 5 min", data: false, services: ["quai"] },
-  { type: "service.up", subject: "service", label: "Service back", data: false, services: ["quai"] }
+  { type: "service.up", subject: "service", label: "Service back", data: false, services: ["quai"] },
+  { type: "request.pending", subject: "request", label: "Request waiting for approval (Seerr)", data: false, services: ["seerr"] },
+  { type: "request.approved", subject: "request", label: "Request approved (Seerr)", data: false, services: ["seerr"] },
+  { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] },
+  { type: "releases.today", subject: "day", label: "Tonight's releases begin (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "releases.progress", subject: "day", label: "A release grabbed or available (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
+  { type: "releases.available", subject: "day", label: "Every release available (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "releases.dayOver", subject: "day", label: "Midnight", data: false, services: ["quai"] }
 ]
 
 /** Every button a step can offer. */
@@ -31,7 +38,9 @@ export const actionCatalog: ReadonlyArray<{
   readonly service: ServiceName
 }> = [
   { type: "playback.playPause", subject: "playback", label: "Play / Pause", service: "jellyfin" },
-  { type: "playback.stop", subject: "playback", label: "Stop", service: "jellyfin" }
+  { type: "playback.stop", subject: "playback", label: "Stop", service: "jellyfin" },
+  { type: "request.approve", subject: "request", label: "Approve", service: "seerr" },
+  { type: "request.decline", subject: "request", label: "Decline", service: "seerr" }
 ]
 
 export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((a) => a.type === type)!.subject
@@ -39,13 +48,14 @@ export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.fi
 export const subjectOf = (type: EventType): FlowSubject => catalog.find((e) => e.type === type)!.subject
 export const isDataEvent = (type: EventType): boolean => catalog.find((e) => e.type === type)!.data
 
-/** The flows Quai ships with. Editable and resettable in the console; not deletable. */
 /** What a step can show for each kind of flow: the values its data events carry. */
 export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
   media: ["progress", "speed", "eta"],
   // The countdown draws the bar too (held where it is while paused).
   playback: ["timer"],
-  service: ["since"]
+  service: ["since"],
+  request: [],
+  day: ["list"]
 }
 
 /**
@@ -64,6 +74,10 @@ export const flowProblem = (flow: Flow): string | null => {
       if (actionSubject(action) !== flow.subject) return `“${step.label}” has a button for another kind of flow.`
     }
   }
+  // A request waits as long as it waits: an expiry would forget it and start it again at the next poll.
+  if (flow.subject === "request" && flow.expireAfterMinutes !== undefined) {
+    return "A request flow ends when the request is approved, declined or deleted, not after no news."
+  }
   const events = new Set(flow.steps.map((s) => s.on))
   if (events.size !== flow.steps.length) return "Two steps start on the same event."
   if (flow.endOn !== undefined) {
@@ -75,7 +89,10 @@ export const flowProblem = (flow: Flow): string | null => {
   return null
 }
 
+/** When a day flow starts, in the home's time zone, unless a release airs earlier. */
+export const defaultStartsAt = "18:00"
 
+/** The flows Quai ships with. Editable and resettable in the console; not deletable. */
 export const builtInFlows: ReadonlyArray<Flow> = [
   {
     id: "download",
@@ -132,5 +149,44 @@ export const builtInFlows: ReadonlyArray<Flow> = [
       { id: "back", label: "Back", icon: "checkmark", on: "service.up", show: {} }
     ],
     lingerMinutes: 5
+  },
+  {
+    id: "request",
+    name: "Requests",
+    builtIn: true,
+    enabled: true,
+    color: "#8B8CF8",
+    icon: "person.fill.questionmark",
+    subject: "request",
+    filter: { mediaType: "any" },
+    steps: [
+      {
+        id: "pending",
+        label: "To approve",
+        icon: "person.fill.questionmark",
+        on: "request.pending",
+        show: {},
+        actions: ["request.approve", "request.decline"]
+      },
+      { id: "approved", label: "Approved", icon: "checkmark", on: "request.approved", show: {} }
+    ],
+    endOn: "request.declined",
+    lingerMinutes: 5
+  },
+  {
+    id: "tonight",
+    name: "Tonight's releases",
+    builtIn: true,
+    enabled: true,
+    color: "#4FC3F7",
+    icon: "calendar",
+    subject: "day",
+    filter: { startsAt: defaultStartsAt },
+    steps: [
+      { id: "tonight", label: "Tonight", icon: "calendar", on: "releases.today", show: { list: true } },
+      { id: "all-here", label: "All here", icon: "checkmark", on: "releases.available", show: { list: true } }
+    ],
+    endOn: "releases.dayOver",
+    lingerMinutes: 15
   }
 ]

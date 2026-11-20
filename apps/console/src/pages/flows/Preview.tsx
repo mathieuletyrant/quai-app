@@ -1,19 +1,25 @@
 import { useState } from "react"
 import { InspectorSection, Segmented } from "../../ui.tsx"
-import type { Draft } from "./draft.ts"
+import { actionGlyph, type Draft, endsAtLastStep } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 
 const doneColor = "#30D158"
-/** The button's symbol says what a tap does: Play while paused, Pause while playing. */
-const actionGlyph = (action: string, paused: boolean) =>
-  action === "playback.stop" ? "stop.fill" : paused ? "play.fill" : "pause.fill"
 
 /** Sample values, so each step shows what the iPhone would. */
 const sample = {
   media: { title: "Big Buck Bunny", detail: null },
   playback: { title: "Big Buck Bunny", detail: "TV Salon" },
-  service: { title: "Radarr", detail: null }
+  service: { title: "Radarr", detail: null },
+  request: { title: "Big Buck Bunny", detail: "Julie · Movie · 2008" },
+  day: { title: "Tonight", detail: "1 of 3 here" }
 } as const
+
+/** Sample lines of a step showing a list. */
+const sampleItems = [
+  { title: "Severance S02E10", time: "20:00", done: true },
+  { title: "The Bear S04E02", time: "21:00", done: false },
+  { title: "Big Buck Bunny", time: null, done: false }
+] as const
 
 /**
  * The Lock Screen and Dynamic Island as the iPhone draws this flow at one step, with sample values.
@@ -26,7 +32,7 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
   if (current === undefined) return null
   const canPause = flow.subject === "playback"
   const isPaused = canPause && paused
-  const done = flow.endOn === undefined && flow.steps.length > 1 && step === flow.steps.length - 1
+  const done = endsAtLastStep(flow) && flow.steps.length > 1 && step === flow.steps.length - 1
   const tint = done ? doneColor : flow.color
   const { show } = current
   const { title, detail } = sample[flow.subject]
@@ -83,6 +89,20 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
             <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
               <div className="h-full rounded-full" style={{ width: show.timer ? "34%" : "63%", background: tint }} />
             </div>
+          )}
+          {show.list && (
+            <ul className="flex flex-col gap-1.5">
+              {sampleItems.map((item, i) => {
+                const here = item.done || done || (i === 1 && step > 0)
+                return (
+                  <li key={item.title} className="flex items-center gap-2 text-[13px]">
+                    <Glyph name={here ? "checkmark" : "clock.fill"} color={here ? doneColor : "rgba(255,255,255,0.45)"} size={13} />
+                    <span className={`min-w-0 flex-1 truncate ${here ? "text-white/60" : "text-white/90"}`}>{item.title}</span>
+                    {item.time && <span className="tabular-nums text-white/50">{item.time}</span>}
+                  </li>
+                )
+              })}
+            </ul>
           )}
           {(current.actions ?? []).length > 0 && (
             <div className="flex gap-2">

@@ -18,6 +18,19 @@ struct QuaiActivityAttributes: ActivityAttributes {
         case active, stalled, done
     }
 
+    /// One line of a step showing a list (tonight's releases).
+    struct Item: Codable, Hashable {
+        /// "Severance S02E03"
+        var title: String
+        /// Epoch seconds it airs at, when known.
+        var at: Double?
+        /// "waiting", "active" or "done"; a string so an unknown state never breaks the activity.
+        var state: String
+
+        var isDone: Bool { state == "done" }
+        var isActive: Bool { state == "active" }
+    }
+
     struct ContentState: Codable, Hashable {
         /// Index into `steps`.
         var step: Int
@@ -34,6 +47,12 @@ struct QuaiActivityAttributes: ActivityAttributes {
         /// Epoch seconds the step began, for "time since".
         var since: Double?
         var detail: String?
+        /// At most 4 lines, for a step that shows a list.
+        var items: [Item]?
+        /// With `items`: how many of the whole list are done, out of how many (the lines may be
+        /// cut). Optional, so a push without them still decodes.
+        var here: Int?
+        var total: Int?
     }
 
     var key: String

@@ -10,3 +10,5 @@ filter:
     - devices
     - library
     - fixes
+    - requests
+    - releases

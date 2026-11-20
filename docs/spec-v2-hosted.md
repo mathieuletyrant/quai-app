@@ -115,15 +115,17 @@ that self-hosts the Cloud.
 - **The *arr keys never leave home.** The Home holds them; the Cloud only asks for calls.
 - **The allowlist is in the Home.** A compromised cloud can't delete a library or read config
   endpoints: the Home refuses anything outside it. Writes are limited to the actions the catalog
-  and the To fix list offer (Jellyfin play/pause/stop; removing one queue item, grabbing one
-  release, `ManualImport`, protecting a Reclaimerr candidate), and a write whose path would open
+  and the To fix list offer (Jellyfin play/pause/stop; approving or declining one Seerr request;
+  removing one queue item, grabbing one release, `ManualImport`, protecting a Reclaimerr candidate), and a write whose path would open
   more (`POST /api/v3/command`) is checked down to its body.
 - **What leaves home:** titles, progress, playback sessions and service health — what a Live
   Activity shows — in transit only (see above). The app's Library tab adds the movie and series
   list (titles, years, public poster URLs, sizes, free disk), read from Radarr and Sonarr through
   the Home when the app asks, never kept. The To fix list adds, the same way, the queue's blocked
   downloads, the titles without a file, release names from the indexers and Reclaimerr's planned
-  deletions.
+  deletions. The Requests tile and flow add Seerr's pending requests (titles, posters, who asked);
+  Tonight's releases, the day's calendar of Sonarr and Radarr. The iPhones' time zone is kept at
+  home, on their device documents.
 - **Home ↔ cloud:** TLS, one token per Home, issued at linking, revocable from the console.
 - **App ↔ Cloud:** the device token the Home issued at pairing, checked against the Home.
 

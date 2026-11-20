@@ -24,8 +24,9 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 
 - ⬇️ **Download**: search, download (%, speed, time left), import, French subtitles, available. Then "Play on TV" for 15 min
 - ▶️ **Jellyfin playback**: title, time left, end time, on the devices you pick
-- 📅 **Today's releases**: what airs today with a countdown, ticked off once grabbed
+- 📅 **Tonight's releases**: one activity for the evening, from 18:00 (or the first air time): today's episodes and movies, each ticked off once it's here
 - 🚨 **Server incident**: a service, indexer or disk down, since when, what's waiting
+- 🙋 **Requests**: a Seerr request from the household waiting for you, with Approve and Decline on the Lock Screen
 
 **Server**
 
@@ -39,6 +40,8 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 - 📷 Pair by scanning a QR code from the console
 - 📋 Live activities first, then today's events
 - 🎚️ One switch per activity kind, greyed out when the admin turned it off
+- 🙋 Requests tile: Seerr requests waiting for approval, approved or declined in one tap
+- 📅 Tonight tile: what comes out today, with its time and where it stands
 
 ## 🧭 How it works
 
@@ -105,11 +108,16 @@ the console's routes answer 503 "Quai Home is not connected".
 | `QUAI_PUBLIC_HEADERS` | – | Headers a reverse proxy in front of the Cloud requires, as `Name: value` pairs separated by `;` or line breaks (e.g. `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`). Go into the pairing QR code; the app sends them on every request. See [behind a proxy](docs/proxy.md) |
 | `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities: the Cloud's own configuration |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The iOS app's bundle id |
+| `QUAI_TZ` | `UTC` | Time zone (IANA) for "tonight" until an iPhone reports its own: the paired iPhones' time zone wins |
 
 To reach the Cloud away from home, put its `/api/*` behind a reverse proxy (Cloudflare Access,
 Pangolin, Authentik, …): [docs/proxy.md](docs/proxy.md).
 
 The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
+
+Quai Home reads each service from `QUAI_<SERVICE>_URL` and its key; a service left unset is
+skipped. Seerr (Jellyseerr, Overseerr) is optional: `QUAI_SEERR_URL` and `QUAI_SEERR_API_KEY`
+(Seerr → Settings → General → API Key).
 
 On Umbrel, install **Quai** from [Mathieu's Umbrel App Store](https://github.com/mathieuletyrant/umbrel-community-app-store).
 

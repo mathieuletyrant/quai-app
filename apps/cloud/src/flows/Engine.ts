@@ -65,7 +65,7 @@ const fingerprint = (a: Activity) => {
 
 const matches = (flow: Flow, subject: Subject) => {
   if (!flow.enabled || flow.subject !== subject.kind) return false
-  if (subject.kind === "media") {
+  if (subject.kind === "media" || subject.kind === "request") {
     const wanted = flow.filter.mediaType ?? "any"
     return wanted === "any" || wanted === subject.mediaType
   }
@@ -76,8 +76,12 @@ const matches = (flow: Flow, subject: Subject) => {
   return true
 }
 
-/** Without an end event, reaching the last step ends the activity; with one, only that event does. */
-const endsAtStep = (flow: Flow, index: number) => flow.endOn === undefined && index === flow.steps.length - 1
+/**
+ * Reaching the last step ends the activity. A one-step flow with an end event (playback) runs
+ * until that event instead: its only step is where it starts.
+ */
+export const endsAtStep = (flow: Flow, index: number) =>
+  index === flow.steps.length - 1 && (flow.endOn === undefined || flow.steps.length > 1)
 
 const lookupOf = (subject: Subject) => subject.kind === "media" ? subject.lookup ?? null : null
 
@@ -100,6 +104,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
   if (isDataEvent(event.type)) {
     for (const activity of state.activities.values()) {
       if (activity.endedAt !== null) continue
+      if (event.flowId !== undefined && activity.flowId !== event.flowId) continue
       const flow = flows.find((f) => f.id === activity.flowId)
       if (flow === undefined) continue
       const step = flow.steps[activity.stepIndex]!
@@ -137,13 +142,16 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
   const subject = event.subject
   if (subject === undefined) return { state, pushes: [] }
   for (const flow of flows) {
+    if (event.flowId !== undefined && flow.id !== event.flowId) continue
     if (!matches(flow, subject)) continue
     const key = activityKey(flow.id, subject.key)
     const current = activities.get(key)
 
     if (flow.endOn === event.type) {
       if (current === undefined || current.endedAt !== null) continue
-      const ended = pushed({ ...current, tone: "done", endedAt: now, lastEventAt: now }, now)
+      // What the end event says ("Declined") shows on the ended activity.
+      const values = event.values === undefined ? current.values : { ...current.values, ...event.values }
+      const ended = pushed({ ...current, values, tone: "done", endedAt: now, lastEventAt: now }, now)
       put(activities, ended)
       pushes.push({ _tag: "End", activity: ended })
       continue

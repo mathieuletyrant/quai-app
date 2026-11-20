@@ -61,7 +61,8 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
             case "radarr":
             case "sonarr":
             case "jellyfin":
-            case "reclaimerr": {
+            case "reclaimerr":
+            case "seerr": {
               const endpoint = config[service]
               if (endpoint === null) return Effect.fail(new ServiceError({ service, message: "not configured" }))
               const key = Redacted.value(endpoint.apiKey)

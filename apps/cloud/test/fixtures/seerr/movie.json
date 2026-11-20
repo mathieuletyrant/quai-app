@@ -1,0 +1,51 @@
+{
+  "adult": false,
+  "backdropPath": "/masked-backdrop.jpg",
+  "budget": 90000000,
+  "genres": [
+    {
+      "id": 10751,
+      "name": "Family"
+    },
+    {
+      "id": 35,
+      "name": "Comedy"
+    },
+    {
+      "id": 12,
+      "name": "Adventure"
+    }
+  ],
+  "homepage": "",
+  "id": 516729,
+  "imdbId": "tt14776330",
+  "originalLanguage": "en",
+  "originalTitle": "Paddington in Peru",
+  "overview": "Paddington travels to Peru to visit his beloved Aunt Lucy.",
+  "popularity": 312.4,
+  "posterPath": "/1ffZAucqfvQu36x1C49XfOdjuOG.jpg",
+  "releaseDate": "2024-11-08",
+  "revenue": 0,
+  "runtime": 106,
+  "status": "Released",
+  "tagline": "",
+  "title": "Paddington in Peru",
+  "video": false,
+  "voteAverage": 7.1,
+  "voteCount": 512,
+  "credits": {
+    "cast": [],
+    "crew": []
+  },
+  "collection": null,
+  "externalIds": {
+    "imdbId": "tt14776330"
+  },
+  "mediaInfo": {
+    "id": 31,
+    "tmdbId": 516729,
+    "status": 2,
+    "requests": []
+  },
+  "watchProviders": []
+}
