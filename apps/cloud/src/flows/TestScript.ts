@@ -17,10 +17,10 @@ const titles: Record<Flow["subject"], string> = {
   playback: "Big Buck Bunny · TV (test)",
   service: "Radarr (test)",
   request: "Big Buck Bunny (test)",
-  day: "Tonight (test)"
+  day: "Today (test)"
 }
 
-/** Sample lines of a list, `done` of them here: tonight's releases, airing from `at`. */
+/** Sample lines of a list, `done` of them here: today's releases, airing from `at`. */
 const sampleItems = (at: number, done: number): Values => {
   const titles = ["Big Buck Bunny S01E01", "Sintel S01E02", "Tears of Steel", "Elephants Dream S02E01"]
   const items = titles.map((title, i): ActivityItem => ({

@@ -26,7 +26,7 @@ struct Tonight {
             case .service:
                 if !done { incidents.append(activity) }
             case .request, .day:
-                // Requests and tonight's releases have their own tiles, read when the screen opens.
+                // Requests and today's releases have their own tiles, read when the screen opens.
                 break
             case .media:
                 if done {
@@ -75,7 +75,7 @@ struct HomeView: View {
                         .buttonStyle(.plain)
                 }
                 if let releases = connection.releases?.items, !releases.isEmpty {
-                    NavigationLink { ReleasesView() } label: { TonightReleasesTile(releases: releases) }
+                    NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
                         .buttonStyle(.plain)
                 }
                 tiles(tonight)
@@ -149,7 +149,7 @@ struct HomeView: View {
 }
 
 /// Today's releases: each with its time and where it stands. Hidden when nothing comes out today.
-private struct TonightReleasesTile: View {
+private struct TodayReleasesTile: View {
     let releases: [DayRelease]
 
     private var here: Int { releases.filter { $0.status == .available }.count }
@@ -157,7 +157,7 @@ private struct TonightReleasesTile: View {
     var body: some View {
         Tile {
             HStack {
-                TileLabel(title: "Tonight", systemImage: "calendar", color: Palette.releases)
+                TileLabel(title: "Today", systemImage: "calendar", color: Palette.releases)
                 Spacer(minLength: 8)
                 Text("\(here) of \(releases.count) here")
                     .font(QuaiFont.caption)
@@ -191,7 +191,7 @@ private struct TonightReleasesTile: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens tonight's releases")
+        .accessibilityHint("Opens today's releases")
     }
 }
 

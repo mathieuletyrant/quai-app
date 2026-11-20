@@ -25,7 +25,7 @@ export interface DayReads {
 export type DayValue<K extends keyof DayReads> = DayReads[K] extends Read<infer A> ? A : never
 
 /**
- * What is read of a day in the home's time zone, defined once for the app's Tonight tile (read
+ * What is read of a day in the home's time zone, defined once for the app's Today tile (read
  * when asked) and the day flows (watched).
  */
 export const dayReads = (day: string, zone: string): DayReads => {

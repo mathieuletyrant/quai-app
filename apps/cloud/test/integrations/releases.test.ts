@@ -17,7 +17,7 @@ import { SonarrCalendar } from "../../src/integrations/sonarr.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { apnsBody } from "../../src/push/ApnsPayload.ts"
 import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/releases/Day.ts"
-import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/Tonight.ts"
+import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/Today.ts"
 import { cloudLive, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp, testAppDroppingOn } from "../testApp.ts"
@@ -66,7 +66,7 @@ const emptyActivity: Activity = {
   key: "tonight|day:2026-11-20",
   flowId: "tonight",
   subjectKey: "day:2026-11-20",
-  title: "Tonight",
+  title: "Today",
   stepIndex: 0,
   tone: "active",
   values: {},
@@ -80,7 +80,7 @@ const emptyActivity: Activity = {
   pushedFingerprint: null
 }
 
-describe("tonight's releases", () => {
+describe("today's releases", () => {
   it("lists the monitored episodes airing today and the movies out today, with where each stands", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     expect(releases.map((r) => [r.id, r.title, r.episode, r.status])).toEqual([
@@ -141,7 +141,7 @@ describe("tonight's releases", () => {
       key: "tonight|day:2026-11-20",
       flowId: "tonight",
       subjectKey: "day:2026-11-20",
-      title: "Tonight",
+      title: "Today",
       stepIndex: 0,
       tone: "active",
       values: { items: activityItems(releases), detail: "1 of 4 here" },
@@ -162,7 +162,7 @@ describe("tonight's releases", () => {
   })
 })
 
-describe("Tonight's releases flow", () => {
+describe("Today's releases flow", () => {
   const services = ["radarr", "sonarr"] as const
   const answer = () => recordedHome(calendars)
   const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
@@ -175,7 +175,7 @@ describe("Tonight's releases flow", () => {
     yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development", timeZone: paris })
   })
 
-  it("the Tonight tile and the day flows read the same GETs: the watches are the day's reads", () => {
+  it("the Today tile and the day flows read the same GETs: the watches are the day's reads", () => {
     const context = { flows: [tonight], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris }
     const watched = calendarWatches({ ...context, services: [...context.services] }).map((w) => `${w.service} ${w.path}`)
     expect(watched.sort()).toEqual(Object.values(dayReads("2026-11-20", paris)).map((r) => `${r.service} ${r.path}`).sort())

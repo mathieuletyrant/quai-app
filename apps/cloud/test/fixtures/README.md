@@ -27,7 +27,7 @@ masked.
 (apps/home/src/SeerrWebhook.ts): pending, approved, declined, an auto-approved request (it must
 start nothing) and the test notification.
 
-Tonight's releases: `sonarr/calendar.json` follows Sonarr v4's `GET /api/v3/calendar?includeSeries=true`
+Today's releases: `sonarr/calendar.json` follows Sonarr v4's `GET /api/v3/calendar?includeSeries=true`
 for Friday Nov 20, 2026 (an unmonitored episode and one airing after midnight in Paris are the
 ones left out), `radarr/calendar.json` Radarr v5's `GET /api/v3/calendar` (a movie in cinemas only
 and one out the next day are left out); `*/queue-calendar.json` are their queues without the

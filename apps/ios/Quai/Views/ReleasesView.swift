@@ -53,7 +53,7 @@ struct ReleasesView: View {
                 GlassIconButton(systemImage: "chevron.left", label: "Back") { dismiss() }
                 Spacer()
             }
-            ScreenHeader(title: "Tonight", subtitle: summary)
+            ScreenHeader(title: "Today", subtitle: summary)
         } content: {
             if let error = connection.releasesError {
                 MessageTile(title: "Can't load the releases", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)

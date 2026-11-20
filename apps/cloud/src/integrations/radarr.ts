@@ -142,7 +142,7 @@ export const RadarrGrabs = Schema.Array(Schema.Struct({
   eventType: Schema.optional(Schema.String)
 }))
 
-// Tonight's releases: the movies out today, `GET /api/v3/calendar`.
+// Today's releases: the movies out today, `GET /api/v3/calendar`.
 
 /**
  * Monitored movies with a date between two instants. Radarr's release dates are days (midnight

@@ -237,7 +237,7 @@ struct ActionButtons: View {
     }
 }
 
-/// A step's lines (tonight's releases): a check once here, an arrow while on its way, the air
+/// A step's lines (today's releases): a check once here, an arrow while on its way, the air
 /// time in this iPhone's own time zone.
 struct ItemList: View {
     let model: Model

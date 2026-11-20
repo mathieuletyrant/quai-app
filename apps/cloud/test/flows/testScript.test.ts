@@ -37,7 +37,7 @@ describe("test script", () => {
     const tonight = builtInFlows.find((f) => f.id === "tonight")!
     const beats = testScript(tonight, 0, "t")
     expect(beats.map((b) => `${b.push._tag}:${b.push.activity.stepIndex}`)).toEqual(["Start:0", "Update:0", "End:1"])
-    expect(beats[0]!.push.activity.title).toBe("Tonight (test)")
+    expect(beats[0]!.push.activity.title).toBe("Today (test)")
     expect(beats.map((b) => [b.push.activity.values.here, b.push.activity.values.total])).toEqual([[1, 4], [2, 4], [4, 4]])
     expect(beats[0]!.push.activity.values.items?.map((i) => i.state)).toEqual(["done", "active", "waiting", "waiting"])
   })
