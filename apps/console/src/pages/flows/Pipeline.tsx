@@ -1,7 +1,7 @@
 import type { CatalogEvent } from "@quai/api"
 import type { ReactNode } from "react"
 import { cx, Eyebrow, Icon } from "../../ui.tsx"
-import { type Draft, eventName, serviceNames, showLabels, skippedFor, subjects } from "./draft.ts"
+import { actionGlyph, actionLabels, type Draft, endsAtLastStep, eventName, serviceNames, showLabels, skippedFor, subjects } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 
 /** What the inspector edits: the flow itself, one step, or how it ends. */
@@ -83,7 +83,7 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
     (events.find((e) => e.type === type)?.services ?? []).map((s) => (
       <span key={s} className={`${tag} bg-white/7 text-text-2`}>{serviceNames[s]}</span>
     ))
-  const filter = flow.subject === "media"
+  const filter = flow.subject === "media" || flow.subject === "request"
     ? { any: "Movies and series", movie: "Movies only", series: "Series only" }[flow.filter.mediaType ?? "any"]
     : flow.subject === "playback"
     ? (flow.filter.devices ?? []).length > 0 ? (flow.filter.devices ?? []).join(", ") : "Every Jellyfin device"
@@ -131,8 +131,8 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
                 {shows.map((k) => <span key={k} className={`${tag} text-muted ring-1 ring-line-strong ring-inset`}>{showLabels[k]}</span>)}
                 {(step.actions ?? []).map((a) => (
                   <span key={a} className={`${tag} inline-flex items-center gap-1`} style={{ background: `${flow.color}1f`, color: flow.color }}>
-                    <Glyph name={a === "playback.stop" ? "stop.fill" : "play.fill"} color={flow.color} size={10} />
-                    {a === "playback.stop" ? "Stop" : "Play / Pause"}
+                    <Glyph name={actionGlyph(a)} color={flow.color} size={10} />
+                    {actionLabels[a]}
                   </span>
                 ))}
               </span>
@@ -170,7 +170,9 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
         onClick={() => onSelect({ _tag: "End" })}
         kind="Ends"
         marker={tile(<Icon name="flag" size={16} />, {}, "bg-raised text-muted ring-1 ring-line-strong")}
-        title={flow.endOn ? `When ${eventLabel(flow.endOn)}` : "After the last step"}
+        title={flow.endOn
+          ? endsAtLastStep(flow) ? `After the last step, or when ${eventLabel(flow.endOn)}` : `When ${eventLabel(flow.endOn)}`
+          : "After the last step"}
       >
         <span className="text-[13px] text-muted">{ending}</span>
       </Node>

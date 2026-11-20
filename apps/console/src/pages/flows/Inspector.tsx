@@ -31,7 +31,7 @@ export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: (change: 
         <FieldLabel>Icon</FieldLabel>
         <IconPicker label="Flow icon" value={flow.icon} color={flow.color} onChange={(icon) => onChange((d) => { d.icon = icon })} />
       </div>
-      {flow.subject === "media" && (
+      {(flow.subject === "media" || flow.subject === "request") && (
         <div className="flex flex-col gap-1.5">
           <FieldLabel>Titles</FieldLabel>
           <Segmented
@@ -145,12 +145,12 @@ export function EndPanel({ flow, events, onChange }: { flow: Draft; events: Read
     })
   return (
     <Section title="Ends">
-      <Field label="Ends when">
+      <Field label={flow.steps.length > 1 ? "Ends at the last step, or when" : "Ends when"}>
         <Select value={flow.endOn ?? ""} onChange={(e) => onChange((d) => {
           if (e.target.value === "") delete d.endOn
           else d.endOn = e.target.value as EventType
         })}>
-          <option value="">The last step is reached</option>
+          <option value="">{flow.steps.length > 1 ? "Nothing else" : "The last step is reached"}</option>
           {events.filter((e) => !flow.steps.some((s) => s.on === e.type)).map((e) => <option key={e.type} value={e.type}>{eventName(e)} — {e.services.map((s) => serviceNames[s]).join(", ")}</option>)}
         </Select>
       </Field>

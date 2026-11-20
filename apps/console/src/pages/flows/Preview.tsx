@@ -1,18 +1,16 @@
 import { useState } from "react"
 import { InspectorSection, Segmented } from "../../ui.tsx"
-import type { Draft } from "./draft.ts"
+import { actionGlyph, type Draft, endsAtLastStep } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 
 const doneColor = "#30D158"
-/** The button's symbol says what a tap does: Play while paused, Pause while playing. */
-const actionGlyph = (action: string, paused: boolean) =>
-  action === "playback.stop" ? "stop.fill" : paused ? "play.fill" : "pause.fill"
 
 /** Sample values, so each step shows what the iPhone would. */
 const sample = {
   media: { title: "Big Buck Bunny", detail: null },
   playback: { title: "Big Buck Bunny", detail: "TV Salon" },
-  service: { title: "Radarr", detail: null }
+  service: { title: "Radarr", detail: null },
+  request: { title: "Big Buck Bunny", detail: "Julie · Movie · 2008" }
 } as const
 
 /**
@@ -26,7 +24,7 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
   if (current === undefined) return null
   const canPause = flow.subject === "playback"
   const isPaused = canPause && paused
-  const done = flow.endOn === undefined && flow.steps.length > 1 && step === flow.steps.length - 1
+  const done = endsAtLastStep(flow) && flow.steps.length > 1 && step === flow.steps.length - 1
   const tint = done ? doneColor : flow.color
   const { show } = current
   const { title, detail } = sample[flow.subject]

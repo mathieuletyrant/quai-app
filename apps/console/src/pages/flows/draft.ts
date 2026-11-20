@@ -1,4 +1,4 @@
-import type { CatalogAction, CatalogEvent, Flow, FlowStep, StepShow } from "@quai/api"
+import type { ActionType, CatalogAction, CatalogEvent, Flow, FlowStep, StepShow } from "@quai/api"
 
 /** A flow being edited: the contract's type, writable. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] extends ReadonlyArray<infer U> ? Array<Mutable<U>> : T[K] extends object ? Mutable<T[K]> : T[K] }
@@ -18,7 +18,8 @@ export const palette = ["#FFC230", "#FF8A3D", "#FF6B5B", "#B57EDC", "#8B8CF8", "
 export const subjects: Record<Flow["subject"], { readonly label: string; readonly description: string; readonly icon: string }> = {
   media: { label: "Downloads", description: "A title from Radarr or Sonarr to Jellyfin.", icon: "arrow.down" },
   playback: { label: "Playback", description: "What plays on Jellyfin, with remote buttons.", icon: "play.fill" },
-  service: { label: "Server health", description: "A service that stops answering.", icon: "server.rack" }
+  service: { label: "Server health", description: "A service that stops answering.", icon: "server.rack" },
+  request: { label: "Requests", description: "A Seerr request waiting for approval, with Approve and Decline.", icon: "person.fill.questionmark" }
 }
 
 /** How the console names each service an event comes from. */
@@ -27,8 +28,31 @@ export const serviceNames: Record<CatalogEvent["services"][number], string> = {
   sonarr: "Sonarr",
   qbittorrent: "qBittorrent",
   jellyfin: "Jellyfin",
+  seerr: "Seerr",
   quai: "Quai health checks"
 }
+
+/** How a step's button looks on the Live Activity: Play while paused, Pause while playing. */
+export const actionGlyph = (action: string, paused = false) =>
+  action === "playback.stop"
+    ? "stop.fill"
+    : action === "request.approve"
+    ? "checkmark"
+    : action === "request.decline"
+    ? "xmark"
+    : paused
+    ? "play.fill"
+    : "pause.fill"
+
+export const actionLabels: Record<ActionType, string> = {
+  "playback.playPause": "Play / Pause",
+  "playback.stop": "Stop",
+  "request.approve": "Approve",
+  "request.decline": "Decline"
+}
+
+/** Reaching the last step ends the activity, except in a one-step flow with an end event. */
+export const endsAtLastStep = (flow: Draft) => flow.endOn === undefined || flow.steps.length > 1
 
 /** An event's label without the services in brackets, which the console shows as badges. */
 export const eventName = (event: CatalogEvent) => event.label.replace(/ \(.*\)$/, "")
