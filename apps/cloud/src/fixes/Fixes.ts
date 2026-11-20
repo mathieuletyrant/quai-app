@@ -170,9 +170,11 @@ export class Fixes extends Context.Service<Fixes, {
       /** Keep: Cleanuparr's queue cleaner leaves the download alone, its other settings as they are. */
       const exclude = (target: RemovalTarget) =>
         Effect.gen(function*() {
-          const settings = yield* reads.read(settingsRead)
-          if (Option.isNone(settings)) return yield* Effect.fail(new FixFailed({ message: "Cleanuparr didn't answer" }))
-          yield* write({ service: "cleanuparr", method: "PUT", path: settingsRead.path, body: excluding(settings.value, target.downloadId) })
+          // As Cleanuparr answered, not as decoded: Quai Home compares the two exactly.
+          const answered = yield* write({ service: "cleanuparr", method: "GET", path: settingsRead.path })
+          const body = excluding(answered, target.downloadId)
+          if (Option.isNone(body)) return yield* Effect.fail(new FixFailed({ message: "Cleanuparr answered something Quai can't read" }))
+          yield* write({ service: "cleanuparr", method: "PUT", path: settingsRead.path, body: body.value })
         })
 
       /** Runs the rules on the services asked (those Quai Home reaches). */

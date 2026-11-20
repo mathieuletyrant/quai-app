@@ -596,6 +596,15 @@ describe("Cleanuparr's planned removals", () => {
       expect(entries.at(-1)).toMatchObject({ source: "cleanuparr", kind: "fix.keep", text: "Kept, Cleanuparr won't remove it: The Wild Robot" })
     }).pipe(Effect.provide(TestApp)))
 
+  it.effect("keep: what Cleanuparr answered goes back as it came, nulls and unknown settings included", () =>
+    Effect.gen(function*() {
+      const answered = { ...settings(), errored: null, ignoredDownloads: null, aFutureSetting: { on: true } }
+      const { home, api } = yield* setUp({ services: withCleanuparr, answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: answered }) }) })
+      yield* api.keep({ params: { id: wildRobot } })
+      // The fake Quai Home ran the real check against the same answer: it let it through.
+      expect(writes(home).map((w) => w.body)).toEqual([{ ...answered, ignoredDownloads: ["A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"] }])
+    }).pipe(Effect.provide(TestApp)))
+
   it.effect("keep: settings changed since they were read are refused by Quai Home, a FixFailed", () =>
     Effect.gen(function*() {
       let reads = 0

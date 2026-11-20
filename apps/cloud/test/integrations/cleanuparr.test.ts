@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Layer, Schema } from "effect"
+import { HomeProtocol } from "@quai/api"
+import { Effect, Layer, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { QueuePage } from "../../src/integrations/arr.ts"
 import {
@@ -137,8 +138,28 @@ describe("Cleanuparr: what it removes next", () => {
     expect(plannedRemovals(input(mouse, { settings: { ...settings(), enabled: false } }))).toEqual([])
   })
 
-  it("keep sends the settings back with the download left alone too", () => {
-    expect(excluding(settings(), "A1B2")).toEqual({ ...(fixture("cleanuparr/queue-cleaner.json") as object), ignoredDownloads: ["seeding-keep", "A1B2"] })
+  it("keep sends back what Cleanuparr answered, the download added to its ignore list, and passes Quai Home's check", () => {
+    const hash = "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"
+    const recorded = fixture("cleanuparr/queue-cleaner.json") as Record<string, unknown>
+    // A field Quai doesn't model, nulls, numbers written as Cleanuparr writes them: all sent back as they came.
+    for (const answered of [recorded, { ...recorded, errored: null, ignoredDownloads: null, aFutureSetting: { nested: [1, 2.5] } }]) {
+      const body = Option.getOrThrow(excluding(JSON.stringify(answered), hash))
+      const before = answered.ignoredDownloads as Array<string> | null
+      expect(body).toEqual({ ...answered, ignoredDownloads: [...before ?? [], hash] })
+      expect(HomeProtocol.ignoresOneMoreDownload(JSON.parse(JSON.stringify(answered)), JSON.parse(JSON.stringify(body)))).toBe(true)
+    }
+    // The rules read the same answer, nulls included.
+    expect(Schema.decodeUnknownSync(settingsRead.schema)({ ...recorded, errored: null, ignoredDownloads: null })).toMatchObject({ ignoredDownloads: null })
+    expect(excluding("<html></html>", hash)).toEqual(Option.none())
+    expect(excluding(JSON.stringify({ ...recorded, ignoredDownloads: "x" }), hash)).toEqual(Option.none())
+  })
+
+  it("keep is offered only for a download id Quai Home lets into the ignore list; otherwise only let it go", () => {
+    const nzbget = "4711"
+    const queued = () => ({ media: { title: "Mouse", messages: [] }, records: radarrQueue().slice(2, 3) })
+    const [mouse] = plannedRemovals(input([struck(["Stalled", "Stalled"], { downloadId: nzbget })], { queued }))
+    expect(mouse?.fix.actions).toEqual(["dismiss"])
+    expect(plannedRemovals(input([struck(["Stalled", "Stalled"])]))[0]?.fix.actions).toEqual(["keep", "dismiss"])
   })
 })
 
