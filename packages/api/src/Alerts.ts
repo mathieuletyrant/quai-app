@@ -50,7 +50,7 @@ export const ActiveAlert = Schema.Struct({
   /** "87 GB free (4%)" */
   detail: Schema.optionalKey(Schema.String),
   /** Epoch milliseconds. */
-  since: Schema.Number
+  since: Schema.Finite
 }).annotate({ identifier: "ActiveAlert" })
 export type ActiveAlert = typeof ActiveAlert.Type
 

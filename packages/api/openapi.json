@@ -2422,19 +2422,7 @@
             "type": "string"
           },
           "since": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "Infinity",
-                  "-Infinity",
-                  "NaN"
-                ]
-              }
-            ]
+            "type": "number"
           }
         },
         "required": [
@@ -2482,19 +2470,7 @@
             "type": "string"
           },
           "at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "string",
-                "enum": [
-                  "Infinity",
-                  "-Infinity",
-                  "NaN"
-                ]
-              }
-            ]
+            "type": "number"
           },
           "level": {
             "$ref": "#/components/schemas/JournalLevel"

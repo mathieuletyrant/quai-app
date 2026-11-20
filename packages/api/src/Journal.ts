@@ -37,7 +37,7 @@ export const JournalEntry = Schema.Struct({
   /** `journalId`: sorts as the entries happened. */
   id: Schema.String,
   /** Epoch milliseconds. */
-  at: Schema.Number,
+  at: Schema.Finite,
   level: JournalLevel,
   source: JournalSource,
   /** A short code of what happened: `media.grabbed`, `push.refused`, `home.offline`. */
