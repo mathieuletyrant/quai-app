@@ -334,12 +334,14 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
   radarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/movie$/ },
+    { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     ...arrFixes("movie")
   ],
   sonarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/series$/ },
+    { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
     ...arrFixes("series")

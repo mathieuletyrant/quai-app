@@ -1,7 +1,7 @@
 import { Schema } from "effect"
 
 /** What one activity follows. */
-export const FlowSubject = Schema.Literals(["media", "playback", "service", "request"]).annotate({ identifier: "FlowSubject" })
+export const FlowSubject = Schema.Literals(["media", "playback", "service", "request", "day"]).annotate({ identifier: "FlowSubject" })
 export type FlowSubject = typeof FlowSubject.Type
 
 /** The normalized events flows are built from (docs/flows.md, Event catalog). */
@@ -18,7 +18,11 @@ export const EventType = Schema.Literals([
   "service.up",
   "request.pending",
   "request.approved",
-  "request.declined"
+  "request.declined",
+  "releases.today",
+  "releases.progress",
+  "releases.available",
+  "releases.dayOver"
 ]).annotate({ identifier: "EventType" })
 export type EventType = typeof EventType.Type
 
@@ -36,7 +40,9 @@ export const StepShow = Schema.Struct({
   speed: Schema.optionalKey(Schema.Boolean),
   eta: Schema.optionalKey(Schema.Boolean),
   timer: Schema.optionalKey(Schema.Boolean),
-  since: Schema.optionalKey(Schema.Boolean)
+  since: Schema.optionalKey(Schema.Boolean),
+  /** A short list of items, each with its state (the day's releases). */
+  list: Schema.optionalKey(Schema.Boolean)
 }).annotate({ identifier: "StepShow" })
 export type StepShow = typeof StepShow.Type
 
@@ -58,7 +64,12 @@ export const FlowFilter = Schema.Struct({
   /** media and request flows: which titles. */
   mediaType: Schema.optionalKey(Schema.Literals(["any", "movie", "series"])),
   /** playback flows: Jellyfin device names; empty or absent: every device. */
-  devices: Schema.optionalKey(Schema.Array(Schema.String))
+  devices: Schema.optionalKey(Schema.Array(Schema.String)),
+  /**
+   * day flows: the local time ("18:00", the home's time zone) the activity starts at, or earlier
+   * when the day's first release airs before. Absent: 18:00.
+   */
+  startsAt: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^([01]\d|2[0-3]):[0-5]\d$/)))
 }).annotate({ identifier: "FlowFilter" })
 export type FlowFilter = typeof FlowFilter.Type
 
@@ -106,6 +117,18 @@ export type ActivityAttributes = typeof ActivityAttributes.Type
 
 export const ActivityTone = Schema.Literals(["active", "stalled", "done"]).annotate({ identifier: "ActivityTone" })
 
+/** One line of a step showing a list: `waiting` (not there yet), `active` (on its way), `done`. */
+export const ActivityItemState = Schema.Literals(["waiting", "active", "done"]).annotate({ identifier: "ActivityItemState" })
+
+export const ActivityItem = Schema.Struct({
+  /** Short: "Severance S02E03". */
+  title: Schema.String,
+  /** Epoch seconds it airs at, when known: the iPhone writes it in its own time. */
+  at: Schema.optionalKey(Schema.Finite),
+  state: ActivityItemState
+}).annotate({ identifier: "ActivityItem" })
+export type ActivityItem = typeof ActivityItem.Type
+
 /**
  * What the activity shows now: pushed as APNs `content-state`. Values are left out when the step
  * doesn't show them (Swift reads a missing key as nil; the generator drops `anyOf [X, null]`).
@@ -125,7 +148,9 @@ export const ActivityContent = Schema.Struct({
   paused: Schema.optionalKey(Schema.Boolean),
   /** Epoch seconds the step began (time since an incident). */
   since: Schema.optionalKey(Schema.Finite),
-  detail: Schema.optionalKey(Schema.String)
+  detail: Schema.optionalKey(Schema.String),
+  /** At most 4 lines (the day's releases): the push stays well under APNs' 4 KB. */
+  items: Schema.optionalKey(Schema.Array(ActivityItem))
 }).annotate({ identifier: "ActivityContent" })
 export type ActivityContent = typeof ActivityContent.Type
 

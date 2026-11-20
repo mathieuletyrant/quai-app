@@ -23,7 +23,11 @@ export const catalog: ReadonlyArray<{
   { type: "service.up", subject: "service", label: "Service back", data: false, services: ["quai"] },
   { type: "request.pending", subject: "request", label: "Request waiting for approval (Seerr)", data: false, services: ["seerr"] },
   { type: "request.approved", subject: "request", label: "Request approved (Seerr)", data: false, services: ["seerr"] },
-  { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] }
+  { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] },
+  { type: "releases.today", subject: "day", label: "Tonight's releases begin (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "releases.progress", subject: "day", label: "A release grabbed or available (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
+  { type: "releases.available", subject: "day", label: "Every release available (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "releases.dayOver", subject: "day", label: "Midnight", data: false, services: ["quai"] }
 ]
 
 /** Every button a step can offer. */
@@ -50,7 +54,8 @@ export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
   // The countdown draws the bar too (held where it is while paused).
   playback: ["timer"],
   service: ["since"],
-  request: []
+  request: [],
+  day: ["list"]
 }
 
 /**
@@ -79,6 +84,9 @@ export const flowProblem = (flow: Flow): string | null => {
   }
   return null
 }
+
+/** When a day flow starts, in the home's time zone, unless a release airs earlier. */
+export const defaultStartsAt = "18:00"
 
 /** The flows Quai ships with. Editable and resettable in the console; not deletable. */
 export const builtInFlows: ReadonlyArray<Flow> = [
@@ -161,5 +169,21 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     endOn: "request.declined",
     lingerMinutes: 5,
     expireAfterMinutes: 1440
+  },
+  {
+    id: "tonight",
+    name: "Tonight's releases",
+    builtIn: true,
+    enabled: true,
+    color: "#4FC3F7",
+    icon: "calendar",
+    subject: "day",
+    filter: { startsAt: defaultStartsAt },
+    steps: [
+      { id: "tonight", label: "Tonight", icon: "calendar", on: "releases.today", show: { list: true } },
+      { id: "all-here", label: "All here", icon: "checkmark", on: "releases.available", show: { list: true } }
+    ],
+    endOn: "releases.dayOver",
+    lingerMinutes: 15
   }
 ]

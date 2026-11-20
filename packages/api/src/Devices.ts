@@ -42,7 +42,9 @@ export const PairDevice = Schema.Struct({
   name: Schema.String,
   apnsEnvironment: ApnsEnvironment,
   /** Left out until the iPhone allows Live Activities. */
-  pushToStartToken: Schema.optionalKey(Schema.String)
+  pushToStartToken: Schema.optionalKey(Schema.String),
+  /** The iPhone's time zone (IANA, "Europe/Paris"): the home's day and evening follow it. */
+  timeZone: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "PairDevice" })
 
 export const PairedDevice = Schema.Struct({
@@ -53,7 +55,8 @@ export const PairedDevice = Schema.Struct({
 
 export const UpdateDevice = Schema.Struct({
   name: Schema.optionalKey(Schema.String),
-  pushToStartToken: Schema.optionalKey(Schema.String)
+  pushToStartToken: Schema.optionalKey(Schema.String),
+  timeZone: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "UpdateDevice" })
 
 export const ActivityToken = Schema.Struct({

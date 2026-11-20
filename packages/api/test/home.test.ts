@@ -141,3 +141,14 @@ describe("allowlist: Seerr", () => {
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(false)
   })
 })
+
+describe("allowlist: the calendars", () => {
+  it("reads Radarr's and Sonarr's calendar, and never writes to it", () => {
+    for (const service of ["radarr", "sonarr"] as const) {
+      expect(HomeProtocol.allowed({ service, method: "GET", path: "/api/v3/calendar?start=2026-11-19T23:00:00.000Z&end=2026-11-20T23:00:00.000Z" })).toBe(true)
+      expect(HomeProtocol.allowed({ service, method: "POST", path: "/api/v3/calendar" })).toBe(false)
+      expect(HomeProtocol.allowed({ service, method: "GET", path: "/api/v3/calendar/12" })).toBe(false)
+    }
+    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/feed/v3/calendar/radarr.ics" })).toBe(false)
+  })
+})

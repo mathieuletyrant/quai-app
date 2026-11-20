@@ -1443,6 +1443,52 @@
         }
       }
     },
+    "/api/releases/today": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "operationId": "getTodayReleases",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "DayReleases",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayReleases"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/console-api/pairing-codes": {
       "post": {
         "tags": [
@@ -2817,7 +2863,11 @@
           "service.up",
           "request.pending",
           "request.approved",
-          "request.declined"
+          "request.declined",
+          "releases.today",
+          "releases.progress",
+          "releases.available",
+          "releases.dayOver"
         ]
       },
       "FlowStep": {
@@ -2882,6 +2932,9 @@
           },
           "since": {
             "type": "boolean"
+          },
+          "list": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false
@@ -2902,6 +2955,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "startsAt": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -2912,7 +2968,8 @@
           "media",
           "playback",
           "service",
-          "request"
+          "request",
+          "day"
         ]
       },
       "InvalidFlowEncoded": {
@@ -3683,6 +3740,92 @@
         ],
         "additionalProperties": false
       },
+      "DayReleases": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayRelease"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryService"
+            }
+          }
+        },
+        "required": [
+          "day",
+          "timeZone",
+          "items",
+          "unavailable"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr"
+        ]
+      },
+      "DayRelease": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "episode",
+              "movie"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "episode": {
+            "type": "string"
+          },
+          "episodeTitle": {
+            "type": "string"
+          },
+          "airsAt": {
+            "type": "number"
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DayReleaseStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "DayReleaseStatus": {
+        "type": "string",
+        "enum": [
+          "missing",
+          "grabbed",
+          "downloading",
+          "available"
+        ]
+      },
       "Library": {
         "type": "object",
         "properties": {
@@ -3707,13 +3850,6 @@
           "unavailable"
         ],
         "additionalProperties": false
-      },
-      "LibraryService": {
-        "type": "string",
-        "enum": [
-          "radarr",
-          "sonarr"
-        ]
       },
       "DiskSpace": {
         "type": "object",
@@ -3865,6 +4001,12 @@
           },
           "detail": {
             "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityItem"
+            }
           }
         },
         "required": [
@@ -3872,6 +4014,33 @@
           "tone"
         ],
         "additionalProperties": false
+      },
+      "ActivityItem": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "at": {
+            "type": "number"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ActivityItemState"
+          }
+        },
+        "required": [
+          "title",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "ActivityItemState": {
+        "type": "string",
+        "enum": [
+          "waiting",
+          "active",
+          "done"
+        ]
       },
       "ActivityTone": {
         "type": "string",
@@ -4089,6 +4258,9 @@
           },
           "pushToStartToken": {
             "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -4141,6 +4313,9 @@
             "$ref": "#/components/schemas/ApnsEnvironment"
           },
           "pushToStartToken": {
+            "type": "string"
+          },
+          "timeZone": {
             "type": "string"
           }
         },
@@ -4198,6 +4373,9 @@
     },
     {
       "name": "requests"
+    },
+    {
+      "name": "releases"
     },
     {
       "name": "console"
