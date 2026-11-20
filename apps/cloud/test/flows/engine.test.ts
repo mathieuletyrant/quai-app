@@ -51,6 +51,17 @@ describe("download flow", () => {
       expect(yield* engine.tick).toEqual([])
     })))
 
+  it.effect("an ETA that turns unknown clears the last one", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(ev.grabbed())
+      yield* TestClock.adjust("10 seconds")
+      expect((yield* engine.handle(ev.progress(0.3)))[0]!.activity.values.remainingSeconds).toBe(60)
+      yield* TestClock.adjust("10 seconds")
+      const paused = yield* engine.handle({ type: "download.progress", downloadId: "abc", values: { progress: 0.31, bytesPerSecond: 0 } })
+      expect(paused[0]!.activity.values.remainingSeconds).toBeUndefined()
+    })))
+
   it.effect("one activity per title; never backwards; a missed webhook starts at its step", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities
