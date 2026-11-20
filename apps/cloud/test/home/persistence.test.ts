@@ -86,7 +86,7 @@ describe("everything lives at home", () => {
         expect((yield* api.console.devices()).map((d) => d.id)).toEqual([deviceId])
         const flows = yield* api.flows.list()
         expect(flows.find((f) => f.id === "download")?.color).toBe("#123456")
-        expect(flows.map((f) => f.id)).toEqual(["download", "playback", "incident", "request", "anime"])
+        expect(flows.map((f) => f.id)).toEqual(["download", "playback", "incident", "request", "tonight", "anime"])
         const { activities } = yield* (yield* Activities).snapshot
         expect([...activities.values()].map((a) => [a.title, a.stepIndex])).toEqual([["Dune", 0]])
         // The unused code still pairs, within its 10 minutes; then it is spent.

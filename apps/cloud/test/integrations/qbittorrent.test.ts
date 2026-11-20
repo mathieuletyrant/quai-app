@@ -24,7 +24,7 @@ const activity = (stepIndex: number, downloadId: string | null): Activity => ({
   pushedFingerprint: null
 })
 
-const ctx = (running: ReadonlyArray<Activity>): WatchContext => ({ flows: [download], running, services: ["qbittorrent"] })
+const ctx = (running: ReadonlyArray<Activity>): WatchContext => ({ flows: [download], running, services: ["qbittorrent"], now: 0, timeZone: "UTC" })
 
 describe("qBittorrent", () => {
   const watcher = qbittorrent.watcher!

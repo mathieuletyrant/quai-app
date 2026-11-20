@@ -88,7 +88,7 @@ describe("preferences", () => {
       })
       expect(saved.flows["incident"]?.enabled).toBe(false)
       expect((yield* phone.devices.preferences()).flows["download"]?.hiddenSteps).toEqual(["searching"])
-      expect((yield* phone.devices.flows()).map((f) => f.id)).toEqual(["download", "playback", "incident", "request"])
+      expect((yield* phone.devices.flows()).map((f) => f.id)).toEqual(["download", "playback", "incident", "request", "tonight"])
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -103,7 +103,7 @@ describe("flows from the console", () => {
         payload: { ...download, id: "anime", name: "Anime", builtIn: true, filter: { mediaType: "series" } }
       })
       expect(anime.builtIn).toBe(false)
-      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident", "request", "anime"])
+      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident", "request", "tonight", "anime"])
 
       const bad = yield* Effect.exit(api.flows.save({
         params: { id: "bad" },
@@ -124,7 +124,7 @@ describe("flows from the console", () => {
 
       expect(Exit.isFailure(yield* Effect.exit(api.flows.remove({ params: { id: "download" } })))).toBe(true)
       yield* api.flows.remove({ params: { id: "anime" } })
-      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident", "request"])
+      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "incident", "request", "tonight"])
       expect((yield* api.flows.catalog()).length).toBeGreaterThan(5)
       expect((yield* api.flows.actions()).map((a) => a.type)).toEqual(["playback.playPause", "playback.stop", "request.approve", "request.decline"])
     }).pipe(Effect.provide(TestApp)))

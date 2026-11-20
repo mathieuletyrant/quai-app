@@ -5,7 +5,7 @@ import { downAfterMs, health, makeHealthState } from "../../src/integrations/hea
 import type { WatchContext } from "../../src/integrations/Integration.ts"
 import { download, incident } from "../flows/helpers.ts"
 
-const context = (flows = [incident]): WatchContext => ({ flows, running: [], services: ["radarr", "qbittorrent"] })
+const context = (flows = [incident]): WatchContext => ({ flows, running: [], services: ["radarr", "qbittorrent"], now: 0, timeZone: "UTC" })
 
 describe("health", () => {
   it.effect("one watch per service Quai Home reaches, on its status endpoint, while a service flow is on", () =>

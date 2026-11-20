@@ -256,3 +256,31 @@ export const moviesWithoutSource = (
     }]
   })
 }
+
+// Tonight's releases: the movies out today, `GET /api/v3/calendar`.
+
+/**
+ * Monitored movies with a date between two instants. Radarr's release dates are days (midnight
+ * UTC): the caller asks a little wider and keeps those whose day is the home's.
+ */
+export const radarrCalendarPath = (startMs: number, endMs: number) =>
+  `/api/v3/calendar?start=${encodeURIComponent(new Date(startMs).toISOString())}&end=${encodeURIComponent(new Date(endMs).toISOString())}&unmonitored=false`
+
+export const RadarrCalendar = Schema.Array(Schema.Struct({
+  id: Schema.Number,
+  title: Schema.String,
+  year: Schema.optional(Schema.Number),
+  hasFile: Schema.optional(Schema.Boolean),
+  monitored: Schema.optional(Schema.Boolean),
+  inCinemas: Schema.optional(Schema.String),
+  digitalRelease: Schema.optional(Schema.String),
+  physicalRelease: Schema.optional(Schema.String),
+  images: Schema.optional(Schema.Array(ArrImage))
+}))
+export type RadarrCalendarMovie = (typeof RadarrCalendar.Type)[number]
+
+export const radarrCalendarQueuePath = `/api/v3/queue?page=1&pageSize=${queuePageSize}`
+
+/** A movie's home release (digital or physical) falls on this day ("2026-11-20"). Cinemas don't count. */
+export const releasedOn = (movie: RadarrCalendarMovie, day: string) =>
+  [movie.digitalRelease, movie.physicalRelease].some((date) => date?.slice(0, 10) === day)

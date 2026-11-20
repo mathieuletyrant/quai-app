@@ -16,6 +16,8 @@ import { Library } from "./library/Library.ts"
 import { Apns } from "./push/Apns.ts"
 import { Notifier } from "./push/Notifier.ts"
 import { PublicAccess } from "./PublicAccess.ts"
+import { HomeTime } from "./releases/HomeTime.ts"
+import { Releases } from "./releases/Releases.ts"
 import { Requests } from "./requests/Requests.ts"
 import { ServerInfo } from "./Version.ts"
 
@@ -45,10 +47,10 @@ const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
 )
 
 const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
-  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer)),
+  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Releases.layer)),
   Layer.provideMerge(Notifier.layer),
   Layer.provideMerge(Activities.layer),
-  Layer.provideMerge(Layer.mergeAll(Apns.layer, PublicAccess.layer, IntegrationsLive)),
+  Layer.provideMerge(Layer.mergeAll(Apns.layer, PublicAccess.layer, IntegrationsLive, HomeTime.layer)),
   Layer.provideMerge(Home)
 )
 

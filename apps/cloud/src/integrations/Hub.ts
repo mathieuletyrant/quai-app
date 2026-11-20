@@ -1,10 +1,11 @@
 import type { HomeProtocol, ServiceName } from "@quai/api"
-import { Context, Effect, Layer, Option, Schedule } from "effect"
+import { Clock, Context, Effect, Layer, Option, Schedule } from "effect"
 import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { type HomeEvent, HomeLink } from "../home/HomeLink.ts"
 import { Notifier } from "../push/Notifier.ts"
+import { HomeTime } from "../releases/HomeTime.ts"
 import { type Integration, Integrations, type WatchContext } from "./Integration.ts"
 
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
@@ -38,6 +39,7 @@ export class Hub extends Context.Service<Hub, {
     const flows = yield* FlowStore
     const integrations = yield* Integrations
     const link = yield* HomeLink
+    const time = yield* HomeTime
     /** What Quai Home polls; null until sent to the home connected now. */
     let sent: Sent | null = null
 
@@ -52,7 +54,9 @@ export class Hub extends Context.Service<Hub, {
       return Option.some({
         flows: yield* flows.all,
         running: [...activities.values()].filter((a) => a.endedAt === null),
-        services: home.value.services
+        services: home.value.services,
+        now: yield* Clock.currentTimeMillis,
+        timeZone: yield* time.zone
       })
     }).pipe(Effect.orElseSucceed(() => Option.none()))
 

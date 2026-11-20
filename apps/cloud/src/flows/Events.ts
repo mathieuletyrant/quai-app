@@ -1,4 +1,4 @@
-import type { EventType } from "@quai/api"
+import type { ActivityItem, EventType } from "@quai/api"
 
 /**
  * How to find a title in the media server: set by the service that imported it, read by the one
@@ -24,6 +24,7 @@ export type Subject =
   }
   | { readonly kind: "playback"; readonly key: string; readonly title: string; readonly device: string }
   | { readonly kind: "service"; readonly key: string; readonly title: string }
+  | { readonly kind: "day"; readonly key: string; readonly title: string }
   | {
     readonly kind: "request"
     readonly key: string
@@ -43,6 +44,8 @@ export interface Values {
   readonly paused?: boolean
   readonly since?: number
   readonly detail?: string
+  /** A step showing a list: its lines. */
+  readonly items?: ReadonlyArray<ActivityItem>
 }
 
 /**
@@ -51,6 +54,8 @@ export interface Values {
  */
 export interface FlowEvent {
   readonly type: EventType
+  /** Only for this flow (a day flow starting at its own time); absent: every flow it concerns. */
+  readonly flowId?: string
   readonly subject?: Subject
   readonly downloadId?: string
   readonly values?: Values

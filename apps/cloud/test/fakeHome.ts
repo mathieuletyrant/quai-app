@@ -10,6 +10,7 @@ import { Hub } from "../src/integrations/Hub.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
 import type { Integrations } from "../src/integrations/Integration.ts"
 import { Notifier } from "../src/push/Notifier.ts"
+import { HomeTime } from "../src/releases/HomeTime.ts"
 
 type Call = typeof HomeProtocol.Call.Type
 type Answer = { readonly status?: number; readonly body?: string; readonly json?: unknown } | { readonly failed: string } | { readonly silent: true }
@@ -181,7 +182,7 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
 export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>) =>
   Hub.layerFed.pipe(
     Layer.provideMerge(Notifier.layer),
-    Layer.provideMerge(Activities.layer),
+    Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
     Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
     Layer.provideMerge(HomeLink.documents),
     Layer.provideMerge(HomeLink.layer)

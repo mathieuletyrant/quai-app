@@ -1,0 +1,85 @@
+[
+  {
+    "title": "The Wild Robot",
+    "originalTitle": "The Wild Robot",
+    "sortTitle": "the wild robot",
+    "status": "released",
+    "overview": "",
+    "year": 2024,
+    "hasFile": false,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 102,
+    "tmdbId": 6000,
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/60/poster.jpg",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/poster-60.jpg"
+      }
+    ],
+    "added": "2026-09-01T00:00:00Z",
+    "qualityProfileId": 1,
+    "path": "/downloads/movies/The Wild Robot",
+    "sizeOnDisk": 0,
+    "id": 60,
+    "inCinemas": "2024-09-12T00:00:00Z",
+    "digitalRelease": "2026-11-20T00:00:00Z",
+    "physicalRelease": "2026-12-17T00:00:00Z"
+  },
+  {
+    "title": "Nosferatu",
+    "originalTitle": "Nosferatu",
+    "sortTitle": "nosferatu",
+    "status": "released",
+    "overview": "",
+    "year": 2024,
+    "hasFile": false,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 102,
+    "tmdbId": 6100,
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/61/poster.jpg",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/poster-61.jpg"
+      }
+    ],
+    "added": "2026-09-01T00:00:00Z",
+    "qualityProfileId": 1,
+    "path": "/downloads/movies/Nosferatu",
+    "sizeOnDisk": 0,
+    "id": 61,
+    "inCinemas": "2026-11-20T00:00:00Z"
+  },
+  {
+    "title": "Tomorrow Movie",
+    "originalTitle": "Tomorrow Movie",
+    "sortTitle": "tomorrow movie",
+    "status": "released",
+    "overview": "",
+    "year": 2026,
+    "hasFile": false,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 102,
+    "tmdbId": 6200,
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/62/poster.jpg",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/poster-62.jpg"
+      }
+    ],
+    "added": "2026-09-01T00:00:00Z",
+    "qualityProfileId": 1,
+    "path": "/downloads/movies/Tomorrow Movie",
+    "sizeOnDisk": 0,
+    "id": 62,
+    "digitalRelease": "2026-11-21T00:00:00Z"
+  }
+]

@@ -4,6 +4,7 @@ import { Integrations } from "./Integration.ts"
 import { jellyfin } from "./jellyfin.ts"
 import { qbittorrent } from "./qbittorrent.ts"
 import { radarr } from "./radarr.ts"
+import { releases } from "./releases.ts"
 import { seerr, SeerrTitles } from "./seerr.ts"
 import { sonarr } from "./sonarr.ts"
 
@@ -13,5 +14,5 @@ import { sonarr } from "./sonarr.ts"
  */
 export const IntegrationsLive = Layer.effect(
   Integrations,
-  Effect.all([Effect.succeed(radarr), Effect.succeed(sonarr), Effect.succeed(qbittorrent), jellyfin, seerr, health])
+  Effect.all([Effect.succeed(radarr), Effect.succeed(sonarr), Effect.succeed(qbittorrent), jellyfin, seerr, releases, health])
 ).pipe(Layer.provideMerge(SeerrTitles.layer))

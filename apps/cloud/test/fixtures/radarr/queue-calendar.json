@@ -1,0 +1,32 @@
+{
+  "page": 1,
+  "pageSize": 500,
+  "sortKey": "timeleft",
+  "sortDirection": "ascending",
+  "totalRecords": 1,
+  "records": [
+    {
+      "id": 901,
+      "title": "Some.Release.1080p.WEB-DL",
+      "status": "queued",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "downloadId": "MASKED901",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "size": 2147483648,
+      "sizeleft": 1073741824,
+      "timeleft": "00:12:00",
+      "estimatedCompletionTime": "2026-11-20T20:20:00Z",
+      "added": "2026-11-20T20:05:00Z",
+      "quality": {
+        "quality": {
+          "id": 3,
+          "name": "WEBDL-1080p"
+        }
+      },
+      "movieId": 60
+    }
+  ]
+}

@@ -10,6 +10,10 @@ export interface WatchContext {
   readonly running: ReadonlyArray<Activity>
   /** The services the connected Quai Home reaches. */
   readonly services: ReadonlyArray<HomeProtocol.HomeService>
+  /** Now, epoch milliseconds (from `Clock`). */
+  readonly now: number
+  /** The home's time zone (IANA): see `HomeTime`. */
+  readonly timeZone: string
 }
 
 /** What Quai Home read for one watch, sent because it changed (or is the first read). */

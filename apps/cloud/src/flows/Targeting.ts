@@ -49,7 +49,8 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
     // A paused timeline holds where it is: the iPhone needs the fraction to draw it.
     ...(show.timer && !show.progress && v.paused === true && v.progress !== undefined ? { progress: v.progress } : {}),
     ...(show.since ? { since: seconds(v.since ?? activity.enteredAt) } : {}),
-    ...(v.detail !== undefined ? { detail: v.detail } : {})
+    ...(v.detail !== undefined ? { detail: v.detail } : {}),
+    ...(show.list && v.items !== undefined ? { items: v.items } : {})
   }
 }
 

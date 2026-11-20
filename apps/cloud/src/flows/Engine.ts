@@ -104,6 +104,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
   if (isDataEvent(event.type)) {
     for (const activity of state.activities.values()) {
       if (activity.endedAt !== null) continue
+      if (event.flowId !== undefined && activity.flowId !== event.flowId) continue
       const flow = flows.find((f) => f.id === activity.flowId)
       if (flow === undefined) continue
       const step = flow.steps[activity.stepIndex]!
@@ -141,6 +142,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
   const subject = event.subject
   if (subject === undefined) return { state, pushes: [] }
   for (const flow of flows) {
+    if (event.flowId !== undefined && flow.id !== event.flowId) continue
     if (!matches(flow, subject)) continue
     const key = activityKey(flow.id, subject.key)
     const current = activities.get(key)
