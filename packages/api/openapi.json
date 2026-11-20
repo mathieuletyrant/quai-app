@@ -2541,6 +2541,7 @@
           "jellyfin",
           "seerr",
           "reclaimerr",
+          "cleanuparr",
           "apple",
           "home",
           "cloud"
@@ -3500,7 +3501,8 @@
         "enum": [
           "radarr",
           "sonarr",
-          "reclaimerr"
+          "reclaimerr",
+          "cleanuparr"
         ]
       },
       "Fix": {
@@ -3544,6 +3546,9 @@
           "deletion": {
             "$ref": "#/components/schemas/ScheduledDeletion"
           },
+          "removal": {
+            "$ref": "#/components/schemas/PlannedRemoval"
+          },
           "missing": {
             "$ref": "#/components/schemas/MissingMedia"
           }
@@ -3572,6 +3577,47 @@
           "episodes"
         ],
         "additionalProperties": false
+      },
+      "PlannedRemoval": {
+        "type": "object",
+        "properties": {
+          "release": {
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/RemovalReason"
+          },
+          "strikes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "maxStrikes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "removesAt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "release",
+          "reason",
+          "strikes",
+          "maxStrikes"
+        ],
+        "additionalProperties": false
+      },
+      "RemovalReason": {
+        "type": "string",
+        "enum": [
+          "stalled",
+          "slow",
+          "failedImport",
+          "downloadingMetadata",
+          "errored"
+        ]
       },
       "ScheduledDeletion": {
         "type": "object",
@@ -3631,6 +3677,7 @@
         "enum": [
           "importBlocked",
           "scheduledDeletion",
+          "removalPlanned",
           "noSource"
         ]
       },

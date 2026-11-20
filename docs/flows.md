@@ -96,6 +96,7 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `qbittorrent` | — | download progress, every 5 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
 | `reclaimerr` | — | — | — (only feeds the To fix list) |
+| `cleanuparr` | — | its `QueueItemDeleted` events, every 5 min, while Quai Home reaches it: each removal one journal line, no flow event | — (and feeds the To fix list) |
 | `releases` | — | Sonarr's and Radarr's calendars and queues for the home's day, every 5 min while the day's activity runs, every 30 min otherwise, while a day flow is on | — |
 | `seerr` | `request.*` (when Quai Home could set the webhook up) | pending requests, every 60 s, while a request flow is on | `request.approve`, `request.decline` |
 
@@ -153,16 +154,18 @@ Not a flow: fixed rules the Cloud runs when the app asks (`GET /api/fixes`), on 
 reads then. Nothing is kept; what the user hid lives in
 home documents (`fixes/snoozed/<id>`, `fixes/dismissed/<id>`), cleared once the problem is gone.
 The services' schemas and paths sit in their integration modules (`radarr.ts`, `sonarr.ts`,
-`arr.ts`, `reclaimerr.ts`). The rules and fixes of movies and series are one adapter per kind
+`arr.ts`, `reclaimerr.ts`, `cleanuparr.ts`). The rules and fixes of movies and series are one adapter per kind
 (`fixes/movies.ts` for Radarr, `fixes/series.ts` for Sonarr, behind `MediaFixes`); `fixes/Fixes.ts`
-runs what they share (finding a problem again, what the user hid, the writes) and Reclaimerr's
-deletions. Fix ids are made and read by `fixes/FixId.ts` only.
+runs what they share (finding a problem again, what the user hid, the writes), Reclaimerr's
+deletions and Cleanuparr's removals; each adapter also names a download in its queue
+(`queued`), which is how a Cleanuparr download gets its title and poster. Fix ids are made and read by `fixes/FixId.ts` only.
 
 | Problem | Rule | Fixes |
 | --- | --- | --- |
 | Import blocked | A queue item at `importBlocked`, or `importPending` with a warning | Remove (`DELETE /api/v3/queue/{id}`, optionally blocklisted, never searched again); Import anyway (`ManualImport` of the files as matched, or to the episode chosen, never over a file) |
 | No source | Monitored, available (aired), no file, nothing in the queue, no grab since, for 2 hours (since it was added or came out; grabs read 30 days back) | Search releases (interactive search; for a season, only releases covering nothing but missing episodes) and Grab; Ignore and wait (until a release is grabbed, or some days) |
 | Scheduled deletion | A Reclaimerr candidate `scheduled`, `eligible` or `postponed`, not protected | Keep (Reclaimerr's `protect`); Let it go (hidden in Quai) |
+| Removal planned | A download Cleanuparr struck (`GET /api/strikes`, dry-run strikes left out), still in Radarr's or Sonarr's queue, one strike short of its limit for a reason (or at it and marked for removal), while the queue cleaner is on and doesn't ignore it. Limits: the queue cleaner's settings for failed imports, metadata and errors; for stalled and slow, the lowest of the enabled rules covering how far it got. When: the queue cleaner's next run | Keep, for a torrent hash or a SABnzbd job (its download id added to the queue cleaner's `ignoredDownloads`: the settings are sent back exactly as Cleanuparr answered them, and Quai Home, reading them again, checks that only that list grew; such writes go one at a time, read and write within 12 s); Let it go (hidden in Quai) |
 
 An integration is a plain value (`Integration` in `Integration.ts`): an optional `webhook` that
 reads payloads into catalog events, an optional `watcher` (`watches(context)`: the allowlisted

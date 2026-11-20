@@ -9,21 +9,23 @@ import { DeviceAuth, HomeRequired } from "./Devices.ts"
  *
  * - `importBlocked`: a finished download Radarr or Sonarr won't import.
  * - `scheduledDeletion`: a title Reclaimerr is going to delete.
+ * - `removalPlanned`: a download Cleanuparr removes from the queue at its next strike.
  * - `noSource`: a monitored title still without a file, and no release grabbed for it, 2 hours
  *   after it was added or became available (aired, for an episode).
  */
-export const FixKind = Schema.Literals(["importBlocked", "scheduledDeletion", "noSource"]).annotate({ identifier: "FixKind" })
+export const FixKind = Schema.Literals(["importBlocked", "scheduledDeletion", "removalPlanned", "noSource"]).annotate({ identifier: "FixKind" })
 export type FixKind = typeof FixKind.Type
 
-export const FixService = Schema.Literals(["radarr", "sonarr", "reclaimerr"]).annotate({ identifier: "FixService" })
+export const FixService = Schema.Literals(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({ identifier: "FixService" })
 export type FixService = typeof FixService.Type
 
 /**
  * What a problem offers:
  * - `remove`: take the download out of the queue and the download client (optionally blocklist it);
  * - `importAnyway`: import its files as Radarr or Sonarr matched them (or to the episodes chosen);
- * - `keep`: protect the title in Reclaimerr, for good;
- * - `dismiss`: let the deletion happen, and stop showing it;
+ * - `keep`: protect the title in Reclaimerr, for good; or exclude the download from Cleanuparr's
+ *   queue cleaner, for good;
+ * - `dismiss`: let the deletion or the removal happen, and stop showing it;
  * - `searchReleases`: list the releases the indexers have, to grab one;
  * - `snooze`: hide it until a release is grabbed, or for some days.
  */
@@ -48,6 +50,28 @@ export const ScheduledDeletion = Schema.Struct({
   operation: Schema.Literals(["delete", "move"])
 }).annotate({ identifier: "ScheduledDeletion" })
 
+/**
+ * Why Cleanuparr strikes a download: stalled, downloading too slowly (or too long), an import that
+ * keeps failing, stuck on its metadata, or in error in the download client.
+ */
+export const RemovalReason = Schema.Literals(["stalled", "slow", "failedImport", "downloadingMetadata", "errored"]).annotate({
+  identifier: "RemovalReason"
+})
+export type RemovalReason = typeof RemovalReason.Type
+
+/** `removalPlanned`: the download, its strikes, and when Cleanuparr strikes again. */
+export const PlannedRemoval = Schema.Struct({
+  /** The release, as the download client names it. */
+  release: Schema.String,
+  reason: RemovalReason,
+  /** "2 of 3": the strikes it has for this reason, and the number that removes it. */
+  strikes: Schema.Int,
+  maxStrikes: Schema.Int,
+  /** Epoch seconds of Cleanuparr's next queue cleaning, when it's scheduled: the strike that removes it. */
+  removesAt: Schema.optionalKey(Schema.Finite)
+}).annotate({ identifier: "PlannedRemoval" })
+export type PlannedRemoval = typeof PlannedRemoval.Type
+
 /** `noSource`: what has no file. A series' missing episodes are grouped by season. */
 export const MissingMedia = Schema.Struct({
   /** "S02E03", one per missing episode; empty for a movie. */
@@ -55,7 +79,10 @@ export const MissingMedia = Schema.Struct({
 }).annotate({ identifier: "MissingMedia" })
 
 export const Fix = Schema.Struct({
-  /** Stable while the problem lasts: `blocked-radarr-<queue id>`, `deletion-<candidate id>`, `missing-movie-<id>`, `missing-season-<series>-<season>`. */
+  /**
+   * Stable while the problem lasts: `blocked-radarr-<queue id>`, `deletion-<candidate id>`,
+   * `removal-<Cleanuparr download item id>`, `missing-movie-<id>`, `missing-season-<series>-<season>`.
+   */
   id: Schema.String,
   kind: FixKind,
   service: FixService,
@@ -72,6 +99,7 @@ export const Fix = Schema.Struct({
   actions: Schema.Array(FixAction),
   download: Schema.optionalKey(BlockedDownload),
   deletion: Schema.optionalKey(ScheduledDeletion),
+  removal: Schema.optionalKey(PlannedRemoval),
   missing: Schema.optionalKey(MissingMedia)
 }).annotate({ identifier: "Fix" })
 export type Fix = typeof Fix.Type

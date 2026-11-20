@@ -13,7 +13,9 @@ export const probes: Record<HomeProtocol.HomeService, { readonly title: string; 
   // Needs the `system:read` scope; without it Reclaimerr answers 403, which still says it's up.
   reclaimerr: { title: "Reclaimerr", path: "/api/v1/system" },
   // Public: answers without the key.
-  seerr: { title: "Seerr", path: "/api/v1/status" }
+  seerr: { title: "Seerr", path: "/api/v1/status" },
+  // Public: answers without the key.
+  cleanuparr: { title: "Cleanuparr", path: "/health" }
 }
 
 export const healthWatchId = (service: HomeProtocol.HomeService) => `health:${service}`

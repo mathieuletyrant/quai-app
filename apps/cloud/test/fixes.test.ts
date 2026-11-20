@@ -13,6 +13,7 @@ import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integ
 import { SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHome, type FakeHomeOptions, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
+import { Journal } from "../src/journal/Journal.ts"
 import { TestApp, testAppDroppingOn } from "./testApp.ts"
 
 /** The fixtures' "now": Thursday Nov 19, 2026, noon UTC. */
@@ -58,7 +59,13 @@ const routes: Readonly<Record<string, Recording>> = {
   "radarr POST /api/v3/release": { json: {} },
   "radarr POST /api/v3/command": { status: 201, json: {} },
   "sonarr POST /api/v3/command": { status: 201, json: {} },
-  "reclaimerr POST /api/v1/candidates/42/protect": { json: {} }
+  "reclaimerr POST /api/v1/candidates/42/protect": { json: {} },
+  "cleanuparr GET /api/strikes": "cleanuparr/strikes.json",
+  "cleanuparr GET /api/configuration/queue_cleaner": "cleanuparr/queue-cleaner.json",
+  "cleanuparr GET /api/queue-rules/stall": "cleanuparr/stall-rules.json",
+  "cleanuparr GET /api/queue-rules/slow": "cleanuparr/slow-rules.json",
+  "cleanuparr GET /api/jobs/QueueCleaner": "cleanuparr/job-queue-cleaner.json",
+  "cleanuparr PUT /api/configuration/queue_cleaner": { json: { message: "QueueCleaner configuration updated successfully" } }
 }
 const recorded = (overrides: Readonly<Record<string, Recording>> = {}) => recordedHome(routes, overrides)
 
@@ -498,5 +505,132 @@ describe("fixes", () => {
       })
       expect(home.calls.find((c) => c.path.startsWith("/api/v3/manualimport"))?.path)
         .toBe("/api/v3/manualimport?downloadId=0718293A4B5C6D7E8F901234567890123456789A&filterExistingFiles=true&seriesId=9")
+    }).pipe(Effect.provide(TestApp)))
+})
+
+describe("Cleanuparr's planned removals", () => {
+  const withCleanuparr = [...services, "cleanuparr"] as const
+  const wildRobot = "removal-0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01"
+  const amazingStories = "removal-0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d02"
+  const settings = () => fixture("cleanuparr/queue-cleaner.json") as Record<string, unknown>
+
+  it.effect("a download a strike from its limit, still in a queue: the *arr's title, its strikes, Cleanuparr's next run", () =>
+    Effect.gen(function*() {
+      const { api } = yield* setUp({ services: withCleanuparr })
+      const list = yield* api.list()
+      const removals = list.items.filter((f) => f.kind === "removalPlanned")
+      // Mouse has 1 strike of 3, Dune only dry-run ones, Night of the Living Dead left the queue, Old Movie is removed.
+      expect(removals.map((f) => f.id)).toEqual([amazingStories, wildRobot])
+      expect(removals[1]).toEqual({
+        id: wildRobot,
+        kind: "removalPlanned",
+        service: "cleanuparr",
+        title: "The Wild Robot",
+        year: 2024,
+        posterUrl: expect.stringMatching(/^https:\/\//),
+        reason: "Stalled, no progress",
+        since: Date.parse("2026-11-19T11:50:00Z") / 1000,
+        actions: ["keep", "dismiss"],
+        removal: {
+          release: "The.Wild.Robot.2024.1080p.WEB-DL.DDP5.1.H.264-FLUX",
+          reason: "stalled",
+          strikes: 2,
+          maxStrikes: 3,
+          removesAt: Date.parse("2026-11-19T12:05:00Z") / 1000
+        }
+      })
+      expect(removals[0]).toMatchObject({ title: expect.stringMatching(/^Amazing Stories/), removal: { reason: "failedImport", strikes: 2, maxStrikes: 3 } })
+      // Listed after Reclaimerr's deletions, before the titles without a source.
+      expect(list.items.map((f) => f.kind).indexOf("removalPlanned")).toBe(2)
+      expect(list.unavailable).toEqual([])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("what the queue cleaner leaves alone is not planned", () =>
+    Effect.gen(function*() {
+      const ignored = yield* setUp({
+        services: withCleanuparr,
+        answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: { ...settings(), ignoredDownloads: ["a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"] } }) })
+      })
+      expect((yield* ignored.api.list()).items.filter((f) => f.kind === "removalPlanned").map((f) => f.id)).toEqual([amazingStories])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("a queue cleaner turned off plans nothing, and the queues aren't read for it", () =>
+    Effect.gen(function*() {
+      const { home, api } = yield* setUp({
+        services: withCleanuparr,
+        answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: { ...settings(), enabled: false } }) })
+      })
+      const list = yield* api.list()
+      expect(list.items.some((f) => f.kind === "removalPlanned")).toBe(false)
+      expect(home.calls.filter((c) => c.service === "radarr" && c.path.startsWith("/api/v3/queue"))).toHaveLength(1)
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("Cleanuparr not answering is unavailable; the others still show", () =>
+    Effect.gen(function*() {
+      const { api } = yield* setUp({ services: withCleanuparr, answer: recorded({ "cleanuparr GET /api/strikes": { status: 401, body: "" } }) })
+      const list = yield* api.list()
+      expect(list.unavailable).toEqual(["cleanuparr"])
+      expect(list.items.some((f) => f.service === "cleanuparr")).toBe(false)
+      expect(list.items.some((f) => f.service === "radarr")).toBe(true)
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("an older Quai Home doesn't reach Cleanuparr: nothing is asked of it", () =>
+    Effect.gen(function*() {
+      const { home, api } = yield* setUp({ services, protocol: 4 })
+      expect((yield* api.list()).items.some((f) => f.service === "cleanuparr")).toBe(false)
+      expect(home.calls.some((c) => c.service === "cleanuparr")).toBe(false)
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("keep: Cleanuparr's queue cleaner leaves the download alone, every other setting as it was", () =>
+    Effect.gen(function*() {
+      const { home, api } = yield* setUp({ services: withCleanuparr })
+      yield* api.keep({ params: { id: wildRobot } })
+      expect(writes(home)).toEqual([{
+        service: "cleanuparr",
+        method: "PUT",
+        path: "/api/configuration/queue_cleaner",
+        body: { ...settings(), ignoredDownloads: ["seeding-keep", "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"] }
+      }])
+      const journal = yield* Journal
+      const { entries } = yield* journal.since(undefined)
+      expect(entries.at(-1)).toMatchObject({ source: "cleanuparr", kind: "fix.keep", text: "Kept, Cleanuparr won't remove it: The Wild Robot" })
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("keep: what Cleanuparr answered goes back as it came, nulls and unknown settings included", () =>
+    Effect.gen(function*() {
+      const answered = { ...settings(), errored: null, ignoredDownloads: null, aFutureSetting: { on: true } }
+      const { home, api } = yield* setUp({ services: withCleanuparr, answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: answered }) }) })
+      yield* api.keep({ params: { id: wildRobot } })
+      // The fake Quai Home ran the real check against the same answer: it let it through.
+      expect(writes(home).map((w) => w.body)).toEqual([{ ...answered, ignoredDownloads: ["A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"] }])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("keep: settings changed since they were read are refused by Quai Home, a FixFailed", () =>
+    Effect.gen(function*() {
+      let reads = 0
+      const { home, api } = yield* setUp({
+        services: withCleanuparr,
+        strict: false,
+        answer: recorded({
+          // The Cloud reads them twice (to find the problem, then to send them back); then they change.
+          "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: ++reads <= 2 ? settings() : { ...settings(), cronExpression: "0 0 * * * ?" } })
+        })
+      })
+      const error = yield* Effect.flip(api.keep({ params: { id: wildRobot } }))
+      expect(error).toMatchObject({ _tag: "FixFailed", message: "Quai Home: not allowed" })
+      expect(home.notAllowed).toEqual(["cleanuparr PUT /api/configuration/queue_cleaner"])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("let it go: hidden in Quai, Cleanuparr isn't told", () =>
+    Effect.gen(function*() {
+      const { home, api } = yield* setUp({ services: withCleanuparr })
+      yield* api.dismiss({ params: { id: wildRobot } })
+      expect(home.documents.get(`fixes/dismissed/${wildRobot}`)).toEqual({ at: now })
+      const list = yield* api.list()
+      expect(list.items.map((f) => f.id)).not.toContain(wildRobot)
+      expect(list.hidden).toBe(1)
+      expect(writes(home)).toEqual([])
+      const offered = yield* Effect.flip(api.snooze({ params: { id: wildRobot }, payload: {} }))
+      expect(offered._tag).toBe("InvalidFix")
     }).pipe(Effect.provide(TestApp)))
 })

@@ -18,6 +18,7 @@ export const testConfig = {
   jellyfin: { url: "http://jellyfin:8096", apiKey: key },
   reclaimerr: { url: "http://reclaimerr:8000", apiKey: key },
   seerr: { url: "http://seerr:5055", apiKey: key },
+  cleanuparr: { url: "http://cleanuparr:11011", apiKey: key },
   prowlarr: { url: "http://prowlarr:9696", apiKey: key }
 } satisfies HomeConfig["Service"]
 

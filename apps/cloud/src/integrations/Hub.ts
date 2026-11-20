@@ -112,7 +112,8 @@ export class Hub extends Context.Service<Hub, {
         services: home.value.services,
         now: yield* Clock.currentTimeMillis,
         timeZone: yield* time.zone,
-        alerts: yield* alerts.settings.pipe(Effect.orElseSucceed(() => defaultAlertSettings))
+        alerts: yield* alerts.settings.pipe(Effect.orElseSucceed(() => defaultAlertSettings)),
+        protocol: home.value.protocol
       })
     }).pipe(Effect.orElseSucceed(() => Option.none()))
 

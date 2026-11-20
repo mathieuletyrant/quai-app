@@ -56,6 +56,7 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
             case "jellyfin":
             case "reclaimerr":
             case "seerr":
+            case "cleanuparr":
             case "prowlarr": {
               const endpoint = config[service]
               if (endpoint === null) return Effect.fail(new ServiceError({ service, message: "not configured" }))

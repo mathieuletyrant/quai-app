@@ -32,3 +32,13 @@ for Friday Nov 20, 2026 (an unmonitored episode and one airing after midnight in
 ones left out), `radarr/calendar.json` Radarr v5's `GET /api/v3/calendar` (a movie in cinemas only
 and one out the next day are left out); `*/queue-calendar.json` are their queues without the
 series, episode or movie.
+
+`cleanuparr/` follows Cleanuparr 2.11.1's API (code/backend/Cleanuparr.Api, camelCase JSON, enums
+as strings): `GET /api/strikes` (`strikes.json`, `PaginatedResult<DownloadItemStrikesDto>`: The
+Wild Robot stalled twice and Amazing Stories' import failed twice, one strike from their limit;
+Mouse struck once; Dune struck only in dry run; Night of the Living Dead no longer in a queue; Old
+Movie already removed), `GET /api/configuration/queue_cleaner` (`queue-cleaner.json`,
+`QueueCleanerConfigResponse`), `GET /api/queue-rules/stall` and `/slow` (`StallRuleResponse`,
+`SlowRuleResponse`), `GET /api/jobs/QueueCleaner` (`job-queue-cleaner.json`, `JobInfo`) and
+`GET /api/events?eventType=QueueItemDeleted` (`events-removed.json`, `PaginatedResult<EventListItem>`,
+one of them a dry run). Their download ids are the Radarr and Sonarr queue fixtures'.

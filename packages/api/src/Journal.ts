@@ -13,7 +13,7 @@ export const JournalLevel = Schema.Literals(["info", "warn", "error"]).annotate(
 export type JournalLevel = typeof JournalLevel.Type
 
 /** Where a line comes from: a service, Apple (pushes), Quai Home or Quai Cloud itself. */
-export const JournalSource = Schema.Literals(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "apple", "home", "cloud"])
+export const JournalSource = Schema.Literals(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr", "apple", "home", "cloud"])
   .annotate({ identifier: "JournalSource" })
 export type JournalSource = typeof JournalSource.Type
 export const journalSources: ReadonlyArray<JournalSource> = JournalSource.literals
@@ -27,6 +27,7 @@ export const journalSourceNames: Record<JournalSource, string> = {
   jellyfin: "Jellyfin",
   seerr: "Seerr",
   reclaimerr: "Reclaimerr",
+  cleanuparr: "Cleanuparr",
   apple: "Apple",
   home: "Quai Home",
   cloud: "Quai Cloud"

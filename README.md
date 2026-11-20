@@ -42,7 +42,8 @@ The app is for living with Quai, the console for setting it up: services, flows 
 - 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you, what happened lately and how full the disk is.
 - 🎞️ **Library**: your movies and series with their posters, and what's still missing.
 - 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
-  one), and what Reclaimerr is about to delete (keep it).
+  one), what Reclaimerr is about to delete and what Cleanuparr is about to take out of the queue
+  (keep it, or let it go).
 
 ## 🧭 How it works
 
@@ -59,6 +60,7 @@ Quai has two parts.
 ┌───────────────────────────────┐         ┌─────────────────┐          ┌────────┐
 │ Radarr · Sonarr · qBittorrent │         │                 │  Apple   │        │
 │ Jellyfin · Seerr · Reclaimerr │         │   Quai Cloud    │ ───────▶ │ iPhone │
+│ Cleanuparr                    │         │                 │          │        │
 │              ▲                │ ──────▶ │ (stores nothing)│ ◀─────── │        │
 │              │                │ ◀────── │                 │   app    │        │
 │          Quai Home            │         └─────────────────┘          └────────┘
@@ -123,6 +125,7 @@ your own account.
 | `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General) |
 | `QUAI_PROWLARR_URL`, `QUAI_PROWLARR_API_KEY` | Prowlarr (Settings → General), for the alerts only |
 | `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations) |
+| `QUAI_CLEANUPARR_URL`, `QUAI_CLEANUPARR_API_KEY` | Cleanuparr (Settings → Account); on Umbrel `http://mathieu-cleanuparr_server_1:11011` |
 
 A service without its URL and key is skipped.
 

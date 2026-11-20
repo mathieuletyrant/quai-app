@@ -19,6 +19,8 @@ export interface WatchContext {
   readonly timeZone: string
   /** Which alerts are on, and their thresholds. */
   readonly alerts: AlertSettings
+  /** The linked Home's protocol version; absent: the current one. */
+  readonly protocol?: number
 }
 
 /** What a reading means: catalog events for the flows, or the state of an alert. */
@@ -74,7 +76,8 @@ export const actionCall = (reads: HomeReads["Service"], service: string, call: C
  * webhook or watches) and the actions it runs. Adding a service is adding an integration.
  */
 export interface Integration {
-  readonly service: ServiceName
+  /** Its service: one a flow can name, or one Quai Home reaches that only the journal hears from (Cleanuparr). */
+  readonly service: ServiceName | HomeProtocol.HomeService
   readonly webhook?: Webhook
   readonly watcher?: Watcher
   /** Readings that say whether an alert is going on (alerts/Alerts.ts), rather than flow events. */
