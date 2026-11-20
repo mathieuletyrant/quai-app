@@ -48,6 +48,16 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 - Quai's refusals become a `ConnectionError` in `QuaiErrorsMiddleware` only (from the answer's `_tag` and `message`), proxy refusals in `AccessHeadersMiddleware`. A call reads only its success with the generated throwing accessors (`try await client.listFixes().ok.body.json`, `.noContent`): no `switch` over an `Output`, no error message per route.
 
+## Console
+
+`apps/console/src` (React 19, Tailwind v4). A page reads as a short list of sections; the look lives in `ui/`.
+
+- `ui/` is the single source of the look, one file per job (buttons, layout, feedback, forms, menus, media, status, table, icons), re-exported by `ui/index.ts`: import `from "../ui"`. A page that needs a new look adds or extends a `ui/` component; delete what nothing imports.
+- Loading, offline, failed and ready go through one primitive: read with `useLoad` (`load.ts`), show with `<Async state loading offline failed>{(data) => …}</Async>`, report with `<ErrorCallout unlessOffline>`. Data-specific states (empty, not configured) are early returns in the component that gets the data. No ternary chains for states.
+- Rows and items are named components with explicit props (`RequestRow`, `FixRow`, `DeviceName`, `StepNode`), on `MediaItem` for a title with a poster.
+- Theme tokens only: colours, the type scale (`text-caption`, `text-body`, `text-subhead`…), tracking, radii and shadows are `@theme` tokens in `styles.css`. No arbitrary `[#hex]`, `text-[Npx]` or `rounded-[Npx]`; add a token instead. Arbitrary values are kept for one-off layout calcs (`grid-cols-[minmax(0,1fr)_300px]`, `h-[calc(100vh-4rem)]`). In JS styles use `var(--color-…)`; hex only for data (a flow's colour) or a library that takes hex.
+- Text and logic stay out of the markup: subtitles, facts and labels are small named functions next to the page, or in `format.ts` when pages share them (`duration`, `minutesSince`, `shortMinutes`). No multi-line expressions in props.
+
 ## Tests
 
 - **No feature merged without its test.**

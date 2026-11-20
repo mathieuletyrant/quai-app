@@ -44,11 +44,50 @@
   --color-search: #ffc230;
   --color-info-soft: #241f38;
   --color-info-text: #c3b8ff;
+  /* What a row is about, as the iPhone colours it. */
+  --color-requests: #8b8cf8;
+  /* Drawn on a flow's own colour (a selected step's glyph). */
+  --color-on-tint: #0b0b0f;
+  /* The Lock Screen preview's wallpaper, between the flow's colour and the page. */
+  --color-wallpaper: #15151c;
 
+  /*
+   * Type scale. Sizes only: line height comes from the page (1.5) or a leading-* class.
+   * micro 10.5 · overline 11 (uppercase labels, tags) · mini 11.5 · caption 12 (hints, meta) ·
+   * small 12.5 (chips, notes) · body 13 (the console's text) · item 13.5 · copy 14 (page default) ·
+   * subhead 14.5 (row titles) · title 15 (panel titles) · brand 16 · heading 17 · page 19 · display 22.
+   */
+  --text-micro: 10.5px;
+  --text-overline: 11px;
+  --text-mini: 11.5px;
+  --text-caption: 12px;
+  --text-small: 12.5px;
+  --text-body: 13px;
+  --text-item: 13.5px;
+  --text-copy: 14px;
+  --text-subhead: 14.5px;
+  --text-title: 15px;
+  --text-brand: 16px;
+  --text-heading: 17px;
+  --text-page: 19px;
+  --text-display: 22px;
+
+  --tracking-title: -0.02em;
+  --tracking-heading: -0.01em;
+  --tracking-caps: 0.06em;
+  --tracking-tag: 0.04em;
+  --tracking-code: 0.2em;
+
+  --radius-item: 8px;
+  --radius-logo: 9px;
   --radius-control: 10px;
+  --radius-tile: 10px;
   --radius-card: 14px;
   --radius-panel: 16px;
+  --radius-phone: 28px;
 
+  --shadow-selected: 0 0 0 3px rgb(111 211 194 / 0.12);
+  --shadow-sheen: inset 0 1px 0 rgb(255 255 255 / 0.06);
   --shadow-pop: 0 0 0 1px rgb(255 255 255 / 0.08), 0 16px 48px -8px rgb(0 0 0 / 0.7), 0 4px 12px rgb(0 0 0 / 0.4);
 
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
@@ -63,10 +102,16 @@
   }
 }
 
+/* The builder's canvas: a faint dot grid. */
+@utility bg-dots {
+  background-image: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
 @layer base {
   :root { color-scheme: dark; }
   body {
-    @apply bg-bg font-sans text-[14px] leading-[1.5] text-text antialiased;
+    @apply bg-bg font-sans text-copy leading-[1.5] text-text antialiased;
     font-feature-settings: "cv11", "ss01", "ss03";
   }
   select { @apply cursor-pointer; }

@@ -1,11 +1,14 @@
 import { type DeviceId, flowProblem } from "@quai/api"
 import { type ReactNode, useState } from "react"
-import { Button, cx, Icon, IconButton, MenuItem, PageBar, Popover, Toggle, Workspace } from "../../ui.tsx"
+import { Button, cx, Icon, IconButton, MenuItem, PageBar, Popover, Toggle, Workspace } from "../../ui"
 import { type Catalogs, type Draft, newStep, stepActions, stepEvents } from "./draft.ts"
 import { EndPanel, FlowPanel, StepPanel } from "./Inspector.tsx"
 import { type Selection, Pipeline } from "./Pipeline.tsx"
 import { Preview } from "./Preview.tsx"
 import { type Phone, TestMenu } from "./TestMenu.tsx"
+
+/** A flow has at most this many steps. */
+const maxSteps = 6
 
 /**
  * Edits one flow: the pipeline in the middle (what it follows, its steps, how it ends), and an
@@ -40,48 +43,32 @@ export function FlowEditor(props: {
     setSelection(next)
     if (next._tag === "Step") setPreviewStep(next.index)
   }
+  const addStep = () => {
+    onChange((d) => { d.steps.push(newStep(d, events)) })
+    select({ _tag: "Step", index: draft.steps.length })
+  }
+  const moveStep = (index: number, delta: -1 | 1) => {
+    onChange((d) => {
+      const [moved] = d.steps.splice(index, 1)
+      d.steps.splice(index + delta, 0, moved!)
+    })
+    select({ _tag: "Step", index: index + delta })
+  }
+  const removeStep = (index: number) => {
+    onChange((d) => { d.steps.splice(index, 1) })
+    select({ _tag: "Step", index: Math.max(0, index - 1) })
+  }
 
   return (
     <>
       <PageBar title={props.switcher}>
-        <label className="flex h-9 cursor-pointer items-center gap-2.5 rounded-control bg-raised px-3 text-[13px] font-semibold ring-1 ring-line-strong ring-inset transition-colors hover:bg-hover">
-          <Toggle label="Flow enabled" checked={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
-          <span className={cx("w-[58px]", !draft.enabled && "text-muted")}>{draft.enabled ? "Enabled" : "Disabled"}</span>
-        </label>
+        <EnabledToggle enabled={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
         {props.dirty || props.isNew
-          ? (
-            <>
-              <span
-                role="status"
-                className={cx(
-                  "flex h-9 items-center gap-2 rounded-control px-2.5 text-[13px] font-medium",
-                  problem ? "text-danger-text" : "text-warn-text"
-                )}
-              >
-                <Icon name={problem ? "alert" : "info"} size={14} />
-                {problem ?? (props.isNew ? "Not saved yet" : "Unsaved changes")}
-              </span>
-              <Button variant="secondary" onClick={props.onDiscard}>{props.isNew ? "Cancel" : "Discard"}</Button>
-              <Button icon="check" disabled={problem !== null} onClick={props.onSave}>{props.isNew ? "Create" : "Save"}</Button>
-            </>
-          )
+          ? <SaveBar isNew={props.isNew} problem={problem} onSave={props.onSave} onDiscard={props.onDiscard} />
           : (
             <>
               <TestMenu phones={props.phones} onTest={props.onTest} />
-              <Popover
-                align="right"
-                className="w-64"
-                trigger={({ open, toggle }) => <IconButton outlined icon="more" label="More" aria-expanded={open} onClick={toggle} />}
-              >
-                {(close) => (
-                  <>
-                    <MenuItem icon="copy" onClick={() => { close(); props.onDuplicate() }}>Duplicate</MenuItem>
-                    <MenuItem danger icon={draft.builtIn ? "reset" : "trash"} onClick={() => { close(); props.onRemove() }}>
-                      {draft.builtIn ? "Reset to how Quai ships it" : "Delete"}
-                    </MenuItem>
-                  </>
-                )}
-              </Popover>
+              <FlowMenu builtIn={draft.builtIn} onDuplicate={props.onDuplicate} onRemove={props.onRemove} />
             </>
           )}
       </PageBar>
@@ -93,12 +80,7 @@ export function FlowEditor(props: {
             events={events}
             selection={selection}
             onSelect={select}
-            onAddStep={draft.steps.length < 6
-              ? () => {
-                onChange((d) => { d.steps.push(newStep(d, events)) })
-                select({ _tag: "Step", index: draft.steps.length })
-              }
-              : null}
+            onAddStep={draft.steps.length < maxSteps ? addStep : null}
           />
         }
         inspector={
@@ -113,22 +95,57 @@ export function FlowEditor(props: {
                 events={events}
                 actions={actions}
                 onChange={(next) => onChange((d) => { d.steps[selection.index] = next })}
-                onMove={(delta) => {
-                  onChange((d) => {
-                    const [moved] = d.steps.splice(selection.index, 1)
-                    d.steps.splice(selection.index + delta, 0, moved!)
-                  })
-                  select({ _tag: "Step", index: selection.index + delta })
-                }}
-                onRemove={() => {
-                  onChange((d) => { d.steps.splice(selection.index, 1) })
-                  select({ _tag: "Step", index: Math.max(0, selection.index - 1) })
-                }}
+                onMove={(delta) => moveStep(selection.index, delta)}
+                onRemove={() => removeStep(selection.index)}
               />
             )}
           </>
         }
       />
     </>
+  )
+}
+
+/** The flow's on/off switch, with its state in words. */
+function EnabledToggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) {
+  return (
+    <label className="flex h-9 cursor-pointer items-center gap-2.5 rounded-control bg-raised px-3 text-body font-semibold ring-1 ring-line-strong ring-inset transition-colors hover:bg-hover">
+      <Toggle label="Flow enabled" checked={enabled} onChange={onChange} />
+      <span className={cx("w-14.5", !enabled && "text-muted")}>{enabled ? "Enabled" : "Disabled"}</span>
+    </label>
+  )
+}
+
+/** With unsaved changes: what blocks saving (or that it isn't saved), Discard and Save. */
+function SaveBar({ isNew, problem, onSave, onDiscard }: { isNew: boolean; problem: string | null; onSave: () => void; onDiscard: () => void }) {
+  return (
+    <>
+      <span role="status" className={cx("flex h-9 items-center gap-2 rounded-control px-2.5 text-body font-medium", problem ? "text-danger-text" : "text-warn-text")}>
+        <Icon name={problem ? "alert" : "info"} size={14} />
+        {problem ?? (isNew ? "Not saved yet" : "Unsaved changes")}
+      </span>
+      <Button variant="secondary" onClick={onDiscard}>{isNew ? "Cancel" : "Discard"}</Button>
+      <Button icon="check" disabled={problem !== null} onClick={onSave}>{isNew ? "Create" : "Save"}</Button>
+    </>
+  )
+}
+
+/** Duplicate, and Delete (or Reset, for a built-in flow). */
+function FlowMenu({ builtIn, onDuplicate, onRemove }: { builtIn: boolean; onDuplicate: () => void; onRemove: () => void }) {
+  return (
+    <Popover
+      align="right"
+      className="w-64"
+      trigger={({ open, toggle }) => <IconButton outlined icon="more" label="More" aria-expanded={open} onClick={toggle} />}
+    >
+      {(close) => (
+        <>
+          <MenuItem icon="copy" onClick={() => { close(); onDuplicate() }}>Duplicate</MenuItem>
+          <MenuItem danger icon={builtIn ? "reset" : "trash"} onClick={() => { close(); onRemove() }}>
+            {builtIn ? "Reset to how Quai ships it" : "Delete"}
+          </MenuItem>
+        </>
+      )}
+    </Popover>
   )
 }
