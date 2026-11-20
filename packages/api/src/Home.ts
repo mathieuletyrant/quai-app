@@ -266,6 +266,13 @@ export interface AllowRule {
 /** The Home waits this long for a service, unless the rule says otherwise. */
 export const defaultCallTimeoutSeconds = 10
 
+/**
+ * A write checked against what the service holds, from the wait for the one before it to its
+ * answer: the read, the check and the write together, under the Cloud's 15 s wait for a call, so a
+ * write never lands after the Cloud gave up on it.
+ */
+export const checkedWriteTimeoutSeconds = 12
+
 /** An interactive release search asks every indexer: it takes much longer than a read. */
 export const releaseSearchTimeoutSeconds = 50
 
@@ -313,9 +320,11 @@ const isStrings = (value: unknown): value is ReadonlyArray<string> => Array.isAr
  * holds now, so the Cloud can't turn the cleaner off, change its schedule or its strikes.
  */
 export const ignoresOneMoreDownload = (current: unknown, body: unknown): boolean => {
-  if (!isRecord(current) || !isRecord(body) || !isStrings(current.ignoredDownloads) || !isStrings(body.ignoredDownloads)) return false
-  const before = current.ignoredDownloads
+  if (!isRecord(current) || !isRecord(body)) return false
+  // Cleanuparr may answer null for an empty list.
+  const before = current.ignoredDownloads === null ? [] : current.ignoredDownloads
   const after = body.ignoredDownloads
+  if (!isStrings(before) || !isStrings(after)) return false
   const added = after.at(-1)
   return after.length === before.length + 1 &&
     before.every((entry, i) => after[i] === entry) &&
@@ -438,7 +447,9 @@ export const allowRule = (request: {
   if (path.includes("..")) return undefined
   return allowlist[request.service].find((rule) =>
     rule.method === request.method && rule.path.test(path) &&
-    (rule.body === undefined ? request.body === undefined : rule.body(request.body))
+    (rule.body === undefined ? request.body === undefined : rule.body(request.body)) &&
+    // A write checked against a document goes to that document exactly: no query to change its meaning.
+    (rule.against === undefined || request.path === rule.against.path)
   )
 }
 

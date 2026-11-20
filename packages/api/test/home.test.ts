@@ -151,6 +151,9 @@ describe("allowlist: Cleanuparr", () => {
     const rule = HomeProtocol.allowRule({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner", body: ignoring(hash) })
     expect(rule?.against?.path).toBe("/api/configuration/queue_cleaner")
     expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner" })).toBe(false)
+    // A query could change what the write means: the checked write goes to the document exactly.
+    expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner?apikey=other", body: ignoring(hash) })).toBe(false)
+    expect(HomeProtocol.checkedWriteTimeoutSeconds * 1000).toBeLessThan(15_000)
     expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/general", body: ignoring(hash) })).toBe(false)
     expect(allowed({ service: "cleanuparr", method: "POST", path: "/api/jobs/QueueCleaner/trigger" })).toBe(false)
     expect(allowed({ service: "cleanuparr", method: "DELETE", path: "/api/strikes/0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01" })).toBe(false)
@@ -177,5 +180,13 @@ describe("allowlist: Cleanuparr", () => {
     expect(check(current, withoutErrored)).toBe(false)
     expect(check(current, { ...ignoring(hash), stallRules: [] })).toBe(false)
     expect(check("not json", ignoring(hash))).toBe(false)
+    // Cleanuparr answering null for an empty list.
+    expect(check({ ...current, ignoredDownloads: null }, { ...current, ignoredDownloads: [hash] })).toBe(true)
+  })
+
+  it("a download id is a torrent hash or a SABnzbd job, never a category, tag or tracker", () => {
+    expect(HomeProtocol.isDownloadId(hash)).toBe(true)
+    expect(HomeProtocol.isDownloadId("SABnzbd_nzo_kyt1f0")).toBe(true)
+    for (const id of ["12345", "radarr", hash.slice(1), `${hash}0`, "SABnzbd_nzo_", 42]) expect(HomeProtocol.isDownloadId(id)).toBe(false)
   })
 })
