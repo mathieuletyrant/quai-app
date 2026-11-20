@@ -1,4 +1,4 @@
-import { HomeOffline, HomeProtocol, HomeRequired } from "@quai/api"
+import { HomeOffline, HomeProtocol, HomeRequired, type JournalEntry, type JournalQuery } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
 import { Clock, Config, Context, Data, Deferred, Effect, Layer, Option, Queue, Ref, Schema } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
@@ -8,7 +8,7 @@ import { createPublicKey, randomBytes, verify } from "node:crypto"
 type HomeMessage = HomeProtocol.HomeMessage
 type CloudMessage = HomeProtocol.CloudMessage
 type HomeService = HomeProtocol.HomeService
-type Answer = Extract<HomeMessage, { readonly _tag: "CallResponse" | "Failed" | "StoreDocuments" | "StoreDone" }>
+type Answer = Extract<HomeMessage, { readonly _tag: "CallResponse" | "Failed" | "StoreDocuments" | "StoreDone" | "JournalPage" }>
 
 const HomeJson = Schema.fromJsonString(HomeProtocol.HomeMessage)
 const CloudJson = Schema.fromJsonString(HomeProtocol.CloudMessage)
@@ -43,6 +43,8 @@ export interface LinkedHome {
   readonly homeId: string
   /** The services this Quai Home reaches (from its Hello). */
   readonly services: ReadonlyArray<HomeService>
+  /** The protocol it speaks (from its Hello): what it can do, `journalProtocolVersion` and up a journal. */
+  readonly protocol: number
 }
 
 /** What Quai Home tells, in the order it told it. */
@@ -52,6 +54,8 @@ export type HomeEvent =
   | { readonly _tag: "Snapshot"; readonly watchId: string; readonly status: number; readonly body: string }
   | { readonly _tag: "WatchFailed"; readonly watchId: string; readonly reason: string }
   | { readonly _tag: "Webhook"; readonly service: HomeService; readonly receivedAt: number; readonly body: unknown }
+  /** Lines Quai Home wrote to its journal itself. */
+  | { readonly _tag: "Journal"; readonly entries: ReadonlyArray<JournalEntry> }
 
 export interface HomeDocument {
   readonly key: string
@@ -107,6 +111,7 @@ const makeDocuments = (
 interface Connection {
   readonly homeId: string
   readonly services: ReadonlyArray<HomeService>
+  readonly protocol: number
   readonly send: (message: CloudMessage) => Effect.Effect<void>
   readonly pending: Map<string, Deferred.Deferred<Answer, HomeError>>
   /** Loaded from Quai Home after the Welcome: until then the home isn't ready. */
@@ -116,7 +121,7 @@ interface Connection {
 }
 
 type HandshakeOutcome =
-  | { readonly _tag: "Accepted"; readonly homeId: string; readonly services: ReadonlyArray<HomeService> }
+  | { readonly _tag: "Accepted"; readonly homeId: string; readonly services: ReadonlyArray<HomeService>; readonly protocol: number }
   | { readonly _tag: "Refused"; readonly reason: string; readonly retryAfterSeconds: number }
 
 /** Verifies a Proof: an Ed25519 signature of `challengePayload(nonce)` by the Hello's public key. */
@@ -150,6 +155,10 @@ export class HomeLink extends Context.Service<HomeLink, {
   ) => Effect.Effect<{ readonly status: number; readonly body: string }, HomeError>
   /** Replaces what Quai Home polls. */
   readonly setWatches: (watches: ReadonlyArray<HomeProtocol.Watch>) => Effect.Effect<void, HomeError>
+  /** Hands Quai Home lines for its journal, unanswered. Only to a Home at `journalProtocolVersion` or later. */
+  readonly appendJournal: (entries: ReadonlyArray<JournalEntry>) => Effect.Effect<void, HomeError>
+  /** A page of the journal Quai Home keeps. */
+  readonly readJournal: (query: JournalQuery) => Effect.Effect<{ readonly entries: ReadonlyArray<JournalEntry>; readonly more: boolean }, HomeError>
   readonly documents: HomeDocuments["Service"]
   /** The next event from Quai Home. One reader: the Hub. */
   readonly nextEvent: Effect.Effect<HomeEvent>
@@ -265,7 +274,7 @@ export class HomeLink extends Context.Service<HomeLink, {
           for (const other of connections.values()) {
             if (other.homeId !== homeId) return { _tag: "Refused", reason: "this Cloud serves one home", retryAfterSeconds: 300 }
           }
-          return { _tag: "Accepted", homeId, services: hello.value.services }
+          return { _tag: "Accepted", homeId, services: hello.value.services, protocol }
         })
 
         const outcome = yield* handshake
@@ -279,6 +288,7 @@ export class HomeLink extends Context.Service<HomeLink, {
         const connection: Connection = {
           homeId,
           services: outcome.services,
+          protocol: outcome.protocol,
           send,
           pending: new Map(),
           documents: null,
@@ -309,7 +319,7 @@ export class HomeLink extends Context.Service<HomeLink, {
           const answer = yield* request(connection, (id) => HomeProtocol.StoreList.make({ id, prefix: "" })).pipe(Effect.flatMap(failedWith))
           if (answer._tag !== "StoreDocuments") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
           connection.documents = new Map(answer.documents.map((d) => [d.key, d.value]))
-          yield* Queue.offer(events, { _tag: "Ready", home: { homeId, services: connection.services } })
+          yield* Queue.offer(events, { _tag: "Ready", home: { homeId, services: connection.services, protocol: connection.protocol } })
           yield* Deferred.succeed(loaded, undefined)
           yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))
         }).pipe(
@@ -328,6 +338,7 @@ export class HomeLink extends Context.Service<HomeLink, {
             case "CallResponse":
             case "StoreDocuments":
             case "StoreDone":
+            case "JournalPage":
             case "Failed": {
               const answer = connection.pending.get(message.id)
               if (answer !== undefined) {
@@ -342,6 +353,8 @@ export class HomeLink extends Context.Service<HomeLink, {
               return yield* Queue.offer(inbox, { _tag: "Snapshot", watchId: message.watchId, status: message.status, body: message.body })
             case "WebhookReceived":
               return yield* Queue.offer(inbox, { _tag: "Webhook", service: message.service, receivedAt: message.receivedAt, body: message.body })
+            case "JournalNoted":
+              return yield* Queue.offer(inbox, { _tag: "Journal", entries: message.entries })
             case "Pong":
             case "Hello":
             case "Proof":
@@ -373,7 +386,9 @@ export class HomeLink extends Context.Service<HomeLink, {
     return {
       home: Effect.sync(() => {
         const connection = ready()
-        return connection === null ? Option.none() : Option.some({ homeId: connection.homeId, services: connection.services })
+        return connection === null
+          ? Option.none()
+          : Option.some({ homeId: connection.homeId, services: connection.services, protocol: connection.protocol })
       }),
       call: (call, options) =>
         Effect.gen(function*() {
@@ -383,6 +398,21 @@ export class HomeLink extends Context.Service<HomeLink, {
           return { status: answer.status, body: answer.body }
         }),
       setWatches: (watches) => Effect.flatMap(current, (connection) => connection.send(HomeProtocol.SetWatches.make({ watches }))),
+      appendJournal: (entries) =>
+        Effect.flatMap(current, (connection) =>
+          connection.protocol < HomeProtocol.journalProtocolVersion
+            ? Effect.fail(new HomeError({ reason: "failed", message: "this Quai Home keeps no journal" }))
+            : connection.send(HomeProtocol.JournalAppend.make({ entries }))),
+      readJournal: (query) =>
+        Effect.gen(function*() {
+          const connection = yield* current
+          if (connection.protocol < HomeProtocol.journalProtocolVersion) {
+            return yield* Effect.fail(new HomeError({ reason: "failed", message: "this Quai Home keeps no journal" }))
+          }
+          const answer = yield* request(connection, (id) => HomeProtocol.JournalRead.make({ id, query })).pipe(Effect.flatMap(failedWith))
+          if (answer._tag !== "JournalPage") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
+          return { entries: answer.entries, more: answer.more }
+        }),
       documents,
       nextEvent: Queue.take(events),
       serve

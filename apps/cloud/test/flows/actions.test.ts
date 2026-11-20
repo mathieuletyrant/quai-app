@@ -2,7 +2,9 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { Activities } from "../../src/flows/Activities.ts"
 import { ActionRunner } from "../../src/flows/ActionRunner.ts"
+import { HomeLink } from "../../src/home/HomeLink.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
+import { Journal } from "../../src/journal/Journal.ts"
 import { type Integration, Integrations } from "../../src/integrations/Integration.ts"
 import { download, engineWith, ev, fixedFlows, playback } from "./helpers.ts"
 
@@ -18,6 +20,7 @@ describe("Live Activity buttons", () => {
     Layer.provide([
       fixedFlows([download, playback]),
       Layer.succeed(Integrations, [jellyfin]),
+      Journal.layer.pipe(Layer.provide(HomeLink.layer)),
       Layer.succeed(Hub, {
         apply: () => Effect.void,
         beat: Effect.void,

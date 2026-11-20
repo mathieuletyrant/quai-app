@@ -3,6 +3,8 @@ import { Context, Effect, Layer } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { Hub } from "../integrations/Hub.ts"
 import { Integrations } from "../integrations/Integration.ts"
+import { sourceOf } from "../journal/describe.ts"
+import { Journal } from "../journal/Journal.ts"
 import { Activities } from "./Activities.ts"
 import { FlowStore } from "./FlowStore.ts"
 
@@ -21,6 +23,7 @@ export class ActionRunner extends Context.Service<ActionRunner, {
       const flows = yield* FlowStore
       const integrations = yield* Integrations
       const hub = yield* Hub
+      const journal = yield* Journal
       return {
         run: (key, action) =>
           Effect.gen(function*() {
@@ -30,10 +33,18 @@ export class ActionRunner extends Context.Service<ActionRunner, {
             if (!(flow?.steps[activity.stepIndex]?.actions ?? []).includes(action)) {
               return yield* Effect.fail(new InvalidAction({ message: "This activity doesn't offer that button now." }))
             }
-            const service = actionCatalog.find((a) => a.type === action)!.service
+            const { service, label } = actionCatalog.find((a) => a.type === action)!
             const handler = integrations.find((i) => i.service === service)?.actions[action]
             if (handler === undefined) return yield* Effect.fail(new InvalidAction({ message: `${service} can't do that.` }))
-            yield* handler(activity)
+            yield* journal.outcome({
+              level: "info",
+              source: sourceOf(service),
+              kind: `action.${action}`,
+              text: `${label} pressed on ${activity.title}`,
+              subject: activity.subjectKey,
+              title: activity.title,
+              flowId: activity.flowId
+            }, handler(activity))
             yield* hub.refresh(service)
           })
       }

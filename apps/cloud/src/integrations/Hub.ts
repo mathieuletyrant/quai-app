@@ -1,15 +1,39 @@
-import type { HomeProtocol, ServiceName } from "@quai/api"
+import { HomeProtocol, journalSourceNames, type ServiceName } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schedule } from "effect"
 import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
-import { type HomeEvent, HomeLink } from "../home/HomeLink.ts"
+import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
+import { eventNote, type From } from "../journal/describe.ts"
+import { Journal } from "../journal/Journal.ts"
 import { Notifier } from "../push/Notifier.ts"
 import { HomeTime } from "../releases/HomeTime.ts"
 import { type Integration, Integrations, type WatchContext } from "./Integration.ts"
 
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
 export const heartbeat = "5 seconds"
+
+/** What the journal says when Quai Home links. */
+const linkedNote = (home: LinkedHome) => {
+  const services = home.services.length === 0 ? "no service" : home.services.map((s) => journalSourceNames[s]).join(", ")
+  return home.protocol < HomeProtocol.journalProtocolVersion
+    ? { level: "warn" as const, text: `Quai Home linked (${services}); it is too old to keep the journal: update it to keep the history` }
+    : { level: "info" as const, text: `Quai Home linked (${services})` }
+}
+
+/** The same event about the same title twice in a row (a poll that repeats it) is logged once. */
+const makeRepeats = () => {
+  const last = new Map<string, string>()
+  return (event: FlowEvent): boolean => {
+    const key = `${event.flowId ?? ""}|${event.subject?.key ?? ""}`
+    const what = `${event.type}|${event.downloadId ?? ""}`
+    if (last.get(key) === what) return true
+    last.delete(key)
+    last.set(key, what)
+    if (last.size > 1000) last.delete(last.keys().next().value!)
+    return false
+  }
+}
 
 interface Sent {
   /** The watch list as sent, to send it again only when it changes. */
@@ -40,11 +64,23 @@ export class Hub extends Context.Service<Hub, {
     const integrations = yield* Integrations
     const link = yield* HomeLink
     const time = yield* HomeTime
+    const journal = yield* Journal
     /** What Quai Home polls; null until sent to the home connected now. */
     let sent: Sent | null = null
+    const repeated = makeRepeats()
 
     const apply = (events: ReadonlyArray<FlowEvent>) =>
       Effect.forEach(events, (event) => Effect.flatMap(engine.handle(event), notifier.send), { discard: true })
+
+    /** Logs what the events of one service mean, then applies them. */
+    const applyFrom = (service: From, events: ReadonlyArray<FlowEvent>) =>
+      Effect.andThen(
+        Effect.forEach(events, (event) => {
+          const note = eventNote(event, service)
+          return note === null || repeated(event) ? Effect.void : journal.log(note)
+        }, { discard: true }),
+        apply(events)
+      )
 
     /** None while no home is connected. */
     const context: Effect.Effect<Option.Option<WatchContext>> = Effect.gen(function*() {
@@ -82,27 +118,32 @@ export class Hub extends Context.Service<Hub, {
     const sync = send(false)
 
     /** Runs one integration's reading, then what it means, then the watches it may change. */
-    const fromHome = (read: (ctx: WatchContext) => Effect.Effect<ReadonlyArray<FlowEvent>>) =>
+    const fromHome = (service: From, read: (ctx: WatchContext) => Effect.Effect<ReadonlyArray<FlowEvent>>) =>
       Effect.gen(function*() {
         const ctx = yield* context
         if (Option.isNone(ctx)) return
-        yield* apply(yield* read(ctx.value))
+        yield* applyFrom(service, yield* read(ctx.value))
         yield* sync
       })
 
     const handle = (event: HomeEvent): Effect.Effect<void> => {
       switch (event._tag) {
-        case "Ready":
+        case "Ready": {
           // A new connection: Quai Home starts with no watch.
           sent = null
-          return sync
+          const { level, text } = linkedNote(event.home)
+          return Effect.andThen(journal.log({ level, source: "home", kind: "home.linked", text }), sync)
+        }
         case "Gone":
-          return Effect.sync(() => (sent = null))
+          sent = null
+          return journal.log({ level: "warn", source: "home", kind: "home.offline", text: "Quai Home went offline: nothing can be read or pushed until it's back" })
+        case "Journal":
+          return journal.noted(event.entries)
         case "Snapshot": {
           const owner = sent?.owners.get(event.watchId)
           if (owner?.integration.watcher === undefined) return Effect.void
           const watcher = owner.integration.watcher
-          return fromHome((ctx) => watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx))
+          return fromHome(owner.integration.service, (ctx) => watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx))
         }
         case "WatchFailed": {
           const owner = sent?.owners.get(event.watchId)
@@ -110,14 +151,21 @@ export class Hub extends Context.Service<Hub, {
           if (owner === undefined || failed === undefined) {
             return Effect.logDebug(`Quai Home could not read ${event.watchId}: ${event.reason}`)
           }
-          return fromHome((ctx) => failed(owner.watch, event.reason, ctx))
+          return fromHome(owner.integration.service, (ctx) => failed(owner.watch, event.reason, ctx))
         }
         case "Webhook": {
           const webhook = integrations.find((i) => i.service === event.service)?.webhook
           if (webhook === undefined) return Effect.void
-          return fromHome(() =>
+          return fromHome(event.service, () =>
             webhook.read(event.body).pipe(
-              Effect.catchTag("SchemaError", () => Effect.as(Effect.logWarning(`${event.service} sent a webhook Quai can't read`), []))
+              Effect.catchTag("SchemaError", () =>
+                Effect.as(
+                  Effect.andThen(
+                    Effect.logWarning(`${event.service} sent a webhook Quai can't read`),
+                    journal.log({ level: "warn", source: event.service, kind: "webhook.unreadable", text: `${journalSourceNames[event.service]} sent a webhook Quai can't read` })
+                  ),
+                  []
+                ))
             ))
         }
       }
@@ -128,7 +176,7 @@ export class Hub extends Context.Service<Hub, {
       if (Option.isNone(ctx)) return
       for (const integration of integrations) {
         const tick = integration.watcher?.tick
-        if (tick !== undefined) yield* apply(yield* tick(ctx.value))
+        if (tick !== undefined) yield* applyFrom(integration.service, yield* tick(ctx.value))
       }
       yield* notifier.send(yield* engine.tick)
       yield* sync

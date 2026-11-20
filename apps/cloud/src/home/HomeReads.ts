@@ -1,6 +1,7 @@
-import { HomeOffline, type HomeProtocol } from "@quai/api"
+import { HomeOffline, type HomeProtocol, journalSourceNames } from "@quai/api"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { readJson } from "../integrations/Integration.ts"
+import { Journal } from "../journal/Journal.ts"
 import { type CallRequest, HomeLink, offlineMessage, toOffline } from "./HomeLink.ts"
 
 /** One GET to a service through Quai Home, and the schema of its body. */
@@ -50,7 +51,8 @@ type Outcome =
  * The calls Quai Cloud makes to the home's services through Quai Home, one policy for all: Quai
  * Home gone, or never there, is `HomeOffline` (503); a service that didn't answer as expected is
  * None for a read, logged once with its service and path (never what it answered), and a refusal
- * in words for a write.
+ * in words for a write. The journal gets a line when a service stops answering the reads (no
+ * answer, a 5xx, a body Quai can't read; not a 404) and one when it answers again.
  */
 export class HomeReads extends Context.Service<HomeReads, {
   /** The services the connected Quai Home reaches. */
@@ -83,6 +85,21 @@ export class HomeReads extends Context.Service<HomeReads, {
     HomeReads,
     Effect.gen(function*() {
       const link = yield* HomeLink
+      const journal = yield* Journal
+      /** The services whose last read failed. */
+      const failing = new Set<HomeProtocol.HomeService>()
+      const observed = (service: HomeProtocol.HomeService, failed: { readonly why: string; readonly path: string } | null) =>
+        Effect.suspend(() => {
+          const name = journalSourceNames[service]
+          if (failed === null) {
+            return failing.delete(service)
+              ? journal.log({ level: "info", source: service, kind: "service.available", text: `${name} answers Quai again` })
+              : Effect.void
+          }
+          if (failing.has(service)) return Effect.void
+          failing.add(service)
+          return journal.log({ level: "warn", source: service, kind: "service.unavailable", text: `${name} didn't answer Quai: ${failed.why} (${failed.path})` })
+        })
 
       const call = (request: CallRequest, options?: { readonly timeoutMs?: number }): Effect.Effect<Outcome, HomeOffline> =>
         link.call(request, options).pipe(
@@ -104,9 +121,14 @@ export class HomeReads extends Context.Service<HomeReads, {
             : answer.status >= 200 && answer.status < 300
             ? readJson(r.schema, answer.body)
             : Option.none<A>()
+          const path = r.path.split("?")[0]!
           if (Option.isNone(value)) {
             const why = answer._tag === "Failed" ? answer.message : answer.status >= 200 && answer.status < 300 ? "an answer Quai can't read" : `HTTP ${answer.status}`
-            yield* Effect.logWarning(`${r.service} ${r.path.split("?")[0]}: ${why}`)
+            yield* Effect.logWarning(`${r.service} ${path}: ${why}`)
+            // A 4xx says the service is there: what was asked isn't.
+            if (answer._tag === "Failed" || answer.status >= 500 || answer.status < 300) yield* observed(r.service, { why, path })
+          } else {
+            yield* observed(r.service, null)
           }
           return value
         })
