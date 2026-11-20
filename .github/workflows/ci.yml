@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
+      pushes: ${{ steps.filter.outputs.pushes }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -56,7 +57,67 @@ jobs:
               - 'apps/cloud/test/preview.ts'
               - 'apps/cloud/test/fixtures/**'
               - '.github/scripts/ios-screenshots.sh'
+              - '.github/scripts/pr-comment.sh'
               - '.github/workflows/ci.yml'
+            pushes:
+              - 'apps/cloud/src/flows/Activities.ts'
+              - 'apps/cloud/src/flows/Engine.ts'
+              - 'apps/cloud/src/flows/Targeting.ts'
+              - 'apps/cloud/src/push/Notifier.ts'
+              - 'apps/cloud/src/integrations/Hub.ts'
+              - '.claude/skills/verify/live-activity-pushes/**'
+              - '.github/scripts/pr-comment.sh'
+              - '.github/workflows/ci.yml'
+
+  # The verify skill's live-activity-pushes scenario: a TLA+ model of the order pushes reach the iPhone.
+  live-activity-pushes:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.pushes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/quai
+          key: tla2tools-${{ hashFiles('.claude/skills/verify/live-activity-pushes/verify.sh') }}
+      - name: Model-check
+        id: model
+        run: |
+          set +e
+          .claude/skills/verify/live-activity-pushes/verify.sh > model.txt 2>&1
+          code=$?
+          cat model.txt
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+      - name: Post the result
+        if: always() && steps.model.outputs.code != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.model.outputs.code }}
+        run: |
+          case "$CODE" in
+            0) verdict="✅ every result as expected: the code as it is keeps every invariant, the design before the fix still fails (the check can fail)." ;;
+            1) verdict="❌ a result changed (marked \`!!\`): read the counterexample below." ;;
+            *) verdict="⚠️ TLC didn't run." ;;
+          esac
+          {
+            echo "### 🔁 Live Activity pushes, model-checked (TLA+)"
+            echo
+            echo "$verdict at ${GITHUB_SHA:0:7} · [run](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) · [what it proves](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/.claude/skills/verify/live-activity-pushes/README.md)"
+            echo
+            echo '```'
+            grep -v "^Picked up" model.txt
+            echo '```'
+          } > model.md
+          cat model.md >> "$GITHUB_STEP_SUMMARY"
+          .github/scripts/pr-comment.sh "<!-- quai-live-activity-pushes -->" model.md ${{ github.event.pull_request.number }}
 
   # macOS minutes are billed: only when the app, the contract or the preview changes.
   ios:

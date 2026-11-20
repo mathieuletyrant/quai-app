@@ -14,6 +14,10 @@ the PR what each one showed.
 | [`ios/`](ios/README.md) | `apps/ios`, `packages/api`, `apps/cloud/test/fixtures`, `apps/cloud/test/preview.ts` | the generated Swift client fits the contract; the app builds, its tests pass, and its screens look right against a real Quai Cloud | `pnpm test`, then a push to `claude/**` (CI, ~10 min) |
 | [`live-activity-pushes/`](live-activity-pushes/README.md) | `apps/cloud/src/flows/Activities.ts`, `Engine.ts`, `Targeting.ts`, `apps/cloud/src/push/Notifier.ts`, `apps/cloud/src/integrations/Hub.ts` | the iPhone ends on what the engine has, whatever order the two fibers send in | `.claude/skills/verify/live-activity-pushes/verify.sh` (seconds, Java) |
 
+CI runs both when their files change (`ci.yml`: jobs `ios` and `live-activity-pushes`) and posts
+each one's proof as a comment on the PR, kept up to date (`.github/scripts/pr-comment.sh`): look
+at it before calling the PR done.
+
 A scenario that passes proves what its README says, under its bounds: not the rest. A green CI
 without the screenshots looked at, or a model whose sync commit is behind the code it covers, is
 not a proof yet.

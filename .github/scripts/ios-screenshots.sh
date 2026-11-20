@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Publishes the ios job's screenshots: commits them to the ios-screenshots branch (so a PR comment
-# can show them), writes them in the job summary, and keeps one comment on the PR up to date.
+# can show them), writes them in the job summary, and keeps one comment on the PR up to date
+# (pr-comment.sh).
 # Needs GH_TOKEN (contents and pull-requests: write), GITHUB_REPOSITORY, GITHUB_RUN_ID, GITHUB_SHA.
 # Usage: ios-screenshots.sh <folder of PNGs> [PR number]
 set -euo pipefail
@@ -39,7 +40,6 @@ done
 raw="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${branch}/${folder}"
 run="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 {
-  echo "$marker"
   echo "### 📱 iOS screenshots"
   echo
   echo "The app on the simulator, paired to the preview server (Quai Cloud + a fake Quai Home on the recorded fixtures), at ${GITHUB_SHA:0:7} · [run]($run)"
@@ -61,20 +61,8 @@ run="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
     n=$((count % 3))
     echo "$heads|"; echo "$(printf '|---%.0s' $(seq "$n"))|"; echo "$cells|"
   fi
-} > "$work/comment.md"
+} > "$work/body.md"
 
-cat "$work/comment.md" >> "$GITHUB_STEP_SUMMARY"
+cat "$work/body.md" >> "$GITHUB_STEP_SUMMARY"
 
-if [ -z "$pr" ]; then
-  pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "${GITHUB_REF_NAME}" --state open --json number --jq '.[0].number // empty' || true)
-fi
-[ -z "$pr" ] && { echo "No open PR: screenshots in the job summary only."; exit 0; }
-
-existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/$pr/comments" --paginate \
-  --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\")))][0].id // empty")
-if [ -n "$existing" ]; then
-  gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/$existing" -F body=@"$work/comment.md" > /dev/null
-else
-  gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/$pr/comments" -F body=@"$work/comment.md" > /dev/null
-fi
-echo "Screenshots posted on #$pr"
+"$(dirname "$0")/pr-comment.sh" "$marker" "$work/body.md" "$pr"
