@@ -10,3 +10,4 @@ filter:
     - devices
     - library
     - fixes
+    - requests

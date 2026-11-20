@@ -25,6 +25,9 @@ struct Tonight {
                 if !done { playing.append(activity) }
             case .service:
                 if !done { incidents.append(activity) }
+            case .request:
+                // Requests have their own tile, read from Seerr.
+                break
             case .media:
                 if done {
                     ready.append(activity)
@@ -67,14 +70,20 @@ struct HomeView: View {
                     NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
                         .buttonStyle(.plain)
                 }
+                if let requests = connection.requests?.items, !requests.isEmpty {
+                    NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
+                        .buttonStyle(.plain)
+                }
                 tiles(tonight)
             }
             .refreshable {
                 await connection.refresh()
                 await connection.loadFixes()
+                await connection.loadRequests()
             }
             // The To fix list asks Radarr, Sonarr and Reclaimerr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
+            .task { await connection.loadRequests() }
             .task {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
                 while !Task.isCancelled {
@@ -100,7 +109,7 @@ struct HomeView: View {
                 openActivity { DownloadsTile(top: first, others: tonight.downloading.count - 1) }
             }
             if !tonight.requested.isEmpty {
-                openActivity { RequestsTile(activities: tonight.requested) }
+                openActivity { OnTheirWayTile(activities: tonight.requested) }
             }
             HStack(alignment: .top, spacing: Metrics.tileSpacing) {
                 openActivity {
@@ -130,6 +139,62 @@ struct HomeView: View {
         let tile = content()
         return Button { tab = .activity } label: { tile }
             .buttonStyle(.plain)
+    }
+}
+
+/// Seerr's requests waiting for approval: the count, and the first ones with their posters.
+private struct PendingRequestsTile: View {
+    let requests: [Components.Schemas.MediaRequest]
+
+    /// "Asked by Julie" when one person asked for them all.
+    private var title: String {
+        let people = Set(requests.map(\.requester))
+        return people.count == 1 ? "Asked by \(requests[0].requester)" : "Requests"
+    }
+
+    var body: some View {
+        Tile {
+            HStack {
+                TileLabel(title: title, systemImage: "person.fill.questionmark", color: Palette.requests)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.tertiaryText)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(requests.count, format: .number)
+                    .font(QuaiFont.value)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.requests)
+                Text("to approve")
+                    .font(QuaiFont.headline)
+                    .foregroundStyle(Palette.primaryText)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(requests.prefix(3), id: \.id) { request in
+                    HStack(spacing: 10) {
+                        RequestPoster(request: request, width: 24)
+                        Text(request.title)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.primaryText)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(request.kind == .movie ? "movie" : "series")
+                            .font(QuaiFont.eyebrow)
+                            .foregroundStyle(Palette.requests)
+                    }
+                }
+                if requests.count > 3 {
+                    Text("and \(requests.count - 3) more")
+                        .font(QuaiFont.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .padding(.leading, 34)
+                }
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the requests to approve")
     }
 }
 
@@ -209,7 +274,7 @@ private struct DownloadsTile: View {
     }
 }
 
-private struct RequestsTile: View {
+private struct OnTheirWayTile: View {
     let activities: [RunningActivity]
 
     var body: some View {

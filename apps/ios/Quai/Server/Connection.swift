@@ -44,6 +44,9 @@ final class Connection {
     /// The To fix list, once loaded.
     private(set) var fixes: Components.Schemas.Fixes?
     private(set) var fixesError: String?
+    /// Seerr's requests waiting for approval, once loaded.
+    private(set) var requests: Components.Schemas.MediaRequests?
+    private(set) var requestsError: String?
     private var session: ServerSession?
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
@@ -120,6 +123,8 @@ final class Connection {
         libraryError = nil
         fixes = nil
         fixesError = nil
+        requests = nil
+        requestsError = nil
     }
 
     // MARK: Preferences
@@ -342,6 +347,62 @@ final class Connection {
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
         await didFix(fix)
+    }
+
+    // MARK: Requests
+
+    func loadRequests() async {
+        do {
+            let client = try await requiredClient()
+            switch try await client.listRequests() {
+            case let .ok(ok):
+                requests = try ok.body.json
+                requestsError = nil
+            case .unauthorized:
+                requestsError = "This iPhone was removed from the console. Pair it again."
+            case .serviceUnavailable:
+                requestsError = ConnectionError.homeOffline.localizedDescription
+            case let .undocumented(statusCode, _):
+                requestsError = ConnectionError.server(statusCode).localizedDescription
+            }
+        } catch {
+            requestsError = error.quaiMessage
+        }
+    }
+
+    /// Approves the request in Seerr: Radarr or Sonarr take it from there.
+    func approve(_ request: Components.Schemas.MediaRequest) async throws {
+        let client = try await requiredClient()
+        switch try await client.approveRequest(path: .init(id: String(request.id))) {
+        case .noContent: break
+        case .unauthorized: throw ConnectionError.server(401)
+        case .notFound: throw ConnectionError.fixGone
+        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Seerr refused")
+        case .serviceUnavailable: throw ConnectionError.homeOffline
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+        await didDecide(request)
+    }
+
+    func decline(_ request: Components.Schemas.MediaRequest) async throws {
+        let client = try await requiredClient()
+        switch try await client.declineRequest(path: .init(id: String(request.id))) {
+        case .noContent: break
+        case .unauthorized: throw ConnectionError.server(401)
+        case .notFound: throw ConnectionError.fixGone
+        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Seerr refused")
+        case .serviceUnavailable: throw ConnectionError.homeOffline
+        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
+        }
+        await didDecide(request)
+    }
+
+    /// Drops the decided request at once, then reads the list again.
+    private func didDecide(_ request: Components.Schemas.MediaRequest) async {
+        if let current = requests {
+            requests = .init(items: current.items.filter { $0.id != request.id }, status: current.status)
+        }
+        await loadRequests()
     }
 
     /// Drops the fixed problem at once, then reads the list again.

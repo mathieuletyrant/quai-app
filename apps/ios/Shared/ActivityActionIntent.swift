@@ -6,11 +6,15 @@ import Foundation
 enum ActivityAction: String, CaseIterable {
     case playPause = "playback.playPause"
     case stop = "playback.stop"
+    case approve = "request.approve"
+    case decline = "request.decline"
 
     func symbol(paused: Bool) -> String {
         switch self {
         case .playPause: paused ? "play.fill" : "pause.fill"
         case .stop: "stop.fill"
+        case .approve: "checkmark"
+        case .decline: "xmark"
         }
     }
 
@@ -18,6 +22,8 @@ enum ActivityAction: String, CaseIterable {
         switch self {
         case .playPause: "Play or pause"
         case .stop: "Stop"
+        case .approve: "Approve"
+        case .decline: "Decline"
         }
     }
 }
