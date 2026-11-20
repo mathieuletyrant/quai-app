@@ -80,7 +80,7 @@ const matches = (flow: Flow, subject: Subject) => {
  * Reaching the last step ends the activity. A one-step flow with an end event (playback) runs
  * until that event instead: its only step is where it starts.
  */
-const endsAtStep = (flow: Flow, index: number) =>
+export const endsAtStep = (flow: Flow, index: number) =>
   index === flow.steps.length - 1 && (flow.endOn === undefined || flow.steps.length > 1)
 
 const lookupOf = (subject: Subject) => subject.kind === "media" ? subject.lookup ?? null : null
