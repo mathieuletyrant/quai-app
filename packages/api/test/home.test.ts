@@ -112,3 +112,32 @@ describe("allowlist: the To fix list", () => {
     expect(HomeProtocol.allowRule({ service: "radarr", method: "GET", path: "/api/v3/queue" })?.timeoutSeconds).toBeUndefined()
   })
 })
+
+describe("allowlist: Seerr", () => {
+  const allowed = HomeProtocol.allowed
+
+  it("reads the status, the requests and the titles they ask for", () => {
+    for (const path of ["/api/v1/status", "/api/v1/request?take=50&skip=0&filter=pending&sort=added", "/api/v1/request/12", "/api/v1/movie/1022789", "/api/v1/tv/95396"]) {
+      expect(allowed({ service: "seerr", method: "GET", path })).toBe(true)
+    }
+  })
+
+  it("approves or declines one request, with no body", () => {
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(true)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/decline" })).toBe(true)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve", body: { is4k: true } })).toBe(false)
+  })
+
+  it("refuses every other write: creating, retrying or deleting a request, the settings, the users", () => {
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/retry" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/pending" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "DELETE", path: "/api/v1/request/12" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/../../settings/main/regenerate" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/notifications/webhook" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/settings/notifications/webhook", body: { enabled: true } })).toBe(false)
+    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/main" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user" })).toBe(false)
+    expect(allowed({ service: "radarr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(false)
+  })
+})

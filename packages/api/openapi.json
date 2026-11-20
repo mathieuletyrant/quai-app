@@ -1261,6 +1261,188 @@
         }
       }
     },
+    "/api/requests": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "listRequests",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "MediaRequests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaRequests"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/approve": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "approveRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/{id}/decline": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "declineRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/console-api/pairing-codes": {
       "post": {
         "tags": [
@@ -1990,6 +2172,146 @@
         }
       }
     },
+    "/console-api/requests": {
+      "get": {
+        "tags": [
+          "consoleRequests"
+        ],
+        "operationId": "consoleListRequests",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "MediaRequests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaRequests"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/requests/{id}/approve": {
+      "post": {
+        "tags": [
+          "consoleRequests"
+        ],
+        "operationId": "consoleApproveRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/requests/{id}/decline": {
+      "post": {
+        "tags": [
+          "consoleRequests"
+        ],
+        "operationId": "consoleDeclineRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/console-api/push-settings": {
       "get": {
         "tags": [
@@ -2492,7 +2814,10 @@
           "playback.progress",
           "playback.stopped",
           "service.down",
-          "service.up"
+          "service.up",
+          "request.pending",
+          "request.approved",
+          "request.declined"
         ]
       },
       "FlowStep": {
@@ -2535,7 +2860,9 @@
         "type": "string",
         "enum": [
           "playback.playPause",
-          "playback.stop"
+          "playback.stop",
+          "request.approve",
+          "request.decline"
         ]
       },
       "StepShow": {
@@ -2584,7 +2911,8 @@
         "enum": [
           "media",
           "playback",
-          "service"
+          "service",
+          "request"
         ]
       },
       "InvalidFlowEncoded": {
@@ -2637,6 +2965,7 @@
           "sonarr",
           "qbittorrent",
           "jellyfin",
+          "seerr",
           "quai"
         ]
       },
@@ -2710,6 +3039,109 @@
           "topic"
         ],
         "additionalProperties": false
+      },
+      "RequestFailedEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "RequestFailed"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "MediaRequests": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaRequest"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/RequestsStatus"
+          }
+        },
+        "required": [
+          "items",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "RequestsStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "unavailable",
+          "notConfigured"
+        ]
+      },
+      "MediaRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RequestKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "requester": {
+            "type": "string"
+          },
+          "requestedAt": {
+            "type": "number"
+          },
+          "seasons": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            }
+          },
+          "is4k": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "requester",
+          "seasons",
+          "is4k"
+        ],
+        "additionalProperties": false
+      },
+      "RequestKind": {
+        "type": "string",
+        "enum": [
+          "movie",
+          "series"
+        ]
       },
       "FixFailedEncoded": {
         "type": "object",
@@ -3765,10 +4197,16 @@
       "name": "fixes"
     },
     {
+      "name": "requests"
+    },
+    {
       "name": "console"
     },
     {
       "name": "consoleFixes"
+    },
+    {
+      "name": "consoleRequests"
     },
     {
       "name": "push"

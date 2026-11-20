@@ -1,7 +1,7 @@
 import { Schema } from "effect"
 
 /** What one activity follows. */
-export const FlowSubject = Schema.Literals(["media", "playback", "service"]).annotate({ identifier: "FlowSubject" })
+export const FlowSubject = Schema.Literals(["media", "playback", "service", "request"]).annotate({ identifier: "FlowSubject" })
 export type FlowSubject = typeof FlowSubject.Type
 
 /** The normalized events flows are built from (docs/flows.md, Event catalog). */
@@ -15,16 +15,19 @@ export const EventType = Schema.Literals([
   "playback.progress",
   "playback.stopped",
   "service.down",
-  "service.up"
+  "service.up",
+  "request.pending",
+  "request.approved",
+  "request.declined"
 ]).annotate({ identifier: "EventType" })
 export type EventType = typeof EventType.Type
 
 /** Where events come from and where actions go: one integration per service on the server. */
-export const ServiceName = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "quai"]).annotate({ identifier: "ServiceName" })
+export const ServiceName = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "quai"]).annotate({ identifier: "ServiceName" })
 export type ServiceName = typeof ServiceName.Type
 
 /** Buttons a step can offer on the Live Activity (docs/flows.md, Actions). */
-export const ActionType = Schema.Literals(["playback.playPause", "playback.stop"]).annotate({ identifier: "ActionType" })
+export const ActionType = Schema.Literals(["playback.playPause", "playback.stop", "request.approve", "request.decline"]).annotate({ identifier: "ActionType" })
 export type ActionType = typeof ActionType.Type
 
 /** Live values a step can display. */
@@ -52,7 +55,7 @@ export const FlowStep = Schema.Struct({
 export type FlowStep = typeof FlowStep.Type
 
 export const FlowFilter = Schema.Struct({
-  /** media flows: which titles. */
+  /** media and request flows: which titles. */
   mediaType: Schema.optionalKey(Schema.Literals(["any", "movie", "series"])),
   /** playback flows: Jellyfin device names; empty or absent: every device. */
   devices: Schema.optionalKey(Schema.Array(Schema.String))
@@ -70,8 +73,9 @@ export const Flow = Schema.Struct({
   filter: FlowFilter,
   steps: Schema.Array(FlowStep).check(Schema.isMinLength(1), Schema.isMaxLength(6)),
   /**
-   * An event that ends the activity where it is, without being a step (playback stopped). Without
-   * it, reaching the last step ends the activity.
+   * An event that ends the activity where it is, without being a step (playback stopped, a request
+   * declined). Reaching the last step ends the activity too, except in a one-step flow with an end
+   * event: it runs until that event (or expiry).
    */
   endOn: Schema.optionalKey(EventType),
   lingerMinutes: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 60 })),
