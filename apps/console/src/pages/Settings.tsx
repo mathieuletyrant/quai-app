@@ -1,7 +1,7 @@
 import type { Health } from "@quai/api"
 import { type ReactNode, useEffect, useState } from "react"
 import { call, useHome } from "../client.ts"
-import { Callout, Code, errorText, Mono, PageBar, PageBody, Panel, Row, Rows, Skeleton, Status } from "../ui.tsx"
+import { Callout, Code, errorText, Mono, PageBar, PageBody, Panel, Row, Rows, Skeleton, Status } from "../ui"
 
 interface PushStatus {
   readonly configured: boolean

@@ -1,7 +1,7 @@
 import type { DeviceId, Flow } from "@quai/api"
 import { useCallback, useEffect, useState } from "react"
 import { call, isHomeOffline, useHome } from "../../client.ts"
-import { Callout, errorText, HomeOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui.tsx"
+import { Callout, errorText, HomeOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui"
 import { type Catalogs, clone, type Draft, sameFlow, slug } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
 import { FlowSwitcher } from "./FlowSwitcher.tsx"

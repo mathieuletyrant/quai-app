@@ -26,7 +26,7 @@ import {
   Select,
   Skeleton,
   Toast
-} from "../ui.tsx"
+} from "../ui"
 
 const serviceName = { radarr: "Radarr", sonarr: "Sonarr", reclaimerr: "Reclaimerr" } as const
 

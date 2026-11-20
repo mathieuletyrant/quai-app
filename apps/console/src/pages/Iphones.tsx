@@ -19,7 +19,7 @@ import {
   PageBody,
   Panel,
   Status
-} from "../ui.tsx"
+} from "../ui"
 
 interface DeviceRow {
   readonly id: DeviceId

@@ -7,7 +7,7 @@ import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
 import { RequestsPage } from "./pages/Requests.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
-import { Button, cx, Icon, type IconName, Logo, StatusDot, type Tone } from "./ui.tsx"
+import { Button, cx, Icon, type IconName, Logo, StatusDot, type Tone } from "./ui"
 import "./styles.css"
 
 const pages = {

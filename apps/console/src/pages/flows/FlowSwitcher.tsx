@@ -1,5 +1,5 @@
 import type { Flow } from "@quai/api"
-import { Badge, Icon, MenuItem, MenuLabel, MenuSeparator, Popover } from "../../ui.tsx"
+import { Badge, Icon, MenuItem, MenuLabel, MenuSeparator, Popover } from "../../ui"
 import { type Draft, subjects } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 

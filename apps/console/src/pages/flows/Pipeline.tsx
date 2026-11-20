@@ -1,6 +1,6 @@
 import { type CatalogEvent, defaultStartsAt } from "@quai/api"
 import type { ReactNode } from "react"
-import { cx, Eyebrow, Icon } from "../../ui.tsx"
+import { cx, Eyebrow, Icon } from "../../ui"
 import { actionGlyph, actionLabels, type Draft, endsAtLastStep, eventName, serviceNames, showLabels, skippedFor, subjects } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 

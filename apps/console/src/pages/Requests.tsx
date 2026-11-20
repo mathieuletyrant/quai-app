@@ -1,7 +1,7 @@
 import type { MediaRequest, MediaRequests } from "@quai/api"
 import { useCallback, useEffect, useState } from "react"
 import { call, isHomeOffline, useHome } from "../client.ts"
-import { Badge, Button, Callout, EmptyState, errorText, HomeOfflineState, IconTile, type Notice, PageBar, PageBody, Panel, PosterThumb, Skeleton, Toast } from "../ui.tsx"
+import { Badge, Button, Callout, EmptyState, errorText, HomeOfflineState, IconTile, type Notice, PageBar, PageBody, Panel, PosterThumb, Skeleton, Toast } from "../ui"
 
 /** "Julie · Series · Seasons 1, 2 · 4K · 3 h ago" */
 const facts = (r: MediaRequest) => {

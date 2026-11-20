@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { InspectorSection, Segmented } from "../../ui.tsx"
+import { InspectorSection, Segmented } from "../../ui"
 import { actionGlyph, type Draft, endsAtLastStep } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 

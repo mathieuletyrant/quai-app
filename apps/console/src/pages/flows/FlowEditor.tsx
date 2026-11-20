@@ -1,6 +1,6 @@
 import { type DeviceId, flowProblem } from "@quai/api"
 import { type ReactNode, useState } from "react"
-import { Button, cx, Icon, IconButton, MenuItem, PageBar, Popover, Toggle, Workspace } from "../../ui.tsx"
+import { Button, cx, Icon, IconButton, MenuItem, PageBar, Popover, Toggle, Workspace } from "../../ui"
 import { type Catalogs, type Draft, newStep, stepActions, stepEvents } from "./draft.ts"
 import { EndPanel, FlowPanel, StepPanel } from "./Inspector.tsx"
 import { type Selection, Pipeline } from "./Pipeline.tsx"

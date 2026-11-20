@@ -1,5 +1,5 @@
 import { type CatalogAction, type CatalogEvent, defaultStartsAt, stepShows } from "@quai/api"
-import { Callout, Chip, Field, FieldLabel, IconButton, Input, InspectorSection as Section, Segmented, Select } from "../../ui.tsx"
+import { Callout, Chip, Field, FieldLabel, IconButton, Input, InspectorSection as Section, Segmented, Select } from "../../ui"
 import { type Draft, type DraftStep, eventName, type EventType, palette, serviceNames, showLabels, skippedFor } from "./draft.ts"
 import { IconPicker } from "./IconPicker.tsx"
 

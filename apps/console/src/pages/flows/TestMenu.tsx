@@ -1,6 +1,6 @@
 import type { DeviceId } from "@quai/api"
 import { useState } from "react"
-import { Button, MenuLabel, Popover } from "../../ui.tsx"
+import { Button, MenuLabel, Popover } from "../../ui"
 
 export interface Phone {
   readonly id: DeviceId
