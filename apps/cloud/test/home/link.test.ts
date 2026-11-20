@@ -93,9 +93,10 @@ describe("home link", () => {
     Effect.gen(function*() {
       const l = yield* HomeLink
       expect((yield* Effect.flip(l.call({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))).reason).toBe("offline")
+      // Not strict: the allowlist refusing `sonarr GET /x` is what this test checks.
       const home = yield* makeFakeHome({
-        answer: (call) =>
-          call.service === "radarr" ? { json: { version: "5" } } : call.service === "sonarr" ? { failed: "not allowed" } : { silent: true }
+        strict: false,
+        answer: (call) => call.service === "radarr" ? { json: { version: "5" } } : { silent: true }
       })
       yield* home.connect
       expect(yield* l.call({ service: "radarr", method: "GET", path: "/api/v3/system/status" })).toEqual({ status: 200, body: "{\"version\":\"5\"}" })
@@ -104,6 +105,7 @@ describe("home link", () => {
       yield* settle
       yield* TestClock.adjust("15 seconds")
       expect((yield* Fiber.join(waiting)).reason).toBe("timeout")
+      expect(home.notAllowed).toEqual(["sonarr GET /x"])
     }).pipe(Effect.provide(link)))
 
   it.effect("snapshots, failed watches and webhooks become events; a disconnect is Gone and stops writes", () =>

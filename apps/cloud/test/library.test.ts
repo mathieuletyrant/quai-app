@@ -7,19 +7,18 @@ import { Activities } from "../src/flows/Activities.ts"
 import { decodeSonarrWebhook, librarySeries, SonarrSeries, sonarrEvents } from "../src/integrations/sonarr.ts"
 import { DiskSpaces, libraryMovie, mediaDisk, RadarrMovies } from "../src/integrations/radarr.ts"
 import { Schema } from "effect"
-import { makeFakeHome, type FakeHomeOptions } from "./fakeHome.ts"
+import { type FakeHomeOptions, makeFakeHome, recordedHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp } from "./testApp.ts"
 
 const iphone = { name: "iPhone", apnsEnvironment: "development" as const }
 
-const recorded: FakeHomeOptions["answer"] = (call) => {
-  const path = call.path.split("?")[0]
-  if (call.service === "radarr" && path === "/api/v3/movie") return { json: fixture("radarr/movies.json") }
-  if (call.service === "radarr" && path === "/api/v3/diskspace") return { json: fixture("radarr/diskspace.json") }
-  if (call.service === "sonarr" && path === "/api/v3/series") return { json: fixture("sonarr/series.json") }
-  return { status: 404 }
+const routes = {
+  "radarr GET /api/v3/movie": "radarr/movies.json",
+  "radarr GET /api/v3/diskspace": "radarr/diskspace.json",
+  "sonarr GET /api/v3/series": "sonarr/series.json"
 }
+const recorded = recordedHome(routes)
 
 /** Connects a fake home, pairs an iPhone, and returns its signed-in client. */
 const phoneOn = (options: FakeHomeOptions) =>
@@ -137,7 +136,7 @@ describe("GET /api/library", () => {
   it.effect("a service that doesn't answer is unavailable; the others still show", () =>
     Effect.gen(function*() {
       const { api } = yield* phoneOn({
-        answer: (call) => call.service === "sonarr" ? { failed: "sonarr is not configured" } : recorded(call)
+        answer: recordedHome(routes, { "sonarr GET /api/v3/series": { failed: "sonarr is not configured" } })
       })
       const library = yield* api.library.library()
       expect(library.unavailable).toEqual(["sonarr"])
@@ -148,7 +147,7 @@ describe("GET /api/library", () => {
     Effect.gen(function*() {
       const { home, api } = yield* phoneOn({
         services: ["sonarr", "qbittorrent"],
-        answer: (call) => call.path === "/api/v3/diskspace" ? { json: fixture("radarr/diskspace.json") } : recorded(call)
+        answer: recordedHome(routes, { "sonarr GET /api/v3/diskspace": "radarr/diskspace.json" })
       })
       const library = yield* api.library.library()
       expect(library.items.map((i) => i.id)).toEqual(["series:3", "series:7"])

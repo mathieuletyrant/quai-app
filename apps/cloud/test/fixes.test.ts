@@ -11,7 +11,7 @@ import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
 import { blockedMovie, moviesWithoutSource, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
 import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
 import { blockedEpisodes, episodesWithoutSource, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
-import { type FakeHome, type FakeHomeOptions, makeFakeHome } from "./fakeHome.ts"
+import { type FakeHome, type FakeHomeOptions, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp } from "./testApp.ts"
 
@@ -39,30 +39,28 @@ const moviesWithCandidates = (): ReadonlyArray<unknown> => {
   return [...movies, like(142, "Up", 2009, 2042, upPoster), like(143, "Cars 2", 2011, 99999, carsPoster)]
 }
 
-/** Quai Home answering from the recordings; `overrides` win (a route set to null answers 404). */
-const recorded = (overrides: Record<string, FakeHomeOptions["answer"] | undefined> = {}): NonNullable<FakeHomeOptions["answer"]> => (call) => {
-  const path = call.path.split("?")[0]!
-  const route = `${call.service} ${call.method} ${path}`
-  const override = overrides[route]
-  if (override !== undefined) return override(call)
-  const files: Record<string, string> = {
-    "radarr GET /api/v3/queue": "radarr/queue.json",
-    "radarr GET /api/v3/wanted/missing": "radarr/wanted-missing.json",
-    "radarr GET /api/v3/history/since": "radarr/history-since.json",
-    "radarr GET /api/v3/release": "radarr/release.json",
-    "radarr GET /api/v3/manualimport": "radarr/manualimport.json",
-    "sonarr GET /api/v3/queue": "sonarr/queue.json",
-    "sonarr GET /api/v3/wanted/missing": "sonarr/wanted-missing.json",
-    "sonarr GET /api/v3/history/since": "sonarr/history-since.json",
-    "sonarr GET /api/v3/release": "sonarr/release.json",
-    "sonarr GET /api/v3/manualimport": "sonarr/manualimport.json",
-    "sonarr GET /api/v3/episode": "sonarr/episodes.json",
-    "reclaimerr GET /api/v1/candidates": "reclaimerr/candidates.json"
-  }
-  if (files[route] !== undefined) return { json: fixture(files[route]) }
-  if (call.method === "POST" || call.method === "DELETE") return { status: call.path.includes("/command") ? 201 : 200, json: {} }
-  return { status: 404 }
+/** The To fix reads, and every write accepted. */
+const routes: Readonly<Record<string, Recording>> = {
+  "radarr GET /api/v3/queue": "radarr/queue.json",
+  "radarr GET /api/v3/wanted/missing": "radarr/wanted-missing.json",
+  "radarr GET /api/v3/history/since": "radarr/history-since.json",
+  "radarr GET /api/v3/release": "radarr/release.json",
+  "radarr GET /api/v3/manualimport": "radarr/manualimport.json",
+  "sonarr GET /api/v3/queue": "sonarr/queue.json",
+  "sonarr GET /api/v3/wanted/missing": "sonarr/wanted-missing.json",
+  "sonarr GET /api/v3/history/since": "sonarr/history-since.json",
+  "sonarr GET /api/v3/release": "sonarr/release.json",
+  "sonarr GET /api/v3/manualimport": "sonarr/manualimport.json",
+  "sonarr GET /api/v3/episode": "sonarr/episodes.json",
+  "reclaimerr GET /api/v1/candidates": "reclaimerr/candidates.json",
+  "radarr DELETE /api/v3/queue/41": { json: {} },
+  "sonarr DELETE /api/v3/queue/7": { json: {} },
+  "radarr POST /api/v3/release": { json: {} },
+  "radarr POST /api/v3/command": { status: 201, json: {} },
+  "sonarr POST /api/v3/command": { status: 201, json: {} },
+  "reclaimerr POST /api/v1/candidates/42/protect": { json: {} }
 }
+const recorded = (overrides: Readonly<Record<string, Recording>> = {}) => recordedHome(routes, overrides)
 
 const services = ["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr"] as const
 

@@ -22,7 +22,7 @@ import { Hub } from "../../src/integrations/Hub.ts"
 import { HomeError, HomeLink, offlineMessage } from "../../src/home/HomeLink.ts"
 import { Requests } from "../../src/requests/Requests.ts"
 import { Integrations } from "../../src/integrations/Integration.ts"
-import { cloudLive, type FakeHomeOptions, makeFakeHome, settle } from "../fakeHome.ts"
+import { cloudLive, type FakeHomeOptions, makeFakeHome, recordedHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp } from "../testApp.ts"
 
@@ -32,20 +32,19 @@ const services = ["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr"] as con
 const webhookEvents = (name: string) => Effect.map(decodeSeerrWebhook(fixture(`seerr/${name}.json`)), seerrEvents)
 
 /** Quai Home answering from the recordings: the pending list, the titles, and request 12 as `request12`. */
-const seerrAnswers = (state: { request12: "pending" | "approved" | "gone"; pending: ReadonlyArray<number> }): NonNullable<FakeHomeOptions["answer"]> => (call) => {
-  if (call.service !== "seerr") return { status: 404 }
-  const path = call.path.split("?")[0]!
+const seerrAnswers = (state: { request12: "pending" | "approved" | "gone"; pending: ReadonlyArray<number> }) => {
   const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
-  if (call.method === "POST") return { json: fixture("seerr/request-approved.json") }
-  if (path === "/api/v1/request") return { json: { ...page, results: page.results.filter((r) => state.pending.includes(r.id)) } }
-  if (path === "/api/v1/request/12") {
-    return state.request12 === "gone"
-      ? { status: 404, json: { message: "Request not found." } }
-      : { json: state.request12 === "approved" ? fixture("seerr/request-approved.json") : page.results[0] }
-  }
-  if (path === "/api/v1/movie/516729") return { json: fixture("seerr/movie.json") }
-  if (path === "/api/v1/tv/95396") return { json: fixture("seerr/tv.json") }
-  return { status: 404 }
+  return recordedHome({
+    "seerr GET /api/v1/request": () => ({ json: { ...page, results: page.results.filter((r) => state.pending.includes(r.id)) } }),
+    "seerr GET /api/v1/request/12": () =>
+      state.request12 === "gone"
+        ? { status: 404, json: { message: "Request not found." } }
+        : { json: state.request12 === "approved" ? fixture("seerr/request-approved.json") : page.results[0] },
+    "seerr GET /api/v1/movie/516729": "seerr/movie.json",
+    "seerr GET /api/v1/tv/95396": "seerr/tv.json",
+    "seerr POST /api/v1/request/12/approve": "seerr/request-approved.json",
+    "seerr POST /api/v1/request/12/decline": "seerr/request-approved.json"
+  })
 }
 
 const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))

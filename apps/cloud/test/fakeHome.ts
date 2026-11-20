@@ -11,9 +11,18 @@ import { IntegrationsLive } from "../src/integrations/All.ts"
 import type { Integrations } from "../src/integrations/Integration.ts"
 import { Notifier } from "../src/push/Notifier.ts"
 import { HomeTime } from "../src/releases/HomeTime.ts"
+import { fixture } from "./fixtures.ts"
 
 type Call = typeof HomeProtocol.Call.Type
-type Answer = { readonly status?: number; readonly body?: string; readonly json?: unknown } | { readonly failed: string } | { readonly silent: true }
+/**
+ * How the fake Home answers a call: a response, a failure, nothing at all (a timeout), or the
+ * connection dropped while the call is in flight.
+ */
+export type Answer =
+  | { readonly status?: number; readonly body?: string; readonly json?: unknown }
+  | { readonly failed: string }
+  | { readonly silent: true }
+  | { readonly drop: true }
 
 const close = Symbol("close")
 
@@ -21,8 +30,17 @@ const close = Symbol("close")
 export const settle = Effect.repeat(Effect.yieldNow, { times: 50 })
 
 export interface FakeHomeOptions {
-  /** Answers the calls (and nothing else): a recorded response, or a failure. Default: 404. */
+  /**
+   * Answers the calls the allowlist lets through (and nothing else): a recorded response, or a
+   * failure. Default: 404. See `recordedHome`.
+   */
   readonly answer?: (call: Call) => Answer
+  /**
+   * Strict (the default): a call or a watch the real allowlist refuses fails the test, at the end
+   * of its scope, as well as being answered `Failed "not allowed"` like Quai Home does. Off for the
+   * tests of a refusal itself.
+   */
+  readonly strict?: boolean
   readonly services?: ReadonlyArray<HomeProtocol.HomeService>
   readonly protocol?: number
   /** Signs with another key than the one in Hello. */
@@ -33,13 +51,59 @@ export interface FakeHomeOptions {
   readonly deaf?: boolean
 }
 
+/** A route of a recorded Home: `"radarr GET /api/v3/queue"`, the path without its query. */
+export const routeOf = (call: Pick<Call, "service" | "method" | "path">) => `${call.service} ${call.method} ${call.path.split("?")[0]}`
+
+/** What a route answers: a fixture file (`"radarr/queue.json"`), an answer, or a function of the call. */
+export type Recording = string | Answer | ((call: Call) => Answer)
+
 /**
- * Quai Home, in memory: it says Hello with a real Ed25519 key and proves it, answers calls from
- * recorded responses, keeps the home documents in a Map (that outlives connections, like its disk),
- * and lets a test push webhooks and snapshots. Talks to the real HomeLink through an in-memory socket.
+ * Quai Home answering from recordings: each route (`routeOf`) to what it answers; `overrides` win
+ * over `routes`. Any other route answers 404.
+ */
+export const recordedHome = (
+  routes: Readonly<Record<string, Recording>>,
+  overrides: Readonly<Record<string, Recording>> = {}
+) =>
+(call: Call): Answer => {
+  const route = routeOf(call)
+  const recording = Object.hasOwn(overrides, route) ? overrides[route] : routes[route]
+  if (recording === undefined) return { status: 404 }
+  if (typeof recording === "string") return { json: fixture(recording) }
+  return typeof recording === "function" ? recording(call) : recording
+}
+
+/**
+ * The protocol a Home first allowed this call in: an older Home refuses it as not allowed
+ * (`HomeProtocol.minProtocolVersion`). Protocol 2 added Reclaimerr and `DELETE`, protocol 3 Seerr
+ * and the calendars.
+ */
+const allowedSince = (call: Pick<Call, "service" | "method" | "path">): number =>
+  call.service === "seerr" || /\/calendar$/.test(call.path.split("?")[0]!)
+    ? 3
+    : call.service === "reclaimerr" || call.method === "DELETE"
+    ? 2
+    : 1
+
+/**
+ * Quai Home, in memory: it says Hello with a real Ed25519 key and proves it, lets through only what
+ * the real allowlist (`HomeProtocol.allowRule`, at its protocol) allows, answers calls from recorded
+ * responses, keeps the home documents in a Map (that outlives connections, like its disk), and
+ * lets a test push webhooks and snapshots. Talks to the real HomeLink through an in-memory socket.
  */
 export const makeFakeHome = (options: FakeHomeOptions = {}) =>
   Effect.gen(function*() {
+    const protocol = options.protocol ?? HomeProtocol.protocolVersion
+    /** What the allowlist refused, as `routeOf` (and the watch id for a watch). */
+    const notAllowed: Array<string> = []
+    const allows = (request: Parameters<typeof HomeProtocol.allowRule>[0]) =>
+      HomeProtocol.allowRule(request) !== undefined && allowedSince(request) <= protocol
+    if (options.strict ?? true) {
+      yield* Effect.addFinalizer(() =>
+        notAllowed.length === 0
+          ? Effect.void
+          : Effect.die(new Error(`the fake Quai Home refused what the allowlist doesn't allow: ${notAllowed.join(", ")}`)))
+    }
     const privateKey = options.privateKey ?? generateKeyPairSync("ed25519").privateKey
     const otherKey = generateKeyPairSync("ed25519").privateKey
     const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
@@ -72,13 +136,27 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           return options.deaf === true ? null : HomeProtocol.Pong.make({ at: message.at })
         case "Call": {
           calls.push(message)
+          if (!allows(message)) {
+            notAllowed.push(routeOf(message))
+            return HomeProtocol.Failed.make({ id: message.id, reason: "not allowed" })
+          }
           const answer = options.answer?.(message) ?? { status: 404, body: "" }
           if ("silent" in answer) return null
+          if ("drop" in answer) {
+            if (state.toCloud !== null) Queue.offerUnsafe(state.toCloud, close)
+            state.toCloud = null
+            state.watches = []
+            return null
+          }
           if ("failed" in answer) return HomeProtocol.Failed.make({ id: message.id, reason: answer.failed })
           const body = answer.body ?? (answer.json === undefined ? "" : JSON.stringify(answer.json))
           return HomeProtocol.CallResponse.make({ id: message.id, status: answer.status ?? 200, body })
         }
         case "SetWatches":
+          // Quai Home answers a watch it refuses with Failed under the watch's id, and never polls it.
+          for (const watch of message.watches) {
+            if (!allows({ service: watch.service, method: "GET", path: watch.path })) notAllowed.push(`watch ${watch.id}: ${watch.service} GET ${watch.path.split("?")[0]}`)
+          }
           state.watches = message.watches
           return null
         case "StoreList":
@@ -142,6 +220,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       documents,
       calls,
       received,
+      /** What the allowlist refused (calls as `routeOf`, and watches). */
+      notAllowed,
       state,
       /** Connects and waits until the Cloud loaded the home. */
       connect: Effect.gen(function*() {
