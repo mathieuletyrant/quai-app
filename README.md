@@ -14,7 +14,7 @@
 
 </div>
 
-<p align="center"><img src="docs/live-activities.png" width="720" alt="Download, Jellyfin playback, a Seerr request and tonight's releases as Live Activities" /></p>
+<p align="center"><img src="docs/live-activities.png" width="720" alt="Download, Jellyfin playback, a Seerr request and today's releases as Live Activities" /></p>
 
 You request a movie. Quai puts it on your Lock Screen and in the Dynamic Island, and keeps it up
 to date while the app is closed: searching, downloading (percent, speed, time left), importing,
@@ -29,13 +29,14 @@ ready to watch.
 - ⬇️ **Download**: from the request to "ready to watch", with live progress from qBittorrent.
 - ▶️ **Playback**: what's playing on Jellyfin, time left, and Play/Pause from the Lock Screen.
 - 🙋 **Requests**: a Seerr request waiting for your approval, with Approve and Decline buttons.
-- 📅 **Tonight**: one activity for the evening, ticking off today's episodes and movies as they arrive.
+- 📅 **Today**: one activity for the day, ticking off today's episodes and movies as they arrive.
 - 🚨 **Incidents**: a service that stops answering.
 
 You choose which ones run, and what each step shows, in a small flow editor in the web console.
+The app is for living with Quai, the console for setting it up: services, flows and iPhones.
 
 **The app**
-- 🏠 **Home**: what's downloading, what's ready, tonight's releases, requests waiting for you.
+- 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you.
 - 🎞️ **Library**: your movies and series with their posters, and what's still missing.
 - 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
   one), and what Reclaimerr is about to delete (keep it).
@@ -130,7 +131,7 @@ A service without its URL and key is skipped.
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The app's bundle id |
 | `QUAI_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
 | `QUAI_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
-| `QUAI_TZ` | `UTC` | Time zone for "tonight", until an iPhone reports its own |
+| `QUAI_TZ` | `UTC` | Time zone for "today", until an iPhone reports its own |
 | `QUAI_HOME_ID` | | The only Quai Home served (the id it logs as `linked as home …`); any other is refused ([docs](docs/proxy.md#quai_home_id)) |
 
 </details>

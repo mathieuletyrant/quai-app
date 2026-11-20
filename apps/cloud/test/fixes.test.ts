@@ -70,13 +70,13 @@ const setUp = (options: FakeHomeOptions = {}) =>
     yield* TestClock.setTime(now)
     const home = yield* makeFakeHome({ services, answer: recorded(), ...options })
     yield* home.connect
-    const console = yield* HttpApiTest.groups(QuaiApi, ["console", "consoleFixes"])
+    const console = yield* HttpApiTest.groups(QuaiApi, ["console"])
     const qr = yield* console.console.createPairingCode({ payload: { serverUrls: [] } })
     const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
     const api = yield* HttpApiTest.groups(QuaiApi, ["fixes"]).pipe(
       Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
     )
-    return { home, api: api.fixes, console: console.consoleFixes }
+    return { home, api: api.fixes }
   })
 
 const writes = (home: FakeHome) =>
@@ -277,12 +277,12 @@ describe("GET /api/fixes", () => {
       expect(list.items.some((f) => f.service === "radarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
-  it.effect("needs the iPhone's token; the console's route doesn't", () =>
+  it.effect("needs the iPhone's token", () =>
     Effect.gen(function*() {
-      const { console } = yield* setUp()
+      const { api } = yield* setUp()
       const anonymous = yield* HttpApiTest.groups(QuaiApi, ["fixes"])
       expect(Exit.isFailure(yield* Effect.exit(anonymous.fixes.list()))).toBe(true)
-      expect((yield* console.list()).items).toHaveLength(8)
+      expect((yield* api.list()).items).toHaveLength(8)
     }).pipe(Effect.provide(TestApp)))
 })
 

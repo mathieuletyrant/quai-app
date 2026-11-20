@@ -56,7 +56,7 @@ struct PairingLinkTests {
     }
 }
 
-struct TonightTests {
+struct TodayTests {
     private func activity(_ flowId: String, _ title: String, tone: String = "active", progress: Double? = nil) throws -> RunningActivity {
         let progressField = progress.map { #","progress":\#($0)"# } ?? ""
         let json = """
@@ -68,7 +68,7 @@ struct TonightTests {
     }
 
     @Test func groupsActivitiesByWhatTheyFollow() throws {
-        let tonight = try Tonight([
+        let today = try Today([
             activity("download", "Dune", progress: 0.2),
             activity("download", "Runner", progress: 0.6),
             activity("download", "Nero"),
@@ -77,18 +77,18 @@ struct TonightTests {
             activity("incident", "Radarr"),
             activity("incident", "Sonarr", tone: "done"),
         ], subjects: ["download": .media, "playback": .playback, "incident": .service])
-        #expect(tonight.downloading.map(\.attributes.title) == ["Runner", "Dune"])
-        #expect(tonight.requested.map(\.attributes.title) == ["Nero"])
-        #expect(tonight.ready.map(\.attributes.title) == ["Severance"])
-        #expect(tonight.playing.map(\.attributes.title) == ["The Bear"])
-        #expect(tonight.incidents.map(\.attributes.title) == ["Radarr"])
-        #expect(!tonight.isEmpty)
+        #expect(today.downloading.map(\.attributes.title) == ["Runner", "Dune"])
+        #expect(today.requested.map(\.attributes.title) == ["Nero"])
+        #expect(today.ready.map(\.attributes.title) == ["Severance"])
+        #expect(today.playing.map(\.attributes.title) == ["The Bear"])
+        #expect(today.incidents.map(\.attributes.title) == ["Radarr"])
+        #expect(!today.isEmpty)
     }
 
     @Test func anUnknownFlowIsMediaAndNothingIsEmpty() throws {
-        #expect(Tonight([], subjects: [:]).isEmpty)
-        let tonight = try Tonight([activity("anime", "Frieren")], subjects: [:])
-        #expect(tonight.requested.count == 1)
+        #expect(Today([], subjects: [:]).isEmpty)
+        let today = try Today([activity("anime", "Frieren")], subjects: [:])
+        #expect(today.requested.count == 1)
     }
 }
 

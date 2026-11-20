@@ -12,7 +12,7 @@ import {
   type DayValue,
   startsAt,
   summary
-} from "../releases/Tonight.ts"
+} from "../releases/Today.ts"
 import { anyEnabledFlow, type Integration, readSnapshot, type WatchContext, watchOf } from "./Integration.ts"
 
 /** One activity for the day: `day:2026-11-20`. */
@@ -39,7 +39,7 @@ const dayActivities = (context: WatchContext) => {
   return context.running.filter((a) => ids.has(a.flowId))
 }
 
-const subjectOf = (day: string): Subject => ({ kind: "day", key: dayKey(day), title: "Tonight" })
+const subjectOf = (day: string): Subject => ({ kind: "day", key: dayKey(day), title: "Today" })
 
 /** The watches of the day: its reads (`dayReads`), in the home's day. */
 export const calendarWatches = (context: WatchContext): ReadonlyArray<HomeProtocol.Watch> => {
@@ -93,7 +93,7 @@ export const dayEvents = (context: WatchContext, releases: ReadonlyArray<DayRele
 }
 
 /**
- * Tonight's releases, from Sonarr's and Radarr's calendars and queues, polled by Quai Home while
+ * Today's releases, from Sonarr's and Radarr's calendars and queues, polled by Quai Home while
  * a day flow is on. What each read said is kept in memory for the day (and dropped when the day,
  * so the watched path, changes); the heartbeat starts the activity when its time comes and ends it
  * at midnight. Never grabs anything.

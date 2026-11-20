@@ -8,8 +8,6 @@ export interface NavItem {
   readonly id: string
   readonly label: string
   readonly icon: IconName
-  /** A count beside the label (things to fix); nothing when zero or unknown. */
-  readonly count?: number | null
 }
 
 function NavLink({ item, current, onNavigate }: { item: NavItem; current: boolean; onNavigate?: (() => void) | undefined }) {
@@ -25,13 +23,8 @@ function NavLink({ item, current, onNavigate }: { item: NavItem; current: boolea
     >
       <Icon name={item.icon} size={17} className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"} />
       {item.label}
-      {item.count != null && item.count > 0 && <NavCount count={item.count} />}
     </a>
   )
-}
-
-function NavCount({ count }: { count: number }) {
-  return <span className="ml-auto rounded-md bg-fix-soft px-1.5 py-0.5 text-mini font-semibold text-fix-text tabular-nums">{count}</span>
 }
 
 /** The console's destinations, one per line, the current one highlighted: in the sidebar and the phone menu. */

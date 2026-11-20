@@ -40,7 +40,7 @@ export const DayReleases = Schema.Struct({
 }).annotate({ identifier: "DayReleases" })
 export type DayReleases = typeof DayReleases.Type
 
-/** Today's releases, for the app's Tonight tile. Read only: Quai never grabs anything for them. */
+/** Today's releases, for the app's Today tile. Read only: Quai never grabs anything for them. */
 export class ReleasesGroup extends HttpApiGroup.make("releases")
   .add(HttpApiEndpoint.get("today", "/releases/today", { success: DayReleases }).annotate(OpenApi.Identifier, "getTodayReleases"))
   .middleware(DeviceAuth)

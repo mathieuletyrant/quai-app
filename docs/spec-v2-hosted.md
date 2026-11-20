@@ -127,7 +127,7 @@ that self-hosts the Cloud.
   the Home when the app asks, never kept. The To fix list adds, the same way, the queue's blocked
   downloads, the titles without a file, release names from the indexers and Reclaimerr's planned
   deletions. The Requests tile and flow add Seerr's pending requests (titles, posters, who asked);
-  Tonight's releases, the day's calendar of Sonarr and Radarr. The iPhones' time zone is kept at
+  Today's releases, the day's calendar of Sonarr and Radarr. The iPhones' time zone is kept at
   home, on their device documents.
 - **Home ↔ cloud:** TLS, one token per Home, issued at linking, revocable from the console.
 - **App ↔ Cloud:** the device token the Home issued at pairing, checked against the Home.

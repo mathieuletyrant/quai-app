@@ -18,7 +18,7 @@ struct QuaiActivityAttributes: ActivityAttributes {
         case active, stalled, done
     }
 
-    /// One line of a step showing a list (tonight's releases).
+    /// One line of a step showing a list (today's releases).
     struct Item: Codable, Hashable {
         /// "Severance S02E03"
         var title: String

@@ -19,18 +19,3 @@ export const FixesHandlers = HttpApiBuilder.group(QuaiApi, "fixes", (handlers) =
       .handle("grab", ({ params, payload }) => fixes.grab(params.id, payload))
   }))
 
-/** The same list for the console's To fix page: `/console-api/fixes`. */
-export const ConsoleFixesHandlers = HttpApiBuilder.group(QuaiApi, "consoleFixes", (handlers) =>
-  Effect.gen(function*() {
-    const fixes = yield* Fixes
-    return handlers
-      .handle("list", () => fixes.list)
-      .handle("remove", ({ params, payload }) => fixes.remove(params.id, payload.blocklist))
-      .handle("importPreview", ({ params }) => fixes.importPreview(params.id))
-      .handle("import", ({ params, payload }) => fixes.importDownload(params.id, payload.assignments))
-      .handle("keep", ({ params }) => fixes.keep(params.id))
-      .handle("dismiss", ({ params }) => fixes.dismiss(params.id))
-      .handle("snooze", ({ params, payload }) => fixes.snooze(params.id, payload.days))
-      .handle("releases", ({ params }) => fixes.releases(params.id))
-      .handle("grab", ({ params, payload }) => fixes.grab(params.id, payload))
-  }))

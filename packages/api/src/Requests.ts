@@ -49,24 +49,16 @@ export class RequestFailed extends Schema.TaggedError<RequestFailed>()("RequestF
 
 const id = { id: Schema.String }
 
-const endpoints = (operation: (name: string) => string) =>
-  [
-    HttpApiEndpoint.get("list", "/requests", { success: MediaRequests }).annotate(OpenApi.Identifier, operation("listRequests")),
-    HttpApiEndpoint.post("approve", "/requests/:id/approve", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, operation("approveRequest")),
-    HttpApiEndpoint.post("decline", "/requests/:id/decline", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, operation("declineRequest"))
-  ] as const
-
 /** Seerr's requests waiting for approval, for the app's Requests tile and screen. */
 export class RequestsGroup extends HttpApiGroup.make("requests")
-  .add(...endpoints((name) => name))
+  .add(
+    HttpApiEndpoint.get("list", "/requests", { success: MediaRequests }).annotate(OpenApi.Identifier, "listRequests"),
+    HttpApiEndpoint.post("approve", "/requests/:id/approve", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "approveRequest"),
+    HttpApiEndpoint.post("decline", "/requests/:id/decline", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "declineRequest")
+  )
   .middleware(DeviceAuth)
   .middleware(HomeRequired)
   .prefix("/api") {}
 
-/** The same, for the console's Requests page. */
-export class ConsoleRequestsGroup extends HttpApiGroup.make("consoleRequests")
-  .add(...endpoints((name) => `console${name[0]!.toUpperCase()}${name.slice(1)}`))
-  .middleware(HomeRequired)
-  .prefix("/console-api") {}

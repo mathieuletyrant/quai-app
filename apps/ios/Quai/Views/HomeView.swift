@@ -2,8 +2,8 @@ import SwiftUI
 
 typealias RunningActivity = Components.Schemas.RunningActivity
 
-/// What's going on tonight, from the running activities, grouped the way the Home tiles show them.
-struct Tonight {
+/// What's going on today, from the running activities, grouped the way the Home tiles show them.
+struct Today {
     var downloading: [RunningActivity] = []
     /// Titles on their way: searched for, or importing.
     var requested: [RunningActivity] = []
@@ -26,7 +26,7 @@ struct Tonight {
             case .service:
                 if !done { incidents.append(activity) }
             case .request, .day:
-                // Requests and tonight's releases have their own tiles, read when the screen opens.
+                // Requests and today's releases have their own tiles, read when the screen opens.
                 break
             case .media:
                 if done {
@@ -51,12 +51,12 @@ extension RunningActivity {
     var tint: Color { Palette.tint(tone: content.tone.rawValue, color: attributes.color) }
 }
 
-/// The Home tab: tonight's downloads, requests, playback and incidents, as tiles.
+/// The Home tab: today's downloads, requests, playback and incidents, as tiles.
 struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
 
-    private var tonight: Tonight { Tonight(connection.activities, subjects: connection.flowSubjects) }
+    private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
 
     var body: some View {
         NavigationStack {
@@ -75,10 +75,10 @@ struct HomeView: View {
                         .buttonStyle(.plain)
                 }
                 if let releases = connection.releases?.items, !releases.isEmpty {
-                    NavigationLink { ReleasesView() } label: { TonightReleasesTile(releases: releases) }
+                    NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
                         .buttonStyle(.plain)
                 }
-                tiles(tonight)
+                tiles(today)
             }
             .refreshable {
                 await connection.refresh()
@@ -100,8 +100,8 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder private func tiles(_ tonight: Tonight) -> some View {
-        if tonight.isEmpty {
+    @ViewBuilder private func tiles(_ today: Today) -> some View {
+        if today.isEmpty {
             if connection.lastError == nil {
                 MessageTile(
                     title: "All quiet",
@@ -111,31 +111,31 @@ struct HomeView: View {
                 )
             }
         } else {
-            if let first = tonight.downloading.first {
-                openActivity { DownloadsTile(top: first, others: tonight.downloading.count - 1) }
+            if let first = today.downloading.first {
+                openActivity { DownloadsTile(top: first, others: today.downloading.count - 1) }
             }
-            if !tonight.requested.isEmpty {
-                openActivity { OnTheirWayTile(activities: tonight.requested) }
+            if !today.requested.isEmpty {
+                openActivity { OnTheirWayTile(activities: today.requested) }
             }
             HStack(alignment: .top, spacing: Metrics.tileSpacing) {
                 openActivity {
                     CountTile(
                         title: "Ready", systemImage: "checkmark.circle.fill", color: Palette.releases,
-                        count: tonight.ready.count,
-                        caption: tonight.ready.isEmpty ? "nothing new yet" : (tonight.ready.count == 1 ? "title to watch" : "titles to watch")
+                        count: today.ready.count,
+                        caption: today.ready.isEmpty ? "nothing new yet" : (today.ready.count == 1 ? "title to watch" : "titles to watch")
                     )
                 }
                 openActivity {
                     CountTile(
                         title: "Incidents", systemImage: "exclamationmark.triangle.fill",
-                        color: tonight.incidents.isEmpty ? Palette.ok : Palette.incident,
-                        count: tonight.incidents.count,
-                        caption: tonight.incidents.isEmpty ? "all services up" : tonight.incidents.map(\.attributes.title).joined(separator: ", ")
+                        color: today.incidents.isEmpty ? Palette.ok : Palette.incident,
+                        count: today.incidents.count,
+                        caption: today.incidents.isEmpty ? "all services up" : today.incidents.map(\.attributes.title).joined(separator: ", ")
                     )
                 }
             }
-            if !tonight.playing.isEmpty {
-                openActivity { PlayingTile(activities: tonight.playing) }
+            if !today.playing.isEmpty {
+                openActivity { PlayingTile(activities: today.playing) }
             }
         }
     }
@@ -149,7 +149,7 @@ struct HomeView: View {
 }
 
 /// Today's releases: each with its time and where it stands. Hidden when nothing comes out today.
-private struct TonightReleasesTile: View {
+private struct TodayReleasesTile: View {
     let releases: [DayRelease]
 
     private var here: Int { releases.filter { $0.status == .available }.count }
@@ -157,7 +157,7 @@ private struct TonightReleasesTile: View {
     var body: some View {
         Tile {
             HStack {
-                TileLabel(title: "Tonight", systemImage: "calendar", color: Palette.releases)
+                TileLabel(title: "Today", systemImage: "calendar", color: Palette.releases)
                 Spacer(minLength: 8)
                 Text("\(here) of \(releases.count) here")
                     .font(QuaiFont.caption)
@@ -191,7 +191,7 @@ private struct TonightReleasesTile: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens tonight's releases")
+        .accessibilityHint("Opens today's releases")
     }
 }
 

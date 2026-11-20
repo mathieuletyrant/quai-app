@@ -1,29 +1,26 @@
 import type { Health } from "@quai/api"
 import { type ReactNode, StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
-import { call, type HomeStatus, probeHome, useFixCount, useFixCountProbe, useHome, useHomeProbe } from "./client.ts"
-import { FixesPage } from "./pages/Fixes.tsx"
+import { call, type HomeStatus, probeHome, useHome, useHomeProbe } from "./client.ts"
 import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
 import { JournalPage } from "./pages/journal/JournalPage.tsx"
-import { RequestsPage } from "./pages/Requests.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
 import { Button, Drawer, Icon, type IconName, Logo, type NavItem, NavList, Sidebar, StatusDot, type Tone, TopBar } from "./ui"
 import "./styles.css"
 
+/** The console is for setting Quai up, in the order it's done; living with it happens in the app. */
 const pages = {
-  iphones: { label: "iPhones", icon: "phone", render: () => <IphonesPage /> },
-  fixes: { label: "To fix", icon: "wrench", render: () => <FixesPage /> },
-  requests: { label: "Requests", icon: "person", render: () => <RequestsPage /> },
+  settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> },
   flows: { label: "Flows", icon: "flows", render: () => <FlowsPage /> },
-  journal: { label: "Journal", icon: "journal", render: () => <JournalPage /> },
-  settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> }
+  iphones: { label: "iPhones", icon: "phone", render: () => <IphonesPage /> },
+  journal: { label: "Journal", icon: "journal", render: () => <JournalPage /> }
 } as const satisfies Record<string, { label: string; icon: IconName; render: () => ReactNode }>
 type Page = keyof typeof pages
 
 const fromHash = (): Page => {
   const hash = window.location.hash.slice(1)
-  return hash in pages ? (hash as Page) : "iphones"
+  return hash in pages ? (hash as Page) : "settings"
 }
 
 const homeLabel: Record<HomeStatus, { readonly tone: Tone; readonly text: string }> = {
@@ -38,9 +35,8 @@ const homeState = (status: HomeStatus, cloudDown: boolean) => cloudDown ? { tone
 /** What the phone top bar's dot says to screen readers: "Quai Home: connected". */
 const homeDotLabel = (status: HomeStatus, cloudDown: boolean) => `Quai Home: ${homeState(status, cloudDown).text.toLowerCase()}`
 
-/** Every destination, with the count of things to fix on its own. */
-const navItems = (fixes: number | null): ReadonlyArray<NavItem> =>
-  (Object.keys(pages) as Array<Page>).map((id) => ({ id, label: pages[id].label, icon: pages[id].icon, count: id === "fixes" ? fixes : null }))
+/** Every destination. */
+const navItems: ReadonlyArray<NavItem> = (Object.keys(pages) as Array<Page>).map((id) => ({ id, label: pages[id].label, icon: pages[id].icon }))
 
 /** "v0.12.1" for a release, the version as is otherwise ("dev"). */
 const versionLabel = (version: string) => /^\d/.test(version) ? `v${version}` : version
@@ -83,6 +79,16 @@ function Connection({ health, cloudDown }: { health: Health | null; cloudDown: b
   )
 }
 
+/** The console's rule, under its pages: the day-to-day is in the app. */
+function AppNote() {
+  return (
+    <p className="flex gap-2 px-2 text-caption text-muted">
+      <Icon name="phone" size={14} className="mt-0.5 shrink-0 text-faint" />
+      <span>Requests, fixes and today's releases are in the Quai app.</span>
+    </p>
+  )
+}
+
 function Wordmark() {
   return <span className="text-brand font-bold tracking-title">Quai</span>
 }
@@ -90,10 +96,10 @@ function Wordmark() {
 /** The head of the sidebar and the phone menu: the logo, the name, and what this is. */
 function Brand() {
   return (
-    <a href="#iphones" className="flex items-center gap-2.5 rounded-control px-2 py-1">
+    <a href="#settings" className="flex items-center gap-2.5 rounded-control px-2 py-1">
       <Logo />
       <Wordmark />
-      <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Console</span>
+      <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Setup</span>
     </a>
   )
 }
@@ -126,7 +132,7 @@ function OfflineBanner() {
 
 /** The phone top bar's logo, back to the first page. */
 function HomeLink() {
-  return <a href="#iphones" aria-label="Quai, iPhones" className="rounded-logo"><Logo size={26} /></a>
+  return <a href="#settings" aria-label="Quai, Settings" className="rounded-logo"><Logo size={26} /></a>
 }
 
 function App() {
@@ -136,9 +142,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
   const { status } = useHome()
-  const fixes = useFixCount()
   useHomeProbe()
-  useFixCountProbe()
 
   useEffect(() => {
     const onHash = () => setPage(fromHash())
@@ -147,11 +151,16 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
 
-  const nav = (onNavigate?: () => void) => <NavList label="Console" items={navItems(fixes)} current={page} onNavigate={onNavigate} />
-  const connection = <Connection health={health} cloudDown={cloudDown} />
+  const nav = (onNavigate?: () => void) => <NavList label="Console" items={navItems} current={page} onNavigate={onNavigate} />
+  const footer = (
+    <div className="flex flex-col gap-3">
+      <AppNote />
+      <Connection health={health} cloudDown={cloudDown} />
+    </div>
+  )
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <Sidebar brand={<Brand />} footer={connection}>{nav()}</Sidebar>
+      <Sidebar brand={<Brand />} footer={footer}>{nav()}</Sidebar>
       <TopBar
         logo={<HomeLink />}
         title={pages[page].label}
@@ -159,7 +168,7 @@ function App() {
         menuOpen={menuOpen}
         onMenu={() => setMenuOpen(true)}
       />
-      <Drawer open={menuOpen} label="Menu" brand={<Brand />} onClose={closeMenu} footer={connection}>{nav(closeMenu)}</Drawer>
+      <Drawer open={menuOpen} label="Menu" brand={<Brand />} onClose={closeMenu} footer={footer}>{nav(closeMenu)}</Drawer>
 
       <main className="flex min-w-0 flex-1 flex-col">
         {status === "offline" && <OfflineBanner />}
