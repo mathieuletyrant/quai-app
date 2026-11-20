@@ -45,6 +45,9 @@ struct QuaiApp: App {
                 if connection.isPaired { await Notifications.register() }
             }
             .task { DemoActivity.startIfRequested() }
+            #if DEBUG
+            .task { await PreviewPairing.pairIfRequested(connection) }
+            #endif
             // The live bar shows on every tab: the running activities are read while the app is in front.
             .task(id: connection.isPaired && scenePhase == .active) {
                 guard connection.isPaired, scenePhase == .active else { return }

@@ -87,6 +87,7 @@ struct LiveBar: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Shows what's playing and downloading")
+                .accessibilityIdentifier("liveBar")
                 LiveBarTrailing(item: current)
             }
             .padding(.horizontal, 14)

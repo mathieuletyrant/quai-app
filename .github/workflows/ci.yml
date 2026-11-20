@@ -2,6 +2,10 @@ name: ci
 
 on:
   pull_request:
+  # An agent's branch gets the iOS build and screenshots before any PR.
+  push:
+    branches: ["claude/**"]
+  workflow_dispatch:
 
 jobs:
   typescript:
@@ -49,15 +53,26 @@ jobs:
             ios:
               - 'apps/ios/**'
               - 'packages/api/**'
+              - 'apps/cloud/test/preview.ts'
+              - 'apps/cloud/test/fixtures/**'
+              - '.github/scripts/ios-screenshots.sh'
+              - '.github/workflows/ci.yml'
 
-  # macOS minutes are billed: only when the app or the contract changes.
+  # macOS minutes are billed: only when the app, the contract or the preview changes.
   ios:
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ios == 'true'
     runs-on: macos-26
+    # A push and its PR run the same commit: the newest run wins.
+    concurrency:
+      group: ios-${{ github.head_ref || github.ref_name }}
+      cancel-in-progress: true
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - run: brew install xcodegen
+      - run: brew install xcodegen && (command -v xcbeautify || brew install xcbeautify)
       - working-directory: apps/ios
         run: xcodegen generate
       # Runner images don't always ship the same simulators (some had none): use any available
@@ -77,8 +92,56 @@ jobs:
             udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
-      - working-directory: apps/ios
+      # The compile errors first, as annotations on the files.
+      - name: Build
+        working-directory: apps/ios
         run: >
-          xcodebuild test -project Quai.xcodeproj -scheme Quai
-          -destination 'id=${{ steps.simulator.outputs.udid }}'
+          set -o pipefail &&
+          xcodebuild build-for-testing -project Quai.xcodeproj -scheme "Quai Screenshots"
+          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
           -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+          | xcbeautify --renderer github-actions
+      - name: Unit tests
+        working-directory: apps/ios
+        run: >
+          set -o pipefail &&
+          xcodebuild test -project Quai.xcodeproj -scheme Quai
+          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
+          -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+          | xcbeautify --renderer github-actions
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start the preview server
+        run: |
+          pnpm --filter @quai/cloud preview > preview.log 2>&1 &
+          for i in $(seq 60); do curl -sf http://127.0.0.1:8787/api/health > /dev/null && exit 0; sleep 1; done
+          cat preview.log; exit 1
+      - name: Screenshots
+        working-directory: apps/ios
+        env:
+          TEST_RUNNER_QUAI_PREVIEW_URL: http://127.0.0.1:8787
+          TEST_RUNNER_QUAI_SCREENSHOTS_DIR: ${{ github.workspace }}/screenshots
+        run: >
+          set -o pipefail &&
+          xcodebuild test-without-building -project Quai.xcodeproj -scheme "Quai Screenshots"
+          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
+          -resultBundlePath ../../screenshots.xcresult
+          | xcbeautify --renderer github-actions
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screenshots
+          path: |
+            screenshots
+            preview.log
+          if-no-files-found: ignore
+      # A fork's PR has a read-only token: its screenshots stay in the artifact.
+      - name: Post the screenshots
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/ios-screenshots.sh screenshots ${{ github.event.pull_request.number }}
