@@ -31,6 +31,11 @@ describe("journal pages", () => {
     expect(next.more).toBe(false)
   })
 
+  it("filter by kinds", () => {
+    const kinds = [entry(1, { kind: "media.grabbed" }), entry(2, { kind: "push.refused" })]
+    expect(journalPage(kinds, { limit: 10, kinds: ["media.grabbed"] }).entries.map((e) => e.text)).toEqual(["line 1"])
+  })
+
   it("filter by sources, by level and up, by title and by words", () => {
     expect(journalPage(all, { limit: 10, sources: ["sonarr", "apple"] }).entries.map((e) => e.text)).toEqual(["line 4", "line 2"])
     expect(journalPage(all, { limit: 10, level: "warn" }).entries.map((e) => e.text)).toEqual(["line 3", "line 2"])

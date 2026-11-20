@@ -1,4 +1,4 @@
-import { defaultJournalPage, JournalSource, QuaiApi } from "@quai/api"
+import { appJournalKinds, defaultJournalPage, JournalSource, QuaiApi } from "@quai/api"
 import { Effect, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Journal } from "../journal/Journal.ts"
@@ -25,4 +25,19 @@ export const JournalHandlers = HttpApiBuilder.group(QuaiApi, "consoleJournal", (
         })
       })
       .handle("since", ({ query }) => journal.since(query.cursor))
+  }))
+
+/**
+ * The app's journal, `/api/journal`: only `appJournalKinds`. The page is filtered again here
+ * because a Quai Home older than the `kinds` filter returns every kind.
+ */
+export const AppJournalHandlers = HttpApiBuilder.group(QuaiApi, "journal", (handlers) =>
+  Effect.gen(function*() {
+    const journal = yield* Journal
+    return handlers.handle("recent", ({ query }) =>
+      journal.history({
+        limit: query.limit ?? defaultJournalPage,
+        ...(query.before === undefined ? {} : { before: query.before }),
+        kinds: appJournalKinds
+      }).pipe(Effect.map((page) => ({ ...page, entries: page.entries.filter((entry) => appJournalKinds.includes(entry.kind)) }))))
   }))

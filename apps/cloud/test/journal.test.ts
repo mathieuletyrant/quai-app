@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@effect/vitest"
-import { CurrentDevice, type DeviceId, InvalidAction, QuaiApi, type JournalEntry, journalId } from "@quai/api"
-import { Effect, Layer, Redacted, Schema } from "effect"
-import { HttpApiTest } from "effect/http-api"
+import { CurrentDevice, DeviceAuth, type DeviceId, InvalidAction, QuaiApi, type JournalEntry, journalId } from "@quai/api"
+import { Effect, Exit, Layer, Redacted, Schema } from "effect"
+import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
+import { HttpClientRequest } from "effect/http"
 import { TestClock } from "effect/testing"
 import { generateKeyPairSync } from "node:crypto"
 import { Devices } from "../src/home/Devices.ts"
@@ -267,4 +268,31 @@ describe("what an event means", () => {
     expect(eventNote({ type: "playback.progress", subject: tv }, "jellyfin")).toBeNull()
     expect(eventNote({ type: "download.progress", downloadId: "h" }, "qbittorrent")).toBeNull()
   })
+
+  it.effect("the app's journal: what happened to the titles and the server, not Quai's plumbing, behind the iPhone's token", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome()
+      home.journal.push(
+        { id: journalId(20_001, "c", 0), at: 20_001, level: "info", source: "radarr", kind: "media.grabbed", text: "Radarr grabbed a release of Dune", subject: "movie:tmdb:1", title: "Dune" },
+        { id: journalId(20_002, "h", 0), at: 20_002, level: "warn", source: "sonarr", kind: "call.refused", text: "refused" },
+        { id: journalId(20_003, "c", 1), at: 20_003, level: "error", source: "radarr", kind: "service.down", text: "Radarr hasn't answered for 5 minutes" },
+        { id: journalId(20_004, "c", 2), at: 20_004, level: "error", source: "apple", kind: "push.refused", text: "Apple refused the push" }
+      )
+      yield* home.connect
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { name: "iPhone", apnsEnvironment: "development", pushToStartToken: "pts-1", code: qr.code }
+      })
+      const anonymous = (yield* HttpApiTest.groups(QuaiApi, ["journal"])).journal
+      expect(Exit.isFailure(yield* Effect.exit(anonymous.recent({ query: {} })))).toBe(true)
+
+      const phone = (yield* HttpApiTest.groups(QuaiApi, ["journal"]).pipe(
+        Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
+      )).journal
+      const page = yield* phone.recent({ query: { limit: 1 } })
+      expect(page.entries.map((e) => e.kind)).toEqual(["service.down"])
+      expect(page.more).toBe(true)
+      const older = yield* phone.recent({ query: { before: page.entries[0]!.id } })
+      expect(older.entries.map((e) => e.kind)).toEqual(["media.grabbed"])
+    }).pipe(Effect.provide(TestApp)))
 })
