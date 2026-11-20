@@ -24,8 +24,8 @@ export const minProtocolVersion = 1
 export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"])
 export type HomeService = typeof HomeService.Type
 
-/** The services whose webhooks the Home receives and forwards. */
-export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "jellyfin", "seerr"]
+/** The services whose webhooks the Home receives and forwards. Jellyfin is polled (its sessions). */
+export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "seerr"]
 
 /**
  * Largest response body the Home forwards; bigger ones come back as a failure. Sized for the

@@ -35,7 +35,7 @@ Split Quai in two:
 and nothing about Live Activities. It:
 
 1. opens one outbound WebSocket to the Cloud: no port to open, no tunnel, no public URL;
-2. forwards webhook payloads (Radarr, Sonarr, Jellyfin) as they come;
+2. forwards webhook payloads (Radarr, Sonarr, Seerr) as they come;
 3. runs the HTTP calls the Cloud asks for, within an allowlist of endpoints per service
    (`GET /api/v2/torrents/info`, `POST /Sessions/{id}/Playing/PlayPause`, …), and returns the response.
 
