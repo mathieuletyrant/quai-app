@@ -1,8 +1,8 @@
-import { type ActionType, type HomeOffline, InvalidAction, type MediaRequest } from "@quai/api"
-import { Context, Effect, Layer, Option, Schema } from "effect"
+import { type ActionType, type HomeOffline, InvalidAction, type MediaRequest, RequestFailed } from "@quai/api"
+import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
-import { HomeReads } from "../home/HomeReads.ts"
+import { HomeReads, type Read } from "../home/HomeReads.ts"
 import { actionCall, type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./arr.ts"
 
@@ -58,6 +58,9 @@ export const SeerrRequest = Schema.Struct({
 export type SeerrRequest = typeof SeerrRequest.Type
 
 export const SeerrRequestPage = Schema.Struct({ results: Schema.Array(SeerrRequest) })
+
+/** The requests waiting for approval: read when the app asks, and watched while a request flow is on. */
+export const pendingRead: Read<typeof SeerrRequestPage.Type> = { service: "seerr", path: pendingPath, schema: SeerrRequestPage }
 
 /** `GET /api/v1/movie/{id}` and `GET /api/v1/tv/{id}`: a movie has a title, a series a name. */
 export const SeerrTitle = Schema.Struct({
@@ -199,19 +202,29 @@ export const requestIdOf = (subjectKey: string): number | null => {
   return kind === "request" && Number.isInteger(n) && n > 0 ? n : null
 }
 
+/** A decision on a request that no longer waits: approved, declined or deleted meanwhile. */
+export class NotPending extends Data.TaggedError("NotPending")<{ readonly id: number }> {}
+
 /**
- * The titles requests ask for, read from Seerr once and kept in memory: a request names only its
- * TMDB id. Nothing is written anywhere; a restarted Cloud reads them again.
+ * Seerr's requests as Quai uses them, read through Quai Home: those waiting, one as it is now, and
+ * the decision on one. The titles requests ask for are read from Seerr once and kept in memory (a
+ * request names only its TMDB id); nothing is written anywhere, a restarted Cloud reads them again.
  */
-export class SeerrTitles extends Context.Service<SeerrTitles, {
+export class Seerr extends Context.Service<Seerr, {
   readonly details: (request: SeerrRequest) => Effect.Effect<TitleDetails | undefined, HomeOffline>
   /** The pending requests with their titles, or None when Seerr didn't answer. */
   readonly pending: Effect.Effect<Option.Option<ReadonlyArray<MediaRequest>>, HomeOffline>
   /** A request as it is now; None when Seerr didn't answer, `"gone"` when it was deleted. */
   readonly current: (id: number) => Effect.Effect<Option.Option<SeerrRequest | "gone">, HomeOffline>
-}>()("quai/SeerrTitles") {
+  /**
+   * Approves or declines a request that still waits; one decided or deleted meanwhile is
+   * `NotPending`. Seerr not answering, or refusing, is a `RequestFailed` in its words. The caller
+   * has the Hub read the requests again, so the Live Activity follows.
+   */
+  readonly decide: (id: number, decision: "approve" | "decline") => Effect.Effect<void, HomeOffline | NotPending | RequestFailed>
+}>()("quai/Seerr") {
   static readonly layer = Layer.effect(
-    SeerrTitles,
+    Seerr,
     Effect.gen(function*() {
       const reads = yield* HomeReads
       const cache = new Map<string, TitleDetails>()
@@ -230,13 +243,21 @@ export class SeerrTitles extends Context.Service<SeerrTitles, {
         })
       const withTitles = (requests: ReadonlyArray<SeerrRequest>) =>
         Effect.forEach(waiting(requests), (r) => Effect.map(details(r), (d) => toMediaRequest(r, d)), { concurrency: 4 })
+      const current = (id: number) => reads.read<SeerrRequest | "gone">({ service: "seerr", path: requestPath(id), schema: SeerrRequest, notFound: "gone" })
       return {
         details,
         pending: Effect.flatMap(
-          reads.read({ service: "seerr", path: pendingPath, schema: SeerrRequestPage }),
+          reads.read(pendingRead),
           Option.match({ onNone: () => Effect.succeed(Option.none()), onSome: (page) => Effect.map(withTitles(page.results), Option.some) })
         ),
-        current: (id) => reads.read<SeerrRequest | "gone">({ service: "seerr", path: requestPath(id), schema: SeerrRequest, notFound: "gone" })
+        current,
+        decide: (id, decision) =>
+          Effect.gen(function*() {
+            const now = yield* current(id)
+            if (Option.isNone(now)) return yield* Effect.fail(new RequestFailed({ message: "Seerr didn't answer" }))
+            if (now.value === "gone" || now.value.status !== RequestStatus.pending) return yield* Effect.fail(new NotPending({ id }))
+            yield* reads.write({ service: "seerr", method: "POST", path: decisionPath(id, decision) }, (message) => new RequestFailed({ message }))
+          })
       }
     })
   )
@@ -282,7 +303,7 @@ export const outcome = (activity: Activity, request: SeerrRequest | "gone"): Rea
 
 export const seerr = Effect.gen(function*() {
   const reads = yield* HomeReads
-  const titles = yield* SeerrTitles
+  const titles = yield* Seerr
 
   const decide = (decision: "approve" | "decline"): ActionHandler => (activity) => {
     const id = requestIdOf(activity.subjectKey)
