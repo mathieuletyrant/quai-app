@@ -26,6 +26,14 @@ It depends on what the proxy checks.
   token. Keep `/console-api/*`, the console and `/home` on the home network: they have no login of
   their own and rely on the host's (Umbrel's at home), and whoever reaches them can pair an iPhone.
 
+## `QUAI_HOME_ID`
+
+Quai Cloud serves one home, the first Quai Home that links. While yours is away (restarting, its
+network down), another Quai Home that reaches `/home` could take its place. If `/home` can be
+reached from outside the home network, set `QUAI_HOME_ID` to your home's id, the 32 hex characters
+Quai Home logs once linked (`linked as home 3f9a…`): any other home is then refused at the
+handshake, with a reason that names both ids.
+
 ## `QUAI_PUBLIC_HEADERS`
 
 `Name: value` pairs, separated by `;` or line breaks, so the whole list fits in one settings field:

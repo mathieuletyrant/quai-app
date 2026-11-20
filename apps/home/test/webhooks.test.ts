@@ -40,6 +40,10 @@ describe("webhook receiver", () => {
       yield* TestClock.adjust("1234 millis")
       expect((yield* post("s3cret")).status).toBe(204)
       expect(sent).toEqual([{ _tag: "WebhookReceived", service: "sonarr", receivedAt: 1234, body: { eventType: "Download" } }])
+      // Jellyfin is polled: no webhook route.
+      const jellyfin = yield* client.execute(HttpClientRequest.post("/webhooks/jellyfin?token=s3cret").pipe(HttpClientRequest.bodyJsonUnsafe({})))
+      expect(jellyfin.status).toBe(404)
+      expect(sent).toHaveLength(1)
     }).pipe(Effect.provide(server)))
 
   it.effect("/health says whether the home is linked, and its id", () =>

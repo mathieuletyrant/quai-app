@@ -1,5 +1,6 @@
 import { HomeOffline, HomeProtocol, HomeRequired } from "@quai/api"
-import { Clock, Context, Data, Deferred, Effect, Layer, Option, Queue, Ref, Schema } from "effect"
+import * as HomeId from "@quai/api/HomeId"
+import { Clock, Config, Context, Data, Deferred, Effect, Layer, Option, Queue, Ref, Schema } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { Socket } from "effect/socket"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
@@ -155,7 +156,17 @@ export class HomeLink extends Context.Service<HomeLink, {
   /** Serves one connection from Quai Home, until it closes. */
   readonly serve: (socket: Socket.Socket) => Effect.Effect<void>
 }>()("quai/HomeLink") {
+  /**
+   * `QUAI_HOME_ID`, when set, is the only home served: any other is refused at the handshake, so a
+   * foreign Quai Home can't take the slot while the real one is away. Quai Home logs its id
+   * (`linked as home …`).
+   */
   static readonly make = Effect.gen(function*() {
+    const only = yield* Config.option(Config.String("QUAI_HOME_ID")).pipe(Effect.orDie)
+    const expectedHomeId = Option.map(only, (id) => id.trim().toLowerCase())
+    if (Option.isSome(expectedHomeId) && !/^[0-9a-f]{32}$/.test(expectedHomeId.value)) {
+      return yield* Effect.die(new Error("QUAI_HOME_ID: a home id is 32 hex characters, as Quai Home logs it"))
+    }
     const connections = new Map<string, Connection>()
     const events = yield* Queue.unbounded<HomeEvent>()
     const requestCount = yield* Ref.make(0)
@@ -247,7 +258,10 @@ export class HomeLink extends Context.Service<HomeLink, {
           if (Option.isNone(proof) || !verifyProof(hello.value.publicKey, nonce, proof.value.signature)) {
             return { _tag: "Refused", reason: "the proof doesn't match the public key", retryAfterSeconds: 60 }
           }
-          const homeId = HomeProtocol.homeId(hello.value.publicKey)
+          const homeId = HomeId.homeId(hello.value.publicKey)
+          if (Option.isSome(expectedHomeId) && homeId !== expectedHomeId.value) {
+            return { _tag: "Refused", reason: `this Cloud serves home ${expectedHomeId.value} only (QUAI_HOME_ID), not ${homeId}`, retryAfterSeconds: 3600 }
+          }
           for (const other of connections.values()) {
             if (other.homeId !== homeId) return { _tag: "Refused", reason: "this Cloud serves one home", retryAfterSeconds: 300 }
           }

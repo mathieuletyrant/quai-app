@@ -1,7 +1,8 @@
 import { NodeHttpServer, NodeSocket } from "@effect/platform-node"
 import { HomeProtocol } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Fiber, Layer, Option, Queue, Schema } from "effect"
+import { ConfigProvider, Effect, Fiber, Layer, Option, Queue, Schema } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { Socket } from "effect/socket"
 import { TestClock } from "effect/testing"
@@ -46,6 +47,35 @@ describe("home link", () => {
       expect(second.state.refused).toEqual({ reason: "this Cloud serves one home", retryAfterSeconds: 300 })
       expect(Option.map(yield* l.home, (h) => h.homeId)).toEqual(Option.some(first.homeId))
     }).pipe(Effect.provide(link)))
+
+  it.effect("with QUAI_HOME_ID, any other home is refused, even while the slot is free", () => {
+    const ownKey = generateKeyPairSync("ed25519").privateKey
+    const ownId = HomeId.homeId(createPublicKey(ownKey).export({ format: "der", type: "spki" }).toString("base64"))
+    const pinned = link.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: ownId.toUpperCase() } }))))
+    return Effect.gen(function*() {
+      const l = yield* HomeLink
+      const foreign = yield* makeFakeHome()
+      yield* foreign.open
+      expect(foreign.state.refused).toEqual({
+        reason: `this Cloud serves home ${ownId} only (QUAI_HOME_ID), not ${foreign.homeId}`,
+        retryAfterSeconds: 3600
+      })
+      expect(foreign.state.closed).toBe(true)
+      expect(yield* l.home).toEqual(Option.none())
+
+      const own = yield* makeFakeHome({ privateKey: ownKey })
+      yield* own.connect
+      expect(own.state.welcomed).toBe(ownId)
+    }).pipe(Effect.provide(pinned))
+  })
+
+  it.effect("a QUAI_HOME_ID that isn't a home id stops the Cloud", () =>
+    Effect.gen(function*() {
+      const exit = yield* Effect.exit(Effect.scoped(Layer.build(
+        link.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: "my-home" } }))))
+      )))
+      expect(String(exit)).toContain("QUAI_HOME_ID: a home id is 32 hex characters")
+    }))
 
   it.effect("a Home one protocol behind is still served; one from the future is refused", () =>
     Effect.gen(function*() {
@@ -185,7 +215,7 @@ describe("home link over a WebSocket", () => {
           expect(Buffer.from(challenge.nonce, "base64")).toHaveLength(32)
           const signature = sign(null, Buffer.from(HomeProtocol.challengePayload(challenge.nonce)), privateKey).toString("base64")
           yield* send({ _tag: "Proof", signature })
-          expect(yield* next).toEqual({ _tag: "Welcome", homeId: HomeProtocol.homeId(publicKey) })
+          expect(yield* next).toEqual({ _tag: "Welcome", homeId: HomeId.homeId(publicKey) })
           const list = yield* next
           if (list._tag !== "StoreList") return yield* Effect.die("no StoreList")
           expect(list.prefix).toBe("")
@@ -196,7 +226,7 @@ describe("home link over a WebSocket", () => {
             yield* Effect.sleep("10 millis")
             home = yield* l.home
           }
-          expect(Option.map(home, (h) => h.homeId)).toEqual(Option.some(HomeProtocol.homeId(publicKey)))
+          expect(Option.map(home, (h) => h.homeId)).toEqual(Option.some(HomeId.homeId(publicKey)))
           expect(yield* l.documents.get("settings")).toEqual(Option.some({ a: 1 }))
         }))
     }).pipe(Effect.provide(server)))

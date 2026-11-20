@@ -34,6 +34,12 @@ export interface ApnsRequest {
 /** Refresh the provider token every 50 minutes (APNs rejects tokens older than an hour). */
 const jwtLifetimeMs = 50 * 60_000
 
+/**
+ * How long one push may wait for APNs' answer. The Hub handles events one at a time, so a send
+ * that never ends would freeze every flow behind it.
+ */
+export const sendTimeoutMs = 10_000
+
 /** The iOS app's bundle id when `QUAI_APNS_TOPIC` isn't set. */
 export const defaultTopic = "com.mathieuletyrant.quai"
 
@@ -101,9 +107,11 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
         const existing = sessions.get(environment)
         if (existing !== undefined && !existing.closed && !existing.destroyed) return existing
         const created = http2.connect(hosts[environment])
-        created.on("error", () => sessions.delete(environment))
-        created.on("close", () => sessions.delete(environment))
-        created.on("goaway", () => sessions.delete(environment))
+        // Only while it is the current one: a session dropped after a timeout may close after its successor opened.
+        const forget = () => sessions.get(environment) === created && sessions.delete(environment)
+        created.on("error", forget)
+        created.on("close", forget)
+        created.on("goaway", forget)
         // Don't keep the process alive just for an idle push connection.
         created.unref()
         sessions.set(environment, created)
@@ -129,10 +137,12 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
           const token = yield* providerToken
           const now = yield* Clock.currentTimeMillis
           const body = JSON.stringify(request.body)
+          let opened: http2.ClientHttp2Session | undefined
           return yield* Effect.callback<void, ApnsError>((resume) => {
             let stream: http2.ClientHttp2Stream
             try {
-              stream = session(request.environment).request({
+              opened = session(request.environment)
+              stream = opened.request({
                 ":method": "POST",
                 ":path": `/3/device/${request.deviceToken}`,
                 authorization: `bearer ${token}`,
@@ -160,7 +170,23 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
             })
             stream.end(body)
             return Effect.sync(() => stream.close(http2.constants.NGHTTP2_CANCEL))
-          })
+          }).pipe(
+            Effect.timeoutOrElse({
+              duration: sendTimeoutMs,
+              // A connection that stopped answering: drop it, the next send opens a new one.
+              orElse: () =>
+                Effect.gen(function*() {
+                  if (opened !== undefined) {
+                    if (sessions.get(request.environment) === opened) sessions.delete(request.environment)
+                    opened.destroy()
+                  }
+                  yield* Effect.logWarning(`APNs ${request.environment} didn't answer within ${sendTimeoutMs / 1000} s: reconnecting`)
+                  return yield* Effect.fail(
+                    new ApnsError({ status: null, reason: `no answer within ${sendTimeoutMs / 1000} s`, tokenGone: false })
+                  )
+                })
+            })
+          )
         })
 
       return { configured: true, send }

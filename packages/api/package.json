@@ -5,7 +5,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./HomeId": "./src/HomeId.ts"
   },
   "scripts": {
     "check": "tsc -p .",

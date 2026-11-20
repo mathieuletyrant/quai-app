@@ -1,6 +1,7 @@
 import { HomeProtocol } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, FileSystem } from "effect"
+import { Effect, FileSystem, Logger } from "effect"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
 import { statSync } from "node:fs"
 import { join } from "node:path"
@@ -23,7 +24,7 @@ describe("home key", () => {
         expect(second.homeId).toBe(first.homeId)
         expect(second.webhookToken).toBe(first.webhookToken)
         expect(first.homeId).toMatch(/^[0-9a-f]{32}$/)
-        expect(first.homeId).toBe(HomeProtocol.homeId(first.publicKey))
+        expect(first.homeId).toBe(HomeId.homeId(first.publicKey))
         expect(first.webhookToken).toMatch(/^[0-9a-f]{32}$/)
 
         const other = yield* HomeKey.make(join(dir, "other.key"))
@@ -90,4 +91,23 @@ describe("home store", () => {
         }
         expect(yield* store.list("")).toEqual([])
       })))
+
+  it.effect("skips a document that can't be read, and logs its key, never what it holds", () => {
+    const logs: Array<string> = []
+    const captured = Logger.layer([Logger.make(({ message }) => {
+      logs.push((Array.isArray(message) ? message : [message]).map(String).join(" "))
+    })])
+    return inTemp((dir) =>
+      Effect.gen(function*() {
+        const store = yield* HomeStore.make(join(dir, "home"))
+        yield* store.put("flows/download", { steps: 3 })
+        yield* store.put("flows/playback", { steps: 2 })
+        const fs = yield* FileSystem.FileSystem
+        yield* fs.writeFileString(join(dir, "home", "flows", "playback.json"), "{\"token\":\"secret-")
+        yield* fs.makeDirectory(join(dir, "home", "flows", "folder.json"))
+
+        expect(yield* store.list("")).toEqual([{ key: "flows/download", value: { steps: 3 } }])
+        expect(logs).toEqual(["document flows/folder can't be read: skipped", "document flows/playback isn't JSON: skipped"])
+      })).pipe(Effect.provide(captured))
+  })
 })

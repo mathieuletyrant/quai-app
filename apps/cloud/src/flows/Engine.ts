@@ -87,6 +87,15 @@ const lookupOf = (subject: Subject) => subject.kind === "media" ? subject.lookup
 
 const put = (activities: Map<string, Activity>, activity: Activity) => activities.set(activity.key, activity)
 
+/**
+ * An activity whose flow was deleted, or edited so that the step it is on is gone: close what's on
+ * screen and forget it.
+ */
+const forget = (activities: Map<string, Activity>, pushes: Array<Push>, activity: Activity, now: number) => {
+  activities.delete(activity.key)
+  if (activity.endedAt === null) pushes.push({ _tag: "End", activity: { ...activity, endedAt: now } })
+}
+
 const pushed = (activity: Activity, now: number): Activity => ({
   ...activity,
   pushedAt: now,
@@ -107,7 +116,11 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       if (event.flowId !== undefined && activity.flowId !== event.flowId) continue
       const flow = flows.find((f) => f.id === activity.flowId)
       if (flow === undefined) continue
-      const step = flow.steps[activity.stepIndex]!
+      const step = flow.steps[activity.stepIndex]
+      if (step === undefined) {
+        forget(activities, pushes, activity, now)
+        continue
+      }
       const concerned = event.type === "download.progress"
         ? event.downloadId !== undefined && activity.downloadId === event.downloadId && step.show.progress === true
         : event.subject !== undefined && activity.subjectKey === event.subject.key
@@ -224,16 +237,18 @@ export const onTick = (state: EngineState, flows: ReadonlyArray<Flow>, now: numb
   for (const activity of state.activities.values()) {
     const flow = flows.find((f) => f.id === activity.flowId)
     if (flow === undefined) {
-      // The flow was deleted: close what's on screen and forget it.
-      activities.delete(activity.key)
-      if (activity.endedAt === null) pushes.push({ _tag: "End", activity: { ...activity, endedAt: now } })
+      forget(activities, pushes, activity, now)
       continue
     }
     if (activity.endedAt !== null) {
       if (now - activity.endedAt >= flow.lingerMinutes * 60_000) activities.delete(activity.key)
       continue
     }
-    const step = flow.steps[activity.stepIndex]!
+    const step = flow.steps[activity.stepIndex]
+    if (step === undefined) {
+      forget(activities, pushes, activity, now)
+      continue
+    }
     if (flow.expireAfterMinutes !== undefined && now - activity.lastEventAt >= flow.expireAfterMinutes * 60_000) {
       const ended = pushed({ ...activity, endedAt: now }, now)
       put(activities, ended)
