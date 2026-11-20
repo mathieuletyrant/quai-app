@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Rules for agents working on Quai. Read the specs before building a feature: [`docs/spec-v1.md`](docs/spec-v1.md) (product) and [`docs/spec-v2-hosted.md`](docs/spec-v2-hosted.md) (Quai Home and Quai Cloud).
+Rules for agents working on Quai. Read the specs before building a feature: [`docs/spec-v1.md`](docs/spec-v1.md) (product) and [`docs/spec-v2-hosted.md`](docs/spec-v2-hosted.md) (Quai Home and Quai Cloud). Name things as [`GLOSSARY.md`](GLOSSARY.md) does.
 
 ## Layout
 
@@ -29,7 +29,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 - `effect` and `@effect/*` are pinned to **4.1.4** through the `catalog:` in `pnpm-workspace.yaml`. Never bump them unasked: `effect/http`, `effect/http-api` and `effect/sql` are marked unstable.
 - Reference docs: https://effect.website/llms.txt (v4). When unsure of a signature, read the `.d.ts` files in `node_modules/effect/dist/`.
-- One service = one `Context.Service` + one `Layer` (`static readonly layer`). The Cloud never calls a service itself: it goes through `HomeLink` (calls and watches).
+- One service = one `Context.Service` + one `Layer` (`static readonly layer`). The Cloud never calls a service itself: its calls go through `HomeReads` (offline is 503, a service that didn't answer is unavailable), its watches through `HomeLink`.
 - Each service's events (webhook or polling) and actions live in one integration module, `apps/cloud/src/integrations/<service>.ts` (see [`docs/flows.md`](docs/flows.md#integrations)).
 - Errors: `Data.TaggedError` (or `Schema.TaggedError` when they cross the API). No `throw`.
 - No bare `Promise` or `async` on the server: everything is an `Effect`. `Promise` is only allowed at the console's React boundary.
@@ -41,6 +41,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - **No feature merged without its test.**
 - `@effect/vitest` (`it.effect`); move time with `TestClock.adjust`, never real waits.
 - Routes: `HttpApiTest.groups(QuaiApi, [...])` with `NodeHttpServer.layerTest`.
+- Quai Home in Cloud tests: `makeFakeHome` with `recordedHome(routes, overrides)` (`"radarr GET /api/v3/queue"` → fixture). It enforces the real allowlist and fails the test on a refused call or watch.
 - *arr adapters: recorded real responses (fixtures), never calls to the real stack.
 - Contract: a test checks `openapi.json`. After changing `packages/api`, run `pnpm gen:openapi` and commit the file.
 

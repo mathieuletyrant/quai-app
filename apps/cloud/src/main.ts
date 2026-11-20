@@ -10,6 +10,7 @@ import { FlowStore } from "./flows/FlowStore.ts"
 import { TestRunner } from "./flows/TestRunner.ts"
 import { Devices } from "./home/Devices.ts"
 import { HomeLink, HomeRoute } from "./home/HomeLink.ts"
+import { HomeReads } from "./home/HomeReads.ts"
 import { IntegrationsLive } from "./integrations/All.ts"
 import { Hub } from "./integrations/Hub.ts"
 import { Library } from "./library/Library.ts"
@@ -42,7 +43,7 @@ const ConsoleLive = Layer.unwrap(
 )
 
 const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
-  Layer.provideMerge(HomeLink.documents),
+  Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
   Layer.provideMerge(HomeLink.layer)
 )
 

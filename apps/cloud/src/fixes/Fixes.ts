@@ -12,7 +12,8 @@ import {
 } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpApiError } from "effect/http-api"
-import { HomeDocuments, HomeLink, offlineMessage, toOffline } from "../home/HomeLink.ts"
+import { type CallRequest, HomeDocuments, toOffline } from "../home/HomeLink.ts"
+import { HomeReads } from "../home/HomeReads.ts"
 import {
   byPreference,
   echoed,
@@ -25,7 +26,6 @@ import {
   QueuePage,
   rejectionsOf,
   ReleaseRecords,
-  serviceError,
   toRelease
 } from "../integrations/arr.ts"
 import { readJson } from "../integrations/Integration.ts"
@@ -119,61 +119,12 @@ export class Fixes extends Context.Service<Fixes, {
   static readonly layer = Layer.effect(
     Fixes,
     Effect.gen(function*() {
-      const link = yield* HomeLink
+      const reads = yield* HomeReads
       const documents = yield* HomeDocuments
 
-      const offline = (error: { readonly message: string }) => new HomeOffline({ message: error.message })
-
-      /** A GET's body, or None when the service didn't answer it as expected. */
-      const read = <A, I>(service: FixService, path: string, schema: Schema.Codec<A, I>) =>
-        link.call({ service, method: "GET", path }).pipe(
-          Effect.map((r) => r.status === 200 ? readJson(schema, r.body) : Option.none()),
-          Effect.tap((body) => Option.isNone(body) ? Effect.logWarning(`fixes: could not read ${service} ${path.split("?")[0]}`) : Effect.void),
-          Effect.catchTag("HomeError", (error) =>
-            error.reason === "offline"
-              ? Effect.fail(toOffline(error))
-              : Effect.as(Effect.logWarning(`fixes: ${service} ${path.split("?")[0]}: ${error.message}`), Option.none<A>()))
-        )
-
-      /** A write through Quai Home: its failure, or the service's refusal, in words. */
-      const write = (request: Parameters<HomeLink["Service"]["call"]>[0], options?: Parameters<HomeLink["Service"]["call"]>[1]) =>
-        link.call(request, options).pipe(
-          Effect.catchTag("HomeError", (error) =>
-            Effect.fail(error.reason === "offline" ? toOffline(error) : new FixFailed({ message: `Quai Home: ${error.message}` }))),
-          Effect.flatMap((response) =>
-            response.status >= 200 && response.status < 300
-              ? Effect.succeed(response.body)
-              : Effect.fail(new FixFailed({ message: serviceError(response.status, response.body) })))
-        )
-
-      const arrProblems = (service: "radarr" | "sonarr", nowMs: number) =>
-        Effect.gen(function*() {
-          const since = grabsSincePath(nowMs - grabLookbackMs)
-          if (service === "radarr") {
-            const [queue, missing, grabs] = yield* Effect.all([
-              read("radarr", radarrQueuePath, QueuePage),
-              read("radarr", radarrMissingPath, RadarrMissing),
-              read("radarr", since, RadarrGrabs)
-            ], { concurrency: "unbounded" })
-            if (Option.isNone(queue) || Option.isNone(missing) || Option.isNone(grabs)) return Option.none<ReadonlyArray<Detected>>()
-            const records = queue.value.records
-            return Option.some([
-              ...records.filter(isImportBlocked).map(blockedMovie),
-              ...moviesWithoutSource(missing.value.records, records, grabs.value, nowMs)
-            ])
-          }
-          const [queue, missing, grabs] = yield* Effect.all([
-            read("sonarr", sonarrQueuePath, QueuePage),
-            read("sonarr", sonarrMissingPath, SonarrMissing),
-            read("sonarr", since, SonarrGrabs)
-          ], { concurrency: "unbounded" })
-          if (Option.isNone(queue) || Option.isNone(missing) || Option.isNone(grabs)) return Option.none<ReadonlyArray<Detected>>()
-          const records = queue.value.records
-          return Option.some([
-            ...records.filter(isImportBlocked).map(blockedEpisodes),
-            ...episodesWithoutSource(missing.value.records, records, grabs.value, nowMs)
-          ])
-        })
+      /** A write (or a read that must succeed) through Quai Home: its failure, or the service's refusal, in words. */
+      const write = (call: CallRequest, options?: { readonly timeoutMs?: number }) =>
+        reads.write(call, (message) => new FixFailed({ message }), options)
 
       /**
        * Reclaimerr gives no poster: its scheduled deletions take theirs from the Radarr movie or
@@ -181,45 +132,57 @@ export class Fixes extends Context.Service<Fixes, {
        * with a file). A library that can't be read leaves the deletion without a poster; Quai Home
        * gone offline fails the list, like every other read.
        */
-      const deletionsWithPosters = (candidates: ReadonlyArray<Candidate>, reaches: ReadonlyArray<string>) =>
+      const deletionsWithPosters = (candidates: ReadonlyArray<Candidate>) =>
         Effect.gen(function*() {
           const due = deletionCandidates(candidates)
-          const soft = <A, I>(wanted: boolean, service: "radarr" | "sonarr", path: string, schema: Schema.Codec<A, I>) =>
-            wanted && reaches.includes(service)
-              ? read(service, path, schema)
-              : Effect.succeed(Option.none<A>())
-          const [movies, series] = yield* Effect.all([
-            soft(due.some(isMovie), "radarr", "/api/v3/movie", RadarrMovies),
-            soft(due.some((c) => !isMovie(c)), "sonarr", "/api/v3/series", SonarrSeries)
-          ], { concurrency: "unbounded" })
-          return scheduledDeletions(candidates, { movies: Option.getOrUndefined(movies), series: Option.getOrUndefined(series) })
+          const { values } = yield* reads.all({
+            movies: due.some(isMovie) ? { service: "radarr", path: "/api/v3/movie", schema: RadarrMovies } : null,
+            series: due.some((c) => !isMovie(c)) ? { service: "sonarr", path: "/api/v3/series", schema: SonarrSeries } : null
+          }, { optional: ["movies", "series"] })
+          return scheduledDeletions(candidates, { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) })
         })
 
       /** Runs the rules on the services asked (those Quai Home reaches). */
       const detect = (only?: FixService) =>
         Effect.gen(function*(): Effect.fn.Return<Detection, HomeOffline> {
-          const home = yield* link.home
-          if (Option.isNone(home)) return yield* Effect.fail(new HomeOffline({ message: offlineMessage }))
           const nowMs = yield* Clock.currentTimeMillis
-          const services = (["reclaimerr", "radarr", "sonarr"] as const).filter((s) =>
-            home.value.services.includes(s) && (only === undefined || only === s))
-          const results = yield* Effect.forEach(services, (service) =>
-            Effect.map(
-              service === "reclaimerr"
-                ? Effect.flatMap(read("reclaimerr", candidatesPath, CandidatePage), (page) =>
-                  Option.isNone(page)
-                    ? Effect.succeed(Option.none<ReadonlyArray<Detected>>())
-                    : only === undefined
-                    // Acting on a deletion needs no poster.
-                    ? Effect.map(deletionsWithPosters(page.value.items, home.value.services), Option.some)
-                    : Effect.succeed(Option.some(scheduledDeletions(page.value.items))))
-                : arrProblems(service, nowMs),
-              (found) => [service, found] as const
-            ), { concurrency: "unbounded" })
+          const asked = (service: FixService) => only === undefined || only === service
+          const since = grabsSincePath(nowMs - grabLookbackMs)
+          const radarr = asked("radarr")
+          const sonarr = asked("sonarr")
+          const { values, unavailable } = yield* reads.all({
+            candidates: asked("reclaimerr") ? { service: "reclaimerr", path: candidatesPath, schema: CandidatePage } : null,
+            radarrQueue: radarr ? { service: "radarr", path: radarrQueuePath, schema: QueuePage } : null,
+            radarrMissing: radarr ? { service: "radarr", path: radarrMissingPath, schema: RadarrMissing } : null,
+            radarrGrabs: radarr ? { service: "radarr", path: since, schema: RadarrGrabs } : null,
+            sonarrQueue: sonarr ? { service: "sonarr", path: sonarrQueuePath, schema: QueuePage } : null,
+            sonarrMissing: sonarr ? { service: "sonarr", path: sonarrMissingPath, schema: SonarrMissing } : null,
+            sonarrGrabs: sonarr ? { service: "sonarr", path: since, schema: SonarrGrabs } : null
+          })
+          // A service's rules need all its reads.
+          const movies = Option.all([values.radarrQueue, values.radarrMissing, values.radarrGrabs]).pipe(
+            Option.map(([queue, missing, grabs]) => [
+              ...queue.records.filter(isImportBlocked).map(blockedMovie),
+              ...moviesWithoutSource(missing.records, queue.records, grabs, nowMs)
+            ])
+          )
+          const episodes = Option.all([values.sonarrQueue, values.sonarrMissing, values.sonarrGrabs]).pipe(
+            Option.map(([queue, missing, grabs]) => [
+              ...queue.records.filter(isImportBlocked).map(blockedEpisodes),
+              ...episodesWithoutSource(missing.records, queue.records, grabs, nowMs)
+            ])
+          )
+          const deletions = Option.isNone(values.candidates)
+            ? []
+            : only === undefined
+            ? yield* deletionsWithPosters(values.candidates.value.items)
+            // Acting on a deletion needs no poster.
+            : scheduledDeletions(values.candidates.value.items)
+          const reached = yield* reads.services
           return {
-            detected: results.flatMap(([, found]) => Option.getOrElse(found, () => [])).sort(byUrgency),
-            read: results.flatMap(([service, found]) => Option.isSome(found) ? [service] : []),
-            unavailable: results.flatMap(([service, found]) => Option.isNone(found) ? [service] : [])
+            detected: [...deletions, ...Option.getOrElse(movies, () => []), ...Option.getOrElse(episodes, () => [])].sort(byUrgency),
+            read: (["reclaimerr", "radarr", "sonarr"] as const).filter((s) => asked(s) && reached.includes(s) && !unavailable.includes(s)),
+            unavailable
           }
         })
 
@@ -239,9 +202,6 @@ export class Fixes extends Context.Service<Fixes, {
           found.fix.actions.includes(action)
             ? Effect.succeed(found)
             : Effect.fail(new InvalidFix({ message: `“${found.fix.title}” doesn't offer ${action}` })))
-
-      const store = (effect: Effect.Effect<void, { readonly _tag: "HomeError"; readonly message: string; readonly reason: string }>) =>
-        Effect.mapError(effect, (error) => error.reason === "offline" ? offline({ message: offlineMessage }) : offline(error))
 
       const list = Effect.gen(function*() {
         const { detected, read: complete, unavailable } = yield* detect()
@@ -409,14 +369,14 @@ export class Fixes extends Context.Service<Fixes, {
           Effect.gen(function*() {
             yield* offering(id, "dismiss")
             const at = yield* Clock.currentTimeMillis
-            yield* store(documents.put(dismissedKey(id), { at }))
+            yield* Effect.mapError(documents.put(dismissedKey(id), { at }), toOffline)
           }),
 
         snooze: (id, days) =>
           Effect.gen(function*() {
             yield* offering(id, "snooze")
             const at = yield* Clock.currentTimeMillis
-            yield* store(documents.put(snoozedKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }))
+            yield* Effect.mapError(documents.put(snoozedKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
           }),
 
         releases: (id) =>

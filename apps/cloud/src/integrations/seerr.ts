@@ -1,9 +1,9 @@
-import { type ActionType, InvalidAction, type MediaRequest } from "@quai/api"
+import { type ActionType, type HomeOffline, InvalidAction, type MediaRequest } from "@quai/api"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
-import { type HomeError, HomeLink } from "../home/HomeLink.ts"
-import { type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
+import { HomeReads } from "../home/HomeReads.ts"
+import { actionCall, type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./radarr.ts"
 
 /**
@@ -204,35 +204,25 @@ export const requestIdOf = (subjectKey: string): number | null => {
  * TMDB id. Nothing is written anywhere; a restarted Cloud reads them again.
  */
 export class SeerrTitles extends Context.Service<SeerrTitles, {
-  readonly details: (request: SeerrRequest) => Effect.Effect<TitleDetails | undefined, HomeError>
+  readonly details: (request: SeerrRequest) => Effect.Effect<TitleDetails | undefined, HomeOffline>
   /** The pending requests with their titles, or None when Seerr didn't answer. */
-  readonly pending: Effect.Effect<Option.Option<ReadonlyArray<MediaRequest>>, HomeError>
+  readonly pending: Effect.Effect<Option.Option<ReadonlyArray<MediaRequest>>, HomeOffline>
   /** A request as it is now; None when Seerr didn't answer, `"gone"` when it was deleted. */
-  readonly current: (id: number) => Effect.Effect<Option.Option<SeerrRequest | "gone">, HomeError>
+  readonly current: (id: number) => Effect.Effect<Option.Option<SeerrRequest | "gone">, HomeOffline>
 }>()("quai/SeerrTitles") {
   static readonly layer = Layer.effect(
     SeerrTitles,
     Effect.gen(function*() {
-      const link = yield* HomeLink
+      const reads = yield* HomeReads
       const cache = new Map<string, TitleDetails>()
-      /** A GET's answer, None when Seerr (or Quai Home's call) failed; Quai Home offline fails. */
-      const get = (path: string): Effect.Effect<Option.Option<{ readonly status: number; readonly body: string }>, HomeError> =>
-        link.call({ service: "seerr", method: "GET", path }).pipe(
-          Effect.map(Option.some),
-          Effect.catchTag("HomeError", (error) =>
-            error.reason === "offline"
-              ? Effect.fail(error)
-              : Effect.as(Effect.logWarning(`seerr ${path.split("?")[0]}: ${error.message}`), Option.none()))
-        )
       const details = (request: SeerrRequest) =>
         Effect.gen(function*() {
           const kind = kindOf(request) === "series" ? "tv" as const : "movie" as const
           const key = `${kind}:${request.media.tmdbId}`
           const known = cache.get(key)
           if (known !== undefined) return known
-          const response = yield* get(detailsPath(kind, request.media.tmdbId))
-          if (Option.isNone(response) || response.value.status !== 200) return undefined
-          const found = Option.flatMap(readJson(SeerrTitle, response.value.body), (body) => Option.fromNullishOr(titleDetails(body)))
+          const body = yield* reads.read({ service: "seerr", path: detailsPath(kind, request.media.tmdbId), schema: SeerrTitle })
+          const found = Option.flatMap(body, (title) => Option.fromNullishOr(titleDetails(title)))
           if (Option.isNone(found)) return undefined
           if (cache.size >= 500) cache.clear()
           cache.set(key, found.value)
@@ -242,20 +232,11 @@ export class SeerrTitles extends Context.Service<SeerrTitles, {
         Effect.forEach(waiting(requests), (r) => Effect.map(details(r), (d) => toMediaRequest(r, d)), { concurrency: 4 })
       return {
         details,
-        pending: Effect.gen(function*() {
-          const response = yield* get(pendingPath)
-          if (Option.isNone(response) || response.value.status !== 200) return Option.none()
-          const page = readJson(SeerrRequestPage, response.value.body)
-          if (Option.isNone(page)) return Option.none()
-          return Option.some(yield* withTitles(page.value.results))
-        }),
-        current: (id) =>
-          Effect.map(get(requestPath(id)), Option.flatMap((response): Option.Option<SeerrRequest | "gone"> =>
-            response.status === 404
-              ? Option.some("gone")
-              : response.status === 200
-              ? readJson(SeerrRequest, response.body)
-              : Option.none()))
+        pending: Effect.flatMap(
+          reads.read({ service: "seerr", path: pendingPath, schema: SeerrRequestPage }),
+          Option.match({ onNone: () => Effect.succeed(Option.none()), onSome: (page) => Effect.map(withTitles(page.results), Option.some) })
+        ),
+        current: (id) => reads.read<SeerrRequest | "gone">({ service: "seerr", path: requestPath(id), schema: SeerrRequest, notFound: "gone" })
       }
     })
   )
@@ -300,16 +281,13 @@ export const outcome = (activity: Activity, request: SeerrRequest | "gone"): Rea
 }
 
 export const seerr = Effect.gen(function*() {
-  const link = yield* HomeLink
+  const reads = yield* HomeReads
   const titles = yield* SeerrTitles
 
   const decide = (decision: "approve" | "decline"): ActionHandler => (activity) => {
     const id = requestIdOf(activity.subjectKey)
     if (id === null) return Effect.fail(new InvalidAction({ message: "Not a request." }))
-    return link.call({ service: "seerr", method: "POST", path: decisionPath(id, decision) }).pipe(
-      Effect.mapError((e) => new InvalidAction({ message: `Seerr: ${e.message}` })),
-      Effect.flatMap((r) => r.status < 300 ? Effect.void : Effect.fail(new InvalidAction({ message: `Seerr: HTTP ${r.status}` })))
-    )
+    return actionCall(reads, "Seerr", { service: "seerr", method: "POST", path: decisionPath(id, decision) })
   }
 
   const actions: Partial<Record<ActionType, ActionHandler>> = {
@@ -344,7 +322,7 @@ export const seerr = Effect.gen(function*() {
               : Effect.map(titles.current(id), Option.match({ onNone: () => [], onSome: (r) => outcome(activity, r) }))
           }, { concurrency: 4 })
           return [...started, ...ended.flat()]
-        }).pipe(Effect.catchTag("HomeError", (error) => Effect.as(Effect.logDebug(`seerr: ${error.message}`), [])))
+        }).pipe(Effect.catchTag("HomeOffline", (error) => Effect.as(Effect.logDebug(`seerr: ${error.message}`), [])))
     },
     actions
   }

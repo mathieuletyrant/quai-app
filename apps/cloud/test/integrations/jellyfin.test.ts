@@ -1,10 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import type { Activity } from "../../src/flows/Engine.ts"
 import { HomeLink } from "../../src/home/HomeLink.ts"
+import { HomeReads } from "../../src/home/HomeReads.ts"
 import type { WatchContext } from "../../src/integrations/Integration.ts"
 import { jellyfin, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
-import { makeFakeHome } from "../fakeHome.ts"
+import { makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { download, playback } from "../flows/helpers.ts"
 
@@ -65,9 +66,11 @@ describe("Jellyfin sessions", () => {
   })
 })
 
+const link = HomeReads.layer.pipe(Layer.provideMerge(HomeLink.layer))
+
 describe("Jellyfin integration", () => {
   const withJellyfin = <A, E>(test: (integration: Effect.Success<typeof jellyfin>) => Effect.Effect<A, E, HomeLink>) =>
-    Effect.flatMap(jellyfin, test).pipe(Effect.provide(HomeLink.layer))
+    Effect.flatMap(jellyfin, test).pipe(Effect.provide(link))
   const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC" })
 
   it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once found by its TMDB id", () =>
@@ -127,7 +130,12 @@ describe("Jellyfin integration", () => {
 
   it.effect("its actions are the Jellyfin remote, on the activity's session, as calls through Quai Home", () =>
     Effect.gen(function*() {
-      const home = yield* makeFakeHome({ answer: (call) => call.path.includes("bad") ? { status: 404 } : { status: 204 } })
+      const home = yield* makeFakeHome({
+        answer: recordedHome({
+          "jellyfin POST /Sessions/s1/Playing/PlayPause": { status: 204 },
+          "jellyfin POST /Sessions/s1/Playing/Stop": { status: 204 }
+        })
+      })
       yield* home.connect
       const integration = yield* jellyfin
       yield* integration.actions["playback.playPause"]!(activity({ subjectKey: "playback:s1:i1" }))
@@ -138,5 +146,5 @@ describe("Jellyfin integration", () => {
       ])
       expect((yield* Effect.flip(integration.actions["playback.stop"]!(activity({})))).message).toBe("Not a playback.")
       expect((yield* Effect.flip(integration.actions["playback.stop"]!(activity({ subjectKey: "playback:bad:i1" })))).message).toBe("Jellyfin: HTTP 404")
-    }).pipe(Effect.provide(HomeLink.layer)))
+    }).pipe(Effect.provide(link)))
 })

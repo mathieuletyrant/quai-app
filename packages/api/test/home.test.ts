@@ -20,14 +20,10 @@ describe("home id", () => {
   })
 })
 
+// What the Cloud calls is checked against the allowlist by its own tests: their fake Quai Home
+// (apps/cloud/test/fakeHome.ts) refuses, and fails the test on, any call the allowlist refuses.
+// Here: what it must refuse, and the body checks.
 describe("allowlist", () => {
-  it("lets the library reads through: Radarr's movies and disk, Sonarr's series and disk", () => {
-    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/movie" })).toBe(true)
-    expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/diskspace" })).toBe(true)
-    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/series" })).toBe(true)
-    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/diskspace" })).toBe(true)
-  })
-
   it("keeps the library read-only: no write, no single title, no other service's path", () => {
     expect(HomeProtocol.allowed({ service: "radarr", method: "POST", path: "/api/v3/movie" })).toBe(false)
     expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/movie/12" })).toBe(false)
@@ -45,19 +41,11 @@ describe("allowlist: the To fix list", () => {
     files: [{ path: "/downloads/Dune.mkv", movieId: 12, downloadId: "ABC", quality: { quality: { id: 7 } }, languages: [{ id: 1 }] }]
   }
 
-  it("reads the queue, what's missing, the grabs and the manual import, in both *arr", () => {
-    for (const service of ["radarr", "sonarr"] as const) {
-      for (const path of ["/api/v3/queue?includeUnknownMovieItems=true", "/api/v3/wanted/missing", "/api/v3/history/since?date=2026-11-01", "/api/v3/release?movieId=12", "/api/v3/manualimport?downloadId=ABC"]) {
-        expect(allowed({ service, method: "GET", path })).toBe(true)
-      }
-    }
-    expect(allowed({ service: "sonarr", method: "GET", path: "/api/v3/episode?seriesId=3" })).toBe(true)
+  it("Radarr has no episodes to read", () => {
     expect(allowed({ service: "radarr", method: "GET", path: "/api/v3/episode?seriesId=3" })).toBe(false)
   })
 
-  it("removes one queue item, and only with DELETE on its id", () => {
-    expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/queue/41?removeFromClient=true&blocklist=false" })).toBe(true)
-    expect(allowed({ service: "sonarr", method: "DELETE", path: "/api/v3/queue/7" })).toBe(true)
+  it("removes a queue item only with DELETE on its id, without a body", () => {
     expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/queue/bulk" })).toBe(false)
     expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/movie/12" })).toBe(false)
     expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/queue/41", body: { ids: [1, 2] } })).toBe(false)
@@ -93,9 +81,7 @@ describe("allowlist: the To fix list", () => {
     expect(allowed({ service: "sonarr", method: "POST", path: "/api/v3/command", body: { ...episodes, name: "SeriesSearch" } })).toBe(false)
   })
 
-  it("reads Reclaimerr's candidates and protects one, nothing else", () => {
-    expect(allowed({ service: "reclaimerr", method: "GET", path: "/api/v1/system" })).toBe(true)
-    expect(allowed({ service: "reclaimerr", method: "GET", path: "/api/v1/candidates?page=1&per_page=200" })).toBe(true)
+  it("protects one Reclaimerr candidate, nothing else", () => {
     expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: "Kept from Quai" } })).toBe(true)
     expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: {} })).toBe(true)
     expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: 3 } })).toBe(false)
@@ -115,12 +101,6 @@ describe("allowlist: the To fix list", () => {
 
 describe("allowlist: Seerr", () => {
   const allowed = HomeProtocol.allowed
-
-  it("reads the status, the requests and the titles they ask for", () => {
-    for (const path of ["/api/v1/status", "/api/v1/request?take=50&skip=0&filter=pending&sort=added", "/api/v1/request/12", "/api/v1/movie/1022789", "/api/v1/tv/95396"]) {
-      expect(allowed({ service: "seerr", method: "GET", path })).toBe(true)
-    }
-  })
 
   it("approves or declines one request, with no body", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(true)
@@ -143,9 +123,8 @@ describe("allowlist: Seerr", () => {
 })
 
 describe("allowlist: the calendars", () => {
-  it("reads Radarr's and Sonarr's calendar, and never writes to it", () => {
+  it("never writes to Radarr's and Sonarr's calendar, nor reads one entry", () => {
     for (const service of ["radarr", "sonarr"] as const) {
-      expect(HomeProtocol.allowed({ service, method: "GET", path: "/api/v3/calendar?start=2026-11-19T23:00:00.000Z&end=2026-11-20T23:00:00.000Z" })).toBe(true)
       expect(HomeProtocol.allowed({ service, method: "POST", path: "/api/v3/calendar" })).toBe(false)
       expect(HomeProtocol.allowed({ service, method: "GET", path: "/api/v3/calendar/12" })).toBe(false)
     }

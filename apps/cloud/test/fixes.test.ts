@@ -1,19 +1,17 @@
-import { DeviceAuth, HomeOffline, QuaiApi } from "@quai/api"
+import { DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Exit, Layer, Option, Schema } from "effect"
+import { Effect, Exit, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { noSourceAfterMs } from "../src/fixes/Detected.ts"
-import { Fixes } from "../src/fixes/Fixes.ts"
-import { HomeDocuments, HomeError, HomeLink, offlineMessage } from "../src/home/HomeLink.ts"
 import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
 import { blockedMovie, moviesWithoutSource, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
 import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
 import { blockedEpisodes, episodesWithoutSource, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
-import { type FakeHome, type FakeHomeOptions, makeFakeHome } from "./fakeHome.ts"
+import { type FakeHome, type FakeHomeOptions, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
-import { TestApp } from "./testApp.ts"
+import { TestApp, testAppDroppingOn } from "./testApp.ts"
 
 /** The fixtures' "now": Thursday Nov 19, 2026, noon UTC. */
 const now = Date.parse("2026-11-19T12:00:00Z")
@@ -39,30 +37,28 @@ const moviesWithCandidates = (): ReadonlyArray<unknown> => {
   return [...movies, like(142, "Up", 2009, 2042, upPoster), like(143, "Cars 2", 2011, 99999, carsPoster)]
 }
 
-/** Quai Home answering from the recordings; `overrides` win (a route set to null answers 404). */
-const recorded = (overrides: Record<string, FakeHomeOptions["answer"] | undefined> = {}): NonNullable<FakeHomeOptions["answer"]> => (call) => {
-  const path = call.path.split("?")[0]!
-  const route = `${call.service} ${call.method} ${path}`
-  const override = overrides[route]
-  if (override !== undefined) return override(call)
-  const files: Record<string, string> = {
-    "radarr GET /api/v3/queue": "radarr/queue.json",
-    "radarr GET /api/v3/wanted/missing": "radarr/wanted-missing.json",
-    "radarr GET /api/v3/history/since": "radarr/history-since.json",
-    "radarr GET /api/v3/release": "radarr/release.json",
-    "radarr GET /api/v3/manualimport": "radarr/manualimport.json",
-    "sonarr GET /api/v3/queue": "sonarr/queue.json",
-    "sonarr GET /api/v3/wanted/missing": "sonarr/wanted-missing.json",
-    "sonarr GET /api/v3/history/since": "sonarr/history-since.json",
-    "sonarr GET /api/v3/release": "sonarr/release.json",
-    "sonarr GET /api/v3/manualimport": "sonarr/manualimport.json",
-    "sonarr GET /api/v3/episode": "sonarr/episodes.json",
-    "reclaimerr GET /api/v1/candidates": "reclaimerr/candidates.json"
-  }
-  if (files[route] !== undefined) return { json: fixture(files[route]) }
-  if (call.method === "POST" || call.method === "DELETE") return { status: call.path.includes("/command") ? 201 : 200, json: {} }
-  return { status: 404 }
+/** The To fix reads, and every write accepted. */
+const routes: Readonly<Record<string, Recording>> = {
+  "radarr GET /api/v3/queue": "radarr/queue.json",
+  "radarr GET /api/v3/wanted/missing": "radarr/wanted-missing.json",
+  "radarr GET /api/v3/history/since": "radarr/history-since.json",
+  "radarr GET /api/v3/release": "radarr/release.json",
+  "radarr GET /api/v3/manualimport": "radarr/manualimport.json",
+  "sonarr GET /api/v3/queue": "sonarr/queue.json",
+  "sonarr GET /api/v3/wanted/missing": "sonarr/wanted-missing.json",
+  "sonarr GET /api/v3/history/since": "sonarr/history-since.json",
+  "sonarr GET /api/v3/release": "sonarr/release.json",
+  "sonarr GET /api/v3/manualimport": "sonarr/manualimport.json",
+  "sonarr GET /api/v3/episode": "sonarr/episodes.json",
+  "reclaimerr GET /api/v1/candidates": "reclaimerr/candidates.json",
+  "radarr DELETE /api/v3/queue/41": { json: {} },
+  "sonarr DELETE /api/v3/queue/7": { json: {} },
+  "radarr POST /api/v3/release": { json: {} },
+  "radarr POST /api/v3/command": { status: 201, json: {} },
+  "sonarr POST /api/v3/command": { status: 201, json: {} },
+  "reclaimerr POST /api/v1/candidates/42/protect": { json: {} }
 }
+const recorded = (overrides: Readonly<Record<string, Recording>> = {}) => recordedHome(routes, overrides)
 
 const services = ["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr"] as const
 
@@ -247,7 +243,7 @@ describe("GET /api/fixes", () => {
 
   it.effect("without Radarr's library, the deletions still show, without a poster", () =>
     Effect.gen(function*() {
-      const { api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": () => ({ failed: "unreachable" }) }) })
+      const { api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": { failed: "unreachable" } }) })
       const list = yield* api.list()
       const deletions = list.items.filter((f) => f.kind === "scheduledDeletion")
       expect(deletions.map((f) => f.id)).toEqual(["deletion-43", "deletion-42"])
@@ -257,27 +253,9 @@ describe("GET /api/fixes", () => {
 
   it.effect("Quai Home going offline while Radarr's library is read fails the list", () =>
     Effect.gen(function*() {
-      yield* TestClock.setTime(now)
-      const answer = recorded()
-      // Only that read finds Quai Home gone: the rest of the list (and the documents) still answers.
-      const link = Layer.succeed(HomeLink, HomeLink.of({
-        home: Effect.succeed(Option.some({ homeId: "home", services })),
-        call: (request) =>
-          request.path === "/api/v3/movie"
-            ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
-            : Effect.sync(() => {
-              const a = answer({ id: "call", ...request } as Parameters<typeof answer>[0])
-              return "json" in a ? { status: a.status ?? 200, body: JSON.stringify(a.json) } : { status: 404, body: "" }
-            }),
-        setWatches: () => Effect.void,
-        documents: undefined as never,
-        nextEvent: Effect.never,
-        serve: () => Effect.void
-      }))
-      const fixes = yield* Effect.provide(Fixes, Fixes.layer.pipe(Layer.provide([link, HomeDocuments.memory])))
-      const exit = yield* Effect.exit(fixes.list)
-      expect(exit).toStrictEqual(Exit.fail(new HomeOffline({ message: offlineMessage })))
-    }))
+      const { api } = yield* setUp()
+      expect((yield* Effect.flip(api.list()))._tag).toBe("HomeOffline")
+    }).pipe(Effect.provide(testAppDroppingOn("radarr GET /api/v3/movie"))))
 
   it.effect("a title without a source shows up 2 hours after it was added", () =>
     Effect.gen(function*() {
@@ -287,21 +265,14 @@ describe("GET /api/fixes", () => {
       expect((yield* api.list()).items.map((f) => f.id)).toContain("missing-movie-52")
     }).pipe(Effect.provide(TestApp)))
 
+  // What isn't reached or doesn't answer is HomeReads' (test/home/reads.test.ts): one smoke test here.
   it.effect("a service that doesn't answer is unavailable; the others still show", () =>
     Effect.gen(function*() {
-      const { api } = yield* setUp({ answer: recorded({ "sonarr GET /api/v3/wanted/missing": () => ({ failed: "unreachable" }) }) })
+      const { api } = yield* setUp({ answer: recorded({ "sonarr GET /api/v3/wanted/missing": { failed: "unreachable" } }) })
       const list = yield* api.list()
       expect(list.unavailable).toEqual(["sonarr"])
       expect(list.items.some((f) => f.service === "sonarr")).toBe(false)
       expect(list.items.some((f) => f.service === "radarr")).toBe(true)
-    }).pipe(Effect.provide(TestApp)))
-
-  it.effect("only reads the services Quai Home reaches", () =>
-    Effect.gen(function*() {
-      const { home, api } = yield* setUp({ services: ["radarr"] })
-      const list = yield* api.list()
-      expect(new Set(list.items.map((f) => f.service))).toEqual(new Set(["radarr"]))
-      expect(home.calls.every((c) => c.service === "radarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("needs the iPhone's token; the console's route doesn't", () =>

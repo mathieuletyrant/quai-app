@@ -3,7 +3,8 @@ import { Effect, Layer, Option } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { ActionRunner } from "../src/flows/ActionRunner.ts"
 import { TestRunner } from "../src/flows/TestRunner.ts"
-import { HomeRequiredLive } from "../src/home/HomeLink.ts"
+import { HomeLink, HomeRequiredLive } from "../src/home/HomeLink.ts"
+import { IntegrationsLive } from "../src/integrations/All.ts"
 import { ConnectionHandlers } from "../src/http/ConnectionHandlers.ts"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
@@ -23,23 +24,28 @@ import { Fixes } from "../src/fixes/Fixes.ts"
 import { Library } from "../src/library/Library.ts"
 import { PublicAccess } from "../src/PublicAccess.ts"
 import { ServerInfo } from "../src/Version.ts"
-import { cloudLive, makeFakeHome } from "./fakeHome.ts"
+import { cloud, linkDroppingOn, makeFakeHome } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, RequestsHandlers, ConsoleRequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers).pipe(
+export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink> = HomeLink.layer) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, RequestsHandlers, ConsoleRequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
   Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer, Requests.layer.pipe(Layer.provide(SeerrTitles.layer)), Releases.layer)),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
   Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
-  Layer.provideMerge(cloudLive),
+  Layer.provideMerge(cloud(IntegrationsLive, link)),
   Layer.provideMerge(Layer.effect(Apns, Apns.make(null))),
   Layer.provideMerge(publicAccess),
   Layer.provideMerge(Layer.succeed(ServerInfo, { version: "test", startedAt: 0 })),
   Layer.provideMerge(NodeHttpServer.layerTest)
 )
 
+const noPublicAccess = Layer.succeed(PublicAccess, PublicAccess.make(Option.none(), []))
+
 /** The routes with no public address and no access headers. */
-export const TestApp = testAppWith(Layer.succeed(PublicAccess, PublicAccess.make(Option.none(), [])))
+export const TestApp = testAppWith(noPublicAccess)
+
+/** The routes, on a link that finds Quai Home gone for these calls (`linkDroppingOn`). */
+export const testAppDroppingOn = (...routes: ReadonlyArray<string>) => testAppWith(noPublicAccess, linkDroppingOn(...routes))
 
 /** A fake Quai Home, connected. */
 export const connectedHome = Effect.tap(makeFakeHome(), (home) => home.connect)

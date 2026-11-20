@@ -1,11 +1,10 @@
 <div align="center">
 
-<img src="apps/console/public/icon.svg" width="96" alt="Quai" />
+<img src="apps/console/public/icon.svg" width="88" alt="Quai" />
 
 # Quai
 
-**Your self-hosted media stack, live on your iPhone.**
-Every movie or series followed from request to "ready to watch", on the Lock Screen and in the Dynamic Island.
+**Your Radarr, Sonarr and Jellyfin, live on your iPhone's Lock Screen.**
 
 [![Image](https://img.shields.io/badge/ghcr.io-mathieuletyrant%2Fquai-6FD3C2?logo=docker&logoColor=white)](https://github.com/mathieuletyrant/quai-app/pkgs/container/quai)
 ![Effect](https://img.shields.io/badge/Effect-4.1-14161c)
@@ -15,150 +14,151 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 
 </div>
 
+<p align="center"><img src="docs/live-activities.png" width="720" alt="Download, Jellyfin playback, a Seerr request and tonight's releases as Live Activities" /></p>
+
+You request a movie. Quai puts it on your Lock Screen and in the Dynamic Island, and keeps it up
+to date while the app is closed: searching, downloading (percent, speed, time left), importing,
+ready to watch.
+
 > [!NOTE]
-> Early days. The server, console and iOS app are scaffolded; the first Live Activity (Download) is the next milestone.
+> Quai works today on my own setup. The iPhone app is on TestFlight only, iPhone only. Expect rough edges.
 
-## ✨ Features
+## ✨ What it does
 
-**Live Activities**, started remotely by the server, with the app closed:
+**Live Activities**
+- ⬇️ **Download**: from the request to "ready to watch", with live progress from qBittorrent.
+- ▶️ **Playback**: what's playing on Jellyfin, time left, and Play/Pause from the Lock Screen.
+- 🙋 **Requests**: a Seerr request waiting for your approval, with Approve and Decline buttons.
+- 📅 **Tonight**: one activity for the evening, ticking off today's episodes and movies as they arrive.
+- 🚨 **Incidents**: a service that stops answering.
 
-- ⬇️ **Download**: search, download (%, speed, time left), import, French subtitles, available. Then "Play on TV" for 15 min
-- ▶️ **Jellyfin playback**: title, time left, end time, on the devices you pick
-- 📅 **Tonight's releases**: one activity for the evening, from 18:00 (or the first air time): today's episodes and movies, each ticked off once it's here
-- 🚨 **Server incident**: a service, indexer or disk down, since when, what's waiting
-- 🙋 **Requests**: a Seerr request from the household waiting for you, with Approve and Decline on the Lock Screen
+You choose which ones run, and what each step shows, in a small flow editor in the web console.
 
-**Server**
-
-- 🔌 Reads Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, Seerr and Jellyfin over your Docker network
-- 🪝 Sets up its own webhooks, polls only while an activity needs it
-- 🔒 Local first: nothing leaves the machine but the pushes to Apple; no port to open
-- 🖥️ Web console: guided setup, Live Activity rules, paired iPhones, event log
-
-**iPhone app**
-
-- 📷 Pair by scanning a QR code from the console
-- 📋 Live activities first, then today's events
-- 🎚️ One switch per activity kind, greyed out when the admin turned it off
-- 🙋 Requests tile: Seerr requests waiting for approval, approved or declined in one tap
-- 📅 Tonight tile: what comes out today, with its time and where it stands
+**The app**
+- 🏠 **Home**: what's downloading, what's ready, tonight's releases, requests waiting for you.
+- 🎞️ **Library**: your movies and series with their posters, and what's still missing.
+- 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
+  one), and what Reclaimerr is about to delete (keep it).
 
 ## 🧭 How it works
 
-> [!NOTE]
-> This is where Quai is heading ([spec v2](docs/spec-v2-hosted.md)). Today the Home and the Cloud
-> run together in one server; they're being split.
+Quai has two parts.
 
-```mermaid
-flowchart LR
-  subgraph home["🏠 Your server"]
-    direction TB
-    services["Radarr · Sonarr<br/>qBittorrent · Jellyfin"]
-    relay(["<b>Quai Home</b><br/>your keys · your data"])
-    services -- "webhooks" --> relay
-    relay -- "polls, actions<br/>(Jellyfin play/pause)" --> services
-  end
+- 🏠 **Quai Home** runs next to your services, on your server. It holds their API keys and your data
+  (paired iPhones, flows, preferences). It sets up the Radarr and Sonarr webhooks, polls only
+  what's needed, and makes only the calls on a fixed allowlist. It connects out: no port to open.
+- ☁️ **Quai Cloud** turns what Home sends into Live Activities and pushes them through Apple. It
+  stores nothing: when Home connects, Cloud loads what it needs from it.
 
-  core(["<b>Quai Cloud</b><br/>flows · console<br/>stores nothing"])
-  apple["Apple Push"]
-  phone["📱 iPhone"]
-
-  relay == "connects out,<br/>sends events" ==> core
-  core -. "what to watch,<br/>button presses" .-> relay
-  core -- "Live Activity" --> apple --> phone
-  phone -- "app, buttons" --> core
-
-  classDef relayStyle fill:#0f2e29,stroke:#6fd3c2,stroke-width:2px,color:#fff
-  classDef coreStyle fill:#231b3d,stroke:#b57edc,stroke-width:2px,color:#fff
-  classDef plain fill:#17171d,stroke:#3a3a44,color:#e5e5ea
-  class relay relayStyle
-  class core coreStyle
-  class services,apple,phone plain
-  style home fill:#0b0b0f,stroke:#2a2a33,color:#a1a1a6
+```
+ your server                                   anywhere
+┌───────────────────────────────┐         ┌─────────────────┐          ┌────────┐
+│ Radarr · Sonarr · qBittorrent │         │                 │  Apple   │        │
+│ Jellyfin · Seerr · Reclaimerr │         │   Quai Cloud    │ ───────▶ │ iPhone │
+│              ▲                │ ──────▶ │ (stores nothing)│ ◀─────── │        │
+│              │                │ ◀────── │                 │   app    │        │
+│          Quai Home            │         └─────────────────┘          └────────┘
+│      (your keys, your data)   │
+└───────────────────────────────┘
 ```
 
-- **Quai Home** runs next to your services, and is the only thing that talks to them. It holds
-  their keys, sets up their webhooks, polls what the Cloud asks it to watch, and keeps the home's
-  data (flows, iPhones, preferences) in its `/data`. It connects out to the Cloud: no port to open,
-  no tunnel, and the Cloud never reaches your network.
-- **Quai Cloud** understands events and runs the flows, the console and the app's API. It keeps
-  nothing: when a Home connects, the Cloud loads that home from it, and writes every change back.
-- **The app** talks to the Cloud from anywhere and receives Live Activities through Apple. A button
-  on a Live Activity (Play/Pause) goes app → Cloud → Home, and the Home makes the call to Jellyfin.
+A Play/Pause tap on the Lock Screen goes iPhone → Cloud → Home, and Home calls Jellyfin.
 
-Self-hosting everything: one compose runs the Home and the Cloud side by side.
+Today both parts run on your own server. A hosted Cloud, so you only run Home, is planned
+([spec](docs/spec-v2-hosted.md)).
 
-## 🚀 Run it
+## 🚀 Install
 
-The image is Quai Cloud: the API, the console and the pushes. It keeps nothing on disk.
+☂️ **Umbrel**: install **Quai** from [Mathieu's Umbrel App Store](https://github.com/mathieuletyrant/umbrel-community-app-store),
+paste your API keys in its settings, open it and scan the QR code with the iPhone.
 
-```sh
-docker run -d --name quai -p 8787:8787 ghcr.io/mathieuletyrant/quai:latest
+🐳 **Docker**: run both images side by side.
+
+```yaml
+services:
+  cloud:
+    image: ghcr.io/mathieuletyrant/quai:latest
+    ports: ["8787:8787"]
+    environment:
+      QUAI_APNS_KEY_FILE: /keys/AuthKey.p8
+      QUAI_APNS_KEY_ID: ABCDE12345
+      QUAI_APNS_TEAM_ID: FGHIJ67890
+    volumes: ["./keys:/keys:ro"]
+  home:
+    image: ghcr.io/mathieuletyrant/quai-home:latest
+    environment:
+      QUAI_CLOUD_URL: ws://cloud:8787/home
+      QUAI_INTERNAL_URL: http://home:8788
+      QUAI_RADARR_URL: http://radarr:7878
+      QUAI_RADARR_API_KEY: ...
+      QUAI_SONARR_URL: http://sonarr:8989
+      QUAI_SONARR_API_KEY: ...
+    volumes: ["./data:/data"]
 ```
 
-Quai Home (`apps/home`) runs next to your services with their URLs and keys, and connects to the
-Cloud's `/home` WebSocket (`QUAI_CLOUD_URL=ws://<cloud>:8787/home`). Until it does, the app's and
-the console's routes answer 503 "Quai Home is not connected".
+Then open `http://<server>:8787`, choose **Pair an iPhone** and scan the code.
+
+Live Activities need an Apple push key, and Apple only accepts pushes signed with the key of the
+app's own developer account. Until the hosted Cloud exists, self-hosting means building the app with
+your own account.
+
+<details>
+<summary>All settings</summary>
+
+**Quai Home**
+
+| Env | |
+|---|---|
+| `QUAI_CLOUD_URL` | The Cloud's WebSocket, e.g. `ws://cloud:8787/home` |
+| `QUAI_INTERNAL_URL` | How Radarr and Sonarr reach Home, for the webhooks it sets up |
+| `QUAI_DATA_DIR` | Where Home keeps its data (default `./data`, `/data` in the image) |
+| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (Settings → General) |
+| `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | Sonarr (Settings → General) |
+| `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | Jellyfin (Dashboard → API Keys) |
+| `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | qBittorrent Web UI |
+| `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General) |
+| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations) |
+
+A service without its URL and key is skipped.
+
+**Quai Cloud**
 
 | Env | Default | |
 |---|---|---|
-| `QUAI_PORT` | `8787` | HTTP port (API, console, `/home` WebSocket) |
-| `QUAI_CONSOLE_DIR` | `/app/console` | Built console served by the Cloud |
-| `QUAI_PUBLIC_URL` | – | Address from outside, added to the pairing QR code |
-| `QUAI_PUBLIC_HEADERS` | – | Headers a reverse proxy in front of the Cloud requires, as `Name: value` pairs separated by `;` or line breaks (e.g. `CF-Access-Client-Id: …; CF-Access-Client-Secret: …`). Go into the pairing QR code; the app sends them on every request. See [behind a proxy](docs/proxy.md) |
-| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | – | Apple push key (.p8) for Live Activities: the Cloud's own configuration |
-| `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The iOS app's bundle id |
-| `QUAI_TZ` | `UTC` | Time zone (IANA) for "tonight" until an iPhone reports its own: the paired iPhones' time zone wins |
+| `QUAI_PORT` | `8787` | API, console and the `/home` WebSocket |
+| `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | | Apple push key (.p8) |
+| `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The app's bundle id |
+| `QUAI_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
+| `QUAI_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
+| `QUAI_TZ` | `UTC` | Time zone for "tonight", until an iPhone reports its own |
 
-To reach the Cloud away from home, put its `/api/*` behind a reverse proxy (Cloudflare Access,
-Pangolin, Authentik, …): [docs/proxy.md](docs/proxy.md).
-
-The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
-
-Quai Home reads each service from `QUAI_<SERVICE>_URL` and its key; a service left unset is
-skipped. Seerr (Jellyseerr, Overseerr) is optional: `QUAI_SEERR_URL` and `QUAI_SEERR_API_KEY`
-(Seerr → Settings → General → API Key).
-
-On Umbrel, install **Quai** from [Mathieu's Umbrel App Store](https://github.com/mathieuletyrant/umbrel-community-app-store).
+</details>
 
 ## 🛠️ Develop
 
 ```sh
 pnpm install
-pnpm dev:cloud       # Quai Cloud on :8787
-pnpm dev:console     # console on http://localhost:5173
-pnpm test
-pnpm check
-pnpm gen:openapi     # after changing packages/api
+pnpm dev:cloud     # Quai Cloud on :8787
+pnpm dev:console   # console on :5173
+pnpm check && pnpm test
 ```
 
-```
-packages/api     The contract: Effect HttpApi + Schema, exported as openapi.json
-apps/home        Quai Home: the link to the Cloud, webhooks, allowlisted calls and watches, home documents
-apps/cloud       Quai Cloud, Effect 4 on Node: integrations, activity engine, APNs over HTTP/2, console
-apps/console     React · Vite, typed client derived from packages/api
-apps/ios         SwiftUI · WidgetKit Live Activities · App Intents (XcodeGen project.yml)
-```
+| Path | |
+|---|---|
+| `packages/api` | The contract (Effect `HttpApi` + `Schema`), exported as `openapi.json` |
+| `apps/home` | Quai Home |
+| `apps/cloud` | Quai Cloud (Effect on Node) |
+| `apps/console` | Web console (React, Vite) |
+| `apps/ios` | iPhone app and Live Activities (SwiftUI, XcodeGen) |
 
-One contract, three consumers: changing a route in `packages/api` breaks the Cloud, the console and the iOS app at compile time.
+iOS: `cd apps/ios && xcodegen generate && open Quai.xcodeproj`.
 
-iOS (macOS): `cd apps/ios && xcodegen generate && open Quai.xcodeproj`. The **Quai Demo** scheme starts a demo Live Activity without a server.
+Releases are automatic from [Conventional Commits](https://www.conventionalcommits.org): merging
+the release PR publishes the Docker images and uploads the app to TestFlight.
 
-### 📦 Releases
-
-Fully automatic, driven by [Conventional Commits](https://www.conventionalcommits.org) (`feat:` → minor, `fix:` → patch):
-
-1. Every push to `main` opens or updates a **release PR** with the next version and the CHANGELOG.
-2. Merging it creates the tag and GitHub release, then builds and publishes the Docker image.
-3. The same release is archived and uploaded to TestFlight, once the repo has the `ASC_KEY_P8` secret: the .p8 of the App Store Connect API key (Admin role, which cloud signing needs) whose ids are in `.github/workflows/testflight.yml`.
-
-📖 Specs: [v1](docs/spec-v1.md) · [v2, Home and Cloud](docs/spec-v2-hosted.md) · 🤖 Agent rules: [AGENTS.md](AGENTS.md)
+📖 More: [flows](docs/flows.md) · [Home and Cloud](docs/spec-v2-hosted.md) · [behind a proxy](docs/proxy.md) · [rules for coding agents](AGENTS.md)
 
 ## 📄 License
 
-The code is open source under the [Apache License 2.0](LICENSE): run it, change it, self-host it,
-build the iOS app with your own Apple developer account and push key.
-
-The **Quai** name and logo aren't part of that license ([TRADEMARKS.md](TRADEMARKS.md)): a fork
-that ships to others needs its own name, logo and bundle id. The official App Store app and its
-push relay are provided by the author.
+[Apache 2.0](LICENSE). The **Quai** name and logo aren't covered by it ([TRADEMARKS.md](TRADEMARKS.md)):
+a fork you ship to others needs its own name, logo and bundle id.

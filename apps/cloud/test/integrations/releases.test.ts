@@ -18,11 +18,19 @@ import { Apns } from "../../src/push/Apns.ts"
 import { apnsBody } from "../../src/push/ApnsPayload.ts"
 import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/releases/Day.ts"
 import { activityItems, dayReleases, startsAt } from "../../src/releases/Tonight.ts"
-import { cloudLive, type FakeHomeOptions, makeFakeHome } from "../fakeHome.ts"
+import { cloudLive, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
-import { TestApp } from "../testApp.ts"
+import { TestApp, testAppDroppingOn } from "../testApp.ts"
 
 const paris = "Europe/Paris"
+
+/** The calendars and queues of the day, as Quai Home reads them (the route's reads, the watches'). */
+const calendars = {
+  "sonarr GET /api/v3/calendar": "sonarr/calendar.json",
+  "sonarr GET /api/v3/queue": "sonarr/queue-calendar.json",
+  "radarr GET /api/v3/calendar": "radarr/calendar.json",
+  "radarr GET /api/v3/queue": "radarr/queue-calendar.json"
+}
 const tonight = builtInFlows.find((f) => f.id === "tonight")!
 const decode = <A, I>(schema: Schema.Codec<A, I>, path: string) => Schema.decodeUnknownSync(schema)(fixture(path))
 
@@ -156,13 +164,7 @@ describe("tonight's releases", () => {
 
 describe("Tonight's releases flow", () => {
   const services = ["radarr", "sonarr"] as const
-  /** Quai Home answering from the recordings, calls included (the route's reads). */
-  const answer = (): NonNullable<FakeHomeOptions["answer"]> => (call) => {
-    const path = call.path.split("?")[0]
-    if (path === "/api/v3/calendar") return { json: fixture(`${call.service}/calendar.json`) }
-    if (path === "/api/v3/queue") return { json: fixture(`${call.service}/queue-calendar.json`) }
-    return { status: 404 }
-  }
+  const answer = () => recordedHome(calendars)
   const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
   const day = Effect.gen(function*() {
     return [...(yield* (yield* Activities).snapshot).activities.values()].filter((a) => a.flowId === "tonight")
@@ -286,12 +288,7 @@ describe("releases route", () => {
       yield* TestClock.setTime(Date.parse("2026-11-20T12:00:00Z"))
       const home = yield* makeFakeHome({
         services: ["radarr", "sonarr"],
-        answer: (call) => {
-          const path = call.path.split("?")[0]
-          if (path === "/api/v3/calendar") return { json: fixture(`${call.service}/calendar.json`) }
-          if (path === "/api/v3/queue") return { json: fixture(`${call.service}/queue-calendar.json`) }
-          return { status: 404 }
-        }
+        answer: recordedHome(calendars)
       })
       yield* home.connect
       const console = yield* HttpApiTest.groups(QuaiApi, ["console"])
@@ -308,6 +305,20 @@ describe("releases route", () => {
       expect(today.unavailable).toEqual([])
       expect(today.items.map((r) => r.status)).toEqual(["available", "downloading", "missing", "grabbed"])
     }).pipe(Effect.provide(TestApp)))
+
+  it.effect("Quai Home dropping while the calendars are read is 503 HomeOffline, not a service unavailable", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome({ services: ["radarr", "sonarr"], answer: recordedHome(calendars) })
+      yield* home.connect
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { name: "iPhone", apnsEnvironment: "development", code: qr.code }
+      })
+      const api = yield* HttpApiTest.groups(QuaiApi, ["releases"]).pipe(
+        Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
+      )
+      expect((yield* Effect.flip(api.releases.today()))._tag).toBe("HomeOffline")
+    }).pipe(Effect.provide(testAppDroppingOn("radarr GET /api/v3/calendar"))))
 
   it.effect("an iPhone that reports a time zone that doesn't exist is ignored: UTC", () =>
     Effect.gen(function*() {
