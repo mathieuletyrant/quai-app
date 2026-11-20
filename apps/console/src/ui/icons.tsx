@@ -12,6 +12,7 @@ const paths = {
   arrowUp: "M12 19V5M6 11l6-6 6 6",
   arrowDown: "M12 5v14M6 13l6 6 6-6",
   more: "M5 12h.01M12 12h.01M19 12h.01",
+  menu: "M4 7h16M4 12h16M4 17h16",
   play: "M8 5.5v13l10.5-6.5z",
   trash: "M4.5 6.5h15M9.5 6.5V4.75h5V6.5M6.5 6.5l.9 12.6A1.5 1.5 0 0 0 8.9 20.5h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.6M10 10.5v6M14 10.5v6",
   copy: "M9 9h10.25v10.25H9zM15 9V4.75H4.75V15H9",
@@ -34,7 +35,12 @@ const paths = {
   shield: "M12 3.5l7 2.5v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6zM9 12l2 2 4-4",
   download: "M12 4v11M7 10.5l5 5 5-5M5 19.5h14",
   moon: "M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z",
-  person: "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0"
+  person: "M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0",
+  journal: "M5 4.5h14v15H5zM8.5 9h7M8.5 12h7M8.5 15h4",
+  pause: "M9 5.5v13M15 5.5v13",
+  filter: "M4 5.5h16l-6 7.5v5.5l-4 1.5v-7z",
+  film: "M4.5 4.5h15v15h-15zM8 4.5v15M16 4.5v15M4.5 9h3.5M4.5 15h3.5M16 9h3.5M16 15h3.5",
+  tv: "M3.5 6h17v11h-17zM8.5 20.5h7"
 } as const
 export type IconName = keyof typeof paths
 

@@ -6,6 +6,7 @@ import { HomeConfig, configuredServices } from "./Config.ts"
 import type { StoreError } from "./Errors.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
+import { Journal } from "./Journal.ts"
 import { homeVersion } from "./Version.ts"
 import { Watches } from "./Watches.ts"
 
@@ -49,6 +50,7 @@ export class Link extends Context.Service<Link, {
       const calls = yield* Calls
       const watches = yield* Watches
       const store = yield* HomeStore
+      const journal = yield* Journal
       const socket = yield* Socket.Socket
       const current = yield* Ref.make<((message: HomeMessage) => Effect.Effect<void>) | null>(null)
       const linked = yield* Ref.make(false)
@@ -111,6 +113,8 @@ export class Link extends Context.Service<Link, {
                   yield* Ref.set(failures, 0)
                   yield* Ref.set(linked, true)
                   yield* watcher.reset
+                  // Quai Home's own journal lines, for the Cloud's live view: they're kept here already.
+                  yield* Effect.forkScoped(Effect.forever(Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))))
                   break
                 case "Refused":
                   return { _tag: "Refused", reason: message.reason, retryAfterSeconds: message.retryAfterSeconds } satisfies Outcome
@@ -129,6 +133,15 @@ export class Link extends Context.Service<Link, {
                 case "StoreDelete":
                   yield* Queue.offer(storeQueue, message)
                   break
+                // In memory, so in the order sent: a read after an append sees it.
+                case "JournalAppend":
+                  yield* journal.append(message.entries)
+                  break
+                case "JournalRead": {
+                  const page = yield* journal.read(message.query)
+                  yield* write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
+                  break
+                }
               }
             }
           }

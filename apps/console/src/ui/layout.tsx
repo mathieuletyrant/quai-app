@@ -1,10 +1,29 @@
-import type { ReactNode } from "react"
+import { type ReactNode, type RefObject, useLayoutEffect, useRef } from "react"
 import { cx } from "./cx.ts"
 
-/** The bar at the top of every page: its title on the left, its actions on the right. */
+/** Keeps the CSS variable `name` on the root at the element's height, as it wraps and changes. */
+const useHeightVar = (ref: RefObject<HTMLElement | null>, name: string) => {
+  useLayoutEffect(() => {
+    const element = ref.current
+    if (element === null) return
+    const root = document.documentElement.style
+    const update = () => root.setProperty(name, `${element.offsetHeight}px`)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(element)
+    return () => {
+      observer.disconnect()
+      root.removeProperty(name)
+    }
+  }, [ref, name])
+}
+
+/** The bar at the top of every page: its title on the left, its actions on the right. Sticks under the phone top bar. */
 export function PageBar({ title, subtitle, children }: { title: ReactNode; subtitle?: ReactNode; children?: ReactNode }) {
+  const ref = useRef<HTMLElement>(null)
+  useHeightVar(ref, "--page-bar-height")
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-xl">
+    <header ref={ref} className="sticky top-(--top-bar-height) z-30 border-b border-line bg-bg/85 backdrop-blur-xl">
       <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 md:px-8">
         <div className="min-w-[min(100%,13rem)] flex-1">
           {typeof title === "string" ? <h1 className="text-page leading-7 font-semibold tracking-title">{title}</h1> : title}

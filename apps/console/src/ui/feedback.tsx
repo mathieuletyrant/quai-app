@@ -45,6 +45,10 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 /** A list's outline while it loads: `count` bars inside a flush panel. */
+export function SkeletonList({ count }: { count: number }) {
+  return <div className="flex flex-col gap-3 p-5">{Array.from({ length: count }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+}
+
 /** What a panel shows with nothing in it: what's missing, and the action that fills it. */
 export function EmptyState({ icon, title, children, action, compact }: {
   icon: IconName

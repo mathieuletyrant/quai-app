@@ -4,6 +4,7 @@ import { Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"
 import { Calls } from "../src/Calls.ts"
 import { Watches } from "../src/Watches.ts"
+import { journalLayer } from "./config.ts"
 
 /** What the fake services answer, by path; `null` fails the call. */
 let answers: Record<string, string | null> = {}
@@ -26,7 +27,7 @@ const withWatcher = <A, E>(test: (watcher: Effect.Success<ReturnType<Watches["Se
     const sent: Array<HomeProtocol.HomeMessage> = []
     const watcher = yield* (yield* Watches).make((m) => Effect.sync(() => void sent.push(m)))
     return yield* test(watcher, sent)
-  }).pipe(Effect.scoped, Effect.provide(Watches.layer.pipe(Layer.provide(fakeCalls))))
+  }).pipe(Effect.scoped, Effect.provide(Watches.layer.pipe(Layer.provide([fakeCalls, journalLayer]))))
 
 const sessions: HomeProtocol.Watch = { id: "w1", service: "jellyfin", path: "/Sessions", everySeconds: 15 }
 const torrents: HomeProtocol.Watch = { id: "w2", service: "qbittorrent", path: "/api/v2/torrents/info?hashes=a", everySeconds: 5 }

@@ -33,7 +33,7 @@ ready to watch.
 - 🚨 **Incidents**: a service that stops answering.
 
 You choose which ones run, and what each step shows, in a small flow editor in the web console.
-The app is for living with Quai, the console for setting it up: services, flows and iPhones.
+The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the journal of what Quai did.
 
 **The app**
 - 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you.

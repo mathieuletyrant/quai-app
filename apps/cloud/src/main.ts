@@ -13,6 +13,7 @@ import { HomeLink, HomeRoute } from "./home/HomeLink.ts"
 import { HomeReads } from "./home/HomeReads.ts"
 import { IntegrationsLive } from "./integrations/All.ts"
 import { Hub } from "./integrations/Hub.ts"
+import { Journal } from "./journal/Journal.ts"
 import { Library } from "./library/Library.ts"
 import { Apns } from "./push/Apns.ts"
 import { Notifier } from "./push/Notifier.ts"
@@ -44,6 +45,7 @@ const ConsoleLive = Layer.unwrap(
 
 const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
+  Layer.provideMerge(Journal.layer),
   Layer.provideMerge(HomeLink.layer)
 )
 

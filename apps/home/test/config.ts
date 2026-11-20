@@ -1,6 +1,8 @@
 import { NodeFileSystem } from "@effect/platform-node"
 import { Effect, FileSystem, Layer, Redacted } from "effect"
+import { join } from "node:path"
 import { HomeConfig } from "../src/Config.ts"
+import { Journal } from "../src/Journal.ts"
 
 const key = Redacted.make("masked")
 
@@ -28,3 +30,8 @@ export const tempDir = Effect.gen(function*() {
 })
 
 export { NodeFileSystem }
+
+/** A real journal, in a temporary directory. */
+export const journalLayer = Layer.effect(Journal, Effect.flatMap(tempDir, (dir) => Journal.make(join(dir, "journal")))).pipe(
+  Layer.provide(NodeFileSystem.layer)
+)

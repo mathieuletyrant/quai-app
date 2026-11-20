@@ -10,7 +10,7 @@ import { Link } from "../src/Link.ts"
 import { ServiceAuth } from "../src/ServiceAuth.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { WebhooksLive } from "../src/Webhooks.ts"
-import { configLayer } from "./config.ts"
+import { configLayer, journalLayer } from "./config.ts"
 import { fakeHttp, type Seen } from "./fakeHttp.ts"
 
 const sent: Array<HomeProtocol.HomeMessage> = []
@@ -23,7 +23,7 @@ const homeKey = Layer.succeed(HomeKey, { publicKey: "pk", homeId: "0123456789abc
 
 const server = HttpRouter.serve(WebhooksLive).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
-  Layer.provide([fakeLink, homeKey])
+  Layer.provide([fakeLink, homeKey, journalLayer])
 )
 
 describe("webhook receiver", () => {

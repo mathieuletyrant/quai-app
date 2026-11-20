@@ -3,6 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Fiber, Layer, Logger, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { HomeLink, offlineMessage } from "../../src/home/HomeLink.ts"
+import { Journal } from "../../src/journal/Journal.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
 import { type Answer, makeFakeHome, recordedHome, settle } from "../fakeHome.ts"
 
@@ -15,7 +16,7 @@ const logs: Array<string> = []
 const captured = Logger.layer([Logger.make(({ logLevel, message }) => {
   if (logLevel === "Warn") logs.push((Array.isArray(message) ? message : [message]).map(String).join(" "))
 })])
-const reads = HomeReads.layer.pipe(Layer.provideMerge(HomeLink.layer), Layer.provideMerge(captured))
+const reads = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(HomeLink.layer), Layer.provideMerge(captured))
 
 /** A home whose status route answers `answer`; not strict, so a refusal can be the answer. */
 const homeAnswering = (answer: Answer) =>

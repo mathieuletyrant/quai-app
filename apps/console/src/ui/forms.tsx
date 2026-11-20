@@ -39,6 +39,16 @@ export function Input({ invalid, className, ...props }: InputHTMLAttributes<HTML
   return <input {...props} aria-invalid={invalid || undefined} className={cx(fieldClass, invalid ? "border-danger" : "border-line-strong", className)} />
 }
 
+/** A search box: a magnifier, then the words. */
+export function SearchField({ className, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  return (
+    <span className={cx("relative block min-w-0", className)}>
+      <Icon name="search" size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+      <input {...props} type="search" className={cx(fieldClass, "border-line-strong pl-9")} />
+    </span>
+  )
+}
+
 export function Select({ invalid, className, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
   return (
     <span className="relative block min-w-0">

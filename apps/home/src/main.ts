@@ -8,6 +8,7 @@ import { Calls } from "./Calls.ts"
 import { HomeConfig } from "./Config.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
+import { Journal } from "./Journal.ts"
 import { Link } from "./Link.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
 import { Watches } from "./Watches.ts"
@@ -28,19 +29,20 @@ const SocketLive = Layer.unwrap(
   })
 ).pipe(Layer.provide(NodeSocket.layerWebSocketConstructor))
 
+const Home = Layer.mergeAll(HomeKey.layer, HomeStore.layer, Journal.layer).pipe(Layer.provide(NodeFileSystem.layer))
+
 const Services = Watches.layer.pipe(
   Layer.provideMerge(Calls.layer),
   Layer.provideMerge(ServiceAuth.layer),
-  Layer.provide(NodeHttpClient.layerUndici)
+  Layer.provide(NodeHttpClient.layerUndici),
+  Layer.provideMerge(Home)
 )
-
-const Home = Layer.mergeAll(HomeKey.layer, HomeStore.layer).pipe(Layer.provide(NodeFileSystem.layer))
 
 const App = Layer.mergeAll(HttpRouter.serve(WebhooksLive), WebhookSetupLive).pipe(
   Layer.provide(HttpLive),
   Layer.provideMerge(Link.layer),
   Layer.provide(SocketLive),
-  Layer.provideMerge(Layer.mergeAll(Services, Home)),
+  Layer.provideMerge(Services),
   Layer.provideMerge(HomeConfig.layer)
 )
 

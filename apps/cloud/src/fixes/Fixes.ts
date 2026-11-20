@@ -26,6 +26,7 @@ import {
   scheduledDeletions
 } from "../integrations/reclaimerr.ts"
 import { SonarrSeries } from "../integrations/sonarr.ts"
+import { Journal } from "../journal/Journal.ts"
 import type { Detected, FixTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
 import { type ImportAssignments, importFiles, isMissing, isQueued, type MediaFixes, type MediaTarget, type MissingOf, type QueuedOf } from "./MediaFixes.ts"
@@ -88,6 +89,7 @@ export class Fixes extends Context.Service<Fixes, {
     Effect.gen(function*() {
       const reads = yield* HomeReads
       const documents = yield* HomeDocuments
+      const journal = yield* Journal
 
       /** A write (or a read that must succeed) through Quai Home: its failure, or the service's refusal, in words. */
       const write = (call: CallRequest, options?: { readonly timeoutMs?: number }) =>
@@ -228,12 +230,16 @@ export class Fixes extends Context.Service<Fixes, {
 
       const notADownload = "not a download"
 
+      /** An action on a problem, in the journal with how it went: "Removed the download: Dune". */
+      const acted = <A, E>(kind: string, what: string, found: Detected, effect: Effect.Effect<A, E>) =>
+        journal.outcome({ level: "info", source: found.fix.service, kind: `fix.${kind}`, text: `${what}: ${found.fix.title}`, title: found.fix.title }, effect)
+
       return {
         list,
 
         remove: (id, blocklist) =>
           Effect.flatMap(offering(id, "remove"), (found) =>
-            onMedia(found, notADownload, (adapter, target) =>
+            acted("remove", blocklist ? "Removed and blocklisted the download" : "Removed the download", found, onMedia(found, notADownload, (adapter, target) =>
               isQueued(target)
                 // Never a new search: a blocklisted release is only replaced when the *arr looks again on its own.
                 ? Effect.asVoid(write({
@@ -241,7 +247,7 @@ export class Fixes extends Context.Service<Fixes, {
                   method: "DELETE",
                   path: `/api/v3/queue/${target.queueId}?removeFromClient=true&blocklist=${blocklist}&skipRedownload=true`
                 }))
-                : undefined)),
+                : undefined))),
 
         importPreview: (id) =>
           Effect.flatMap(offering(id, "importAnyway"), (found) =>
@@ -249,27 +255,37 @@ export class Fixes extends Context.Service<Fixes, {
 
         importDownload: (id, assignments) =>
           Effect.flatMap(offering(id, "importAnyway"), (found) =>
-            onMedia(found, notADownload, (adapter, target) => isQueued(target) ? importDownload(adapter, target, assignments) : undefined)),
+            acted("import", "Imported the download anyway",
+              found,
+              onMedia(found, notADownload, (adapter, target) => isQueued(target) ? importDownload(adapter, target, assignments) : undefined)
+            )),
 
         keep: (id) =>
           Effect.gen(function*() {
-            const { target } = yield* offering(id, "keep")
+            const found = yield* offering(id, "keep")
+            const { target } = found
             if (target.kind !== "candidate") return yield* Effect.fail(new InvalidFix({ message: "not a Reclaimerr candidate" }))
-            yield* write({ service: "reclaimerr", method: "POST", path: protectPath(target.candidateId), body: { reason: protectReason } })
+            yield* acted("keep", "Kept, Reclaimerr won't delete it",
+              found,
+              write({ service: "reclaimerr", method: "POST", path: protectPath(target.candidateId), body: { reason: protectReason } })
+            )
           }),
 
         dismiss: (id) =>
           Effect.gen(function*() {
-            yield* offering(id, "dismiss")
+            const found = yield* offering(id, "dismiss")
             const at = yield* Clock.currentTimeMillis
-            yield* Effect.mapError(documents.put(dismissedKey(id), { at }), toOffline)
+            yield* acted("dismiss", "Dismissed", found, Effect.mapError(documents.put(dismissedKey(id), { at }), toOffline))
           }),
 
         snooze: (id, days) =>
           Effect.gen(function*() {
-            yield* offering(id, "snooze")
+            const found = yield* offering(id, "snooze")
             const at = yield* Clock.currentTimeMillis
-            yield* Effect.mapError(documents.put(snoozedKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
+            yield* acted("snooze", days === undefined ? "Snoozed until a release is grabbed" : `Snoozed for ${days} day${days === 1 ? "" : "s"}`,
+              found,
+              Effect.mapError(documents.put(snoozedKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
+            )
           }),
 
         releases: (id) =>
@@ -279,10 +295,10 @@ export class Fixes extends Context.Service<Fixes, {
         grab: (id, release) =>
           // Still without a file now: a title that got one in the meantime is no longer a problem (404).
           Effect.flatMap(offering(id, "searchReleases"), (found) =>
-            onMedia(found, "nothing to search for", (adapter, target) =>
+            acted("grab", "Grabbed a release", found, onMedia(found, "nothing to search for", (adapter, target) =>
               isMissing(target)
                 ? Effect.asVoid(write({ service: adapter.service, method: "POST", path: "/api/v3/release", body: { guid: release.guid, indexerId: release.indexerId } }))
-                : undefined))
+                : undefined)))
       } satisfies Fixes["Service"]
     })
   )

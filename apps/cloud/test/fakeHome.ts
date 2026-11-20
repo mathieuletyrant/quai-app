@@ -1,4 +1,4 @@
-import { HomeProtocol } from "@quai/api"
+import { HomeProtocol, type JournalEntry, journalPage } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
 import { Socket } from "effect/socket"
@@ -10,6 +10,7 @@ import { HomeError, HomeLink, offlineMessage } from "../src/home/HomeLink.ts"
 import { HomeReads } from "../src/home/HomeReads.ts"
 import { Hub } from "../src/integrations/Hub.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
+import { Journal } from "../src/journal/Journal.ts"
 import type { Integrations } from "../src/integrations/Integration.ts"
 import { Notifier } from "../src/push/Notifier.ts"
 import { HomeTime } from "../src/releases/HomeTime.ts"
@@ -110,6 +111,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
     const otherKey = generateKeyPairSync("ed25519").privateKey
     const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
     const documents = new Map<string, unknown>()
+    /** Its journal, like its disk: it outlives connections. */
+    const journal: Array<JournalEntry> = []
     const calls: Array<Call> = []
     const received: Array<HomeProtocol.CloudMessage> = []
     const state = {
@@ -172,6 +175,11 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         case "StoreDelete":
           documents.delete(message.key)
           return HomeProtocol.StoreDone.make({ id: message.id })
+        case "JournalAppend":
+          journal.push(...message.entries)
+          return null
+        case "JournalRead":
+          return HomeProtocol.JournalPage.make({ id: message.id, ...journalPage(journal, message.query) })
       }
     }
 
@@ -220,6 +228,10 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       homeId: HomeId.homeId(publicKey),
       privateKey,
       documents,
+      journal,
+      /** Quai Home writes a line of its own, and hands it to the Cloud's live view. */
+      note: (entry: JournalEntry) =>
+        Effect.andThen(Effect.sync(() => journal.push(entry)), Effect.andThen(send(HomeProtocol.JournalNoted.make({ entries: [entry] })), settle)),
       calls,
       received,
       /** What the allowlist refused (calls as `routeOf`, and watches). */
@@ -267,6 +279,7 @@ export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link:
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
     Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
     Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
+    Layer.provideMerge(Journal.layer),
     Layer.provideMerge(link)
   )
 

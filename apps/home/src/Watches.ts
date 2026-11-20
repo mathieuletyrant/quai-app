@@ -1,6 +1,7 @@
-import { HomeProtocol } from "@quai/api"
+import { HomeProtocol, journalSourceNames } from "@quai/api"
 import { Context, Effect, FiberSet, Layer, type Scope } from "effect"
 import { Calls } from "./Calls.ts"
+import { Journal } from "./Journal.ts"
 
 type Send = (message: HomeProtocol.HomeMessage) => Effect.Effect<void>
 
@@ -23,6 +24,7 @@ export class Watches extends Context.Service<Watches, {
     Watches,
     Effect.gen(function*() {
       const calls = yield* Calls
+      const journal = yield* Journal
       return {
         make: (send) =>
           Effect.gen(function*() {
@@ -62,6 +64,12 @@ export class Watches extends Context.Service<Watches, {
                   for (const [id, last] of sent) if (kept.get(id) !== last.target) sent.delete(id)
                   for (const watch of watches) {
                     if (!HomeProtocol.allowed({ service: watch.service, method: "GET", path: watch.path })) {
+                      yield* journal.note({
+                        level: "warn",
+                        source: watch.service,
+                        kind: "watch.refused",
+                        text: `Quai Home refused a watch outside its allowlist: ${journalSourceNames[watch.service]} GET ${watch.path.split("?")[0]}`
+                      })
                       yield* send(HomeProtocol.Failed.make({ id: watch.id, reason: "not allowed" }))
                       continue
                     }

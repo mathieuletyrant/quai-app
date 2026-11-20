@@ -38,6 +38,8 @@ export interface Device {
 /** One iPhone as the notifier sees it for one activity. */
 export interface PushTarget {
   readonly deviceId: DeviceId
+  /** As its owner named it: for the journal. */
+  readonly name: string
   readonly apnsEnvironment: ApnsEnvironment
   readonly pushToStartToken: string | null
   /** The token of this activity on this iPhone, once the iPhone reported it. */
@@ -270,6 +272,7 @@ export class Devices extends Context.Service<Devices, {
           Effect.map(all, (devices) =>
             devices.map((d): PushTarget => ({
               deviceId: d.id as DeviceId,
+              name: d.name,
               apnsEnvironment: d.apnsEnvironment,
               pushToStartToken: d.pushToStartToken,
               activityToken: d.activityTokens[activityKey] ?? null,

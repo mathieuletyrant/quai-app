@@ -5,13 +5,13 @@ import { HttpClient } from "effect/http"
 import { TestClock } from "effect/testing"
 import { Calls } from "../src/Calls.ts"
 import { ServiceAuth, sessionCookie } from "../src/ServiceAuth.ts"
-import { configLayer } from "./config.ts"
+import { configLayer, journalLayer } from "./config.ts"
 import { fakeHttp, type Seen } from "./fakeHttp.ts"
 
 type Route = Parameters<typeof fakeHttp>[0]
 
 const callsWith = (route: Route, seen: Array<Seen>, config = configLayer()) =>
-  Calls.layer.pipe(Layer.provide(ServiceAuth.layer), Layer.provide([config, fakeHttp(route, seen)]))
+  Calls.layer.pipe(Layer.provide(ServiceAuth.layer), Layer.provideMerge(journalLayer), Layer.provide([config, fakeHttp(route, seen)]))
 
 const request = (fields: Omit<HomeProtocol.Call, "_tag" | "id">): HomeProtocol.Call => ({
   _tag: "Call",
@@ -157,7 +157,7 @@ describe("To fix calls", () => {
       expect(yield* Fiber.join(search)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
     }).pipe(Effect.provide(Calls.layer.pipe(
       Layer.provide(ServiceAuth.layer),
-      Layer.provide([configLayer(), Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
+      Layer.provide([configLayer(), journalLayer, Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
     ))))
 
   it.effect("Reclaimerr unset is not configured", () =>
@@ -190,7 +190,7 @@ describe("call timeout", () => {
       expect(yield* Fiber.join(fiber)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
     }).pipe(Effect.provide(Calls.layer.pipe(
       Layer.provide(ServiceAuth.layer),
-      Layer.provide([configLayer(), Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
+      Layer.provide([configLayer(), journalLayer, Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
     ))))
 })
 

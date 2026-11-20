@@ -75,6 +75,10 @@
   --tracking-tag: 0.04em;
   --tracking-code: 0.2em;
 
+  /* The phone top bar's height, and the width of the menu it opens. */
+  --spacing-top-bar: 3.5rem;
+  --spacing-drawer: 20rem;
+
   --radius-item: 8px;
   --radius-logo: 9px;
   --radius-control: 10px;
@@ -92,6 +96,14 @@
     0%, 100% { opacity: 0.55; }
     50% { opacity: 1; }
   }
+  --animate-fade: fade 160ms ease-out;
+  @keyframes fade {
+    from { opacity: 0; }
+  }
+  --animate-sheet: sheet 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  @keyframes sheet {
+    from { transform: translateX(-100%); }
+  }
   --animate-pop: pop 120ms ease-out;
   @keyframes pop {
     from { opacity: 0; transform: translateY(-4px) scale(0.98); }
@@ -106,7 +118,17 @@
 }
 
 @layer base {
-  :root { color-scheme: dark; }
+  /*
+   * What sticks at the top of the window: the phone top bar (none beside the sidebar), then the
+   * page's bar, whose height PageBar measures. Content that sticks under them uses --content-top.
+   */
+  :root {
+    color-scheme: dark;
+    --top-bar-height: var(--spacing-top-bar);
+    --page-bar-height: 4rem;
+    --content-top: calc(var(--top-bar-height) + var(--page-bar-height));
+    @variant md { --top-bar-height: 0px; }
+  }
   body {
     @apply bg-bg font-sans text-copy leading-[1.5] text-text antialiased;
     font-feature-settings: "cv11", "ss01", "ss03";

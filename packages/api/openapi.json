@@ -1988,10 +1988,239 @@
           "required": true
         }
       }
+    },
+    "/console-api/journal": {
+      "get": {
+        "tags": [
+          "consoleJournal"
+        ],
+        "operationId": "consoleJournalHistory",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/JournalLevel"
+            },
+            "required": false
+          },
+          {
+            "name": "subject",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "JournalPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/console-api/journal/since": {
+      "get": {
+        "tags": [
+          "consoleJournal"
+        ],
+        "operationId": "consoleJournalSince",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": false
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "JournalTail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JournalTail"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "JournalTail": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalEntry"
+            }
+          },
+          "cursor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "entries",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "JournalEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "Infinity",
+                  "-Infinity",
+                  "NaN"
+                ]
+              }
+            ]
+          },
+          "level": {
+            "$ref": "#/components/schemas/JournalLevel"
+          },
+          "source": {
+            "$ref": "#/components/schemas/JournalSource"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "flowId": {
+            "type": "string"
+          },
+          "deviceName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "level",
+          "source",
+          "kind",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "JournalSource": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr",
+          "qbittorrent",
+          "jellyfin",
+          "seerr",
+          "reclaimerr",
+          "apple",
+          "home",
+          "cloud"
+        ]
+      },
+      "JournalLevel": {
+        "type": "string",
+        "enum": [
+          "info",
+          "warn",
+          "error"
+        ]
+      },
+      "JournalPage": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JournalEntry"
+            }
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "kept": {
+            "$ref": "#/components/schemas/JournalKept"
+          }
+        },
+        "required": [
+          "entries",
+          "more",
+          "kept"
+        ],
+        "additionalProperties": false
+      },
+      "JournalKept": {
+        "type": "string",
+        "enum": [
+          "home",
+          "memory"
+        ]
+      },
       "HomeOfflineEncoded": {
         "type": "object",
         "properties": {
@@ -3662,6 +3891,9 @@
     },
     {
       "name": "flows"
+    },
+    {
+      "name": "consoleJournal"
     }
   ]
 }
