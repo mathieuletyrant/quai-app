@@ -94,7 +94,9 @@ lives at home, in the Home's `/data`:
 
 - flows and their settings;
 - paired iPhones, their push tokens and preferences;
-- the state of running activities, written back as it changes.
+- the state of running activities, written back as it changes;
+- the journal of what Quai did (7 days, at most 5000 lines), handed over in batches every second
+  or two: the console's Journal page reads its history from there.
 
 The Home stores and returns these documents without reading them, so it stays dumb. The Cloud
 works in memory: when a Home connects, the Cloud loads its home from it; every change is written
@@ -106,7 +108,8 @@ talks to the Cloud with its home id and device token, and the Cloud checks the t
 Home. Sign in with Apple and an accounts table aren't needed.
 
 **What we can promise:** nothing about a home is kept by the Cloud; logs carry no titles, names or
-tokens. What we can't: the Cloud sees titles and progress while it computes and pushes them. A
+tokens. The journal does name titles and iPhones: it is the home's, kept by Quai Home, and the
+Cloud only holds its last lines in memory for the console's live view. What we can't: the Cloud sees titles and progress while it computes and pushes them. A
 public privacy page says exactly that, and the code is open to check it. Who doesn't want even
 that self-hosts the Cloud.
 

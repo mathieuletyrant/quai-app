@@ -35,3 +35,12 @@ can be read: the whole answer fails, it is never a partial one.
 **Unavailable** (`unavailable: [...]`, a 200). Quai Home is linked, reaches the service, but the
 service didn't answer as expected this time (timeout, refused call, non-2xx, unreadable body). The
 other services still show. A service Quai Home doesn't reach at all is neither: it is skipped.
+
+**Journal** (`Journal`, `packages/api/src/Journal.ts`). What Quai did, one plain line per thing:
+a webhook and what it meant, an activity's steps and the iPhones it reached, Apple's refusals, a
+service that stopped answering and came back, Quai Home linked or gone, a button pressed and how it
+went. Never a token or a key. Quai Cloud keeps the last 200 lines in memory for the console's live
+view and hands the rest to Quai Home in batches (`JournalAppend`); Quai Home keeps 7 days, at most
+5000 lines, in `/data/journal/` (one JSON line per entry, one file per UTC day), with its own lines
+(webhooks in, allowlist refusals, services it can't reach). The console reads pages back with
+`JournalRead`.
