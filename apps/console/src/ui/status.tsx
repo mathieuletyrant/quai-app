@@ -21,9 +21,11 @@ export function Badge({ tone = "neutral", dot, children }: { tone?: Tone; dot?: 
   )
 }
 
-export function StatusDot({ tone, pulse }: { tone: Tone; pulse?: boolean }) {
+/** A coloured dot. With a `label`, it stands alone and says what it means to screen readers. */
+export function StatusDot({ tone, pulse, label }: { tone: Tone; pulse?: boolean; label?: string }) {
+  const meaning = label === undefined ? { "aria-hidden": true } : { role: "img", "aria-label": label, title: label }
   return (
-    <span className="relative inline-flex size-2 shrink-0" aria-hidden="true">
+    <span className="relative inline-flex size-2 shrink-0" {...meaning}>
       {pulse && <span className={cx("absolute inset-0 animate-ping rounded-full opacity-60", tones[tone].dot)} />}
       <span className={cx("relative size-2 rounded-full", tones[tone].dot)} />
     </span>

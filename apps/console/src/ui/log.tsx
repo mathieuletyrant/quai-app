@@ -11,7 +11,7 @@ export function LogList({ children }: { children: ReactNode }) {
 
 /** The heading of one day's lines: "Today", "Yesterday", "Wed, Nov 18". */
 export function LogDay({ children }: { children: ReactNode }) {
-  return <p className={cx(overline, "sticky top-16 z-10 border-b border-line bg-panel/95 px-4 pt-4 pb-2 font-sans backdrop-blur md:px-5")}>{children}</p>
+  return <p className={cx(overline, "sticky top-(--content-top) z-10 border-b border-line bg-panel/95 px-4 pt-4 pb-2 font-sans backdrop-blur md:px-5")}>{children}</p>
 }
 
 /**

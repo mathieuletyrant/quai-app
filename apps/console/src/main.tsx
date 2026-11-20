@@ -8,7 +8,7 @@ import { IphonesPage } from "./pages/Iphones.tsx"
 import { JournalPage } from "./pages/journal/JournalPage.tsx"
 import { RequestsPage } from "./pages/Requests.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
-import { Button, cx, Icon, type IconName, Logo, StatusDot, type Tone } from "./ui"
+import { Button, Drawer, Icon, type IconName, Logo, type NavItem, NavList, Sidebar, StatusDot, type Tone, TopBar } from "./ui"
 import "./styles.css"
 
 const pages = {
@@ -32,23 +32,15 @@ const homeLabel: Record<HomeStatus, { readonly tone: Tone; readonly text: string
   offline: { tone: "danger", text: "Offline" }
 }
 
-function NavLink({ page, current }: { page: Page; current: boolean }) {
-  const fixes = useFixCount()
-  return (
-    <a
-      href={`#${page}`}
-      aria-current={current ? "page" : undefined}
-      className={cx(
-        "group flex h-9 shrink-0 items-center gap-2.5 rounded-control px-3 text-body font-semibold transition-colors",
-        current ? "bg-raised text-text ring-1 ring-line ring-inset" : "text-muted hover:bg-white/4 hover:text-text"
-      )}
-    >
-      <Icon name={pages[page].icon} size={17} className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"} />
-      {pages[page].label}
-      {page === "fixes" && fixes !== null && fixes > 0 && <span className="ml-auto rounded-md bg-fix-soft px-1.5 py-0.5 text-mini font-semibold text-fix-text tabular-nums">{fixes}</span>}
-    </a>
-  )
-}
+/** Where Quai Home stands: unknown while Quai Cloud, which would know, doesn't answer. */
+const homeState = (status: HomeStatus, cloudDown: boolean) => cloudDown ? { tone: "neutral" as const, text: "Unknown" } : homeLabel[status]
+
+/** What the phone top bar's dot says to screen readers: "Quai Home: connected". */
+const homeDotLabel = (status: HomeStatus, cloudDown: boolean) => `Quai Home: ${homeState(status, cloudDown).text.toLowerCase()}`
+
+/** Every destination, with the count of things to fix on its own. */
+const navItems = (fixes: number | null): ReadonlyArray<NavItem> =>
+  (Object.keys(pages) as Array<Page>).map((id) => ({ id, label: pages[id].label, icon: pages[id].icon, count: id === "fixes" ? fixes : null }))
 
 /** "v0.12.1" for a release, the version as is otherwise ("dev"). */
 const versionLabel = (version: string) => /^\d/.test(version) ? `v${version}` : version
@@ -79,7 +71,7 @@ function Part({ icon, name, tone, pulse = false, children }: { icon: IconName; n
 /** Where Quai Home and Quai Cloud stand, at the foot of the sidebar. */
 function Connection({ health, cloudDown }: { health: Health | null; cloudDown: boolean }) {
   const { status } = useHome()
-  const home = cloudDown ? { tone: "neutral" as const, text: "Unknown" } : homeLabel[status]
+  const home = homeState(status, cloudDown)
   const cloud = cloudLabel(health, cloudDown)
   return (
     <div className="flex flex-col gap-2.5 rounded-card border border-line bg-panel p-3">
@@ -93,6 +85,22 @@ function Connection({ health, cloudDown }: { health: Health | null; cloudDown: b
 
 function Wordmark() {
   return <span className="text-brand font-bold tracking-title">Quai</span>
+}
+
+/** The sidebar's head: the logo, the name, and what this is. */
+function Brand() {
+  return (
+    <a href="#iphones" className="mb-5 flex items-center gap-2.5 rounded-control px-2 py-1">
+      <Logo />
+      <Wordmark />
+      <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Console</span>
+    </a>
+  )
+}
+
+/** The phone top bar's logo, back to the first page. */
+function HomeLink() {
+  return <a href="#iphones" aria-label="Quai, iPhones" className="rounded-logo"><Logo /></a>
 }
 
 /** Across the top of every page while Quai Home isn't linked: what still works, and a retry. */
@@ -125,7 +133,10 @@ function App() {
   const [page, setPage] = useState<Page>(fromHash)
   const [health, setHealth] = useState<Health | null>(null)
   const [cloudDown, setCloudDown] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeMenu = () => setMenuOpen(false)
   const { status } = useHome()
+  const fixes = useFixCount()
   useHomeProbe()
   useFixCountProbe()
 
@@ -136,37 +147,19 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
 
-  const order = Object.keys(pages) as Array<Page>
+  const nav = (onNavigate?: () => void) => <NavList label="Console" items={navItems(fixes)} current={page} onNavigate={onNavigate} />
+  const connection = <Connection health={health} cloudDown={cloudDown} />
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      {/* Sidebar on wide screens. */}
-      <nav aria-label="Console" className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-r border-line bg-sidebar px-3 pt-4 pb-3 md:flex">
-        <a href="#iphones" className="mb-5 flex items-center gap-2.5 rounded-control px-2 py-1">
-          <Logo />
-          <Wordmark />
-          <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Console</span>
-        </a>
-        {order.map((p) => <NavLink key={p} page={p} current={page === p} />)}
-        <div className="mt-auto"><Connection health={health} cloudDown={cloudDown} /></div>
-      </nav>
-
-      {/* Top bar on phones. */}
-      <nav aria-label="Console" className="border-b border-line bg-sidebar md:hidden">
-        <div className="flex h-14 items-center gap-2.5 px-4">
-          <Logo size={26} />
-          <Wordmark />
-          <span className={cx(
-            "ml-auto inline-flex h-7 items-center gap-2 rounded-full border px-2.5 text-caption font-semibold",
-            status === "offline" ? "border-danger/30 text-danger-text" : "border-line-strong text-muted"
-          )}>
-            <StatusDot tone={homeLabel[status].tone} />
-            Home {homeLabel[status].text.toLowerCase()}
-          </span>
-        </div>
-        <div className="flex gap-1 overflow-x-auto px-3 pb-2.5">
-          {order.map((p) => <NavLink key={p} page={p} current={page === p} />)}
-        </div>
-      </nav>
+      <Sidebar brand={<Brand />} footer={connection}>{nav()}</Sidebar>
+      <TopBar
+        logo={<HomeLink />}
+        title={pages[page].label}
+        status={<StatusDot tone={homeState(status, cloudDown).tone} label={homeDotLabel(status, cloudDown)} />}
+        menuOpen={menuOpen}
+        onMenu={() => setMenuOpen(true)}
+      />
+      <Drawer open={menuOpen} label="Menu" onClose={closeMenu} footer={connection}>{nav(closeMenu)}</Drawer>
 
       <main className="flex min-w-0 flex-1 flex-col">
         {status === "offline" && <OfflineBanner />}
