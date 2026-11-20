@@ -168,19 +168,6 @@ describe("To fix calls", () => {
 })
 
 describe("call bodies", () => {
-  it.effect("sends a form body form-encoded, and refuses one that isn't flat", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      const calls = yield* Calls
-      const call = request({ service: "jellyfin", method: "POST", path: "/Sessions/s-1/Playing/Stop", encoding: "form", body: { hashes: "a|b", deleteFiles: false, n: 2 } })
-      expect(yield* calls.run(call)).toMatchObject({ _tag: "CallResponse", status: 200 })
-      expect(seen[0]!.body).toBe("hashes=a%7Cb&deleteFiles=false&n=2")
-      expect(seen[0]!.headers["content-type"]).toBe("application/x-www-form-urlencoded")
-      expect(yield* calls.run({ ...call, body: { nested: { a: 1 } } })).toEqual({ _tag: "Failed", id: "r1", reason: "a form body must be a flat object" })
-      expect(seen).toHaveLength(1)
-    }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
-  })
-
   it.effect("a response over maxBodyBytes is a failure", () =>
     Effect.gen(function*() {
       const calls = yield* Calls

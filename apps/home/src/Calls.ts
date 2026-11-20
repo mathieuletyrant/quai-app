@@ -6,17 +6,6 @@ import { ServiceAuth } from "./ServiceAuth.ts"
 type CallResponse = typeof HomeProtocol.CallResponse.Type
 type Failed = typeof HomeProtocol.Failed.Type
 
-/** A form body is a flat object: qBittorrent's writes take `hashes=…&…`. */
-const formFields = (body: unknown): Record<string, string> | null => {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) return null
-  const fields: Record<string, string> = {}
-  for (const [key, value] of Object.entries(body)) {
-    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") return null
-    fields[key] = String(value)
-  }
-  return fields
-}
-
 /**
  * Runs the calls the cloud asks for, within the allowlist (method, path and, for the writes that
  * need it, the body). Never fails: anything that goes wrong
@@ -42,15 +31,7 @@ export class Calls extends Context.Service<Calls, {
             : call.method === "DELETE"
             ? HttpClientRequest.delete(call.path)
             : HttpClientRequest.post(call.path)
-          if (call.body !== undefined) {
-            if (call.encoding === "form") {
-              const fields = formFields(call.body)
-              if (fields === null) return failed(call.id, "a form body must be a flat object")
-              request = HttpClientRequest.bodyUrlParams(request, fields)
-            } else {
-              request = HttpClientRequest.bodyJsonUnsafe(request, call.body)
-            }
-          }
+          if (call.body !== undefined) request = HttpClientRequest.bodyJsonUnsafe(request, call.body)
           return auth.execute(call.service, request).pipe(
             Effect.flatMap((response) => {
               const length = Number(response.headers["content-length"])

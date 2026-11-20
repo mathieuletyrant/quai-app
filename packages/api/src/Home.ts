@@ -127,9 +127,6 @@ export const Refused = Schema.TaggedStruct("Refused", {
   retryAfterSeconds: Schema.Number
 })
 
-/** How a request body is sent: JSON, or form-encoded (qBittorrent's writes). */
-export const BodyEncoding = Schema.Literals(["json", "form"])
-
 export const CallMethod = Schema.Literals(["GET", "POST", "DELETE"])
 export type CallMethod = typeof CallMethod.Type
 
@@ -140,8 +137,8 @@ export const Call = Schema.TaggedStruct("Call", {
   method: CallMethod,
   /** Path and query, as the service expects them: `/api/v2/torrents/info?hashes=a|b`. */
   path: Schema.String,
-  body: Schema.optionalKey(Schema.Unknown),
-  encoding: Schema.optionalKey(BodyEncoding)
+  /** Sent as JSON. */
+  body: Schema.optionalKey(Schema.Unknown)
 })
 export type Call = typeof Call.Type
 
