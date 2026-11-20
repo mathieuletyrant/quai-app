@@ -192,10 +192,7 @@ struct PlaybackButtons: View {
         HStack(spacing: 12) {
             ForEach(actions, id: \.self) { action in
                 Button {
-                    Task {
-                        try? await RemoteControl.perform(key: activity.attributes.key, action: action)
-                        await connection.refresh()
-                    }
+                    Task { await connection.perform(action, on: activity) }
                 } label: {
                     Image(systemName: action.symbol(paused: activity.content.paused == true))
                         .font(.system(size: size * 0.4, weight: .bold))
@@ -256,28 +253,72 @@ struct LiveSheet: View {
     }
 }
 
-/// What's playing: the title, where, the time left, and the buttons.
+/// What's playing: the title, where, the timeline moving on its own, and the buttons.
 private struct PlayingCard: View {
     let activity: RunningActivity
 
+    private var playingLabel: String {
+        activity.content.detail.map { "Playing · \($0)" } ?? "Playing"
+    }
+
     var body: some View {
         Tile {
-            HStack {
-                TileLabel(title: activity.content.detail.map { "Playing · \($0)" } ?? "Playing", systemImage: "play.fill", color: Palette.playback)
-                Spacer(minLength: 8)
-                PlaybackClock(content: activity.content)
-            }
+            TileLabel(title: activity.content.paused == true ? "Paused" : playingLabel, systemImage: activity.content.paused == true ? "pause.fill" : "play.fill", color: Palette.playback)
             Text(activity.attributes.title)
                 .font(QuaiFont.headline)
                 .foregroundStyle(Palette.primaryText)
-            if let progress = activity.content.progress {
-                ProgressBar(value: progress, color: Palette.playback)
-            }
+            PlaybackProgress(content: activity.content)
             HStack {
                 Spacer()
-                PlaybackButtons(activity: activity)
+                PlaybackButtons(activity: activity, size: 52)
                 Spacer()
             }
         }
+    }
+}
+
+/// Where playback is: the bar fills on its own while it plays; elapsed and left under it.
+struct PlaybackProgress: View {
+    let content: Components.Schemas.ActivityContent
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let position = PlaybackPosition(content, at: context.date)
+            VStack(spacing: 6) {
+                ProgressBar(value: position.progress, color: Palette.playback)
+                if let elapsed = position.elapsed, let left = position.left {
+                    HStack {
+                        Text(Format.clock(elapsed))
+                        Spacer()
+                        Text("-" + Format.clock(left))
+                    }
+                    .font(QuaiFont.caption.monospacedDigit())
+                    .foregroundStyle(Palette.secondaryText)
+                }
+            }
+        }
+    }
+}
+
+/// Where a playback is at a moment, from the server's timeline (start and end dates) or, paused,
+/// the position it stopped at.
+struct PlaybackPosition: Equatable {
+    let progress: Double
+    let elapsed: TimeInterval?
+    let left: TimeInterval?
+
+    init(_ content: Components.Schemas.ActivityContent, at date: Date) {
+        guard let start = content.startsAt, let end = content.endsAt, end > start else {
+            progress = content.progress ?? 0
+            elapsed = nil
+            left = nil
+            return
+        }
+        let length = end - start
+        let running = (date.timeIntervalSince1970 - start) / length
+        let value = min(max(content.paused == true ? (content.progress ?? running) : running, 0), 1)
+        progress = value
+        elapsed = value * length
+        left = (1 - value) * length
     }
 }

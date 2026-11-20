@@ -62,6 +62,7 @@ final class Connection {
     private(set) var journalHasMore = false
     private(set) var journalError: String?
     private var session: ServerSession?
+    private var pendingPlayback = PendingPlayback()
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
@@ -159,12 +160,22 @@ final class Connection {
     func refresh() async {
         guard let client = await authenticatedClient() else { return }
         do {
-            activities = try await client.listActivities().ok.body.json
+            activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
             lastError = nil
             await learnSubjects()
         } catch {
             lastError = error.quaiMessage
         }
+    }
+
+    /// A Live Activity button pressed in the app: it shows at once, then the server confirms.
+    func perform(_ action: ActivityAction, on activity: RunningActivity) async {
+        if action == .playPause {
+            pendingPlayback.toggle(activity)
+            activities = pendingPlayback.apply(to: activities)
+        }
+        try? await RemoteControl.perform(key: activity.attributes.key, action: action)
+        await refresh()
     }
 
     /// A flow seen for the first time (a new custom one, or the first refresh): learn what it follows.
