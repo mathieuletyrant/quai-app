@@ -1,6 +1,6 @@
 import { CurrentDevice, InvalidPairingCode, QuaiApi } from "@quai/api"
 import { Effect, Option } from "effect"
-import { HttpApiBuilder, HttpApiError } from "effect/http-api"
+import { HttpApiBuilder } from "effect/http-api"
 import { ActionRunner } from "../flows/ActionRunner.ts"
 import { Activities } from "../flows/Activities.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
