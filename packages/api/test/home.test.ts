@@ -120,3 +120,62 @@ describe("allowlist: the calendars", () => {
     expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/feed/v3/calendar/radarr.ics" })).toBe(false)
   })
 })
+
+describe("allowlist: Cleanuparr", () => {
+  const allowed = HomeProtocol.allowed
+  const hash = "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"
+  /** `GET /api/configuration/queue_cleaner`, as Cleanuparr 2.11 answers it. */
+  const current = {
+    enabled: true,
+    cronExpression: "0 0/5 * * * ?",
+    useAdvancedScheduling: false,
+    failedImport: { maxStrikes: 3, ignorePrivate: false, deletePrivate: false, skipIfNotFoundInClient: true, patterns: ["sample"], patternMode: "Include", changeCategory: false, forceImport: false, forceImportMaxTries: 3 },
+    ignoredDownloads: ["0718293A4B5C6D7E8F901234567890123456789A"],
+    processNoContentId: false,
+    downloadingMetadataMaxStrikes: 3,
+    errored: { maxStrikes: 0, ignorePrivate: false, deletePrivate: false, changeCategory: false }
+  }
+  const ignoring = (...more: ReadonlyArray<string>) => ({ ...current, ignoredDownloads: [...current.ignoredDownloads, ...more] })
+  const check = HomeProtocol.ignoresOneMoreDownload
+
+  it("reads its strikes, settings, rules, next run and events, and nothing else", () => {
+    for (const path of ["/health", "/api/strikes?page=1&pageSize=500", "/api/configuration/queue_cleaner", "/api/queue-rules/stall", "/api/queue-rules/slow", "/api/jobs/QueueCleaner", "/api/events?eventType=QueueItemDeleted"]) {
+      expect(allowed({ service: "cleanuparr", method: "GET", path })).toBe(true)
+    }
+    for (const path of ["/api/configuration/general", "/api/configuration/download_client", "/api/account/api-key", "/api/arr/radarr", "/api/jobs"]) {
+      expect(allowed({ service: "cleanuparr", method: "GET", path })).toBe(false)
+    }
+  })
+
+  it("its one write is the queue cleaner's settings, checked against what Cleanuparr holds", () => {
+    const rule = HomeProtocol.allowRule({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner", body: ignoring(hash) })
+    expect(rule?.against?.path).toBe("/api/configuration/queue_cleaner")
+    expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner" })).toBe(false)
+    expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/general", body: ignoring(hash) })).toBe(false)
+    expect(allowed({ service: "cleanuparr", method: "POST", path: "/api/jobs/QueueCleaner/trigger" })).toBe(false)
+    expect(allowed({ service: "cleanuparr", method: "DELETE", path: "/api/strikes/0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01" })).toBe(false)
+    expect(allowed({ service: "cleanuparr", method: "POST", path: "/api/configuration/strikes/purge" })).toBe(false)
+  })
+
+  it("lets only one more download id into the ignore list, everything else as it is", () => {
+    expect(check(current, ignoring(hash))).toBe(true)
+    expect(check(current, ignoring("SABnzbd_nzo_kyt1f0"))).toBe(true)
+    // Keys in another order are the same settings.
+    expect(check(current, Object.fromEntries(Object.entries(ignoring(hash)).reverse()))).toBe(true)
+    // Nothing added, two added, one already there, one removed.
+    expect(check(current, current)).toBe(false)
+    expect(check(current, ignoring(hash, "B2C3D4E5F60718293A4B5C6D7E8F901234567890"))).toBe(false)
+    expect(check(current, ignoring(current.ignoredDownloads[0]!.toLowerCase()))).toBe(false)
+    expect(check(current, { ...current, ignoredDownloads: [hash] })).toBe(false)
+    // A category, a tag or a tracker would spare every download it covers.
+    for (const pattern of ["radarr", "tv-sonarr", "tracker.example.org", ""]) expect(check(current, ignoring(pattern))).toBe(false)
+    // Any other setting changed: the cleaner turned off, its schedule, its strikes, a field dropped or added.
+    expect(check(current, { ...ignoring(hash), enabled: false })).toBe(false)
+    expect(check(current, { ...ignoring(hash), cronExpression: "0 0 0 1 1 ?" })).toBe(false)
+    expect(check(current, { ...ignoring(hash), failedImport: { ...current.failedImport, maxStrikes: 0 } })).toBe(false)
+    const { errored: _, ...withoutErrored } = ignoring(hash)
+    expect(check(current, withoutErrored)).toBe(false)
+    expect(check(current, { ...ignoring(hash), stallRules: [] })).toBe(false)
+    expect(check("not json", ignoring(hash))).toBe(false)
+  })
+})

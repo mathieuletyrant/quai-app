@@ -12,14 +12,16 @@ import { JournalEntry, JournalQuery } from "./Journal.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 4
+export const protocolVersion = 5
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
  * checks; protocol 3 added Seerr and the *arr calendars. An older Home refuses those calls as not
  * allowed, so what needs them stays empty. Protocol 4 added the journal (`JournalAppend`,
  * `JournalRead`): the Cloud sends them only to a Home at `journalProtocolVersion` or later, and
- * keeps the journal in memory only for an older one.
+ * keeps the journal in memory only for an older one. Protocol 5 added Cleanuparr and `PUT`, a write
+ * the Home checks against what the service holds (`AllowRule.against`); an older Home doesn't list
+ * Cleanuparr, so nothing asks it for them.
  */
 export const minProtocolVersion = 1
 
@@ -27,7 +29,7 @@ export const minProtocolVersion = 1
 export const journalProtocolVersion = 4
 
 /** The services a Home can reach. */
-export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"])
+export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr"])
 export type HomeService = typeof HomeService.Type
 
 /** The services whose webhooks the Home receives and forwards. Jellyfin is polled (its sessions). */
@@ -148,7 +150,7 @@ export const Refused = Schema.TaggedStruct("Refused", {
   retryAfterSeconds: Schema.Number
 })
 
-export const CallMethod = Schema.Literals(["GET", "POST", "DELETE"])
+export const CallMethod = Schema.Literals(["GET", "POST", "PUT", "DELETE"])
 export type CallMethod = typeof CallMethod.Type
 
 /** One HTTP call to a service, within the allowlist: a button press, or a one-off read. */
@@ -250,6 +252,13 @@ export interface AllowRule {
    * no body.
    */
   readonly body?: (body: unknown) => boolean
+  /**
+   * A write that replaces a whole document of the service (Cleanuparr's settings take no partial
+   * update): the Home first GETs `path`, and sends the write only when `check(current, body)`
+   * passes, so the Cloud can change the one field it may change and nothing else. What it read
+   * not being JSON is a refusal too.
+   */
+  readonly against?: { readonly path: string; readonly check: (current: unknown, body: unknown) => boolean }
   /** How long the Home waits for the service: 10 s unless the endpoint is known to be slow. */
   readonly timeoutSeconds?: number
 }
@@ -278,6 +287,42 @@ const isString = (value: unknown) => typeof value === "string"
 const isId = (value: unknown) => typeof value === "number" && Number.isInteger(value) && value > 0
 const isIds = (value: unknown) => Array.isArray(value) && value.every(isId)
 const isAny = () => true
+
+/** The same JSON value: what two answers parsed from JSON hold, keys in any order. */
+const sameJson = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true
+  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((value, i) => sameJson(value, b[i]))
+  if (!isRecord(a) || !isRecord(b)) return false
+  const keys = Object.keys(a)
+  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameJson(a[key], b[key]))
+}
+
+/**
+ * A download as Radarr and Sonarr name it, and Cleanuparr after them: a torrent's info hash, or
+ * SABnzbd's job id. Never a category, a tag or a tracker, which Cleanuparr's ignore list also takes
+ * and which would spare every download they cover.
+ */
+export const isDownloadId = (value: unknown) =>
+  typeof value === "string" && (/^[0-9a-fA-F]{40}$/.test(value) || /^SABnzbd_nzo_[A-Za-z0-9_]{1,80}$/.test(value))
+
+const isStrings = (value: unknown): value is ReadonlyArray<string> => Array.isArray(value) && value.every(isString)
+
+/**
+ * Cleanuparr's queue cleaner settings, sent back as they are with one more download in
+ * `ignoredDownloads`: a download id it didn't list yet. Every other setting must be what Cleanuparr
+ * holds now, so the Cloud can't turn the cleaner off, change its schedule or its strikes.
+ */
+export const ignoresOneMoreDownload = (current: unknown, body: unknown): boolean => {
+  if (!isRecord(current) || !isRecord(body) || !isStrings(current.ignoredDownloads) || !isStrings(body.ignoredDownloads)) return false
+  const before = current.ignoredDownloads
+  const after = body.ignoredDownloads
+  const added = after.at(-1)
+  return after.length === before.length + 1 &&
+    before.every((entry, i) => after[i] === entry) &&
+    isDownloadId(added) &&
+    !before.some((entry) => entry.toLowerCase() === added!.toLowerCase()) &&
+    sameJson({ ...current, ignoredDownloads: null }, { ...body, ignoredDownloads: null })
+}
 
 /** Grabbing one release from the last search: its guid and indexer, nothing else. */
 const grabBody = shape({ guid: isString, indexerId: isId })
@@ -360,6 +405,25 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "POST", path: /^\/api\/v1\/request\/\d+\/(approve|decline)$/ },
     { method: "GET", path: /^\/api\/v1\/movie\/\d+$/ },
     { method: "GET", path: /^\/api\/v1\/tv\/\d+$/ }
+  ],
+  // Cleanuparr (X-Api-Key): its health, the downloads with strikes, the queue cleaner's settings
+  // and rules (strike limits and schedule, no secret in them), its next run, the events (what it
+  // removed), and excluding one download from the queue cleaner. Its settings take no partial
+  // update: the exclusion sends them all back, and the Home checks that only the ignore list
+  // grew, by one download id.
+  cleanuparr: [
+    { method: "GET", path: /^\/health$/ },
+    { method: "GET", path: /^\/api\/strikes$/ },
+    { method: "GET", path: /^\/api\/configuration\/queue_cleaner$/ },
+    { method: "GET", path: /^\/api\/queue-rules\/(stall|slow)$/ },
+    { method: "GET", path: /^\/api\/jobs\/QueueCleaner$/ },
+    { method: "GET", path: /^\/api\/events$/ },
+    {
+      method: "PUT",
+      path: /^\/api\/configuration\/queue_cleaner$/,
+      body: (body) => isRecord(body) && isStrings(body.ignoredDownloads),
+      against: { path: "/api/configuration/queue_cleaner", check: ignoresOneMoreDownload }
+    }
   ]
 }
 
