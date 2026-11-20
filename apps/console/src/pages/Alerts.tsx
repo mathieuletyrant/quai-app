@@ -1,13 +1,12 @@
-import type { AlertSettings } from "@quai/api"
+import { type AlertSettings, diskBackAbovePoints } from "@quai/api"
 import { type ReactNode, useCallback, useState } from "react"
 import { call } from "../client.ts"
 import { useLoad } from "../load.ts"
 import {
   Async,
+  cx,
   ErrorCallout,
   errorText,
-  Field,
-  FieldGroup,
   HomeOfflineState,
   Icon,
   type IconName,
@@ -16,13 +15,15 @@ import {
   PageBar,
   PageBody,
   Panel,
+  Row,
+  Rows,
   Segmented,
   Skeleton,
   Toast,
   Toggle
 } from "../ui"
 
-const levelOptions = [{ value: "error", label: "Errors" }, { value: "warning", label: "Warnings and errors" }] as const
+const levelOptions = [{ value: "error", label: "Errors" }, { value: "warning", label: "Warnings too" }] as const
 
 /** A whole number between `min` and `max`, or null for what isn't one. */
 const wholeBetween = (text: string, min: number, max: number) => {
@@ -30,34 +31,43 @@ const wholeBetween = (text: string, min: number, max: number) => {
   return Number.isInteger(value) && value >= min && value <= max ? value : null
 }
 
-/** One alert: its icon, what it watches, on or off, and its setting. */
-function AlertPanel({ icon, title, description, enabled, onToggle, children }: {
+/** "over at 12 %": where the alert ends, so it doesn't flap. */
+const diskEnd = (belowPercent: number) => `over at ${belowPercent + diskBackAbovePoints} %`
+
+/** One alert: its icon, what it watches, on or off, and its setting as a sentence. */
+function AlertRow({ icon, title, description, enabled, onToggle, children }: {
   icon: IconName
   title: string
-  description: ReactNode
+  description: string
   enabled: boolean
   onToggle: (enabled: boolean) => void
   children: ReactNode
 }) {
   return (
-    <Panel
-      title={<span className="flex items-center gap-2.5"><Icon name={icon} size={17} />{title}</span>}
-      description={description}
-      actions={<Toggle checked={enabled} onChange={onToggle} label={`${title} alert`} />}
-    >
-      <div className={enabled ? "" : "opacity-50"}>{children}</div>
-    </Panel>
+    <li className="flex gap-4 px-5 py-5">
+      <span className={cx("grid size-9 shrink-0 place-items-center rounded-item transition-colors", enabled ? "bg-accent-soft text-accent-soft-text" : "bg-raised text-faint")}>
+        <Icon name={icon} size={17} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            <p className={cx("text-body font-semibold", !enabled && "text-muted")}>{title}</p>
+            <p className="mt-0.5 text-small leading-relaxed text-muted">{description}</p>
+          </div>
+          <Toggle checked={enabled} onChange={onToggle} label={title} />
+        </div>
+        {enabled && <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-small text-text-2">{children}</div>}
+      </div>
+    </li>
   )
 }
 
-/** A number field that saves when it holds a valid value and loses focus. */
-function NumberSetting({ label, hint, value, min, max, disabled, onSave }: {
+/** A short number inside a sentence, saved when it holds a valid value and loses focus. */
+function InlineNumber({ label, value, min, max, onSave }: {
   label: string
-  hint: string
   value: number
   min: number
   max: number
-  disabled: boolean
   onSave: (value: number) => void
 }) {
   const [text, setText] = useState(String(value))
@@ -67,87 +77,112 @@ function NumberSetting({ label, hint, value, min, max, disabled, onSave }: {
     else if (parsed !== value) onSave(parsed)
   }
   return (
-    <Field label={label} hint={hint} className="max-w-40">
+    <span className="inline-block w-16">
       <Input
         type="number"
+        inputMode="numeric"
         min={min}
         max={max}
+        aria-label={label}
+        className="h-8 px-2 text-center tabular-nums"
         value={text}
-        disabled={disabled}
         invalid={parsed === null}
         onChange={(e) => setText(e.target.value)}
         onBlur={save}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
       />
-    </Field>
+    </span>
   )
 }
 
 /** The three alerts, each saved as soon as it changes. */
-function AlertsForm({ settings, onSave }: { settings: AlertSettings; onSave: (next: AlertSettings) => void }) {
+function AlertList({ settings, onSave }: { settings: AlertSettings; onSave: (next: AlertSettings) => void }) {
   const { serviceDown, diskLow, arrHealth } = settings
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
-      <AlertPanel
-        icon="server"
-        title="Service down"
-        description="A service Quai Home reaches stops answering. One notification when it stops, one when it's back."
-        enabled={serviceDown.enabled}
-        onToggle={(enabled) => onSave({ ...settings, serviceDown: { ...serviceDown, enabled } })}
-      >
-        <NumberSetting
-          key={serviceDown.afterMinutes}
-          label="After"
-          hint="Minutes without an answer, 1 to 240."
-          value={serviceDown.afterMinutes}
-          min={1}
-          max={240}
-          disabled={!serviceDown.enabled}
-          onSave={(afterMinutes) => onSave({ ...settings, serviceDown: { ...serviceDown, afterMinutes } })}
-        />
-      </AlertPanel>
-      <AlertPanel
-        icon="disk"
-        title="Low disk space"
-        description="The media disk, as Radarr (or Sonarr) sees it, read every 10 minutes."
-        enabled={diskLow.enabled}
-        onToggle={(enabled) => onSave({ ...settings, diskLow: { ...diskLow, enabled } })}
-      >
-        <NumberSetting
-          key={diskLow.belowPercent}
-          label="Under"
-          hint="Percent of the disk left free, 1 to 50. Over once 2 points above it."
-          value={diskLow.belowPercent}
-          min={1}
-          max={50}
-          disabled={!diskLow.enabled}
-          onSave={(belowPercent) => onSave({ ...settings, diskLow: { ...diskLow, belowPercent } })}
-        />
-      </AlertPanel>
-      <AlertPanel
-        icon="alert"
-        title="Problems Radarr, Sonarr and Prowlarr report"
-        description="What their System → Status page lists: an indexer failing, a download client unreachable, a root folder missing. Read every 5 minutes."
-        enabled={arrHealth.enabled}
-        onToggle={(enabled) => onSave({ ...settings, arrHealth: { ...arrHealth, enabled } })}
-      >
-        <FieldGroup label="Report">
+    <Panel flush>
+      <ul className="divide-y divide-line">
+        <AlertRow
+          icon="server"
+          title="Service down"
+          description="A service Quai Home reaches stops answering. Checked every minute."
+          enabled={serviceDown.enabled}
+          onToggle={(enabled) => onSave({ ...settings, serviceDown: { ...serviceDown, enabled } })}
+        >
+          <span>Notify after</span>
+          <InlineNumber
+            key={serviceDown.afterMinutes}
+            label="Minutes without an answer"
+            value={serviceDown.afterMinutes}
+            min={1}
+            max={240}
+            onSave={(afterMinutes) => onSave({ ...settings, serviceDown: { ...serviceDown, afterMinutes } })}
+          />
+          <span>min without an answer</span>
+        </AlertRow>
+        <AlertRow
+          icon="disk"
+          title="Low disk space"
+          description="The media disk, as Radarr or Sonarr sees it. Checked every 10 minutes."
+          enabled={diskLow.enabled}
+          onToggle={(enabled) => onSave({ ...settings, diskLow: { ...diskLow, enabled } })}
+        >
+          <span>Notify under</span>
+          <InlineNumber
+            key={diskLow.belowPercent}
+            label="Percent of the disk free"
+            value={diskLow.belowPercent}
+            min={1}
+            max={50}
+            onSave={(belowPercent) => onSave({ ...settings, diskLow: { ...diskLow, belowPercent } })}
+          />
+          <span>% free</span>
+          <span className="text-faint">· {diskEnd(diskLow.belowPercent)}</span>
+        </AlertRow>
+        <AlertRow
+          icon="alert"
+          title="Problems Radarr, Sonarr and Prowlarr report"
+          description="What their System → Status page lists: an indexer failing, a download client unreachable. Checked every 5 minutes."
+          enabled={arrHealth.enabled}
+          onToggle={(enabled) => onSave({ ...settings, arrHealth: { ...arrHealth, enabled } })}
+        >
+          <span>Notify on</span>
           <Segmented
-            label="Report"
+            label="Which problems"
             value={arrHealth.level}
             options={levelOptions}
             onChange={(level) => onSave({ ...settings, arrHealth: { ...arrHealth, level } })}
           />
-        </FieldGroup>
-      </AlertPanel>
-    </div>
+        </AlertRow>
+      </ul>
+    </Panel>
   )
 }
 
-function LoadingPanels() {
+/** How alerts reach the iPhones, next to the list. */
+function HowPanel() {
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
-      {[0, 1, 2].map((n) => <Skeleton key={n} className="h-40 w-full" />)}
-    </div>
+    <Panel title="How alerts work">
+      <Rows>
+        <Row label="Sent">When it starts, when it's over</Row>
+        <Row label="To">Every iPhone that allows notifications</Row>
+        <Row label="Muted">Per iPhone, in the app's Settings</Row>
+      </Rows>
+    </Panel>
+  )
+}
+
+function LoadingList() {
+  return (
+    <Panel flush>
+      <ul className="divide-y divide-line">
+        {[0, 1, 2].map((n) => (
+          <li key={n} className="flex gap-4 px-5 py-5">
+            <Skeleton className="size-9" />
+            <div className="flex flex-1 flex-col gap-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-64" /></div>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   )
 }
 
@@ -171,19 +206,19 @@ export function AlertsPage() {
 
   return (
     <>
-      <PageBar
-        title="Alerts"
-        subtitle="Something wrong that may last: one notification when it starts, one when it's over. Each iPhone can mute them in the app's Settings."
-      />
+      <PageBar title="Alerts" subtitle="Notifications for what goes wrong and may last." />
       <PageBody>
-        <Async
-          state={settings}
-          loading={<LoadingPanels />}
-          offline={<HomeOfflineState what="the alerts" />}
-          failed={(error) => <ErrorCallout error={error} />}
-        >
-          {(data) => <AlertsForm settings={data} onSave={save} />}
-        </Async>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <Async
+            state={settings}
+            loading={<LoadingList />}
+            offline={<HomeOfflineState what="the alerts" />}
+            failed={(error) => <ErrorCallout error={error} />}
+          >
+            {(data) => <AlertList settings={data} onSave={save} />}
+          </Async>
+          <HowPanel />
+        </div>
       </PageBody>
       <Toast notice={notice} onDone={clearNotice} />
     </>
