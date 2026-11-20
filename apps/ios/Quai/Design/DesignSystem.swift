@@ -497,6 +497,13 @@ enum Format {
         return "≈ " + rounded.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 
+    /// "42:07", "1:05:12"
+    static func clock(_ seconds: TimeInterval) -> String {
+        let total = Int(seconds.rounded(.down))
+        let hours = total / 3600, minutes = total / 60 % 60, rest = total % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, rest) : String(format: "%d:%02d", minutes, rest)
+    }
+
     static func percent(_ value: Double) -> String {
         value.formatted(.percent.precision(.fractionLength(0)))
     }
