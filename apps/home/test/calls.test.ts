@@ -235,22 +235,34 @@ describe("qBittorrent session", () => {
     }).pipe(Effect.provide(callsWith(route, seen)))
   })
 
-  it.effect("a wrong password is reported, and retried at 30 s, 1 min, 2 min…", () => {
+  it.effect("calls that get a 403 together log in once, and all use the new cookie", () => {
+    const seen: Array<Seen> = []
+    const route: Route = (r) => {
+      if (r.url.pathname === "/api/v2/auth/login") {
+        return { delay: "1 second", headers: { "set-cookie": "QBT_SID_8080=s3ss10n; HttpOnly; path=/" } }
+      }
+      return r.headers["cookie"] === "QBT_SID_8080=s3ss10n" ? { json: [] } : { status: 403 }
+    }
+    return Effect.gen(function*() {
+      const calls = yield* Calls
+      const both = yield* Effect.forkChild(Effect.all([calls.run(info), calls.run(info)], { concurrency: "unbounded" }))
+      yield* TestClock.adjust("1 second")
+      const results = yield* Fiber.join(both)
+      expect(results.map((r) => r._tag)).toEqual(["CallResponse", "CallResponse"])
+      expect(seen.filter((r) => r.url.pathname === "/api/v2/auth/login")).toHaveLength(1)
+    }).pipe(Effect.provide(callsWith(route, seen)))
+  })
+
+  it.effect("a wrong password is reported, and never tried again", () => {
     const seen: Array<Seen> = []
     const route: Route = (r) => r.url.pathname === "/api/v2/auth/login" ? { text: "Fails." } : { status: 403 }
     return Effect.gen(function*() {
       const calls = yield* Calls
       const logins = () => seen.filter((r) => r.url.pathname === "/api/v2/auth/login").length
       expect(yield* calls.run(info)).toEqual({ _tag: "Failed", id: "r1", reason: "wrong username or password" })
-      const callAfter = (seconds: number) => Effect.andThen(TestClock.adjust(`${seconds} seconds`), calls.run(info))
-      yield* callAfter(15)
+      yield* TestClock.adjust("1 hour")
+      expect(yield* calls.run(info)).toEqual({ _tag: "Failed", id: "r1", reason: "wrong username or password" })
       expect(logins()).toBe(1)
-      yield* callAfter(15)
-      expect(logins()).toBe(2)
-      yield* callAfter(45)
-      expect(logins()).toBe(2)
-      yield* callAfter(15)
-      expect(logins()).toBe(3)
     }).pipe(Effect.provide(callsWith(route, seen)))
   })
 })
