@@ -88,7 +88,7 @@ describe("Seerr webhook setup", () => {
     )
   }
 
-  it.effect("takes the webhook agent when it's off or has no URL: pending, approved and declined, with Quai's template", () =>
+  it.effect("takes the webhook agent when it has no URL: pending, approved and declined, with Quai's template", () =>
     Effect.gen(function*() {
       const { result, seen } = yield* run({ enabled: false, types: 0, options: { webhookUrl: "", jsonPayload: "" } })
       expect(result).toBe("created")
@@ -101,6 +101,7 @@ describe("Seerr webhook setup", () => {
       expect(body).toMatchObject({ enabled: true, types: 2 | 4 | 64, options: { webhookUrl: url } })
       expect(JSON.parse(Buffer.from(body.options.jsonPayload, "base64").toString("utf8"))).toEqual(seerrPayloadTemplate)
       expect((yield* run({ enabled: true, types: 4, options: { webhookUrl: "" } })).result).toBe("created")
+      expect((yield* run({ enabled: false, types: 0 })).result).toBe("created")
     }))
 
   it.effect("updates it when it's already Quai's receiver", () =>
@@ -113,9 +114,19 @@ describe("Seerr webhook setup", () => {
   it.effect("leaves someone else's webhook untouched", () =>
     Effect.gen(function*() {
       for (const other of ["https://hooks.example.com/seerr", "http://quai-home:8788/webhooks/seerr?token=another-home"]) {
-        const { result, seen } = yield* run({ enabled: true, types: 222, options: { webhookUrl: other } })
-        expect(result).toBe("taken")
-        expect(seen.map((r) => r.method)).toEqual(["GET"])
+        for (const enabled of [true, false]) {
+          // Turned off is still someone's: they may turn it back on.
+          const { result, seen } = yield* run({ enabled, types: 222, options: { webhookUrl: other } })
+          expect(result).toBe("taken")
+          expect(seen.map((r) => r.method)).toEqual(["GET"])
+        }
       }
+    }))
+
+  it.effect("a Seerr that refuses is a ServiceError, logged and skipped at start", () =>
+    Effect.gen(function*() {
+      const http = fakeHttp(() => ({ status: 401, json: { message: "Unauthorized" } }))
+      const error = yield* Effect.flip(ensureSeerrWebhook(url, token).pipe(Effect.provide(ServiceAuth.layer.pipe(Layer.provide([configLayer(), http])))))
+      expect(error).toMatchObject({ _tag: "ServiceError", service: "seerr", message: "could not set up the webhook: HTTP 401" })
     }))
 })

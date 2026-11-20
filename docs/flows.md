@@ -133,10 +133,10 @@ Declined (or deleted in Seerr), it ends where it is, saying so. It never ends af
 request flow refuses an expiry): an expired request still pending would start again at the next
 poll, every day.
 
-Seerr has a single webhook agent (one URL). At start, Quai Home takes it only when it is off or has
-no URL, or already points to Quai Home's own receiver (then it updates it), with Quai's JSON
+Seerr has a single webhook agent (one URL). At start, Quai Home takes it only when it has no URL,
+or already points to Quai Home's own receiver (then it updates it), with Quai's JSON
 template (type, title, request id, media type and TMDB id, requester) and the pending, approved
-and declined types. Another webhook is left untouched (logged). Either way, the Cloud polls the
+and declined types. Another URL is left untouched (logged), even with the agent turned off. Either way, the Cloud polls the
 pending requests every minute while a request flow is on: the way in without the webhook, and the
 safety net for a notification missed while Quai Home was down. A request that leaves the pending
 list is read once (`GET /api/v1/request/{id}`) to tell approved from declined. The webhook settings

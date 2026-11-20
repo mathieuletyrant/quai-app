@@ -55,14 +55,14 @@ export const isQuaiReceiver = (webhookUrl: string, token: string) => {
 
 /**
  * What to do with Seerr's one webhook agent. It holds a single URL, so Quai only takes it when
- * it's free (off, or no URL) or already Quai's own; another webhook is left untouched, and Quai
- * Cloud's 60-second poll of the pending requests does the job alone.
+ * it has none, or already has Quai's own. Another URL is left untouched, even with the agent off
+ * (its owner may turn it back on), and Quai Cloud's 60-second poll of the pending requests does
+ * the job alone.
  */
 export const seerrWebhookPlan = (settings: SeerrWebhookSettings, token: string): "create" | "update" | "taken" => {
-  const current = settings.options?.webhookUrl ?? ""
-  if (current !== "" && isQuaiReceiver(current, token)) return "update"
-  if (settings.enabled !== true || current === "") return "create"
-  return "taken"
+  const current = (settings.options?.webhookUrl ?? "").trim()
+  if (current === "") return "create"
+  return isQuaiReceiver(current, token) ? "update" : "taken"
 }
 
 /**
@@ -72,9 +72,11 @@ export const seerrWebhookPlan = (settings: SeerrWebhookSettings, token: string):
 export const ensureSeerrWebhook = (url: string, token: string) =>
   Effect.gen(function*() {
     const auth = yield* ServiceAuth
+    const refused = (message: string, cause?: unknown) =>
+      new ServiceError({ service: "seerr", message: `could not set up the webhook: ${message}`, cause })
     const settings = yield* auth.execute("seerr", HttpClientRequest.get(seerrWebhookPath)).pipe(
-      Effect.flatMap((r) => r.status === 200 ? r.json : Effect.fail(new Error(`HTTP ${r.status}`))),
-      Effect.flatMap(Schema.decodeUnknownEffect(WebhookSettings))
+      Effect.flatMap((r) => r.status === 200 ? Effect.mapError(r.json, (cause) => refused("unreadable settings", cause)) : Effect.fail(refused(`HTTP ${r.status}`))),
+      Effect.flatMap((body) => Effect.mapError(Schema.decodeUnknownEffect(WebhookSettings)(body), (cause) => refused("unexpected settings", cause)))
     )
     const plan = seerrWebhookPlan(settings, token)
     if (plan === "taken") return plan
@@ -82,6 +84,9 @@ export const ensureSeerrWebhook = (url: string, token: string) =>
       "seerr",
       HttpClientRequest.post(seerrWebhookPath).pipe(HttpClientRequest.bodyJsonUnsafe(seerrWebhookBody(url)))
     )
-    if (response.status >= 300) return yield* Effect.fail(new Error(`HTTP ${response.status}: ${yield* response.text}`))
+    if (response.status >= 300) {
+      const body = yield* Effect.orElseSucceed(response.text, () => "")
+      return yield* Effect.fail(refused(`HTTP ${response.status}: ${body}`))
+    }
     return plan === "create" ? "created" as const : "updated" as const
-  }).pipe(Effect.mapError((cause) => new ServiceError({ service: "seerr", message: "could not set up the webhook", cause })))
+  })
