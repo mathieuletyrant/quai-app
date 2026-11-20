@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.3](https://github.com/mathieuletyrant/quai-app/compare/v0.12.2...v0.12.3) (2026-11-20)
+
+
+### 🐛 Fixes
+
+* Lock Screen Approve/Decline refuse a request no longer pending; one To fix adapter per media kind, one Seerr decide, reads defined once, iOS errors mapped once ([#41](https://github.com/mathieuletyrant/quai-app/issues/41)) ([999fe09](https://github.com/mathieuletyrant/quai-app/commit/999fe0952cb8edd245d7b9eb7abd6df2e6ec89e6))
+
 ## [0.12.2](https://github.com/mathieuletyrant/quai-app/compare/v0.12.1...v0.12.2) (2026-11-20)
 
 
