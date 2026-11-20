@@ -1,4 +1,4 @@
-import { HomeProtocol } from "@quai/api"
+import { HomeProtocol, journalId } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Option, Queue } from "effect"
 import { Socket } from "effect/socket"
@@ -8,9 +8,10 @@ import { join } from "node:path"
 import { Calls } from "../src/Calls.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
+import { Journal } from "../src/Journal.ts"
 import { Link } from "../src/Link.ts"
 import { Watches } from "../src/Watches.ts"
-import { configLayer, NodeFileSystem, tempDir } from "./config.ts"
+import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
 
 const close = Symbol("close")
 
@@ -53,22 +54,23 @@ const echoCalls = Layer.succeed(Calls, {
 /** The real home key and store, in a temporary directory. */
 const home = Layer.effect(HomeKey, Effect.flatMap(tempDir, (dir) => HomeKey.make(join(dir, "home.key")))).pipe(
   Layer.merge(Layer.effect(HomeStore, Effect.flatMap(tempDir, (dir) => HomeStore.make(join(dir, "home"))))),
-  Layer.provide(NodeFileSystem.layer)
+  Layer.provide(NodeFileSystem.layer),
+  Layer.merge(journalLayer)
 )
 
 const withLink = <A, E>(
-  test: (fake: Effect.Success<typeof fakeSocket>) => Effect.Effect<A, E, Link | HomeKey>
+  test: (fake: Effect.Success<typeof fakeSocket>) => Effect.Effect<A, E, Link | HomeKey | Journal>
 ) =>
   Effect.gen(function*() {
     const fake = yield* fakeSocket
     return yield* test(fake).pipe(
       Effect.provide(Link.layer.pipe(
-        Layer.provideMerge(home),
         Layer.provide([
           configLayer({ sonarr: null }),
           Watches.layer.pipe(Layer.provideMerge(echoCalls)),
           Layer.succeed(Socket.Socket, fake.socket)
-        ])
+        ]),
+        Layer.provideMerge(home)
       ))
     )
   })
@@ -101,7 +103,7 @@ describe("link", () => {
         const connection = yield* Queue.take(connections)
         expect(yield* Queue.take(connection.sent)).toEqual({
           _tag: "Hello",
-          protocol: 3,
+          protocol: HomeProtocol.protocolVersion,
           homeVersion: "dev",
           publicKey: key.publicKey,
           services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"]
@@ -222,6 +224,29 @@ describe("link", () => {
           { _tag: "StoreDocuments", id: "5", documents: [{ key: "devices/a", value: 1 }] },
           { _tag: "Failed", id: "6", reason: "invalid key: ../escape" }
         ])
+      })))
+
+  it.effect("keeps the Cloud's journal lines and answers a read with a page, in the order sent", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const connection = yield* linked(connections)
+        const line = (n: number, source: string) => ({ id: journalId(1_000 + n, "c", n), at: 1_000 + n, level: "info", source, kind: "media.grabbed", text: `line ${n}` })
+        yield* cloud(connection, { _tag: "JournalAppend", entries: [line(1, "radarr"), line(2, "sonarr"), line(3, "radarr")] })
+        yield* cloud(connection, { _tag: "JournalRead", id: "r9", query: { limit: 1, sources: ["radarr"] } })
+        expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "JournalPage", id: "r9", entries: [line(3, "radarr")], more: true })
+      })))
+
+  it.effect("hands its own journal lines to the Cloud once linked", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const journal = yield* Journal
+        yield* journal.note({ level: "warn", source: "radarr", kind: "call.refused", text: "refused" })
+        const connection = yield* linked(connections)
+        const noted = yield* Queue.take(connection.sent)
+        expect(noted._tag).toBe("JournalNoted")
+        expect(noted.entries.map((e: { text: string }) => e.text)).toEqual(["refused"])
+        const page = yield* journal.read({ limit: 10 })
+        expect(page.entries.map((e) => e.text)).toEqual(["refused"])
       })))
 
   it.effect("polls watches while linked, stops on disconnect, and sends snapshots again after the next Welcome", () =>

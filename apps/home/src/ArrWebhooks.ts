@@ -3,6 +3,7 @@ import { HttpClientRequest } from "effect/http"
 import { HomeConfig } from "./Config.ts"
 import { ServiceError } from "./Errors.ts"
 import { HomeKey } from "./HomeKey.ts"
+import { Journal } from "./Journal.ts"
 import { ensureSeerrWebhook } from "./SeerrWebhook.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
 import { webhookUrl } from "./Webhooks.ts"
@@ -66,24 +67,40 @@ export const WebhookSetupLive = Layer.effectDiscard(
   Effect.gen(function*() {
     const config = yield* HomeConfig
     const { webhookToken: token } = yield* HomeKey
+    const journal = yield* Journal
     if (config.internalUrl === null) {
       yield* Effect.logInfo("QUAI_INTERNAL_URL not set: not setting up the Radarr, Sonarr and Seerr webhooks")
+      yield* journal.note({ level: "info", source: "home", kind: "webhook.skipped", text: "Webhooks not set up: QUAI_INTERNAL_URL isn't set" })
       return
     }
+    const name = { radarr: "Radarr", sonarr: "Sonarr", seerr: "Seerr" } as const
+    const done = (service: keyof typeof name, result: "created" | "updated") =>
+      Effect.andThen(
+        Effect.logInfo(`${service} webhook ${result}`),
+        journal.note({ level: "info", source: service, kind: "webhook.setup", text: `${name[service]}'s webhook to Quai Home ${result}` })
+      )
+    const refused = (service: keyof typeof name, e: ServiceError) =>
+      Effect.andThen(
+        Effect.logWarning(`${service}: ${e.message}`, e.cause),
+        journal.note({ level: "error", source: service, kind: "webhook.failed", text: `${name[service]}: ${e.message}` })
+      )
     for (const service of ["radarr", "sonarr"] as const) {
       if (config[service] === null) continue
       yield* ensureWebhook(service, webhookUrl(config.internalUrl, service, token)).pipe(
-        Effect.tap((result) => Effect.logInfo(`${service} webhook ${result}`)),
-        Effect.catchTag("ServiceError", (e) => Effect.logWarning(`${service}: ${e.message}`, e.cause))
+        Effect.tap((result) => done(service, result)),
+        Effect.catchTag("ServiceError", (e) => refused(service, e))
       )
     }
     if (config.seerr !== null) {
       yield* ensureSeerrWebhook(webhookUrl(config.internalUrl, "seerr", token), token).pipe(
         Effect.tap((result) =>
           result === "taken"
-            ? Effect.logInfo("seerr: its webhook already posts elsewhere, left as it is; Quai Cloud polls the pending requests instead")
-            : Effect.logInfo(`seerr webhook ${result}`)),
-        Effect.catchTag("ServiceError", (e) => Effect.logWarning(`seerr: ${e.message}`, e.cause))
+            ? Effect.andThen(
+              Effect.logInfo("seerr: its webhook already posts elsewhere, left as it is; Quai Cloud polls the pending requests instead"),
+              journal.note({ level: "warn", source: "seerr", kind: "webhook.taken", text: "Seerr's webhook already posts elsewhere: left as it is, Quai Cloud polls the requests instead" })
+            )
+            : done("seerr", result)),
+        Effect.catchTag("ServiceError", (e) => refused("seerr", e))
       )
     }
   }).pipe(Effect.forkScoped)
