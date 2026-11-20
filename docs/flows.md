@@ -198,7 +198,7 @@ One ActivityKit type, `QuaiActivityAttributes`, for every flow:
 attributes  key, flowId, title, color, icon, steps [{ id, label, icon }]
 content     step (index into attributes.steps), tone (active | stalled | done),
             progress, bytesPerSecond, remainingSeconds, endsAt, startsAt, paused, since, detail,
-            items [{ title, at, state }] — each only when the step shows it
+            items [{ title, at, state }], here, total — each only when the step shows it
 ```
 
 `attributes.steps[].actions` lists the buttons of each step. With `startsAt` and `endsAt` the

@@ -12,7 +12,7 @@ import { Devices } from "../../src/home/Devices.ts"
 import { QueuePage } from "../../src/integrations/arr.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
 import { RadarrCalendar } from "../../src/integrations/radarr.ts"
-import { calendarWatchIds, pollSeconds } from "../../src/integrations/releases.ts"
+import { calendarWatchIds, dayEvents, pollSeconds } from "../../src/integrations/releases.ts"
 import { SonarrCalendar } from "../../src/integrations/sonarr.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { apnsBody } from "../../src/push/ApnsPayload.ts"
@@ -54,6 +54,24 @@ describe("the home's day", () => {
   })
 })
 
+const emptyActivity: Activity = {
+  key: "tonight|day:2026-11-20",
+  flowId: "tonight",
+  subjectKey: "day:2026-11-20",
+  title: "Tonight",
+  stepIndex: 0,
+  tone: "active",
+  values: {},
+  downloadId: null,
+  lookup: null,
+  enteredAt: 0,
+  movedAt: 0,
+  lastEventAt: 0,
+  endedAt: null,
+  pushedAt: 0,
+  pushedFingerprint: null
+}
+
 describe("tonight's releases", () => {
   it("lists the monitored episodes airing today and the movies out today, with where each stands", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
@@ -93,6 +111,17 @@ describe("tonight's releases", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     expect(new Date(startsAt("2026-11-20", paris, undefined, releases)).toISOString()).toBe("2026-11-20T17:00:00.000Z")
     expect(new Date(startsAt("2026-11-20", paris, "21:30", releases)).toISOString()).toBe("2026-11-20T19:00:00.000Z")
+  })
+
+  it("past 4 releases, the lines are cut but the count is the whole day's", () => {
+    const releases = dayReleases("2026-11-20", paris, inputs())
+    const many = [...releases, ...releases.map((r) => ({ ...r, id: `${r.id}b` }))]
+    const context = { flows: [tonight], running: [], services: ["sonarr" as const], now: Date.parse("2026-11-20T17:00:00Z"), timeZone: paris }
+    const [start] = dayEvents(context, many)
+    expect(start!.values?.items).toHaveLength(4)
+    expect([start!.values?.here, start!.values?.total, start!.values?.detail]).toEqual([2, 8, "2 of 8 here"])
+    const activity = { ...emptyActivity, values: start!.values! }
+    expect(contentFor(tonight, activity, { enabled: true, hiddenSteps: [] })).toMatchObject({ here: 2, total: 8 })
   })
 
   it("fits a Live Activity push well under APNs' 4 KB", () => {
@@ -164,7 +193,7 @@ describe("Tonight's releases flow", () => {
       yield* TestClock.setTime(Date.parse("2026-11-20T17:00:00Z"))
       yield* hub.beat
       const [started] = yield* day
-      expect(started).toMatchObject({ subjectKey: "day:2026-11-20", stepIndex: 0, values: { detail: "1 of 4 here" } })
+      expect(started).toMatchObject({ subjectKey: "day:2026-11-20", stepIndex: 0, values: { detail: "1 of 4 here", here: 1, total: 4 } })
       expect(started!.values.items?.map((i) => i.state)).toEqual(["done", "active", "waiting", "active"])
       // While it runs, every 5 minutes.
       expect(home.watch(calendarWatchIds.episodes)!.everySeconds).toBe(pollSeconds.running)

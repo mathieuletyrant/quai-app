@@ -46,6 +46,9 @@ export interface Values {
   readonly detail?: string
   /** A step showing a list: its lines. */
   readonly items?: ReadonlyArray<ActivityItem>
+  /** With `items`: done, out of the whole list. */
+  readonly here?: number
+  readonly total?: number
 }
 
 /**

@@ -150,7 +150,10 @@ export const ActivityContent = Schema.Struct({
   since: Schema.optionalKey(Schema.Finite),
   detail: Schema.optionalKey(Schema.String),
   /** At most 4 lines (the day's releases): the push stays well under APNs' 4 KB. */
-  items: Schema.optionalKey(Schema.Array(ActivityItem))
+  items: Schema.optionalKey(Schema.Array(ActivityItem)),
+  /** With `items`: how many of the whole list are done, out of how many (the lines may be cut). */
+  here: Schema.optionalKey(Schema.Int),
+  total: Schema.optionalKey(Schema.Int)
 }).annotate({ identifier: "ActivityContent" })
 export type ActivityContent = typeof ActivityContent.Type
 

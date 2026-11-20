@@ -49,6 +49,10 @@ struct QuaiActivityAttributes: ActivityAttributes {
         var detail: String?
         /// At most 4 lines, for a step that shows a list.
         var items: [Item]?
+        /// With `items`: how many of the whole list are done, out of how many (the lines may be
+        /// cut). Optional, so a push without them still decodes.
+        var here: Int?
+        var total: Int?
     }
 
     var key: String

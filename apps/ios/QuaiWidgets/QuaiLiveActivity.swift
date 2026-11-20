@@ -32,7 +32,9 @@ struct Model {
 
     /// The lines of a step showing a list; empty otherwise.
     var items: [QuaiActivityAttributes.Item] { state.items ?? [] }
-    var doneCount: Int { items.filter(\.isDone).count }
+    /// Done out of the whole list: the server's count, since the lines stop at 4.
+    var doneCount: Int { state.here ?? items.filter(\.isDone).count }
+    var totalCount: Int { max(state.total ?? items.count, 1) }
 
     /// "Downloading · ≈ 4 min · 11 MB/s", "Playing · TV Salon"
     var subtitle: String {
@@ -157,7 +159,7 @@ struct Headline: View {
             if model.state.tone == .done {
                 Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(Palette.ready)
             } else if !model.items.isEmpty {
-                Text("\(model.doneCount)/\(model.items.count)")
+                Text("\(model.doneCount)/\(model.totalCount)")
             } else if model.paused {
                 Image(systemName: "pause.circle.fill").font(.title2)
             } else if let progress = model.state.progress {
@@ -183,7 +185,7 @@ struct CompactValue: View {
             if let progress = model.state.progress, model.state.tone != .done {
                 Text(progress, format: .percent.precision(.fractionLength(0)))
             } else if !model.items.isEmpty, model.state.tone != .done {
-                Text("\(model.doneCount)/\(model.items.count)")
+                Text("\(model.doneCount)/\(model.totalCount)")
             } else if let endsAt = model.endsAt, endsAt > .now, model.state.tone != .done {
                 Text(timerInterval: Date.now...endsAt, countsDown: true).frame(maxWidth: 52)
             } else {
@@ -307,7 +309,7 @@ struct Ring: View {
 
     var body: some View {
         let steps = max(model.attributes.steps.count - 1, 1)
-        let listed = model.items.isEmpty ? nil : max(Double(model.doneCount) / Double(model.items.count), 0.08)
+        let listed = model.items.isEmpty ? nil : max(min(Double(model.doneCount) / Double(model.totalCount), 1), 0.08)
         let value = model.state.tone == .done ? 1 : (model.state.progress ?? listed ?? max(Double(model.state.step) / Double(steps), 0.08))
         ZStack {
             Circle().stroke(Palette.track, lineWidth: lineWidth)

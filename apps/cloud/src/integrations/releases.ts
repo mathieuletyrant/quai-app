@@ -66,7 +66,8 @@ export const dayEvents = (context: WatchContext, releases: ReadonlyArray<DayRele
   }
   if (releases === null || releases.length === 0) return events
   const items = activityItems(releases)
-  const values = { items, detail: summary(releases) }
+  const here = releases.filter((r) => r.status === "available").length
+  const values = { items, here, total: releases.length, detail: summary(releases) }
   const done = allAvailable(releases)
   for (const flow of dayFlows(context)) {
     const activity = running.find((a) => a.flowId === flow.id && a.subjectKey === dayKey(today))
@@ -77,7 +78,10 @@ export const dayEvents = (context: WatchContext, releases: ReadonlyArray<DayRele
     }
     if (done) {
       events.push({ type: "releases.available", flowId: flow.id, subject: subjectOf(today), values })
-    } else if (JSON.stringify(activity.values.items) !== JSON.stringify(items) || activity.values.detail !== values.detail) {
+    } else if (
+      JSON.stringify(activity.values.items) !== JSON.stringify(items) ||
+      activity.values.here !== here || activity.values.total !== values.total
+    ) {
       events.push({ type: "releases.progress", flowId: flow.id, subject: subjectOf(today), values })
     }
   }
