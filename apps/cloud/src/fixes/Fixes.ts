@@ -12,7 +12,18 @@ import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { type CallRequest, HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import { byPreference, ManualImportRows, ReleaseRecords, toRelease } from "../integrations/arr.ts"
+import { byPreference, epochSeconds, ManualImportRows, type QueueRecord, ReleaseRecords, toRelease } from "../integrations/arr.ts"
+import {
+  excluding,
+  plannedRemovals,
+  queueCleanerJobRead,
+  queuedByDownload,
+  settingsRead,
+  slowRulesRead,
+  stallRulesRead,
+  strikesRead,
+  struckDownloads
+} from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
 import { RadarrMovies } from "../integrations/radarr.ts"
 import {
@@ -27,9 +38,18 @@ import {
 } from "../integrations/reclaimerr.ts"
 import { SonarrSeries } from "../integrations/sonarr.ts"
 import { Journal } from "../journal/Journal.ts"
-import type { Detected, FixTarget } from "./Detected.ts"
+import type { Detected, FixTarget, RemovalTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
-import { type ImportAssignments, importFiles, isMissing, isQueued, type MediaFixes, type MediaTarget, type MissingOf, type QueuedOf } from "./MediaFixes.ts"
+import {
+  type ImportAssignments,
+  importFiles,
+  isMissing,
+  isQueued,
+  type MediaFixes,
+  type MediaTarget,
+  type MissingOf,
+  type QueuedOf
+} from "./MediaFixes.ts"
 import { movies } from "./movies.ts"
 import { series } from "./series.ts"
 
@@ -47,16 +67,17 @@ const releaseSearchTimeoutMs = 55_000
 
 type FixError = HomeOffline | HttpApiError.NotFound | InvalidFix | FixFailed
 
-const order: Record<Fix["kind"], number> = { scheduledDeletion: 0, noSource: 1, importBlocked: 2 }
+const order: Record<Fix["kind"], number> = { scheduledDeletion: 0, removalPlanned: 1, noSource: 2, importBlocked: 3 }
+const goesAt = (fix: Fix) => fix.deletion?.deletesAt ?? fix.removal?.removesAt ?? 0
 const byUrgency = (a: Detected, b: Detected) =>
   order[a.fix.kind] - order[b.fix.kind] ||
-  (a.fix.deletion?.deletesAt ?? 0) - (b.fix.deletion?.deletesAt ?? 0) ||
+  goesAt(a.fix) - goesAt(b.fix) ||
   (a.fix.since ?? 0) - (b.fix.since ?? 0)
 
 /** The media adapters, in the order their problems are listed and their services reported. */
 const media = [movies, series] as const
 
-/** Runs `f` with the adapter of a movie's or a series' target; undefined for a Reclaimerr candidate. */
+/** Runs `f` with the adapter of a movie's or a series' target; undefined for a Reclaimerr candidate or a Cleanuparr download. */
 const withMedia = <R>(target: FixTarget, f: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => R): R | undefined =>
   target.kind === "movie" ? f(movies, target) : target.kind === "series" ? f(series, target) : undefined
 
@@ -111,6 +132,49 @@ export class Fixes extends Context.Service<Fixes, {
           return scheduledDeletions(candidates, { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) })
         })
 
+      /**
+       * Cleanuparr's planned removals: its strikes, limits and next run, then, when a download is
+       * struck, the queues of the *arr that hold it (its title and poster; one no queue has is gone).
+       * None when Cleanuparr didn't answer; a queue that can't be read leaves its downloads out.
+       */
+      const removals = Effect.gen(function*(): Effect.fn.Return<Option.Option<ReadonlyArray<Detected>>, HomeOffline> {
+        const { values } = yield* reads.all({
+          strikes: strikesRead,
+          settings: settingsRead,
+          stallRules: stallRulesRead,
+          slowRules: slowRulesRead,
+          job: queueCleanerJobRead
+        }, { optional: ["job"] })
+        const needed = Option.all([values.strikes, values.settings, values.stallRules, values.slowRules])
+        if (Option.isNone(needed)) return Option.none()
+        const [strikes, settings, stallRules, slowRules] = needed.value
+        if (struckDownloads({ downloads: strikes.items, settings }).length === 0) return Option.some([])
+        const reached = yield* reads.services
+        const queues = yield* Effect.forEach(media, (adapter) => {
+          const queued = adapter.queued
+          return reached.includes(adapter.service)
+            ? Effect.map(reads.read(adapter.queue), (page) => ({ queued, records: Option.match(page, { onNone: () => [], onSome: (p) => p.records }) }))
+            : Effect.succeed({ queued, records: [] as ReadonlyArray<QueueRecord> })
+        }, { concurrency: "unbounded" })
+        const job = Option.getOrUndefined(values.job)
+        return Option.some(plannedRemovals({
+          downloads: strikes.items,
+          settings,
+          stallRules,
+          slowRules,
+          nextRunAt: epochSeconds(job?.nextRunTime ?? undefined),
+          queued: queuedByDownload(queues)
+        }))
+      })
+
+      /** Keep: Cleanuparr's queue cleaner leaves the download alone, its other settings as they are. */
+      const exclude = (target: RemovalTarget) =>
+        Effect.gen(function*() {
+          const settings = yield* reads.read(settingsRead)
+          if (Option.isNone(settings)) return yield* Effect.fail(new FixFailed({ message: "Cleanuparr didn't answer" }))
+          yield* write({ service: "cleanuparr", method: "PUT", path: settingsRead.path, body: excluding(settings.value, target.downloadId) })
+        })
+
       /** Runs the rules on the services asked (those Quai Home reaches). */
       const detect = (only?: FixService) =>
         Effect.gen(function*(): Effect.fn.Return<Detection, HomeOffline> {
@@ -118,12 +182,14 @@ export class Fixes extends Context.Service<Fixes, {
           const reached = yield* reads.services
           const asked = (service: FixService) => (only === undefined || only === service) && reached.includes(service)
           const none = Effect.succeed(Option.none<never>())
-          const [candidates, ...found] = yield* Effect.all([
+          const [candidates, planned, ...found] = yield* Effect.all([
             asked("reclaimerr") ? reads.read({ service: "reclaimerr", path: candidatesPath, schema: CandidatePage }) : none,
+            asked("cleanuparr") ? removals : none,
             ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
           ], { concurrency: "unbounded" })
           const outcomes: ReadonlyArray<readonly [FixService, Option.Option<unknown>]> = [
             ["reclaimerr", candidates],
+            ["cleanuparr", planned],
             ...media.map((adapter, i) => [adapter.service, found[i]!] as const)
           ]
           const unavailable = outcomes.flatMap(([service, value]) => asked(service) && Option.isNone(value) ? [service] : [])
@@ -135,7 +201,7 @@ export class Fixes extends Context.Service<Fixes, {
             : scheduledDeletions(candidates.value.items)
           const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) => Option.getOrElse(problems, () => []))
           return {
-            detected: [...deletions, ...detected].sort(byUrgency),
+            detected: [...deletions, ...Option.getOrElse(planned, () => []), ...detected].sort(byUrgency),
             read: outcomes.flatMap(([service]) => asked(service) && !unavailable.includes(service) ? [service] : []),
             unavailable
           }
@@ -264,11 +330,18 @@ export class Fixes extends Context.Service<Fixes, {
           Effect.gen(function*() {
             const found = yield* offering(id, "keep")
             const { target } = found
-            if (target.kind !== "candidate") return yield* Effect.fail(new InvalidFix({ message: "not a Reclaimerr candidate" }))
-            yield* acted("keep", "Kept, Reclaimerr won't delete it",
-              found,
-              write({ service: "reclaimerr", method: "POST", path: protectPath(target.candidateId), body: { reason: protectReason } })
-            )
+            switch (target.kind) {
+              case "candidate":
+                return yield* acted("keep", "Kept, Reclaimerr won't delete it",
+                  found,
+                  Effect.asVoid(write({ service: "reclaimerr", method: "POST", path: protectPath(target.candidateId), body: { reason: protectReason } }))
+                )
+              case "removal":
+                return yield* acted("keep", "Kept, Cleanuparr won't remove it", found, exclude(target))
+              case "movie":
+              case "series":
+                return yield* Effect.fail(new InvalidFix({ message: "nothing to keep" }))
+            }
           }),
 
         dismiss: (id) =>

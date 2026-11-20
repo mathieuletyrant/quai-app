@@ -1,0 +1,19 @@
+[
+  {
+    "id": "6f1e2d3c-0000-4000-8000-000000000003",
+    "name": "Slow public",
+    "enabled": true,
+    "maxStrikes": 5,
+    "privacyType": "Public",
+    "contentType": "All",
+    "minCompletionPercentage": 0,
+    "maxCompletionPercentage": 100,
+    "deletePrivateTorrentsFromClient": false,
+    "changeCategory": false,
+    "resetStrikesOnProgress": true,
+    "maxTimeHours": 0,
+    "ignoreWhileAltSpeedActive": true,
+    "minSpeed": "100KB",
+    "ignoreAboveSize": null
+  }
+]

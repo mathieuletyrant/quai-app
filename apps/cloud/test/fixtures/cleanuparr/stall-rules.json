@@ -1,0 +1,30 @@
+[
+  {
+    "id": "6f1e2d3c-0000-4000-8000-000000000001",
+    "name": "Stalled public",
+    "enabled": true,
+    "maxStrikes": 3,
+    "privacyType": "Public",
+    "contentType": "All",
+    "minCompletionPercentage": 0,
+    "maxCompletionPercentage": 100,
+    "deletePrivateTorrentsFromClient": false,
+    "changeCategory": false,
+    "resetStrikesOnProgress": true,
+    "minimumProgress": null
+  },
+  {
+    "id": "6f1e2d3c-0000-4000-8000-000000000002",
+    "name": "Stalled private",
+    "enabled": false,
+    "maxStrikes": 6,
+    "privacyType": "Public",
+    "contentType": "All",
+    "minCompletionPercentage": 0,
+    "maxCompletionPercentage": 100,
+    "deletePrivateTorrentsFromClient": false,
+    "changeCategory": false,
+    "resetStrikesOnProgress": true,
+    "minimumProgress": "10MB"
+  }
+]
