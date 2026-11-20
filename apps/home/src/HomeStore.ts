@@ -15,7 +15,7 @@ export interface HomeDocument {
  * Quai Home never reads them: one JSON file per key, `flows/download` → `flows/download.json`.
  */
 export class HomeStore extends Context.Service<HomeStore, {
-  /** Every document whose key starts with `prefix`, sorted by key. */
+  /** Every document whose key starts with `prefix`, sorted by key; one that can't be read is skipped. */
   readonly list: (prefix: string) => Effect.Effect<ReadonlyArray<HomeDocument>, StoreError>
   /** Writes atomically: a crash leaves the old document or the new one, never half of one. */
   readonly put: (key: string, value: unknown) => Effect.Effect<void, StoreError>
@@ -42,20 +42,30 @@ export class HomeStore extends Context.Service<HomeStore, {
               .map((file) => file.slice(0, -".json".length).split(sep).join("/"))
               .filter((key) => HomeProtocol.isStoreKey(key) && key.startsWith(prefix))
               .sort()
-            return yield* Effect.forEach(keys, (key) =>
+            // One unreadable document must not keep the home from linking: it is left out, and
+            // logged by key only (what it holds stays in /data).
+            const documents = yield* Effect.forEach(keys, (key) =>
               fs.readFileString(join(root, ...key.split("/")) + ".json").pipe(
-                Effect.mapError(fail(`could not read ${key}`)),
-                Effect.flatMap((text) => Effect.try({ try: () => JSON.parse(text) as unknown, catch: fail(`${key} is not JSON`) })),
-                Effect.map((value) => ({ key, value }))
+                Effect.mapError(() => "can't be read"),
+                Effect.flatMap((text) => Effect.try({ try: () => JSON.parse(text) as unknown, catch: () => "isn't JSON" })),
+                Effect.map((value): HomeDocument | null => ({ key, value })),
+                Effect.catch((problem) => Effect.as(Effect.logWarning(`document ${key} ${problem}: skipped`), null))
               ))
+            return documents.filter((d) => d !== null)
           }),
         put: (key, value) =>
           Effect.gen(function*() {
             const path = yield* pathOf(key)
             const text = yield* Effect.try({ try: () => JSON.stringify(value), catch: fail(`${key}: value is not JSON`) })
             const temp = join(dirname(path), `.${randomBytes(6).toString("hex")}.tmp`)
+            // On disk before the rename, so a power cut can't leave an empty document in its place.
+            const written = Effect.scoped(Effect.gen(function*() {
+              const file = yield* fs.open(temp, { flag: "w" })
+              yield* file.writeAll(new TextEncoder().encode(text ?? "null"))
+              yield* file.sync
+            }))
             yield* fs.makeDirectory(dirname(path), { recursive: true }).pipe(
-              Effect.andThen(fs.writeFileString(temp, text ?? "null")),
+              Effect.andThen(written),
               Effect.andThen(fs.rename(temp, path)),
               Effect.tapError(() => Effect.ignore(fs.remove(temp, { force: true }))),
               Effect.mapError(fail(`could not write ${key}`))
