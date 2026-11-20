@@ -33,7 +33,7 @@ export class Requests extends Context.Service<Requests, {
       return {
         list: Effect.gen(function*() {
           if (!(yield* reaches)) return { items: [], status: "notConfigured" as const }
-          const pending = yield* titles.pending
+          const pending = yield* Effect.mapError(titles.pending, toOffline)
           return Option.match(pending, {
             onNone: () => ({ items: [], status: "unavailable" as const }),
             onSome: (items) => ({ items: [...items].sort((a, b) => (a.requestedAt ?? 0) - (b.requestedAt ?? 0)), status: "ok" as const })
@@ -45,7 +45,7 @@ export class Requests extends Context.Service<Requests, {
             const id = Number(raw)
             if (!(yield* reaches) || !/^\d+$/.test(raw) || id <= 0) return yield* Effect.fail(new HttpApiError.NotFound())
             // Only a request that still waits: one approved or declined meanwhile is a 404.
-            const current = yield* titles.current(id)
+            const current = yield* Effect.mapError(titles.current(id), toOffline)
             if (Option.isNone(current)) return yield* Effect.fail(new RequestFailed({ message: "Seerr didn't answer" }))
             if (current.value === "gone" || current.value.status !== RequestStatus.pending) return yield* Effect.fail(new HttpApiError.NotFound())
             const response = yield* link.call({ service: "seerr", method: "POST", path: decisionPath(id, decision) }).pipe(

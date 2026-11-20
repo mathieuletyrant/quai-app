@@ -2,7 +2,7 @@ import { type ActionType, InvalidAction, type MediaRequest } from "@quai/api"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
-import { HomeLink } from "../home/HomeLink.ts"
+import { type HomeError, HomeLink } from "../home/HomeLink.ts"
 import { type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./radarr.ts"
 
@@ -20,8 +20,11 @@ import { epochSeconds, knownYear } from "./radarr.ts"
 /** Seerr's request statuses (server/constants/media.ts, MediaRequestStatus). */
 export const RequestStatus = { pending: 1, approved: 2, declined: 3, failed: 4, completed: 5 } as const
 
-/** The requests waiting for approval, oldest first. 50 is plenty for a household. */
-export const pendingPath = "/api/v1/request?take=50&skip=0&filter=pending&sort=added"
+/**
+ * The requests waiting for approval, oldest first, so a long wait is never cut off the page. 50 is
+ * plenty for a household.
+ */
+export const pendingPath = "/api/v1/request?take=50&skip=0&filter=pending&sort=added&sortDirection=asc"
 export const requestPath = (id: number) => `/api/v1/request/${id}`
 export const decisionPath = (id: number, decision: "approve" | "decline") => `/api/v1/request/${id}/${decision}`
 export const detailsPath = (kind: "movie" | "tv", tmdbId: number) => `/api/v1/${kind}/${tmdbId}`
@@ -201,22 +204,25 @@ export const requestIdOf = (subjectKey: string): number | null => {
  * TMDB id. Nothing is written anywhere; a restarted Cloud reads them again.
  */
 export class SeerrTitles extends Context.Service<SeerrTitles, {
-  readonly details: (request: SeerrRequest) => Effect.Effect<TitleDetails | undefined>
+  readonly details: (request: SeerrRequest) => Effect.Effect<TitleDetails | undefined, HomeError>
   /** The pending requests with their titles, or None when Seerr didn't answer. */
-  readonly pending: Effect.Effect<Option.Option<ReadonlyArray<MediaRequest>>>
+  readonly pending: Effect.Effect<Option.Option<ReadonlyArray<MediaRequest>>, HomeError>
   /** A request as it is now; None when Seerr didn't answer, `"gone"` when it was deleted. */
-  readonly current: (id: number) => Effect.Effect<Option.Option<SeerrRequest | "gone">>
+  readonly current: (id: number) => Effect.Effect<Option.Option<SeerrRequest | "gone">, HomeError>
 }>()("quai/SeerrTitles") {
   static readonly layer = Layer.effect(
     SeerrTitles,
     Effect.gen(function*() {
       const link = yield* HomeLink
       const cache = new Map<string, TitleDetails>()
-      const get = (path: string): Effect.Effect<Option.Option<{ readonly status: number; readonly body: string }>> =>
+      /** A GET's answer, None when Seerr (or Quai Home's call) failed; Quai Home offline fails. */
+      const get = (path: string): Effect.Effect<Option.Option<{ readonly status: number; readonly body: string }>, HomeError> =>
         link.call({ service: "seerr", method: "GET", path }).pipe(
           Effect.map(Option.some),
           Effect.catchTag("HomeError", (error) =>
-            Effect.as(Effect.logWarning(`seerr ${path.split("?")[0]}: ${error.message}`), Option.none()))
+            error.reason === "offline"
+              ? Effect.fail(error)
+              : Effect.as(Effect.logWarning(`seerr ${path.split("?")[0]}: ${error.message}`), Option.none()))
         )
       const details = (request: SeerrRequest) =>
         Effect.gen(function*() {
@@ -260,9 +266,20 @@ export const pendingWatchId = "seerr:pending"
 /** Running activities of request flows: they follow a request still waiting. */
 const followed = (context: WatchContext): ReadonlyArray<Activity> => runningWhere(context, (_, flow) => flow.subject === "request")
 
-/** Whether some request flow on has no running activity for this request yet. */
-const unfollowed = (context: WatchContext, key: string) =>
-  context.flows.some((f) => f.enabled && f.subject === "request" && !context.running.some((a) => a.flowId === f.id && a.subjectKey === key))
+/**
+ * Whether some request flow on, whose filter takes this request, has no running activity for it
+ * yet. Request flows don't expire (`flowProblem`), so a request still pending keeps its activity
+ * and is never started twice.
+ */
+const unfollowed = (context: WatchContext, request: SeerrRequest) => {
+  const key = requestKey(request.id)
+  const kind = kindOf(request)
+  return context.flows.some((f) =>
+    f.enabled && f.subject === "request" &&
+    ((f.filter.mediaType ?? "any") === "any" || f.filter.mediaType === kind) &&
+    !context.running.some((a) => a.flowId === f.id && a.subjectKey === key)
+  )
+}
 
 /** What became of a request that left the pending list: approved, declined, or deleted. */
 export const outcome = (activity: Activity, request: SeerrRequest | "gone"): ReadonlyArray<FlowEvent> => {
@@ -313,7 +330,7 @@ export const seerr = Effect.gen(function*() {
           if (Option.isNone(page)) return yield* Effect.as(Effect.logWarning("Seerr: could not read the requests"), [])
           const pending = waiting(page.value.results)
           const started = yield* Effect.forEach(
-            pending.filter((r) => unfollowed(context, requestKey(r.id))),
+            pending.filter((r) => unfollowed(context, r)),
             (r) => Effect.map(titles.details(r), (details) => pendingEvent(toMediaRequest(r, details))),
             { concurrency: 4 }
           )
@@ -327,7 +344,7 @@ export const seerr = Effect.gen(function*() {
               : Effect.map(titles.current(id), Option.match({ onNone: () => [], onSome: (r) => outcome(activity, r) }))
           }, { concurrency: 4 })
           return [...started, ...ended.flat()]
-        })
+        }).pipe(Effect.catchTag("HomeError", (error) => Effect.as(Effect.logDebug(`seerr: ${error.message}`), [])))
     },
     actions
   }

@@ -1,6 +1,6 @@
-import { DeviceAuth, QuaiApi } from "@quai/api"
+import { builtInFlows, DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Exit, Layer, Schema } from "effect"
+import { Effect, Exit, Layer, Option, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
@@ -10,6 +10,7 @@ import {
   decodeSeerrWebhook,
   pendingWatchId,
   requestDetail,
+  SeerrTitles,
   SeerrRequestPage,
   seerrEvents,
   splitSubject,
@@ -17,6 +18,10 @@ import {
   waiting
 } from "../../src/integrations/seerr.ts"
 import { Apns } from "../../src/push/Apns.ts"
+import { Hub } from "../../src/integrations/Hub.ts"
+import { HomeError, HomeLink, offlineMessage } from "../../src/home/HomeLink.ts"
+import { Requests } from "../../src/requests/Requests.ts"
+import { Integrations } from "../../src/integrations/Integration.ts"
 import { cloudLive, type FakeHomeOptions, makeFakeHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp } from "../testApp.ts"
@@ -143,6 +148,40 @@ describe("Seerr requests", () => {
       ])
     }).pipe(Effect.provide(engine)))
 
+  it.effect("a request pending for days keeps its one activity: never forgotten, never started again", () =>
+    Effect.gen(function*() {
+      yield* TestClock.setTime(now)
+      const home = yield* makeFakeHome({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
+      yield* home.connect
+      const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
+      yield* home.snapshot(pendingWatchId, page)
+      const before = yield* running
+      expect(before.map((a) => a.subjectKey)).toEqual(["request:12", "request:13"])
+      const hub = yield* Hub
+      for (let day = 0; day < 3; day++) {
+        yield* TestClock.adjust("25 hours")
+        yield* hub.beat
+        yield* home.snapshot(pendingWatchId, { ...page, pageInfo: { page: day } })
+      }
+      const after = yield* running
+      expect(after.map((a) => [a.subjectKey, a.enteredAt, a.endedAt])).toEqual(before.map((a) => [a.subjectKey, a.enteredAt, null]))
+    }).pipe(Effect.provide(engine)))
+
+  it.effect("only the requests a flow's filter takes start it, and the others aren't sent again at each poll", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
+      yield* home.connect
+      const request = builtInFlows.find((f) => f.id === "request")!
+      const series = { ...request, filter: { mediaType: "series" as const } }
+      const integration = (yield* Integrations).find((i) => i.service === "seerr")!
+      const watch = { id: pendingWatchId, service: "seerr" as const, path: "/api/v1/request", everySeconds: 60 }
+      const events = yield* integration.watcher!.read(
+        { watch, status: 200, body: JSON.stringify(fixture("seerr/requests-pending.json")) },
+        { flows: [series], running: [], services, now, timeZone: "UTC" }
+      )
+      expect(events.map((e) => e.subject?.key)).toEqual(["request:13"])
+    }).pipe(Effect.provide(engine)))
+
   it.effect("Approve on the Live Activity approves it in Seerr, and has Quai Home read the requests again", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome({ services, answer: seerrAnswers({ request12: "pending", pending: [12] }) })
@@ -215,4 +254,25 @@ describe("requests routes", () => {
       const { api } = yield* setUp({ services, answer: () => ({ failed: "unreachable" }) })
       expect(yield* api.list()).toEqual({ items: [], status: "unavailable" })
     }).pipe(Effect.provide(TestApp)))
+})
+
+describe("requests when Quai Home goes offline mid-read", () => {
+  /** Connected when asked, but every call fails as the link drops. */
+  const dropping = Layer.succeed(HomeLink, {
+    home: Effect.succeed(Option.some({ homeId: "h", services: ["seerr" as const] })),
+    call: () => Effect.fail(new HomeError({ reason: "offline", message: offlineMessage })),
+    setWatches: () => Effect.void,
+    documents: undefined as never,
+    nextEvent: Effect.never,
+    serve: () => Effect.void
+  })
+  const hub = Layer.succeed(Hub, { apply: () => Effect.void, beat: Effect.void, sync: Effect.void, refresh: () => Effect.void, handle: () => Effect.void })
+  const layer = Requests.layer.pipe(Layer.provide(SeerrTitles.layer), Layer.provide([dropping, hub]))
+
+  it.effect("is HomeOffline (503), not Seerr unavailable or a Seerr failure", () =>
+    Effect.gen(function*() {
+      const requests = yield* Requests
+      expect((yield* Effect.flip(requests.list))._tag).toBe("HomeOffline")
+      expect((yield* Effect.flip(requests.decide("12", "approve")))._tag).toBe("HomeOffline")
+    }).pipe(Effect.provide(layer)))
 })
