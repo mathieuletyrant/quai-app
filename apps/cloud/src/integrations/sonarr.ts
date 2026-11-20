@@ -2,6 +2,7 @@ import type { LibraryItem } from "@quai/api"
 import { Effect, Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
 import { noSourceAfterMs } from "../fixes/Detected.ts"
+import * as FixId from "../fixes/FixId.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { seriesKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, knownYear, posterOf, type QueueRecord, queueMessages, queuePageSize } from "./arr.ts"
@@ -203,7 +204,7 @@ export const blockedEpisodes = (record: QueueRecord): Detected => {
     : episodeLabel(series.title, record.episode === undefined ? [] : [record.episode])
   return {
     fix: {
-      id: `blocked-sonarr-${record.id}`,
+      id: FixId.blocked("sonarr", record.id),
       kind: "importBlocked",
       service: "sonarr",
       title,
@@ -266,7 +267,7 @@ export const episodesWithoutSource = (
     const posterUrl = posterOf(series.images)
     return {
       fix: {
-        id: `missing-season-${first.seriesId}-${first.seasonNumber}`,
+        id: FixId.missingSeason(first.seriesId, first.seasonNumber),
         kind: "noSource",
         service: "sonarr",
         title: episodeLabel(series.title, sorted),

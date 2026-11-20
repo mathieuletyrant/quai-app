@@ -1,6 +1,7 @@
 import type { DiskSpace, LibraryItem } from "@quai/api"
 import { Effect, Schema } from "effect"
 import { type Detected, noSourceAfterMs } from "../fixes/Detected.ts"
+import * as FixId from "../fixes/FixId.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { movieKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, knownYear, posterOf, type QueueRecord, queueMessages, queuePageSize } from "./arr.ts"
@@ -171,7 +172,7 @@ export const blockedMovie = (record: QueueRecord): Detected => {
   const importable = movieId !== undefined && movie !== undefined && movie.hasFile !== true
   return {
     fix: {
-      id: `blocked-radarr-${record.id}`,
+      id: FixId.blocked("radarr", record.id),
       kind: "importBlocked",
       service: "radarr",
       title: movie?.title ?? record.title ?? "Unknown download",
@@ -220,7 +221,7 @@ export const moviesWithoutSource = (
     const added = epochSeconds(movie.added)
     return [{
       fix: {
-        id: `missing-movie-${movie.id}`,
+        id: FixId.missingMovie(movie.id),
         kind: "noSource",
         service: "radarr",
         title: movie.title,

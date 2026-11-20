@@ -62,6 +62,7 @@ import {
   SonarrSeries
 } from "../integrations/sonarr.ts"
 import type { Detected, FixTarget } from "./Detected.ts"
+import * as FixId from "./FixId.ts"
 
 /** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
 export const hiddenPrefix = "fixes/"
@@ -76,16 +77,6 @@ const decodeHidden = Schema.decodeUnknownOption(Hidden)
 const releaseSearchTimeoutMs = 55_000
 
 type FixError = HomeOffline | HttpApiError.NotFound | InvalidFix | FixFailed
-
-/** Which service a fix id belongs to, so acting on one reads only that service again. */
-const serviceOfId = (id: string): FixService | undefined =>
-  id.startsWith("deletion-")
-    ? "reclaimerr"
-    : id.startsWith("blocked-radarr-") || id.startsWith("missing-movie-")
-    ? "radarr"
-    : id.startsWith("blocked-sonarr-") || id.startsWith("missing-season-")
-    ? "sonarr"
-    : undefined
 
 const order: Record<Fix["kind"], number> = { scheduledDeletion: 0, noSource: 1, importBlocked: 2 }
 const byUrgency = (a: Detected, b: Detected) =>
@@ -189,7 +180,7 @@ export class Fixes extends Context.Service<Fixes, {
       /** The problem by id, found again now: acting on one that went away is a 404. */
       const find = (id: string) =>
         Effect.gen(function*() {
-          const service = serviceOfId(id)
+          const service = FixId.serviceOf(id)
           if (service === undefined) return yield* Effect.fail(new HttpApiError.NotFound())
           const { detected, unavailable } = yield* detect(service)
           if (unavailable.includes(service)) return yield* Effect.fail(new FixFailed({ message: `${service} didn't answer` }))
@@ -213,7 +204,7 @@ export class Fixes extends Context.Service<Fixes, {
         for (const document of hidden) {
           const id = document.key.split("/")[2] ?? ""
           const value = decodeHidden(document.value)
-          const service = serviceOfId(id)
+          const service = FixId.serviceOf(id)
           const expired = Option.isSome(value) && value.value.until !== undefined && value.value.until <= nowMs
           // Its problem is gone (a release was grabbed, the title deleted): forget it, unless its
           // service couldn't be read this time.
