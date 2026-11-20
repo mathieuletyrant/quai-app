@@ -9,13 +9,13 @@ import { ConnectionHandlers } from "../src/http/ConnectionHandlers.ts"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "../src/http/DeviceAuth.ts"
 import { DevicesHandlers } from "../src/http/DevicesHandlers.ts"
-import { ConsoleFixesHandlers, FixesHandlers } from "../src/http/FixesHandlers.ts"
+import { FixesHandlers } from "../src/http/FixesHandlers.ts"
 import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
 import { JournalHandlers } from "../src/http/JournalHandlers.ts"
 import { LibraryHandlers } from "../src/http/LibraryHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
 import { ReleasesHandlers } from "../src/http/ReleasesHandlers.ts"
-import { ConsoleRequestsHandlers, RequestsHandlers } from "../src/http/RequestsHandlers.ts"
+import { RequestsHandlers } from "../src/http/RequestsHandlers.ts"
 import { Requests } from "../src/requests/Requests.ts"
 import { Seerr } from "../src/integrations/seerr.ts"
 import { Releases } from "../src/releases/Releases.ts"
@@ -28,7 +28,7 @@ import { ServerInfo } from "../src/Version.ts"
 import { cloud, linkDroppingOn, makeFakeHome } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink> = HomeLink.layer) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, RequestsHandlers, ConsoleRequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers).pipe(
+export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink> = HomeLink.layer) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
   Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer, Requests.layer.pipe(Layer.provide(Seerr.layer)), Releases.layer)),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.

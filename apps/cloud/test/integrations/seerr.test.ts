@@ -219,33 +219,32 @@ describe("requests routes", () => {
       yield* TestClock.setTime(now)
       const home = yield* makeFakeHome(options)
       yield* home.connect
-      const console = yield* HttpApiTest.groups(QuaiApi, ["console", "consoleRequests"])
+      const console = yield* HttpApiTest.groups(QuaiApi, ["console"])
       const qr = yield* console.console.createPairingCode({ payload: { serverUrls: [] } })
       const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
       const api = yield* HttpApiTest.groups(QuaiApi, ["requests"]).pipe(
         Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
       )
-      return { home, api: api.requests, console: console.consoleRequests }
+      return { home, api: api.requests }
     })
 
   it.effect("lists the pending requests, oldest first, with posters", () =>
     Effect.gen(function*() {
-      const { api, console } = yield* setUp({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
+      const { api } = yield* setUp({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
       const list = yield* api.list()
       expect(list.status).toBe("ok")
       expect(list.items.map((r) => [r.id, r.title, r.year, r.kind, r.posterUrl])).toEqual([
         [12, "Paddington in Peru", 2024, "movie", "https://image.tmdb.org/t/p/w342/1ffZAucqfvQu36x1C49XfOdjuOG.jpg"],
         [13, "Severance", 2022, "series", "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg"]
       ])
-      expect((yield* console.list()).items).toHaveLength(2)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("approves or declines one that still waits; one decided meanwhile is a 404", () =>
     Effect.gen(function*() {
       const state = { request12: "pending" as "pending" | "approved" | "gone", pending: [12] as ReadonlyArray<number> }
-      const { home, api, console } = yield* setUp({ services, answer: seerrAnswers(state) })
+      const { home, api } = yield* setUp({ services, answer: seerrAnswers(state) })
       yield* api.approve({ params: { id: "12" } })
-      yield* console.decline({ params: { id: "12" } })
+      yield* api.decline({ params: { id: "12" } })
       expect(home.calls.filter((c) => c.method === "POST").map((c) => c.path)).toEqual([
         "/api/v1/request/12/approve",
         "/api/v1/request/12/decline"

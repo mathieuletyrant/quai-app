@@ -5,7 +5,7 @@ each step shows, and when it ends. The server runs flows; the iPhone only draws 
 describes, so a new flow never needs an app update.
 
 The four Live Activities of the v1 spec become built-in flows (Download, Jellyfin playback,
-Server incident, Tonight's releases), plus Requests (Seerr requests to approve).
+Server incident, Today's releases), plus Requests (Seerr requests to approve).
 Built-in flows can be edited and duplicated in the console; custom flows are made from the same pieces.
 
 ## Model
@@ -101,7 +101,7 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `releases` | — | Sonarr's and Radarr's calendars and queues for the home's day, every 5 min while the day's activity runs, every 30 min otherwise, while a day flow is on | — |
 | `seerr` | `request.*` (when Quai Home could set the webhook up) | pending requests, every 60 s, while a request flow is on | `request.approve`, `request.decline` |
 
-### Tonight's releases
+### Today's releases
 
 One activity for the day (subject `day:2026-11-20`), not one per title. Its lines are the
 monitored episodes airing that day (Sonarr's `GET /api/v3/calendar`, by `airDateUtc`) and the
@@ -122,7 +122,7 @@ push nothing and write nothing.
 follows the iPhones: each reports its time zone (IANA) when it pairs and whenever the app comes to
 the front; the most recently seen iPhone's wins. Before any did, Quai Cloud's `QUAI_TZ`, else UTC.
 The app writes air times in its own time. `GET /api/releases/today` lists the same day for the
-app's Tonight tile, hidden when nothing comes out.
+app's Today tile, hidden when nothing comes out.
 
 ### Seerr requests
 
@@ -146,14 +146,13 @@ are Quai Home's own write, like the Radarr and Sonarr webhooks: they are not in 
 allowlist.
 
 The app's Home tab shows a Requests tile (count, first posters) opening a Requests screen with
-Approve and Decline (Decline asks first); the console has a Requests page. Both read
-`GET /api/requests` (`/console-api/requests`) when shown: titles and posters come from Seerr's
+Approve and Decline (Decline asks first). It reads `GET /api/requests` when shown: titles and posters come from Seerr's
 `/api/v1/movie/{tmdbId}` and `/api/v1/tv/{tmdbId}`, kept in memory only.
 
 ### The To fix list
 
-Not a flow: fixed rules the Cloud runs when the app or the console asks (`GET /api/fixes`,
-`/console-api/fixes`), on what Quai Home reads then. Nothing is kept; what the user hid lives in
+Not a flow: fixed rules the Cloud runs when the app asks (`GET /api/fixes`), on what Quai Home
+reads then. Nothing is kept; what the user hid lives in
 home documents (`fixes/snoozed/<id>`, `fixes/dismissed/<id>`), cleared once the problem is gone.
 The services' schemas and paths sit in their integration modules (`radarr.ts`, `sonarr.ts`,
 `arr.ts`, `reclaimerr.ts`). The rules and fixes of movies and series are one adapter per kind
@@ -259,5 +258,5 @@ it richer is the catalog (events, actions) and the filters, not the editor.
 | French subtitles: Imported → Subtitles found → Ready | ❌ needs a Bazarr event |
 | Requests to approve, with Approve and Decline | ✅ |
 | 4K movies, Julie's requests | ❌ needs quality profile and requester filters (Seerr) |
-| Tonight: today's episodes at 18:00 | ✅ |
+| Today: the day's episodes at 18:00 | ✅ |
 | Disk almost full | ❌ needs a disk event |

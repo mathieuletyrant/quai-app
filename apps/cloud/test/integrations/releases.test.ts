@@ -17,7 +17,7 @@ import { SonarrCalendar } from "../../src/integrations/sonarr.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { apnsBody } from "../../src/push/ApnsPayload.ts"
 import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/releases/Day.ts"
-import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/Tonight.ts"
+import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/Today.ts"
 import { cloudLive, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp, testAppDroppingOn } from "../testApp.ts"
@@ -31,7 +31,7 @@ const calendars = {
   "radarr GET /api/v3/calendar": "radarr/calendar.json",
   "radarr GET /api/v3/queue": "radarr/queue-calendar.json"
 }
-const tonight = builtInFlows.find((f) => f.id === "tonight")!
+const today = builtInFlows.find((f) => f.id === "today")!
 const decode = <A, I>(schema: Schema.Codec<A, I>, path: string) => Schema.decodeUnknownSync(schema)(fixture(path))
 
 const inputs = () => ({
@@ -63,10 +63,10 @@ describe("the home's day", () => {
 })
 
 const emptyActivity: Activity = {
-  key: "tonight|day:2026-11-20",
-  flowId: "tonight",
+  key: "today|day:2026-11-20",
+  flowId: "today",
   subjectKey: "day:2026-11-20",
-  title: "Tonight",
+  title: "Today",
   stepIndex: 0,
   tone: "active",
   values: {},
@@ -80,7 +80,7 @@ const emptyActivity: Activity = {
   pushedFingerprint: null
 }
 
-describe("tonight's releases", () => {
+describe("today's releases", () => {
   it("lists the monitored episodes airing today and the movies out today, with where each stands", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     expect(releases.map((r) => [r.id, r.title, r.episode, r.status])).toEqual([
@@ -127,21 +127,21 @@ describe("tonight's releases", () => {
   it("past 4 releases, the lines are cut but the count is the whole day's", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     const many = [...releases, ...releases.map((r) => ({ ...r, id: `${r.id}b` }))]
-    const context = { flows: [tonight], running: [], services: ["sonarr" as const], now: Date.parse("2026-11-20T17:00:00Z"), timeZone: paris }
+    const context = { flows: [today], running: [], services: ["sonarr" as const], now: Date.parse("2026-11-20T17:00:00Z"), timeZone: paris }
     const [start] = dayEvents(context, many)
     expect(start!.values?.items).toHaveLength(4)
     expect([start!.values?.here, start!.values?.total, start!.values?.detail]).toEqual([2, 8, "2 of 8 here"])
     const activity = { ...emptyActivity, values: start!.values! }
-    expect(contentFor(tonight, activity, { enabled: true, hiddenSteps: [] })).toMatchObject({ here: 2, total: 8 })
+    expect(contentFor(today, activity, { enabled: true, hiddenSteps: [] })).toMatchObject({ here: 2, total: 8 })
   })
 
   it("fits a Live Activity push well under APNs' 4 KB", () => {
     const releases = dayReleases("2026-11-20", paris, inputs()).map((r) => ({ ...r, title: "A Very Long Series Title That Goes On And On" }))
     const activity: Activity = {
-      key: "tonight|day:2026-11-20",
-      flowId: "tonight",
+      key: "today|day:2026-11-20",
+      flowId: "today",
       subjectKey: "day:2026-11-20",
-      title: "Tonight",
+      title: "Today",
       stepIndex: 0,
       tone: "active",
       values: { items: activityItems(releases), detail: "1 of 4 here" },
@@ -155,19 +155,19 @@ describe("tonight's releases", () => {
       pushedFingerprint: null
     }
     const preference = { enabled: true, hiddenSteps: [] }
-    const content = contentFor(tonight, activity, preference)!
+    const content = contentFor(today, activity, preference)!
     expect(content.items).toHaveLength(4)
-    const body = apnsBody({ _tag: "Start", token: "t", attributes: attributesFor(tonight, activity, preference), content }, 0)
+    const body = apnsBody({ _tag: "Start", token: "t", attributes: attributesFor(today, activity, preference), content }, 0)
     expect(JSON.stringify(body).length).toBeLessThan(2048)
   })
 })
 
-describe("Tonight's releases flow", () => {
+describe("Today's releases flow", () => {
   const services = ["radarr", "sonarr"] as const
   const answer = () => recordedHome(calendars)
   const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
   const day = Effect.gen(function*() {
-    return [...(yield* (yield* Activities).snapshot).activities.values()].filter((a) => a.flowId === "tonight")
+    return [...(yield* (yield* Activities).snapshot).activities.values()].filter((a) => a.flowId === "today")
   })
   const pairParis = Effect.gen(function*() {
     const devices = yield* Devices
@@ -175,8 +175,8 @@ describe("Tonight's releases flow", () => {
     yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development", timeZone: paris })
   })
 
-  it("the Tonight tile and the day flows read the same GETs: the watches are the day's reads", () => {
-    const context = { flows: [tonight], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris }
+  it("the Today tile and the day flows read the same GETs: the watches are the day's reads", () => {
+    const context = { flows: [today], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris }
     const watched = calendarWatches({ ...context, services: [...context.services] }).map((w) => `${w.service} ${w.path}`)
     expect(watched.sort()).toEqual(Object.values(dayReads("2026-11-20", paris)).map((r) => `${r.service} ${r.path}`).sort())
   })
@@ -229,7 +229,7 @@ describe("Tonight's releases flow", () => {
       const home = yield* makeFakeHome({ services, answer: answer() })
       yield* home.connect
       yield* pairParis
-      yield* (yield* FlowStore).save({ ...tonight, filter: { startsAt: "21:30" } })
+      yield* (yield* FlowStore).save({ ...today, filter: { startsAt: "21:30" } })
       const hub = yield* Hub
       yield* hub.beat
       for (const id of Object.values(calendarWatchIds)) {

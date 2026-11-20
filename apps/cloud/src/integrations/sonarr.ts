@@ -188,7 +188,7 @@ export const SonarrEpisodes = Schema.Array(Schema.Struct({
 /** "S02E03" */
 export const episodeCode = (season: number, episode: number) => `S${pad(season)}E${pad(episode)}`
 
-// Tonight's releases: the episodes airing today, `GET /api/v3/calendar` with their series.
+// Today's releases: the episodes airing today, `GET /api/v3/calendar` with their series.
 
 /** Monitored episodes airing between two instants (epoch milliseconds), with their series. */
 export const sonarrCalendarPath = (startMs: number, endMs: number) =>

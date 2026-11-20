@@ -54,6 +54,15 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
 
+                    if let console = connection.serverURL {
+                        GroupedSection(footer: "Services, flows and iPhones are set up in Quai's console.") {
+                            Link(destination: console) {
+                                ListRow(title: "Open the console", systemImage: "macwindow", iconColor: Palette.accent, chevron: true)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     GroupedSection(header: "Connection", footer: "The app tries each address, the one that answered last first.") {
                         ForEach(connection.serverURLs, id: \.self) { url in
                             ListRow(title: Self.address(url)) {
