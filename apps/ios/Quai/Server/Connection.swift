@@ -205,13 +205,13 @@ final class Connection {
         await didFix(fix)
     }
 
-    /// Protects the title in Reclaimerr, for good.
+    /// Protects the title in Reclaimerr, or spares the download in Cleanuparr's queue cleaner, for good.
     func keep(_ fix: Components.Schemas.Fix) async throws {
         _ = try await requiredClient().keepTitle(path: .init(id: fix.id)).noContent
         await didFix(fix)
     }
 
-    /// Lets the deletion happen: Quai stops showing it.
+    /// Lets the deletion or the removal happen: Quai stops showing it.
     func dismiss(_ fix: Components.Schemas.Fix) async throws {
         _ = try await requiredClient().dismissFix(path: .init(id: fix.id)).noContent
         await didFix(fix)
