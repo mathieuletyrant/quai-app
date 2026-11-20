@@ -34,12 +34,3 @@ export function StatusDot({ tone, pulse }: { tone: Tone; pulse?: boolean }) {
 export function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
   return <span className={cx("inline-flex items-center gap-2 font-semibold", tones[tone].text)}><StatusDot tone={tone} />{children}</span>
 }
-
-/** A glyph on a dark rounded square: what a row is about, when it has no picture. */
-export function IconTile({ icon, className }: { icon: IconName; className?: string }) {
-  return (
-    <span className={cx("grid size-9 shrink-0 place-items-center rounded-tile bg-bg", className)}>
-      <Icon name={icon} size={18} strokeWidth={2.1} />
-    </span>
-  )
-}

@@ -1,9 +1,9 @@
 import { HttpApi } from "effect/http-api"
 import { ConnectionGroup, ConsoleGroup, DevicesGroup, FlowsGroup, PushGroup } from "./Devices.ts"
-import { ConsoleFixesGroup, FixesGroup } from "./Fixes.ts"
+import { FixesGroup } from "./Fixes.ts"
 import { LibraryGroup } from "./Library.ts"
 import { ReleasesGroup } from "./Releases.ts"
-import { ConsoleRequestsGroup, RequestsGroup } from "./Requests.ts"
+import { RequestsGroup } from "./Requests.ts"
 import { SystemGroup } from "./System.ts"
 
 export * from "./Activity.ts"
@@ -17,4 +17,4 @@ export * from "./Requests.ts"
 export * from "./System.ts"
 
 /** The single contract: implemented by apps/cloud, imported by apps/console, exported as OpenAPI for apps/ios. */
-export class QuaiApi extends HttpApi.make("quai").add(SystemGroup).add(DevicesGroup).add(LibraryGroup).add(FixesGroup).add(RequestsGroup).add(ReleasesGroup).add(ConsoleGroup).add(ConsoleFixesGroup).add(ConsoleRequestsGroup).add(PushGroup).add(ConnectionGroup).add(FlowsGroup) {}
+export class QuaiApi extends HttpApi.make("quai").add(SystemGroup).add(DevicesGroup).add(LibraryGroup).add(FixesGroup).add(RequestsGroup).add(ReleasesGroup).add(ConsoleGroup).add(PushGroup).add(ConnectionGroup).add(FlowsGroup) {}

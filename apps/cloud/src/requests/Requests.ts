@@ -8,8 +8,8 @@ import { Seerr } from "../integrations/seerr.ts"
 type RequestError = HomeOffline | HttpApiError.NotFound | RequestFailed
 
 /**
- * Seerr's requests waiting for approval, for the app and the console (`/api/requests`,
- * `/console-api/requests`): `Seerr`'s, in the routes' terms. A decision ends its Live Activity: the
+ * Seerr's requests waiting for approval, for the app (`/api/requests`): `Seerr`'s, in the routes'
+ * terms. A decision ends its Live Activity: the
  * Hub has Quai Home read the pending requests again at once.
  */
 export class Requests extends Context.Service<Requests, {

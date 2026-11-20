@@ -146,14 +146,13 @@ are Quai Home's own write, like the Radarr and Sonarr webhooks: they are not in 
 allowlist.
 
 The app's Home tab shows a Requests tile (count, first posters) opening a Requests screen with
-Approve and Decline (Decline asks first); the console has a Requests page. Both read
-`GET /api/requests` (`/console-api/requests`) when shown: titles and posters come from Seerr's
+Approve and Decline (Decline asks first). It reads `GET /api/requests` when shown: titles and posters come from Seerr's
 `/api/v1/movie/{tmdbId}` and `/api/v1/tv/{tmdbId}`, kept in memory only.
 
 ### The To fix list
 
-Not a flow: fixed rules the Cloud runs when the app or the console asks (`GET /api/fixes`,
-`/console-api/fixes`), on what Quai Home reads then. Nothing is kept; what the user hid lives in
+Not a flow: fixed rules the Cloud runs when the app asks (`GET /api/fixes`), on what Quai Home
+reads then. Nothing is kept; what the user hid lives in
 home documents (`fixes/snoozed/<id>`, `fixes/dismissed/<id>`), cleared once the problem is gone.
 The services' schemas and paths sit in their integration modules (`radarr.ts`, `sonarr.ts`,
 `arr.ts`, `reclaimerr.ts`). The rules and fixes of movies and series are one adapter per kind
