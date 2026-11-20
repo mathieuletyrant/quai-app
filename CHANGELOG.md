@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/mathieuletyrant/quai-app/compare/v0.13.0...v0.14.0) (2026-11-20)
+
+
+### ✨ Features
+
+* Cleanuparr's planned removals in To fix, its removals in the Journal ([#49](https://github.com/mathieuletyrant/quai-app/issues/49)) ([e140da5](https://github.com/mathieuletyrant/quai-app/commit/e140da5aaa09a8901b4ad71253ca9ca4f91bf983))
+
 ## [0.13.0](https://github.com/mathieuletyrant/quai-app/compare/v0.12.3...v0.13.0) (2026-11-20)
 
 
