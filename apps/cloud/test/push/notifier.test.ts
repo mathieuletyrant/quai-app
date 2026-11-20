@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Layer, Redacted } from "effect"
+import { Effect, Fiber, Layer, Redacted } from "effect"
 import { TestClock } from "effect/testing"
 import { createPublicKey, generateKeyPairSync, verify } from "node:crypto"
 import { Activities } from "../../src/flows/Activities.ts"
@@ -103,4 +103,30 @@ describe("push to APNs", () => {
         expect(yield* (yield* Devices).startRecipients).toEqual([])
       }).pipe(Effect.provide(onHome(apns)))
     }).pipe(Effect.scoped))
+
+  it.effect("gives up on a push APNs never answers after 10 s, and reconnects for the next one", () =>
+    Effect.gen(function*() {
+      const dev = yield* fakeApns
+      const apns = yield* Apns.make(
+        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
+        { development: dev.url, production: dev.url }
+      )
+      const push = (deviceToken: string) => apns.send({ environment: "development", deviceToken, body: {}, priority: 10 })
+      const stuck = yield* Effect.forkChild(push("silent-token"))
+      yield* untilReal(() => dev.hits.length === 1)
+      yield* TestClock.adjust("9 seconds")
+      expect(stuck.pollUnsafe()).toBeUndefined()
+      yield* TestClock.adjust("1 second")
+      const error = yield* Effect.flip(Fiber.join(stuck))
+      expect(error.reason).toBe("no answer within 10 s")
+      yield* push("live-token")
+      expect(dev.hits).toHaveLength(2)
+      expect(dev.connections()).toBe(2)
+    }).pipe(Effect.scoped))
 })
+
+/** Waits, in real time, for the fake server to see what a forked send did. */
+const untilReal = (done: () => boolean): Effect.Effect<void> =>
+  done() ? Effect.void : Effect.callback<void>((resume) => void setTimeout(() => resume(Effect.void), 5)).pipe(
+    Effect.andThen(() => untilReal(done))
+  )
