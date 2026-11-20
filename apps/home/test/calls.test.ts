@@ -109,6 +109,21 @@ describe("To fix calls", () => {
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 
+  it.effect("approves a Seerr request with its API key, and never creates one", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      const calls = yield* Calls
+      const approved = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve" }))
+      expect(approved).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(seen[0]!.url.href).toBe("http://seerr:5055/api/v1/request/12/approve")
+      expect(seen[0]!.headers["x-api-key"]).toBe("masked")
+      expect(seen[0]!.body).toBeNull()
+      const created = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } }))
+      expect(created).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
+      expect(seen).toHaveLength(1)
+    }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
+  })
+
   it.effect("refuses a command other than ManualImport without calling Radarr", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
