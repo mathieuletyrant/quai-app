@@ -15,7 +15,7 @@ export function IconPicker({ value, color, onChange, label }: { value: string; c
           onClick={() => onChange(i.name)}
           className="grid aspect-square place-items-center rounded-control border border-line bg-field transition-colors hover:border-white/20 hover:bg-raised aria-checked:border-white/50 aria-checked:bg-hover"
         >
-          <Glyph name={i.name} color={value === i.name ? color : "#a1a1a6"} size={18} />
+          <Glyph name={i.name} color={value === i.name ? color : "var(--color-muted)"} size={18} />
         </button>
       ))}
     </div>

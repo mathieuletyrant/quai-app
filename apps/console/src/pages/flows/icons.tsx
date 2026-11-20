@@ -24,10 +24,11 @@ export const icons: ReadonlyArray<{ readonly name: string; readonly label: strin
   { name: "calendar", label: "Calendar", path: "M4 6h16v14H4zM4 10h16M8 3v5M16 3v5" }
 ]
 
+/** A flow icon in `color`: a hex colour, or a theme variable (`var(--color-muted)`). */
 export function Glyph({ name, color, size = 18 }: { name: string; color: string; size?: number }) {
   const icon = icons.find((i) => i.name === name) ?? icons[0]!
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ stroke: color }} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={icon.path} />
     </svg>
   )

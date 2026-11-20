@@ -13,6 +13,7 @@ export const sameFlow = (a: Flow | Draft, b: Flow | Draft) => JSON.stringify(a) 
 export const slug = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "flow"
 
+/** The colours a flow can take: data saved with the flow and sent to the iPhone, so hex, not theme tokens. */
 export const palette = ["#FFC230", "#FF8A3D", "#FF6B5B", "#B57EDC", "#8B8CF8", "#4FC3F7", "#6FD3C2", "#30D158"]
 
 export const subjects: Record<Flow["subject"], { readonly label: string; readonly description: string; readonly icon: string }> = {
@@ -57,6 +58,9 @@ export const endsAtLastStep = (flow: Draft) => flow.endOn === undefined || flow.
 
 /** An event's label without the services in brackets, which the console shows as badges. */
 export const eventName = (event: CatalogEvent) => event.label.replace(/ \(.*\)$/, "")
+
+/** "Release grabbed — Radarr, Sonarr": an event as a select lists it. */
+export const eventOption = (event: CatalogEvent) => `${eventName(event)} — ${event.services.map((s) => serviceNames[s]).join(", ")}`
 
 export const showLabels: Record<keyof StepShow, string> = {
   progress: "Progress",

@@ -1,7 +1,7 @@
 import type { DeviceId, Flow } from "@quai/api"
-import { useCallback, useEffect, useState } from "react"
-import { call, isHomeOffline, useHome } from "../../client.ts"
-import { Callout, errorText, HomeOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui"
+import { type ReactNode, useCallback, useEffect, useState } from "react"
+import { call, useHome } from "../../client.ts"
+import { Async, ErrorCallout, errorText, HomeOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui"
 import { type Catalogs, clone, type Draft, sameFlow, slug } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
 import { FlowSwitcher } from "./FlowSwitcher.tsx"
@@ -95,38 +95,46 @@ export function FlowsPage() {
     setDraft({ ...clone(base), id: "", name, builtIn: false })
   }
 
+  const editor = (draft: Draft) => (
+    <FlowEditor
+      key={original?.id ?? "new"}
+      draft={draft}
+      isNew={isNew}
+      dirty={dirty || isNew}
+      catalogs={catalogs}
+      phones={phones}
+      switcher={
+        <FlowSwitcher
+          flows={flows}
+          current={draft}
+          dirty={dirty || isNew}
+          onOpen={(f) => { if (f.id !== draft.id && leave()) open(f) }}
+          onNew={startNew}
+        />
+      }
+      onChange={(change) => {
+        const next = clone(draft)
+        change(next)
+        setDraft(next)
+      }}
+      onSave={save}
+      onDiscard={() => { if (original) setDraft(clone(original)); else void load() }}
+      onTest={test}
+      onDuplicate={() => startNew(draft as Flow, `${draft.name} copy`.slice(0, 40))}
+      onRemove={remove}
+    />
+  )
+
   return (
     <>
-      {draft === null && (failure === null ? <EditorSkeleton /> : <LoadFailed error={failure} />)}
-      {draft && (
-        <FlowEditor
-          key={original?.id ?? "new"}
-          draft={draft}
-          isNew={isNew}
-          dirty={dirty || isNew}
-          catalogs={catalogs}
-          phones={phones}
-          switcher={
-            <FlowSwitcher
-              flows={flows}
-              current={draft}
-              dirty={dirty || isNew}
-              onOpen={(f) => { if (f.id !== draft.id && leave()) open(f) }}
-              onNew={startNew}
-            />
-          }
-          onChange={(change) => {
-            const next = clone(draft)
-            change(next)
-            setDraft(next)
-          }}
-          onSave={save}
-          onDiscard={() => { if (original) setDraft(clone(original)); else void load() }}
-          onTest={test}
-          onDuplicate={() => startNew(draft as Flow, `${draft.name} copy`.slice(0, 40))}
-          onRemove={remove}
-        />
-      )}
+      <Async
+        state={{ data: draft, error: failure }}
+        loading={<EditorSkeleton />}
+        offline={<Unreadable><Panel><HomeOfflineState what="Flows" /></Panel></Unreadable>}
+        failed={(error) => <Unreadable><ErrorCallout error={error} title="The flows couldn't be read" /></Unreadable>}
+      >
+        {editor}
+      </Async>
       <Toast notice={notice} onDone={clearNotice} />
     </>
   )
@@ -142,14 +150,14 @@ function EditorSkeleton() {
       </div>
       <Workspace
         canvas={
-          <div className="mx-auto flex max-w-[600px] flex-col gap-8">
-            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[76px] w-full rounded-card" />)}
+          <div className="mx-auto flex max-w-150 flex-col gap-8">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-19 w-full rounded-card" />)}
           </div>
         }
         inspector={
           <div className="flex flex-col gap-4 p-5">
             <Skeleton className="h-3 w-32" />
-            <Skeleton className="h-64 w-full rounded-[28px]" />
+            <Skeleton className="h-64 w-full rounded-phone" />
             <Skeleton className="mt-4 h-9 w-full" />
             <Skeleton className="h-9 w-full" />
           </div>
@@ -159,15 +167,12 @@ function EditorSkeleton() {
   )
 }
 
-function LoadFailed({ error }: { error: unknown }) {
+/** The page in place of the editor when the flows couldn't be read. */
+function Unreadable({ children }: { children: ReactNode }) {
   return (
     <>
       <PageBar title="Flows" subtitle="What starts a Live Activity, what it shows, how it ends" />
-      <PageBody>
-        {isHomeOffline(error)
-          ? <Panel><HomeOfflineState what="Flows" /></Panel>
-          : <Callout tone="danger" icon="alert" title="The flows couldn't be read">{errorText(error)}</Callout>}
-      </PageBody>
+      <PageBody>{children}</PageBody>
     </>
   )
 }
