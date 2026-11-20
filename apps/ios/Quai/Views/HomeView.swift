@@ -60,11 +60,12 @@ struct HomeView: View {
     private var requests: [Components.Schemas.MediaRequest] { connection.requests?.items ?? [] }
     private var releases: [DayRelease] { connection.releases?.items ?? [] }
     private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
+    private var ready: [String] { ReadyToday.titles(connection.journal, excluding: releases) }
 
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
         fixes.isEmpty && requests.isEmpty && releases.isEmpty && alerts.isEmpty
-            && today.requested.isEmpty && today.ready.isEmpty
+            && today.requested.isEmpty && ready.isEmpty
     }
 
     var body: some View {
@@ -90,8 +91,8 @@ struct HomeView: View {
                 if !today.requested.isEmpty {
                     openActivity { OnTheirWayTile(activities: today.requested) }
                 }
-                if !today.ready.isEmpty {
-                    openActivity { ReadyTile(activities: today.ready) }
+                if !ready.isEmpty {
+                    openActivity { ReadyTile(titles: ready) }
                 }
                 if !alerts.isEmpty {
                     AlertsTile(alerts: alerts)
@@ -114,6 +115,7 @@ struct HomeView: View {
                 await connection.loadFixes()
                 await connection.loadRequests()
                 await connection.loadReleases()
+                await connection.loadJournal()
                 await connection.loadLibrary()
                 await connection.loadAlerts()
             }
@@ -121,6 +123,7 @@ struct HomeView: View {
             .task { await connection.loadFixes() }
             .task { await connection.loadRequests() }
             .task { await connection.loadReleases() }
+            .task { await connection.loadJournal() }
             // The disk comes with the library; the Library tab keeps it current once open.
             .task {
                 guard connection.library == nil else { return }
@@ -211,23 +214,38 @@ private struct TodayReleaseRow: View {
     }
 }
 
-/// Titles that just became ready to watch.
+/// The titles that arrived today, as the journal tells it: a movie, or a series' new episodes.
+/// What "Out today" already shows is left out.
+enum ReadyToday {
+    static func titles(_ journal: [JournalEntry], excluding releases: [DayRelease], now: Date = .now, calendar: Calendar = .current) -> [String] {
+        var titles: [String] = []
+        for entry in journal where entry.kind == "media.available" && calendar.isDate(entry.date, inSameDayAs: now) {
+            guard let title = entry.title, !titles.contains(title) else { continue }
+            if releases.contains(where: { title.hasPrefix($0.title) }) { continue }
+            titles.append(title)
+        }
+        return titles
+    }
+}
+
+/// What arrived today, newest first.
 private struct ReadyTile: View {
-    let activities: [RunningActivity]
+    let titles: [String]
 
     var body: some View {
         Tile {
-            TileLabel(title: "Ready to watch", systemImage: "checkmark.circle.fill", color: Palette.ok)
-            ForEach(activities.prefix(3), id: \.attributes.key) { activity in
-                Text(activity.attributes.title)
+            TileLabel(title: "Arrived today", systemImage: "checkmark.circle.fill", color: Palette.ok)
+            ForEach(titles.prefix(3), id: \.self) { title in
+                Text(title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Palette.primaryText)
                     .lineLimit(1)
             }
-            if activities.count > 3 {
-                Text("and \(activities.count - 3) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
+            if titles.count > 3 {
+                Text("and \(titles.count - 3) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
             }
         }
+        .accessibilityHint("Opens the Activity tab")
     }
 }
 

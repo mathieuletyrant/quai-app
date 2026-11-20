@@ -29,3 +29,24 @@ struct AlertTests {
         #expect(AlertKind.allCases.count == 3)
     }
 }
+
+struct ReadyTodayTests {
+    @Test func listsWhatArrivedTodayButWhatOutTodayShows() throws {
+        let now = Date(timeIntervalSince1970: 1_795_190_000)
+        let today = 1_795_180_000_000.0
+        let yesterday = 1_795_050_000_000.0
+        let journal = try JSONDecoder().decode([JournalEntry].self, from: Data(#"""
+        [{"id":"5","at":\#(today),"level":"info","source":"jellyfin","kind":"media.available","text":"Dune is available in Jellyfin","title":"Dune"},
+         {"id":"4","at":\#(today),"level":"info","source":"jellyfin","kind":"media.available","text":"Percy is available","title":"Percy Jackson and the Olympians"},
+         {"id":"3","at":\#(today),"level":"info","source":"radarr","kind":"media.grabbed","text":"Radarr grabbed Nero","title":"Nero"},
+         {"id":"2","at":\#(today),"level":"info","source":"jellyfin","kind":"media.available","text":"Dune is available in Jellyfin","title":"Dune"},
+         {"id":"1","at":\#(yesterday),"level":"info","source":"jellyfin","kind":"media.available","text":"Runner is available","title":"Runner"}]
+        """#.utf8))
+        let releases = try JSONDecoder().decode([DayRelease].self, from: Data(#"""
+        [{"id":"episode:2","kind":"episode","title":"Percy Jackson and the Olympians","episode":"S03E01","airsAt":1795194000,"status":"available"}]
+        """#.utf8))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        #expect(ReadyToday.titles(journal, excluding: releases, now: now, calendar: calendar) == ["Dune"])
+    }
+}
