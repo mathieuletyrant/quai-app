@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/mathieuletyrant/quai-app/compare/v0.14.0...v0.15.0) (2026-11-20)
+
+
+### ✨ Features
+
+* a fuller Home, the journal in the app, and alerts ([#51](https://github.com/mathieuletyrant/quai-app/issues/51)) ([6aebeb0](https://github.com/mathieuletyrant/quai-app/commit/6aebeb07275292faf6ce92c533dfe6ce5a943fa6))
+
 ## [0.14.0](https://github.com/mathieuletyrant/quai-app/compare/v0.13.0...v0.14.0) (2026-11-20)
 
 
