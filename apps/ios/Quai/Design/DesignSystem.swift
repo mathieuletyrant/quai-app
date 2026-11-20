@@ -42,6 +42,15 @@ struct Screen<Header: View, Content: View>: View {
         }
         .scrollIndicators(.hidden)
         .background(Palette.background.ignoresSafeArea())
+        // The content scrolls under a blurred status bar, never through the clock.
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(Palette.background.opacity(0.6))
+                .frame(height: 0)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+        }
         .toolbar(.hidden, for: .navigationBar)
     }
 }

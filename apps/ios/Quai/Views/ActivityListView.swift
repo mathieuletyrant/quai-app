@@ -37,13 +37,6 @@ struct ActivityListView: View {
                 await connection.loadJournal()
             }
             .task { await connection.loadJournal() }
-            .task {
-                // Light polling while the screen is open; the Live Activities themselves are pushed.
-                while !Task.isCancelled {
-                    await connection.refresh()
-                    try? await Task.sleep(for: .seconds(15))
-                }
-            }
         }
     }
 }
@@ -113,7 +106,7 @@ private struct StepTrack: View {
     }
 }
 
-/// What Quai saw happen, newest first, a page at a time: the history behind the Home's Recent tile.
+/// What Quai saw happen, newest first, a page at a time: the history of the titles, the requests and the server.
 private struct JournalSection: View {
     @Environment(Connection.self) private var connection
     @State private var loadingOlder = false

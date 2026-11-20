@@ -30,4 +30,4 @@ alerts without a notification and stops its reads.
   Activities, to every iPhone that sent a notification token and didn't mute that kind
   (`mutedAlerts` in its preferences, Settings → Notifications in the app).
 - Settings live in `alerts/settings` at home. `GET /api/alerts` gives the app the alerts going on
-  and the kinds turned on, for the Home's Incidents tile.
+  and the kinds turned on, for the Home's Alerts tile.

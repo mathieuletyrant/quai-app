@@ -11,6 +11,7 @@ struct QuaiApp: App {
     @State private var connection = Connection()
     @State private var pendingLink: PairingLink?
     @State private var tab = AppTab.home
+    @State private var showsLive = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -23,6 +24,8 @@ struct QuaiApp: App {
                         Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityListView() }
                         Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
                     }
+                    .modifier(LiveAccessory(live: LiveNow(Today(connection.activities, subjects: connection.flowSubjects))) { showsLive = true })
+                    .sheet(isPresented: $showsLive) { LiveSheet() }
                 } else {
                     PairingView(link: $pendingLink)
                 }
@@ -42,6 +45,14 @@ struct QuaiApp: App {
                 if connection.isPaired { await Notifications.register() }
             }
             .task { DemoActivity.startIfRequested() }
+            // The live bar shows on every tab: the running activities are read while the app is in front.
+            .task(id: connection.isPaired && scenePhase == .active) {
+                guard connection.isPaired, scenePhase == .active else { return }
+                while !Task.isCancelled {
+                    await connection.refresh()
+                    try? await Task.sleep(for: .seconds(15))
+                }
+            }
             // Activities swiped away while the app wasn't running: the server learns it here.
             .onChange(of: scenePhase, initial: true) { _, phase in
                 if phase == .active {
@@ -50,5 +61,23 @@ struct QuaiApp: App {
                 }
             }
         }
+    }
+}
+
+/// The live bar under the tabs, only while something plays or downloads.
+private struct LiveAccessory: ViewModifier {
+    let live: LiveNow
+    let open: () -> Void
+
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2.1)
+        if #available(iOS 26.1, *) {
+            content.tabViewBottomAccessory(isEnabled: !live.isEmpty) { LiveBar(live: live, open: open) }
+        } else {
+            content.tabViewBottomAccessory { LiveBar(live: live, open: open) }
+        }
+        #else
+        content.tabViewBottomAccessory { LiveBar(live: live, open: open) }
+        #endif
     }
 }
