@@ -5,6 +5,7 @@ import { call, type HomeStatus, probeHome, useFixCount, useFixCountProbe, useHom
 import { FixesPage } from "./pages/Fixes.tsx"
 import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
+import { JournalPage } from "./pages/journal/JournalPage.tsx"
 import { RequestsPage } from "./pages/Requests.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
 import { Button, cx, Icon, type IconName, Logo, StatusDot, type Tone } from "./ui"
@@ -15,6 +16,7 @@ const pages = {
   fixes: { label: "To fix", icon: "wrench", render: () => <FixesPage /> },
   requests: { label: "Requests", icon: "person", render: () => <RequestsPage /> },
   flows: { label: "Flows", icon: "flows", render: () => <FlowsPage /> },
+  journal: { label: "Journal", icon: "journal", render: () => <JournalPage /> },
   settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> }
 } as const satisfies Record<string, { label: string; icon: IconName; render: () => ReactNode }>
 type Page = keyof typeof pages
