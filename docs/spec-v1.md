@@ -194,7 +194,7 @@ The first milestone that matters is #2: a real Download Live Activity, from the 
 These pieces are designed but wait for v2, in this order:
 
 1. **To fix**: fixed rules (import stuck, no source, no file after release, missing French subtitles, deletions scheduled by Cleanuparr or Reclaimerr, low disk), each with its one-tap fix.
-2. **Widgets, Siri and Shortcuts**: Home Screen, Lock Screen, StandBy; "Add Dune", "What's out tonight?".
+2. **Widgets, Siri and Shortcuts**: Home Screen, Lock Screen, StandBy; "Add Dune", "What's out today?".
 3. **Tiled home, library, search and add, title page** with the title's journey.
 
 ## Open questions

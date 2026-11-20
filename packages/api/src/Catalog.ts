@@ -174,7 +174,7 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     lingerMinutes: 5
   },
   {
-    id: "tonight",
+    id: "today",
     name: "Today's releases",
     builtIn: true,
     enabled: true,
@@ -183,7 +183,7 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     subject: "day",
     filter: { startsAt: defaultStartsAt },
     steps: [
-      { id: "tonight", label: "Today", icon: "calendar", on: "releases.today", show: { list: true } },
+      { id: "today", label: "Today", icon: "calendar", on: "releases.today", show: { list: true } },
       { id: "all-here", label: "All here", icon: "checkmark", on: "releases.available", show: { list: true } }
     ],
     endOn: "releases.dayOver",
