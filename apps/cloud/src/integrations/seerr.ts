@@ -3,7 +3,7 @@ import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
-import { actionCall, type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
+import { type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./arr.ts"
 
 /**
@@ -302,13 +302,19 @@ export const outcome = (activity: Activity, request: SeerrRequest | "gone"): Rea
 }
 
 export const seerr = Effect.gen(function*() {
-  const reads = yield* HomeReads
-  const titles = yield* Seerr
+  const requests = yield* Seerr
 
+  // The same decision as the Requests screen's: only on a request that still waits.
   const decide = (decision: "approve" | "decline"): ActionHandler => (activity) => {
     const id = requestIdOf(activity.subjectKey)
     if (id === null) return Effect.fail(new InvalidAction({ message: "Not a request." }))
-    return actionCall(reads, "Seerr", { service: "seerr", method: "POST", path: decisionPath(id, decision) })
+    return requests.decide(id, decision).pipe(
+      Effect.catchTags({
+        NotPending: () => Effect.fail(new InvalidAction({ message: "This request was already approved, declined or removed." })),
+        RequestFailed: (error) => Effect.fail(new InvalidAction({ message: `Seerr: ${error.message}` })),
+        HomeOffline: (error) => Effect.fail(new InvalidAction({ message: `Seerr: ${error.message}` }))
+      })
+    )
   }
 
   const actions: Partial<Record<ActionType, ActionHandler>> = {
@@ -330,7 +336,7 @@ export const seerr = Effect.gen(function*() {
           const pending = waiting(page.value.results)
           const started = yield* Effect.forEach(
             pending.filter((r) => unfollowed(context, r)),
-            (r) => Effect.map(titles.details(r), (details) => pendingEvent(toMediaRequest(r, details))),
+            (r) => Effect.map(requests.details(r), (details) => pendingEvent(toMediaRequest(r, details))),
             { concurrency: 4 }
           )
           // Approved or declined elsewhere (Seerr's own page) and the notification missed: ask.
@@ -340,7 +346,7 @@ export const seerr = Effect.gen(function*() {
             const id = requestIdOf(activity.subjectKey)
             return id === null
               ? Effect.succeed([])
-              : Effect.map(titles.current(id), Option.match({ onNone: () => [], onSome: (r) => outcome(activity, r) }))
+              : Effect.map(requests.current(id), Option.match({ onNone: () => [], onSome: (r) => outcome(activity, r) }))
           }, { concurrency: 4 })
           return [...started, ...ended.flat()]
         }).pipe(Effect.catchTag("HomeOffline", (error) => Effect.as(Effect.logDebug(`seerr: ${error.message}`), [])))

@@ -194,6 +194,22 @@ describe("Seerr requests", () => {
       const refused = yield* Effect.exit((yield* ActionRunner).run("request|request:12", "request.decline"))
       expect(Exit.isFailure(refused)).toBe(true)
     }).pipe(Effect.provide(ActionRunner.layer.pipe(Layer.provideMerge(engine)))))
+
+  it.effect("Approve on the Live Activity refuses a request decided in Seerr meanwhile, and writes nothing", () =>
+    Effect.gen(function*() {
+      const state = { request12: "pending" as "pending" | "approved" | "gone", pending: [12] as ReadonlyArray<number> }
+      const home = yield* makeFakeHome({ services, answer: seerrAnswers(state) })
+      yield* home.connect
+      yield* home.webhook("seerr", fixture("seerr/webhook-pending.json"))
+      // Approved on Seerr's own page, its notification not here yet: the activity still offers Approve.
+      state.request12 = "approved"
+      const approved = yield* Effect.flip((yield* ActionRunner).run("request|request:12", "request.approve"))
+      expect(approved).toMatchObject({ _tag: "InvalidAction" })
+      state.request12 = "gone"
+      const deleted = yield* Effect.flip((yield* ActionRunner).run("request|request:12", "request.decline"))
+      expect(deleted).toMatchObject({ _tag: "InvalidAction" })
+      expect(home.calls.filter((c) => c.method === "POST")).toEqual([])
+    }).pipe(Effect.provide(ActionRunner.layer.pipe(Layer.provideMerge(engine)))))
 })
 
 describe("requests routes", () => {
