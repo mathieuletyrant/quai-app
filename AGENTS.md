@@ -36,6 +36,18 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - Time goes through `Clock` (never `Date.now()` in logic) so `TestClock` works. One exception: the start time in `ServerInfo.layer`.
 - In `HttpApiBuilder.group`, get services in the outer `Effect.gen`, not inside each handler.
 
+## Server
+
+- A read is defined once, as a `Read<A>` (service, path, schema): `HomeReads` reads it when the app asks, `watchOf` makes its watch, `readSnapshot` decodes its snapshots (`dayReads`, `pendingRead`). Never a second path or decode for the same GET.
+- One adapter per media kind, not branches on the service: movies (Radarr) and series (Sonarr) each implement `MediaFixes` (`fixes/movies.ts`, `fixes/series.ts`); `Fixes.ts` only orchestrates. A new kind or rule goes in its adapter, a target carries only its own kind's fields, and what can be decided without a call is a pure function with its own test.
+- An id the server mints and reads back is made and parsed in one module (`fixes/FixId.ts`), never by string prefixes elsewhere.
+- One decision per action: the HTTP route and the Live Activity button call the same service function (`Seerr.decide`), which checks the state it acts on; each caller only maps its errors and refreshes the Hub.
+- Shared *arr helpers (images, dates, years, queue, releases, manual import) live in `integrations/arr.ts`, not in one service's module.
+
+## iOS
+
+- Quai's refusals become a `ConnectionError` in `QuaiErrorsMiddleware` only (from the answer's `_tag` and `message`), proxy refusals in `AccessHeadersMiddleware`. A call reads only its success with the generated throwing accessors (`try await client.listFixes().ok.body.json`, `.noContent`): no `switch` over an `Output`, no error message per route.
+
 ## Tests
 
 - **No feature merged without its test.**

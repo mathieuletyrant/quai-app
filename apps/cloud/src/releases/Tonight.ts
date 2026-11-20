@@ -1,7 +1,8 @@
 import { type ActivityItem, type DayRelease, defaultStartsAt } from "@quai/api"
-import type { QueueRecord } from "../integrations/arr.ts"
-import { epochSeconds, posterOf, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
-import { episodeCode, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
+import type { Read } from "../home/HomeReads.ts"
+import { epochSeconds, posterOf, QueuePage, type QueueRecord } from "../integrations/arr.ts"
+import { RadarrCalendar, radarrCalendarPath, radarrCalendarQueuePath, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
+import { episodeCode, SonarrCalendar, sonarrCalendarPath, sonarrCalendarQueuePath, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
 import { dayRange, instantOf } from "./Day.ts"
 
 /** What Radarr and Sonarr said about the day; a list left out wasn't read (yet). */
@@ -11,6 +12,41 @@ export interface DayInputs {
   readonly sonarrQueue?: ReadonlyArray<QueueRecord> | undefined
   readonly radarrQueue?: ReadonlyArray<QueueRecord> | undefined
 }
+
+/** The reads of a day: Sonarr's and Radarr's calendars and queues. */
+export interface DayReads {
+  readonly episodes: Read<typeof SonarrCalendar.Type> & { readonly service: "sonarr" }
+  readonly sonarrQueue: Read<typeof QueuePage.Type> & { readonly service: "sonarr" }
+  readonly movies: Read<typeof RadarrCalendar.Type> & { readonly service: "radarr" }
+  readonly radarrQueue: Read<typeof QueuePage.Type> & { readonly service: "radarr" }
+}
+
+/** What one of the day's reads answers. */
+export type DayValue<K extends keyof DayReads> = DayReads[K] extends Read<infer A> ? A : never
+
+/**
+ * What is read of a day in the home's time zone, defined once for the app's Tonight tile (read
+ * when asked) and the day flows (watched).
+ */
+export const dayReads = (day: string, zone: string): DayReads => {
+  const { start, end } = dayRange(day, zone)
+  // Radarr's dates are days at midnight UTC: a day wider each side, then the home's day is kept.
+  const wide = 24 * 3600_000
+  return {
+    episodes: { service: "sonarr", path: sonarrCalendarPath(start, end), schema: SonarrCalendar },
+    sonarrQueue: { service: "sonarr", path: sonarrCalendarQueuePath, schema: QueuePage },
+    movies: { service: "radarr", path: radarrCalendarPath(start - wide, end + wide), schema: RadarrCalendar },
+    radarrQueue: { service: "radarr", path: radarrCalendarQueuePath, schema: QueuePage }
+  }
+}
+
+/** What was read of the day (a read left out wasn't), as the releases take it. */
+export const dayInputs = (read: { readonly [K in keyof DayReads]?: DayValue<K> | undefined }): DayInputs => ({
+  episodes: read.episodes,
+  movies: read.movies,
+  sonarrQueue: read.sonarrQueue?.records,
+  radarrQueue: read.radarrQueue?.records
+})
 
 const queued = (queue: ReadonlyArray<QueueRecord> | undefined, matches: (r: QueueRecord) => boolean): DayRelease["status"] | null => {
   const rows = (queue ?? []).filter(matches)

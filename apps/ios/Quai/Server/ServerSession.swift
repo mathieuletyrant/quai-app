@@ -45,7 +45,11 @@ struct ServerSession: Sendable, Equatable {
     func connect(preferring preferred: URL? = nil) async throws -> (url: URL, client: Client) {
         let ordered = (preferred.map { [$0] } ?? []) + urls.filter { $0 != preferred }
         let url = try await Self.firstReachable(ordered, accessHeaders: accessHeaders)
-        let middlewares: [any ClientMiddleware] = [AccessHeadersMiddleware(headers: accessHeaders), BearerMiddleware(token: token)]
+        let middlewares: [any ClientMiddleware] = [
+            QuaiErrorsMiddleware(),
+            AccessHeadersMiddleware(headers: accessHeaders),
+            BearerMiddleware(token: token),
+        ]
         return (url, Client(serverURL: url, transport: URLSessionTransport(), middlewares: middlewares))
     }
 

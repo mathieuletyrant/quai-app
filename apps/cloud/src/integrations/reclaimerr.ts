@@ -1,6 +1,8 @@
 import { Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
-import { epochSeconds, knownYear, posterOf, type RadarrMovie } from "./radarr.ts"
+import * as FixId from "../fixes/FixId.ts"
+import { epochSeconds, knownYear, posterOf } from "./arr.ts"
+import type { RadarrMovie } from "./radarr.ts"
 import type { SonarrSeries } from "./sonarr.ts"
 
 /**
@@ -100,7 +102,7 @@ export const scheduledDeletions = (candidates: ReadonlyArray<Candidate>, sources
       const posterUrl = candidatePoster(candidate, sources)
       return {
         fix: {
-          id: `deletion-${candidate.id}`,
+          id: FixId.deletion(candidate.id),
           kind: "scheduledDeletion",
           service: "reclaimerr",
           title: candidate.title,
@@ -111,7 +113,7 @@ export const scheduledDeletions = (candidates: ReadonlyArray<Candidate>, sources
           actions: ["keep", "dismiss"],
           deletion: { deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }
         },
-        target: { _tag: "Candidate", candidateId: candidate.id }
+        target: { kind: "candidate", candidateId: candidate.id }
       }
     })
     .sort((a, b) => (a.fix.deletion?.deletesAt ?? 0) - (b.fix.deletion?.deletesAt ?? 0))
