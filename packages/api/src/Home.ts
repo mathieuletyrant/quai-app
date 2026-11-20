@@ -1,4 +1,5 @@
 import { Schema } from "effect"
+import { JournalEntry, JournalQuery } from "./Journal.ts"
 
 /**
  * The Quai Home ↔ Quai Cloud protocol (docs/spec-v2-hosted.md). The Home runs at home, next to the
@@ -11,14 +12,19 @@ import { Schema } from "effect"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 3
+export const protocolVersion = 4
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
  * checks; protocol 3 added Seerr and the *arr calendars. An older Home refuses those calls as not
- * allowed, so what needs them stays empty.
+ * allowed, so what needs them stays empty. Protocol 4 added the journal (`JournalAppend`,
+ * `JournalRead`): the Cloud sends them only to a Home at `journalProtocolVersion` or later, and
+ * keeps the journal in memory only for an older one.
  */
 export const minProtocolVersion = 1
+
+/** The first protocol whose Home keeps the journal. */
+export const journalProtocolVersion = 4
 
 /** The services a Home can reach. */
 export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"])
@@ -90,6 +96,19 @@ export const Pong = Schema.TaggedStruct("Pong", {
   at: Schema.Number
 })
 
+/** A page of the journal, answering `JournalRead`. */
+export const JournalPage = Schema.TaggedStruct("JournalPage", {
+  id: Schema.String,
+  /** Newest first. */
+  entries: Schema.Array(JournalEntry),
+  more: Schema.Boolean
+})
+
+/** Lines the Home wrote to its journal itself (a webhook in, a call refused), for the Cloud's live view. */
+export const JournalNoted = Schema.TaggedStruct("JournalNoted", {
+  entries: Schema.Array(JournalEntry)
+})
+
 export const HomeMessage = Schema.Union([
   Hello,
   Proof,
@@ -99,7 +118,9 @@ export const HomeMessage = Schema.Union([
   Failed,
   StoreDocuments,
   StoreDone,
-  Pong
+  Pong,
+  JournalPage,
+  JournalNoted
 ])
 export type HomeMessage = typeof HomeMessage.Type
 
@@ -177,6 +198,20 @@ export const StoreDelete = Schema.TaggedStruct("StoreDelete", {
   key: Schema.String
 })
 
+/**
+ * Lines for the Home to add to its journal. Not answered: the Cloud sends them in batches, every
+ * second or two, and a batch lost with the link is only missing from the history.
+ */
+export const JournalAppend = Schema.TaggedStruct("JournalAppend", {
+  entries: Schema.Array(JournalEntry)
+})
+
+/** Reads a page of the journal: answered with `JournalPage` (or `Failed`). */
+export const JournalRead = Schema.TaggedStruct("JournalRead", {
+  id: Schema.String,
+  query: JournalQuery
+})
+
 /** `at`: the Cloud's clock, epoch milliseconds; the Home echoes it in Pong to measure the round trip. */
 export const Ping = Schema.TaggedStruct("Ping", {
   at: Schema.Number
@@ -191,6 +226,8 @@ export const CloudMessage = Schema.Union([
   StoreList,
   StorePut,
   StoreDelete,
+  JournalAppend,
+  JournalRead,
   Ping
 ])
 export type CloudMessage = typeof CloudMessage.Type
