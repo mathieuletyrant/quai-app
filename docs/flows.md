@@ -5,8 +5,8 @@ each step shows, and when it ends. The server runs flows; the iPhone only draws 
 describes, so a new flow never needs an app update.
 
 The four Live Activities of the v1 spec become built-in flows (Download, Jellyfin playback,
-Server incident; Today's releases comes next). Built-in flows can be edited and duplicated in the
-console; custom flows are made from the same pieces.
+Server incident; Today's releases comes next), plus Requests (Seerr requests to approve).
+Built-in flows can be edited and duplicated in the console; custom flows are made from the same pieces.
 
 ## Model
 
@@ -18,11 +18,12 @@ Flow
   enabled       off: no activity starts for anyone
   color         hex, the activity's tint ("#FFC230")
   icon          SF Symbol name, the flow's glyph ("arrow.down")
-  subject       what one activity follows: media | playback | service
-  filter        media: movies, series or both · playback: Jellyfin device names (empty: all)
+  subject       what one activity follows: media | playback | service | request
+  filter        media, request: movies, series or both · playback: Jellyfin device names (empty: all)
   steps         1 to 6, in order (below)
   endOn         optional: an event that ends the activity where it is, without being a step
-                (playback stopped). Without it, reaching the last step ends the activity.
+                (playback stopped, request declined). Reaching the last step ends the activity
+                too, except in a one-step flow with endOn: it runs until that event.
   lingerMinutes how long the end stays on screen (0 to 60)
   stalledAfterMinutes   a step showing progress with no progress for this long turns grey (optional)
   expireAfterMinutes    no event at all for this long ends the activity (optional)
@@ -55,6 +56,9 @@ Events are normalized by the adapters; flows only see these. Each belongs to a s
 | `playback.stopped` | playback | Jellyfin sessions (polled) | |
 | `service.down` | service | health checks (polled) | service name, since |
 | `service.up` | service | health checks (polled) | |
+| `request.pending` | request | Seerr `MEDIA_PENDING` (webhook), pending requests (polled) | title, requester, kind, year |
+| `request.approved` | request | Seerr `MEDIA_APPROVED` (webhook), or gone from the pending list approved | |
+| `request.declined` | request | Seerr `MEDIA_DECLINED` (webhook), or gone from the pending list declined or deleted | "Declined" |
 
 Events marked *progress* are **data events**: they update the current step's values and never
 change the step. All others are **step events**.
@@ -69,6 +73,8 @@ the activity's current step offers the button, sends it to the service, and refr
 | --- | --- | --- |
 | `playback.playPause` | playback | Jellyfin remote: play or pause the session |
 | `playback.stop` | playback | Jellyfin remote: stop the session |
+| `request.approve` | request | Seerr: approve the request (`POST /api/v1/request/{id}/approve`) |
+| `request.decline` | request | Seerr: decline the request (`POST /api/v1/request/{id}/decline`) |
 
 Next in the catalog: "Other release" and "Retry" for downloads (spec v1, Live Activities).
 
@@ -86,6 +92,30 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
 | `quai` (health) | — | `service.down` / `service.up`, every minute, while a service flow is on | — |
 | `reclaimerr` | — | — | — (only feeds the To fix list) |
+| `seerr` | `request.*` (when Quai Home could set the webhook up) | pending requests, every 60 s, while a request flow is on | `request.approve`, `request.decline` |
+
+### Seerr requests
+
+The Requests flow follows a request that **waits for approval**: Seerr's `MEDIA_PENDING`, or status
+pending (1) in the poll. A request Seerr approved on its own (an auto-approve user, `MEDIA_AUTO_APPROVED`)
+never waits: it starts nothing, isn't listed and pushes nothing. Approved, it reaches its last step
+and ends; Radarr or Sonarr then add the title and the Download flow takes over, as for any title.
+Declined (or deleted in Seerr), it ends where it is, saying so. No news for a day: it ends.
+
+Seerr has a single webhook agent (one URL). At start, Quai Home takes it only when it is off or has
+no URL, or already points to Quai Home's own receiver (then it updates it), with Quai's JSON
+template (type, title, request id, media type and TMDB id, requester) and the pending, approved
+and declined types. Another webhook is left untouched (logged). Either way, the Cloud polls the
+pending requests every minute while a request flow is on: the way in without the webhook, and the
+safety net for a notification missed while Quai Home was down. A request that leaves the pending
+list is read once (`GET /api/v1/request/{id}`) to tell approved from declined. The webhook settings
+are Quai Home's own write, like the Radarr and Sonarr webhooks: they are not in the Cloud's
+allowlist.
+
+The app's Home tab shows a Requests tile (count, first posters) opening a Requests screen with
+Approve and Decline (Decline asks first); the console has a Requests page. Both read
+`GET /api/requests` (`/console-api/requests`) when shown: titles and posters come from Seerr's
+`/api/v1/movie/{tmdbId}` and `/api/v1/tv/{tmdbId}`, kept in memory only.
 
 ### The To fix list
 
@@ -118,8 +148,9 @@ actions to the catalog in `packages/api`.
 2. A step event for a subject with no activity starts one **at that step**, whichever it is: a
    missed webhook doesn't lose the title.
 3. A step event moves the activity forward to its step, never backwards.
-4. Reaching the last step ends the activity, unless the flow has `endOn`: then only that event
-   (or expiry) does. The end stays on screen `lingerMinutes`, then is forgotten.
+4. Reaching the last step ends the activity, and so does `endOn`, where the activity is (with
+   what the event says, "Declined"). A one-step flow with `endOn` (playback) runs until that event
+   or expiry. The end stays on screen `lingerMinutes`, then is forgotten.
 5. Data events update the current step's values; pushes for them go out at most every 5 s per
    activity. Step changes, a pause or a resume, and a stalled download moving again go at once.
    Times are compared to 10 s: a playback's end drifting by milliseconds between polls is not news,
@@ -168,7 +199,8 @@ only known once the app opens.
 - qBittorrent is read every 5 s (the Home protocol's minimum) while a step shows progress.
 - Polling only runs for what an enabled flow needs: qBittorrent while a step shows progress,
   Jellyfin availability while an import awaits it, Jellyfin sessions while a playback flow is on,
-  health checks while a service flow is on.
+  health checks while a service flow is on, Seerr's pending requests (every 60 s) while a request
+  flow is on.
 
 ## Console
 
@@ -188,6 +220,7 @@ it richer is the catalog (events, actions) and the filters, not the editor.
 | Express downloads: Downloading → Ready only | ✅ |
 | Server incident limited to Radarr and Sonarr | ❌ needs a service filter |
 | French subtitles: Imported → Subtitles found → Ready | ❌ needs a Bazarr event |
+| Requests to approve, with Approve and Decline | ✅ |
 | 4K movies, Julie's requests | ❌ needs quality profile and requester filters (Seerr) |
 | Tonight: today's episodes at 18:00 | ❌ needs a time trigger and the Sonarr calendar |
 | Disk almost full | ❌ needs a disk event |

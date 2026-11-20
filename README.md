@@ -26,6 +26,7 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 - ▶️ **Jellyfin playback**: title, time left, end time, on the devices you pick
 - 📅 **Today's releases**: what airs today with a countdown, ticked off once grabbed
 - 🚨 **Server incident**: a service, indexer or disk down, since when, what's waiting
+- 🙋 **Requests**: a Seerr request from the household waiting for you, with Approve and Decline on the Lock Screen
 
 **Server**
 
@@ -39,6 +40,7 @@ Every movie or series followed from request to "ready to watch", on the Lock Scr
 - 📷 Pair by scanning a QR code from the console
 - 📋 Live activities first, then today's events
 - 🎚️ One switch per activity kind, greyed out when the admin turned it off
+- 🙋 Requests tile: Seerr requests waiting for approval, approved or declined in one tap
 
 ## 🧭 How it works
 
@@ -110,6 +112,10 @@ To reach the Cloud away from home, put its `/api/*` behind a reverse proxy (Clou
 Pangolin, Authentik, …): [docs/proxy.md](docs/proxy.md).
 
 The image is multi-arch (amd64 / arm64), tagged `latest`, `x.y` and `x.y.z`.
+
+Quai Home reads each service from `QUAI_<SERVICE>_URL` and its key; a service left unset is
+skipped. Seerr (Jellyseerr, Overseerr) is optional: `QUAI_SEERR_URL` and `QUAI_SEERR_API_KEY`
+(Seerr → Settings → General → API Key).
 
 On Umbrel, install **Quai** from [Mathieu's Umbrel App Store](https://github.com/mathieuletyrant/umbrel-community-app-store).
 
