@@ -33,7 +33,7 @@ struct SearchEntry: View {
 }
 
 /// Search: movies through Radarr, series through Sonarr, each with where it stands in the home,
-/// and one tap to request a title in Seerr.
+/// and one tap to request a title on Seerr.
 struct SearchView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
@@ -173,7 +173,7 @@ private struct SearchField: View {
     }
 }
 
-/// One title found: its poster, what it is, where it stands, and the Add button when it can be requested.
+/// One title found: its poster, what it is, where it stands, and "Request on Seerr" when it can be requested.
 private struct SearchRow: View {
     let result: SearchResult
     let canRequest: Bool
@@ -216,7 +216,7 @@ private struct SearchRow: View {
 
     /// Where the title stands; nothing for one not added yet, unless just requested.
     private var stateLabel: (text: String, color: Color)? {
-        if requested { return ("Requested in Seerr", Palette.requests) }
+        if requested { return ("Requested on Seerr", Palette.requests) }
         switch result.state {
         case .available: return ("In your library", Palette.ok)
         case .wanted: return ("Wanted", Palette.wantedText)
@@ -235,15 +235,17 @@ private struct SearchRow: View {
                 .accessibilityLabel("Requested")
         } else if canRequest && result.canBeRequested {
             Button(action: add) {
-                Text("Add")
-                    .font(.system(size: 14, weight: .semibold))
+                Text("Request on Seerr")
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.onAccent)
-                    .frame(width: 64, height: 32)
+                    .padding(.horizontal, 12)
+                    .frame(height: 32)
                     .background(Palette.accent, in: Capsule())
+                    .fixedSize()
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Add \(result.title)")
-            .accessibilityIdentifier("add-\(result.id)")
+            .accessibilityLabel("Request \(result.title) on Seerr")
+            .accessibilityIdentifier("request-\(result.id)")
         }
     }
 }

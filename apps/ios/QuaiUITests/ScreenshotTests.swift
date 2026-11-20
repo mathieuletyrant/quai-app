@@ -56,7 +56,7 @@ final class ScreenshotTests: XCTestCase {
         screenshot("06-live-sheet")
     }
 
-    /// Search and add: "dune" from the Library, the results, then Dune (2021) requested in Seerr.
+    /// Search and request: "dune" from the Library, the results, then Dune (2021) requested on Seerr.
     func testSearch() throws {
         XCTAssertTrue(tab("Home").waitForExistence(timeout: 20), "The app didn't pair with the preview server")
         tab("Library").tap()
@@ -68,17 +68,17 @@ final class ScreenshotTests: XCTestCase {
         field.tap()
         // The return key searches and puts the keyboard away.
         field.typeText("dune\n")
-        let add = app.buttons["add-movie:tmdb:438631"]
-        guard add.waitForExistence(timeout: 20) else {
+        let request = app.buttons["request-movie:tmdb:438631"]
+        guard request.waitForExistence(timeout: 20) else {
             screenshot("07-search-no-results")
-            XCTFail("No Add button for Dune (2021): the search didn't answer")
+            XCTFail("No \"Request on Seerr\" for Dune (2021): the search didn't answer")
             return
         }
         settle()
         screenshot("07-search-results")
 
-        add.tap()
-        XCTAssertTrue(app.staticTexts["Requested in Seerr"].waitForExistence(timeout: 15), "Dune wasn't requested")
+        request.tap()
+        XCTAssertTrue(app.staticTexts["Requested on Seerr"].waitForExistence(timeout: 15), "Dune wasn't requested")
         settle()
         screenshot("08-search-requested")
     }
