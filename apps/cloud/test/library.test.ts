@@ -9,7 +9,7 @@ import { DiskSpaces, libraryMovie, mediaDisk, RadarrMovies } from "../src/integr
 import { Schema } from "effect"
 import { type FakeHomeOptions, makeFakeHome, recordedHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
-import { TestApp } from "./testApp.ts"
+import { TestApp, testAppDroppingOn } from "./testApp.ts"
 
 const iphone = { name: "iPhone", apnsEnvironment: "development" as const }
 
@@ -142,6 +142,12 @@ describe("GET /api/library", () => {
       expect(library.unavailable).toEqual(["sonarr"])
       expect(library.items.map((i) => i.kind)).toEqual(["movie", "movie", "movie"])
     }).pipe(Effect.provide(TestApp)))
+
+  it.effect("Quai Home dropping while the library is read is 503 HomeOffline, not a service unavailable", () =>
+    Effect.gen(function*() {
+      const { api } = yield* phoneOn({ answer: recorded })
+      expect((yield* Effect.flip(api.library.library()))._tag).toBe("HomeOffline")
+    }).pipe(Effect.provide(testAppDroppingOn("sonarr GET /api/v3/series"))))
 
   it.effect("only asks the services Quai Home reaches; the disk falls back to Sonarr", () =>
     Effect.gen(function*() {
