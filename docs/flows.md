@@ -129,7 +129,9 @@ The Requests flow follows a request that **waits for approval**: Seerr's `MEDIA_
 pending (1) in the poll. A request Seerr approved on its own (an auto-approve user, `MEDIA_AUTO_APPROVED`)
 never waits: it starts nothing, isn't listed and pushes nothing. Approved, it reaches its last step
 and ends; Radarr or Sonarr then add the title and the Download flow takes over, as for any title.
-Declined (or deleted in Seerr), it ends where it is, saying so. No news for a day: it ends.
+Declined (or deleted in Seerr), it ends where it is, saying so. It never ends after no news (a
+request flow refuses an expiry): an expired request still pending would start again at the next
+poll, every day.
 
 Seerr has a single webhook agent (one URL). At start, Quai Home takes it only when it is off or has
 no URL, or already points to Quai Home's own receiver (then it updates it), with Quai's JSON

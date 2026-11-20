@@ -74,6 +74,10 @@ export const flowProblem = (flow: Flow): string | null => {
       if (actionSubject(action) !== flow.subject) return `“${step.label}” has a button for another kind of flow.`
     }
   }
+  // A request waits as long as it waits: an expiry would forget it and start it again at the next poll.
+  if (flow.subject === "request" && flow.expireAfterMinutes !== undefined) {
+    return "A request flow ends when the request is approved, declined or deleted, not after no news."
+  }
   const events = new Set(flow.steps.map((s) => s.on))
   if (events.size !== flow.steps.length) return "Two steps start on the same event."
   if (flow.endOn !== undefined) {
@@ -167,8 +171,7 @@ export const builtInFlows: ReadonlyArray<Flow> = [
       { id: "approved", label: "Approved", icon: "checkmark", on: "request.approved", show: {} }
     ],
     endOn: "request.declined",
-    lingerMinutes: 5,
-    expireAfterMinutes: 1440
+    lingerMinutes: 5
   },
   {
     id: "tonight",

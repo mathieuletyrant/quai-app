@@ -175,11 +175,13 @@ export function EndPanel({ flow, events, onChange }: { flow: Draft; events: Read
           </Select>
         </Field>
       )}
-      <Field label="Ends anyway with no news for">
-        <Select value={flow.expireAfterMinutes ?? 0} onChange={optional("expireAfterMinutes")}>
-          {[0, 15, 60, 240, 1440].map((m) => <option key={m} value={m}>{minutes(m)}</option>)}
-        </Select>
-      </Field>
+      {flow.subject !== "request" && (
+        <Field label="Ends anyway with no news for">
+          <Select value={flow.expireAfterMinutes ?? 0} onChange={optional("expireAfterMinutes")}>
+            {[0, 15, 60, 240, 1440].map((m) => <option key={m} value={m}>{minutes(m)}</option>)}
+          </Select>
+        </Field>
+      )}
     </Section>
   )
 }

@@ -26,3 +26,11 @@ describe("flow rules", () => {
     expect(flowProblem(endless)).toBe("A one-step flow needs an end event or an end after no news.")
   })
 })
+
+describe("request flows", () => {
+  it("never end after no news: a request pending for days would start again every day", () => {
+    const request = builtInFlows.find((f) => f.id === "request")!
+    expect(flowProblem(request)).toBeNull()
+    expect(flowProblem({ ...request, expireAfterMinutes: 1440 })).toMatch(/not after no news/)
+  })
+})
