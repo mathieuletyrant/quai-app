@@ -243,7 +243,7 @@ describe("GET /api/fixes", () => {
 
   it.effect("without Radarr's library, the deletions still show, without a poster", () =>
     Effect.gen(function*() {
-      const { api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": () => ({ failed: "unreachable" }) }) })
+      const { api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": { failed: "unreachable" } }) })
       const list = yield* api.list()
       const deletions = list.items.filter((f) => f.kind === "scheduledDeletion")
       expect(deletions.map((f) => f.id)).toEqual(["deletion-43", "deletion-42"])
@@ -265,21 +265,14 @@ describe("GET /api/fixes", () => {
       expect((yield* api.list()).items.map((f) => f.id)).toContain("missing-movie-52")
     }).pipe(Effect.provide(TestApp)))
 
+  // What isn't reached or doesn't answer is HomeReads' (test/home/reads.test.ts): one smoke test here.
   it.effect("a service that doesn't answer is unavailable; the others still show", () =>
     Effect.gen(function*() {
-      const { api } = yield* setUp({ answer: recorded({ "sonarr GET /api/v3/wanted/missing": () => ({ failed: "unreachable" }) }) })
+      const { api } = yield* setUp({ answer: recorded({ "sonarr GET /api/v3/wanted/missing": { failed: "unreachable" } }) })
       const list = yield* api.list()
       expect(list.unavailable).toEqual(["sonarr"])
       expect(list.items.some((f) => f.service === "sonarr")).toBe(false)
       expect(list.items.some((f) => f.service === "radarr")).toBe(true)
-    }).pipe(Effect.provide(TestApp)))
-
-  it.effect("only reads the services Quai Home reaches", () =>
-    Effect.gen(function*() {
-      const { home, api } = yield* setUp({ services: ["radarr"] })
-      const list = yield* api.list()
-      expect(new Set(list.items.map((f) => f.service))).toEqual(new Set(["radarr"]))
-      expect(home.calls.every((c) => c.service === "radarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("needs the iPhone's token; the console's route doesn't", () =>
