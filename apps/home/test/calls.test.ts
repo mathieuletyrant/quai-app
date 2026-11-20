@@ -226,6 +226,75 @@ describe("Cleanuparr calls", () => {
       }
     }))
 
+  it.effect("two Keeps at once: one after the other, so the second doesn't undo the first", () => {
+    const held = { ...settings, ignoredDownloads: [] as Array<string> }
+    const other = "B2C3D4E5F60718293A4B5C6D7E8F901234567890"
+    // A Cleanuparr that applies the PUTs, and answers its reads a second later.
+    const cleanuparr = (s: Seen) => {
+      if (s.method === "GET") return { json: structuredClone(held), delay: "1 second" as const }
+      held.ignoredDownloads = JSON.parse(s.body!).ignoredDownloads
+      return { json: { message: "QueueCleaner configuration updated successfully" } }
+    }
+    return Effect.gen(function*() {
+      const calls = yield* Calls
+      // Each Keep sends what the Cloud read before either went through.
+      const first = yield* Effect.forkChild(calls.run({ ...exclude({ ...settings, ignoredDownloads: [hash] }), id: "a" }))
+      const second = yield* Effect.forkChild(calls.run({ ...exclude({ ...settings, ignoredDownloads: [other] }), id: "b" }))
+      for (let i = 0; i < 3; i++) yield* TestClock.adjust("1 second")
+      expect(yield* Fiber.join(first)).toMatchObject({ _tag: "CallResponse", status: 200 })
+      // The second read sees the first write: its body no longer adds one id to what Cleanuparr holds.
+      expect(yield* Fiber.join(second)).toEqual({ _tag: "Failed", id: "b", reason: "not allowed" })
+      expect(held.ignoredDownloads).toEqual([hash])
+      // Sent again from a fresh read, as the Cloud does on the next Keep, it goes through.
+      const again = yield* Effect.forkChild(calls.run(exclude({ ...settings, ignoredDownloads: [hash, other] })))
+      yield* TestClock.adjust("1 second")
+      expect(yield* Fiber.join(again)).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(held.ignoredDownloads).toEqual([hash, other])
+    }).pipe(Effect.provide(callsWith(cleanuparr, [])))
+  })
+
+  it.effect("its read not answering is the service not answering, not a refusal; nothing is written", () =>
+    Effect.gen(function*() {
+      for (const [answer, reason] of [[{ unreachable: true } as const, "unreachable"], [{ status: 401, text: "" }, "HTTP 401"], [{ status: 503, text: "" }, "HTTP 503"]] as const) {
+        const seen: Array<Seen> = []
+        const lines = yield* Effect.gen(function*() {
+          expect(yield* (yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] }))).toEqual({ _tag: "Failed", id: "r1", reason })
+          return (yield* (yield* Journal).read({ limit: 10 })).entries.map((e) => e.kind)
+        }).pipe(Effect.provide(callsWith(() => answer, seen)))
+        expect(seen.map((s) => s.method)).toEqual(["GET"])
+        expect(lines).toEqual(["service.unreached"])
+      }
+    }))
+
+  it.effect("its read over maxBodyBytes is unreadable: refused", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      expect(yield* (yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] }))).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
+      expect(seen.map((s) => s.method)).toEqual(["GET"])
+    }).pipe(Effect.provide(callsWith(() => ({ text: " ".repeat(HomeProtocol.maxBodyBytes + 1) }), seen)))
+  })
+
+  it.effect("the read, the check and the write take at most 12 s together, under the Cloud's wait", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      const fiber = yield* Effect.forkChild((yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] })))
+      yield* TestClock.adjust("11 seconds")
+      expect(fiber.pollUnsafe()).toBeUndefined()
+      yield* TestClock.adjust("1 second")
+      expect(yield* Fiber.join(fiber)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
+      expect(seen.map((s) => s.method)).toEqual(["GET", "PUT"])
+    }).pipe(Effect.provide(callsWith((s) => s.method === "GET" ? { json: settings, delay: "6 seconds" } : { json: {}, delay: "1 minute" }, seen)))
+  })
+
+  it.effect("a checked write with a query is refused", () => {
+    const seen: Array<Seen> = []
+    return Effect.gen(function*() {
+      const call = { ...exclude({ ...settings, ignoredDownloads: [hash] }), path: "/api/configuration/queue_cleaner?apikey=x" }
+      expect(yield* (yield* Calls).run(call)).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
+      expect(seen).toHaveLength(0)
+    }).pipe(Effect.provide(callsWith(holding(settings), seen)))
+  })
+
   it.effect("its other writes are refused without calling it", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
