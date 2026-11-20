@@ -3,8 +3,8 @@ import type { FlowEvent, MediaLookup, Subject, Values } from "./Events.ts"
 
 /** Timings from the spec (docs/flows.md, Limits). */
 export const Timing = {
-  /** At most one data update per activity every 15 s. */
-  throttleMs: 15_000
+  /** At most one data update per activity every 5 s (the heartbeat flushes what it held back). */
+  throttleMs: 5_000
 } as const
 
 export type Tone = "active" | "stalled" | "done"
