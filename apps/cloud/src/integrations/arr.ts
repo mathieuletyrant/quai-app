@@ -49,6 +49,9 @@ export const QueueRecord = Schema.Struct({
   downloadId: Schema.optional(Schema.NullOr(Schema.String)),
   downloadClient: Schema.optional(Schema.NullOr(Schema.String)),
   added: Schema.optional(Schema.String),
+  /** Bytes, the whole download's and what's left of it. */
+  size: Schema.optional(Schema.Number),
+  sizeleft: Schema.optional(Schema.Number),
   // Radarr
   movieId: Schema.optional(Schema.NullOr(Schema.Number)),
   movie: Schema.optional(Schema.Struct({

@@ -66,7 +66,8 @@ export const actionCall = (reads: HomeReads["Service"], service: string, call: C
  * webhook or watches) and the actions it runs. Adding a service is adding an integration.
  */
 export interface Integration {
-  readonly service: ServiceName
+  /** Its service: one a flow can name, or one Quai Home reaches that only the journal hears from (Cleanuparr). */
+  readonly service: ServiceName | HomeProtocol.HomeService
   readonly webhook?: Webhook
   readonly watcher?: Watcher
   readonly actions: Partial<Record<ActionType, ActionHandler>>

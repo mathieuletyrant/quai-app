@@ -79,10 +79,12 @@ export const recordedHome = (
 /**
  * The protocol a Home first allowed this call in: an older Home refuses it as not allowed
  * (`HomeProtocol.minProtocolVersion`). Protocol 2 added Reclaimerr and `DELETE`, protocol 3 Seerr
- * and the calendars.
+ * and the calendars, protocol 5 Cleanuparr and `PUT`.
  */
 const allowedSince = (call: Pick<Call, "service" | "method" | "path">): number =>
-  call.service === "seerr" || /\/calendar$/.test(call.path.split("?")[0]!)
+  call.service === "cleanuparr" || call.method === "PUT"
+    ? 5
+    : call.service === "seerr" || /\/calendar$/.test(call.path.split("?")[0]!)
     ? 3
     : call.service === "reclaimerr" || call.method === "DELETE"
     ? 2
@@ -123,6 +125,23 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       toCloud: null as Queue.Queue<string | typeof close> | null
     }
 
+    /**
+     * A write checked against what the service holds, as Quai Home does: its rule's GET, answered
+     * like any call (but not recorded among the calls), then the rule's check.
+     */
+    const passesAgainst = (call: Call): boolean => {
+      const against = HomeProtocol.allowRule(call)?.against
+      if (against === undefined) return true
+      const answer = options.answer?.({ ...call, method: "GET", path: against.path, body: undefined }) ?? { status: 404 }
+      if (!("status" in answer || "json" in answer || "body" in answer) || (answer.status ?? 200) !== 200) return false
+      const body = answer.body ?? (answer.json === undefined ? "" : JSON.stringify(answer.json))
+      try {
+        return against.check(JSON.parse(body), call.body)
+      } catch {
+        return false
+      }
+    }
+
     const respond = (message: HomeProtocol.CloudMessage): HomeProtocol.HomeMessage | null => {
       received.push(message)
       switch (message._tag) {
@@ -141,7 +160,7 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           return options.deaf === true ? null : HomeProtocol.Pong.make({ at: message.at })
         case "Call": {
           calls.push(message)
-          if (!allows(message)) {
+          if (!allows(message) || !passesAgainst(message)) {
             notAllowed.push(routeOf(message))
             return HomeProtocol.Failed.make({ id: message.id, reason: "not allowed" })
           }

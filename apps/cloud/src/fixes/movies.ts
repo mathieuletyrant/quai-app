@@ -22,7 +22,8 @@ import {
 } from "../integrations/radarr.ts"
 import { type Detected, noSourceAfterMs } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
-import { type ImportCommandFile, type ImportInput, importFileOf, type MediaFixes } from "./MediaFixes.ts"
+import type { Read } from "../home/HomeReads.ts"
+import { type ImportCommandFile, type ImportInput, importFileOf, type MediaFixes, type QueuedMedia } from "./MediaFixes.ts"
 
 /** What a movie's problem acts on: its blocked download, or the movie without a source. */
 export type MovieTarget =
@@ -49,12 +50,25 @@ export const availableSince = (movie: MissingMovie): number | undefined => {
   return availableAt === undefined ? added : Math.max(added, availableAt)
 }
 
+/** A download in Radarr's queue: its movie, or the release when Radarr doesn't know which movie it is. */
+export const queuedMovie = (records: ReadonlyArray<QueueRecord>): QueuedMedia => {
+  const record = records[0]
+  const movie = record?.movie
+  return {
+    title: movie?.title ?? record?.title ?? "Unknown download",
+    year: knownYear(movie?.year),
+    posterUrl: posterOf(movie?.images),
+    messages: record === undefined ? [] : queueMessages(record)
+  }
+}
+
+/** Radarr's queue, with the movies. */
+export const radarrQueue: Read<typeof QueuePage.Type> = { service: "radarr", path: radarrQueuePath, schema: QueuePage }
+
 /** A finished download Radarr won't import. Import anyway needs the movie, and no file for it yet. */
 export const blockedMovie = (record: QueueRecord): Detected<MovieTarget> => {
-  const messages = queueMessages(record)
+  const { title, year, posterUrl, messages } = queuedMovie([record])
   const movie = record.movie
-  const year = knownYear(movie?.year)
-  const posterUrl = posterOf(movie?.images)
   const since = epochSeconds(record.added)
   const movieId = record.movieId ?? undefined
   const importable = movieId !== undefined && movie !== undefined && movie.hasFile !== true
@@ -63,7 +77,7 @@ export const blockedMovie = (record: QueueRecord): Detected<MovieTarget> => {
       id: FixId.blocked("radarr", record.id),
       kind: "importBlocked",
       service: "radarr",
-      title: movie?.title ?? record.title ?? "Unknown download",
+      title,
       ...(year === undefined ? {} : { year }),
       ...(posterUrl === undefined ? {} : { posterUrl }),
       reason: messages[0] ?? "Waiting for a manual import",
@@ -136,10 +150,12 @@ export const movieImportFiles = (
 export const movies: MediaFixes<MovieTarget> = {
   kind: "movie",
   service: "radarr",
+  queue: radarrQueue,
+  queued: queuedMovie,
   detect: (reads, nowMs) =>
     Effect.map(
       reads.all({
-        queue: { service: "radarr", path: radarrQueuePath, schema: QueuePage },
+        queue: radarrQueue,
         missing: { service: "radarr", path: radarrMissingPath, schema: RadarrMissing },
         grabs: { service: "radarr", path: grabsSincePath(nowMs - grabLookbackMs), schema: RadarrGrabs }
       }),

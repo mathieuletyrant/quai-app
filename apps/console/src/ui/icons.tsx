@@ -40,7 +40,8 @@ const paths = {
   pause: "M9 5.5v13M15 5.5v13",
   filter: "M4 5.5h16l-6 7.5v5.5l-4 1.5v-7z",
   film: "M4.5 4.5h15v15h-15zM8 4.5v15M16 4.5v15M4.5 9h3.5M4.5 15h3.5M16 9h3.5M16 15h3.5",
-  tv: "M3.5 6h17v11h-17zM8.5 20.5h7"
+  tv: "M3.5 6h17v11h-17zM8.5 20.5h7",
+  broom: "M20 4l-6 6M10.5 8.5l5 5M10.5 8.5l-6 6 5 5 6-6M7 17l2.5-2.5M9.5 19.5l1.5-1.5M4.5 14.5l1.5-1.5"
 } as const
 export type IconName = keyof typeof paths
 

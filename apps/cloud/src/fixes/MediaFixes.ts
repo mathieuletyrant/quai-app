@@ -1,7 +1,7 @@
 import { type EpisodeChoice, type FixFailed, type HomeOffline, type ImportFile, InvalidFix } from "@quai/api"
 import { type Effect, type Option, Result } from "effect"
-import type { HomeReads } from "../home/HomeReads.ts"
-import { fileOf, type ManualImportRow, qualityName, type ReleaseRecord, rejectionsOf } from "../integrations/arr.ts"
+import type { HomeReads, Read } from "../home/HomeReads.ts"
+import { fileOf, type ManualImportRow, qualityName, type QueuePage, type QueueRecord, type ReleaseRecord, rejectionsOf } from "../integrations/arr.ts"
 import type { Detected } from "./Detected.ts"
 
 /**
@@ -24,6 +24,16 @@ export type ImportAssignments = ReadonlyArray<{ readonly file: string; readonly 
 /** One file of a `ManualImport` command, as the *arr takes it. */
 export type ImportCommandFile = Readonly<Record<string, unknown>> & { readonly path: string; readonly downloadId: string }
 
+/** A download in an *arr's queue, as the To fix list names it. */
+export interface QueuedMedia {
+  /** "Dune: Part Two", "Severance · S02E03"; the release when the *arr doesn't know the title. */
+  readonly title: string
+  readonly year?: number | undefined
+  readonly posterUrl?: string | undefined
+  /** What the *arr says about it, flattened (`queueMessages`). */
+  readonly messages: ReadonlyArray<string>
+}
+
 /** What deciding the files of a blocked download takes: all read beforehand, nothing to call. */
 export interface ImportInput<T extends MediaTarget> {
   readonly target: QueuedOf<T>
@@ -43,6 +53,10 @@ export interface ImportInput<T extends MediaTarget> {
 export interface MediaFixes<T extends MediaTarget> {
   readonly kind: T["kind"]
   readonly service: "radarr" | "sonarr"
+  /** Its queue, as its rules read it: also where another service's download (Cleanuparr's) is found by id. */
+  readonly queue: Read<typeof QueuePage.Type>
+  /** One download in its queue, from its rows (Sonarr has one per episode of a pack). */
+  readonly queued: (records: ReadonlyArray<QueueRecord>) => QueuedMedia
   /** Its rules, on what Quai Home reads now. None when one of the reads didn't answer. */
   readonly detect: (reads: HomeReads["Service"], nowMs: number) => Effect.Effect<Option.Option<ReadonlyArray<Detected<T>>>, HomeOffline>
   /** The manual import's hints beyond the download (`&seriesId=9`), to match its files better. */

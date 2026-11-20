@@ -20,14 +20,19 @@ answer now: a GET (`read`, `all`) or a write (`write`). One policy for all of th
 is *offline*; a service that didn't answer as expected is *unavailable* (None, logged with its
 service and path, never what it answered), or a refusal in words for a write.
 
-**Watch**. A GET Quai Home polls on its own, every few seconds to an hour, while a flow needs it,
-sending a snapshot when the answer changes. The Hub sets the list; Quai Home stops polling when
-the link drops.
+**Watch**. A GET Quai Home polls on its own, every few seconds to an hour, while a flow needs it
+(or the journal: Cleanuparr's removals, while Quai Home reaches it), sending a snapshot when the
+answer changes. The Hub sets the list; Quai Home stops polling when the link drops.
 
 **Allowlist** (`HomeProtocol.allowlist`, `allowRule`). The method, path and, for some writes, body
 checks of everything the Cloud may ask Quai Home to call or watch. Quai Home enforces it: a
-compromised Cloud can't read settings or delete a library. The Cloud's tests run against a fake
+compromised Cloud can't read settings (but for Cleanuparr's queue cleaner, which holds no secret)
+or delete a library. The Cloud's tests run against a fake
 Quai Home that enforces it too (`apps/cloud/test/fakeHome.ts`), so a path it refuses fails them.
+
+**Checked against** (`AllowRule.against`). A write that replaces a whole document of a service
+(Cleanuparr's queue cleaner settings): Quai Home reads the document first and sends the write only
+if the rule's check of the two passes, so the Cloud changes the one field it may change.
 
 **Offline** (`HomeOffline`, 503). No Quai Home is linked, or it dropped during the request. Nothing
 can be read: the whole answer fails, it is never a partial one.

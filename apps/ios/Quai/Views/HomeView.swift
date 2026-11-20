@@ -86,7 +86,7 @@ struct HomeView: View {
                 await connection.loadRequests()
                 await connection.loadReleases()
             }
-            // The To fix list asks Radarr, Sonarr and Reclaimerr: read when the screen opens, not polled.
+            // The To fix list asks Radarr, Sonarr, Reclaimerr and Cleanuparr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
             .task { await connection.loadRequests() }
             .task { await connection.loadReleases() }

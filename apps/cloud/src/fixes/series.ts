@@ -27,7 +27,8 @@ import {
 } from "../integrations/sonarr.ts"
 import { type Detected, noSourceAfterMs } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
-import { type ImportCommandFile, type ImportInput, importFileOf, type MediaFixes } from "./MediaFixes.ts"
+import type { Read } from "../home/HomeReads.ts"
+import { type ImportCommandFile, type ImportInput, importFileOf, type MediaFixes, type QueuedMedia } from "./MediaFixes.ts"
 
 /** What a series' problem acts on: its blocked download, or a season's episodes without a source. */
 export type SeriesTarget =
@@ -47,17 +48,28 @@ export type SeriesTarget =
     readonly episodeIds: ReadonlyArray<number>
   }
 
+/** A download in Sonarr's queue (one row per episode): its series and episodes, or the release when Sonarr doesn't know them. */
+export const queuedEpisodes = (records: ReadonlyArray<QueueRecord>): QueuedMedia => {
+  const record = records[0]
+  const series = record?.series
+  const episodes = records.flatMap((r) => r.episode === undefined ? [] : [r.episode])
+  return {
+    title: series === undefined ? record?.title ?? "Unknown download" : episodeLabel(series.title, episodes),
+    year: knownYear(series?.year),
+    posterUrl: posterOf(series?.images),
+    messages: [...new Set(records.flatMap(queueMessages))]
+  }
+}
+
+/** Sonarr's queue, with the series and episodes. */
+export const sonarrQueue: Read<typeof QueuePage.Type> = { service: "sonarr", path: sonarrQueuePath, schema: QueuePage }
+
 /** A finished download Sonarr won't import. Import anyway needs the series: then the episode can be chosen. */
 export const blockedEpisodes = (record: QueueRecord): Detected<SeriesTarget> => {
-  const messages = queueMessages(record)
+  const { title, year, posterUrl, messages } = queuedEpisodes([record])
   const series = record.series
-  const year = knownYear(series?.year)
-  const posterUrl = posterOf(series?.images)
   const since = epochSeconds(record.added)
   const seriesId = record.seriesId ?? undefined
-  const title = series === undefined
-    ? record.title ?? "Unknown download"
-    : episodeLabel(series.title, record.episode === undefined ? [] : [record.episode])
   return {
     fix: {
       id: FixId.blocked("sonarr", record.id),
@@ -182,10 +194,12 @@ export const episodeImportFiles = (
 export const series: MediaFixes<SeriesTarget> = {
   kind: "series",
   service: "sonarr",
+  queue: sonarrQueue,
+  queued: queuedEpisodes,
   detect: (reads, nowMs) =>
     Effect.map(
       reads.all({
-        queue: { service: "sonarr", path: sonarrQueuePath, schema: QueuePage },
+        queue: sonarrQueue,
         missing: { service: "sonarr", path: sonarrMissingPath, schema: SonarrMissing },
         grabs: { service: "sonarr", path: grabsSincePath(nowMs - grabLookbackMs), schema: SonarrGrabs }
       }),

@@ -96,6 +96,7 @@ export const sourceIcon: Record<JournalSource, IconName> = {
   jellyfin: "play",
   seerr: "person",
   reclaimerr: "trash",
+  cleanuparr: "broom",
   apple: "phone",
   home: "home",
   cloud: "cloud"

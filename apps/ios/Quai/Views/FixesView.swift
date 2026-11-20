@@ -14,25 +14,22 @@ extension Components.Schemas.Fix {
     var symbol: (name: String, color: Color) {
         switch kind {
         case .scheduledDeletion: ("trash", Palette.toFix)
+        case .removalPlanned: ("xmark.bin", Palette.downloads)
         case .noSource: ("magnifyingglass", Palette.downloads)
         case .importBlocked: ("exclamationmark.triangle", Palette.incident)
         }
     }
 
-    var serviceName: String {
-        switch service {
-        case .radarr: "Radarr"
-        case .sonarr: "Sonarr"
-        case .reclaimerr: "Reclaimerr"
-        }
-    }
+    var serviceName: String { service.name }
 
-    /// "Up will be deleted in 5 days", "Runner, still without a file", "Import blocked · Mouse"
+    /// "Up will be deleted in 5 days", "The Wild Robot may leave the queue in 4 min", "Runner, still without a file", "Import blocked · Mouse"
     var headline: String {
         switch kind {
         case .scheduledDeletion:
             let verb = deletion?.operation == .move ? "moved" : "deleted"
             return "\(title) will be \(verb) \(Fix.when(deletion?.deletesAt ?? 0))"
+        case .removalPlanned:
+            return "\(title) may leave the queue \(Fix.soon(removal?.removesAt))"
         case .noSource:
             return "\(title), still without a file"
         case .importBlocked:
@@ -40,11 +37,14 @@ extension Components.Schemas.Fix {
         }
     }
 
-    /// "Radarr · No release grabbed since it was added · for 3 h"
+    /// "Radarr · No release grabbed since it was added · for 3 h", "Cleanuparr · Stalled, no progress · 2 of 3 strikes"
     var detail: String {
         var parts = [serviceName, reason]
         if kind == .noSource, let since {
             parts.append("for " + Fix.elapsed(since))
+        }
+        if kind == .removalPlanned, let removal {
+            parts.append("\(removal.strikes) of \(removal.maxStrikes) strikes")
         }
         return parts.joined(separator: " · ")
     }
@@ -59,11 +59,32 @@ extension Components.Schemas.Fix {
         return days == 1 ? "tomorrow" : "in \(days) days"
     }
 
+    /// When Cleanuparr strikes next: its next queue cleaning, minutes or hours away.
+    private static func soon(_ removesAt: Double?) -> String {
+        guard let removesAt else { return "at Cleanuparr's next strike" }
+        let minutes = Int(((removesAt - Date.now.timeIntervalSince1970) / 60).rounded(.up))
+        if minutes <= 1 { return "within a minute" }
+        if minutes < 120 { return "in \(minutes) min" }
+        return "in \(minutes / 60) h"
+    }
+
     private static func elapsed(_ since: Double) -> String {
         let minutes = max(0, Int((Date.now.timeIntervalSince1970 - since) / 60))
         if minutes < 60 { return "\(minutes) min" }
         if minutes < 2880 { return "\(minutes / 60) h" }
         return "\(minutes / 1440) days"
+    }
+}
+
+extension Components.Schemas.FixService {
+    /// The service as the app names it.
+    var name: String {
+        switch self {
+        case .radarr: "Radarr"
+        case .sonarr: "Sonarr"
+        case .reclaimerr: "Reclaimerr"
+        case .cleanuparr: "Cleanuparr"
+        }
     }
 }
 
@@ -119,7 +140,7 @@ struct FixesView: View {
             } else if connection.fixes != nil && items.isEmpty {
                 MessageTile(
                     title: "All clear",
-                    message: "No blocked import, every title has a source, and nothing is about to be deleted.",
+                    message: "No blocked import, every title has a source, and nothing is about to be deleted or removed from the queue.",
                     systemImage: "checkmark.seal.fill",
                     color: Palette.ok
                 )
@@ -181,13 +202,7 @@ struct FixesView: View {
     }
 
     private func unavailableNote(_ services: [Components.Schemas.FixService]) -> String {
-        let names = services.map { service -> String in
-            switch service {
-            case .radarr: "Radarr"
-            case .sonarr: "Sonarr"
-            case .reclaimerr: "Reclaimerr"
-            }
-        }
+        let names = services.map(\.name)
         return "\(names.joined(separator: " and ")) didn't answer: \(services.count == 1 ? "its" : "their") problems are missing. Pull to try again."
     }
 }
@@ -248,7 +263,7 @@ private struct FixCard: View {
 
     @ViewBuilder private var buttons: some View {
         switch fix.kind {
-        case .scheduledDeletion:
+        case .scheduledDeletion, .removalPlanned:
             if fix.offers(.keep) { Button("Keep") { act(.keep) }.buttonStyle(FixButtonStyle()) }
             if fix.offers(.dismiss) { Button("Let it go") { act(.dismiss) }.buttonStyle(FixButtonStyle(prominent: false)) }
         case .noSource:
