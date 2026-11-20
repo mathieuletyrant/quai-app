@@ -4,17 +4,21 @@ import Observation
 import OpenAPIRuntime
 import OpenAPIURLSession
 
-enum ConnectionError: LocalizedError {
+/// Why a call to Quai Cloud failed, in one message each. Refusals are read from the answer by
+/// `QuaiErrorsMiddleware` only, never route by route.
+enum ConnectionError: LocalizedError, Equatable {
     case unreachable
     /// A reverse proxy in front of Quai Cloud refused the request, not Quai.
     case blockedByProxy
     case invalidCode
+    /// This iPhone's token is no longer valid: it was removed in the console.
+    case removed
     case homeOffline
     case server(Int)
-    /// The service (or Quai) refused a fix, in its words.
+    /// The service (or Quai) refused, in its words.
     case refused(String)
-    /// The problem went away before the fix ran (a release came in, the title was deleted).
-    case fixGone
+    /// What it acted on went away first (a release came in, a request was decided elsewhere).
+    case gone
 
     var errorDescription: String? {
         switch self {
@@ -22,9 +26,10 @@ enum ConnectionError: LocalizedError {
         case .blockedByProxy: "Blocked by your proxy: check the access headers in Settings → Connection."
         case .homeOffline: "Quai Home isn't connected to Quai Cloud. Check that it runs on your server."
         case .invalidCode: "This code is unknown, already used or expired. Show a new one in the console."
+        case .removed: "This iPhone was removed from the console. Pair it again."
         case let .server(status): "The server answered \(status)."
         case let .refused(message): message
-        case .fixGone: "This is already sorted out. Pull to refresh the list."
+        case .gone: "This is already sorted out. Pull to refresh the list."
         }
     }
 }
@@ -78,7 +83,8 @@ final class Connection {
 
     func pair(_ link: PairingLink, name: String) async throws {
         let url = try await ServerSession.firstReachable(link.serverURLs, accessHeaders: link.accessHeaders)
-        let client = Client(serverURL: url, transport: URLSessionTransport(), middlewares: [AccessHeadersMiddleware(headers: link.accessHeaders)])
+        let middlewares: [any ClientMiddleware] = [QuaiErrorsMiddleware(), AccessHeadersMiddleware(headers: link.accessHeaders)]
+        let client = Client(serverURL: url, transport: URLSessionTransport(), middlewares: middlewares)
         let body = Components.Schemas.PairDevice(
             code: link.code,
             name: name,
@@ -86,26 +92,17 @@ final class Connection {
             pushToStartToken: pushToStartToken,
             timeZone: TimeZone.current.identifier
         )
-        switch try await client.pairDevice(body: .json(body)) {
-        case let .ok(ok):
-            let paired = try ok.body.json
-            let session = ServerSession(
-                token: paired.token,
-                urls: [url] + link.serverURLs.filter { $0 != url },
-                accessHeaders: link.accessHeaders
-            )
-            session.save()
-            self.session = session
-            serverURL = url
-            lastError = nil
-            await refresh()
-        case .forbidden:
-            throw ConnectionError.invalidCode
-        case .serviceUnavailable:
-            throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _):
-            throw ConnectionError.server(statusCode)
-        }
+        let paired = try await client.pairDevice(body: .json(body)).ok.body.json
+        let session = ServerSession(
+            token: paired.token,
+            urls: [url] + link.serverURLs.filter { $0 != url },
+            accessHeaders: link.accessHeaders
+        )
+        session.save()
+        self.session = session
+        serverURL = url
+        lastError = nil
+        await refresh()
     }
 
     /// Typed in Settings → Connection, for a proxy set up after pairing. Saved in the Keychain.
@@ -136,33 +133,15 @@ final class Connection {
     // MARK: Preferences
 
     func preferences() async throws -> Components.Schemas.DevicePreferences {
-        let client = try await requiredClient()
-        switch try await client.getPreferences() {
-        case let .ok(ok): return try ok.body.json
-        case .unauthorized: throw ConnectionError.server(401)
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        try await requiredClient().getPreferences().ok.body.json
     }
 
     func save(_ preferences: Components.Schemas.DevicePreferences) async throws {
-        let client = try await requiredClient()
-        switch try await client.savePreferences(body: .json(preferences)) {
-        case .ok: return
-        case .unauthorized: throw ConnectionError.server(401)
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().savePreferences(body: .json(preferences)).ok
     }
 
     func flows() async throws -> [Components.Schemas.FlowSummary] {
-        let client = try await requiredClient()
-        switch try await client.listFlows() {
-        case let .ok(ok): return try ok.body.json
-        case .unauthorized: throw ConnectionError.server(401)
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        try await requiredClient().listFlows().ok.body.json
     }
 
     // MARK: Activities
@@ -170,18 +149,9 @@ final class Connection {
     func refresh() async {
         guard let client = await authenticatedClient() else { return }
         do {
-            switch try await client.listActivities() {
-            case let .ok(ok):
-                activities = try ok.body.json
-                lastError = nil
-                await learnSubjects()
-            case .unauthorized:
-                lastError = "This iPhone was removed from the console. Pair it again."
-            case .serviceUnavailable:
-                lastError = ConnectionError.homeOffline.localizedDescription
-            case let .undocumented(statusCode, _):
-                lastError = ConnectionError.server(statusCode).localizedDescription
-            }
+            activities = try await client.listActivities().ok.body.json
+            lastError = nil
+            await learnSubjects()
         } catch {
             lastError = error.quaiMessage
         }
@@ -199,18 +169,8 @@ final class Connection {
 
     func loadLibrary() async {
         do {
-            let client = try await requiredClient()
-            switch try await client.getLibrary() {
-            case let .ok(ok):
-                library = try ok.body.json
-                libraryError = nil
-            case .unauthorized:
-                libraryError = "This iPhone was removed from the console. Pair it again."
-            case .serviceUnavailable:
-                libraryError = ConnectionError.homeOffline.localizedDescription
-            case let .undocumented(statusCode, _):
-                libraryError = ConnectionError.server(statusCode).localizedDescription
-            }
+            library = try await requiredClient().getLibrary().ok.body.json
+            libraryError = nil
         } catch {
             libraryError = error.quaiMessage
         }
@@ -220,18 +180,8 @@ final class Connection {
 
     func loadFixes() async {
         do {
-            let client = try await requiredClient()
-            switch try await client.listFixes() {
-            case let .ok(ok):
-                fixes = try ok.body.json
-                fixesError = nil
-            case .unauthorized:
-                fixesError = "This iPhone was removed from the console. Pair it again."
-            case .serviceUnavailable:
-                fixesError = ConnectionError.homeOffline.localizedDescription
-            case let .undocumented(statusCode, _):
-                fixesError = ConnectionError.server(statusCode).localizedDescription
-            }
+            fixes = try await requiredClient().listFixes().ok.body.json
+            fixesError = nil
         } catch {
             fixesError = error.quaiMessage
         }
@@ -239,119 +189,47 @@ final class Connection {
 
     /// Takes the download out of the queue and the download client; `blocklist` also bans the release.
     func removeDownload(_ fix: Components.Schemas.Fix, blocklist: Bool) async throws {
-        let client = try await requiredClient()
-        switch try await client.removeDownload(path: .init(id: fix.id), body: .json(.init(blocklist: blocklist))) {
-        case .noContent: break
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().removeDownload(path: .init(id: fix.id), body: .json(.init(blocklist: blocklist))).noContent
         await didFix(fix)
     }
 
     /// What Import anyway would import: the files, why they were refused, the episodes to choose from.
     func importPreview(_ fix: Components.Schemas.Fix) async throws -> Components.Schemas.ImportPreview {
-        let client = try await requiredClient()
-        switch try await client.previewImport(path: .init(id: fix.id)) {
-        case let .ok(ok): return try ok.body.json
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        try await requiredClient().previewImport(path: .init(id: fix.id)).ok.body.json
     }
 
     /// Imports the download's files as matched, or as the episodes chosen (file → episode ids).
     func importDownload(_ fix: Components.Schemas.Fix, episodes: [String: Int]) async throws {
-        let client = try await requiredClient()
         let assignments = episodes.map { Components.Schemas.EpisodeAssignment(file: $0.key, episodeIds: [$0.value]) }
-        switch try await client.importDownload(path: .init(id: fix.id), body: .json(.init(assignments: assignments))) {
-        case .noContent: break
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().importDownload(path: .init(id: fix.id), body: .json(.init(assignments: assignments))).noContent
         await didFix(fix)
     }
 
     /// Protects the title in Reclaimerr, for good.
     func keep(_ fix: Components.Schemas.Fix) async throws {
-        let client = try await requiredClient()
-        switch try await client.keepTitle(path: .init(id: fix.id)) {
-        case .noContent: break
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().keepTitle(path: .init(id: fix.id)).noContent
         await didFix(fix)
     }
 
     /// Lets the deletion happen: Quai stops showing it.
     func dismiss(_ fix: Components.Schemas.Fix) async throws {
-        let client = try await requiredClient()
-        switch try await client.dismissFix(path: .init(id: fix.id)) {
-        case .noContent: break
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().dismissFix(path: .init(id: fix.id)).noContent
         await didFix(fix)
     }
 
     /// Hides the problem until a release is grabbed (`days` nil), or for some days.
     func snooze(_ fix: Components.Schemas.Fix, days: Int?) async throws {
-        let client = try await requiredClient()
-        switch try await client.snoozeFix(path: .init(id: fix.id), body: .json(.init(days: days))) {
-        case .noContent: break
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().snoozeFix(path: .init(id: fix.id), body: .json(.init(days: days))).noContent
         await didFix(fix)
     }
 
     /// The releases the indexers have for a title without a file. Can take up to a minute.
     func releases(_ fix: Components.Schemas.Fix) async throws -> [Components.Schemas.Release] {
-        let client = try await requiredClient()
-        switch try await client.searchReleases(path: .init(id: fix.id)) {
-        case let .ok(ok): return try ok.body.json.items
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        try await requiredClient().searchReleases(path: .init(id: fix.id)).ok.body.json.items
     }
 
     func grab(_ release: Components.Schemas.Release, for fix: Components.Schemas.Fix) async throws {
-        let client = try await requiredClient()
-        switch try await client.grabRelease(path: .init(id: fix.id), body: .json(.init(guid: release.guid, indexerId: release.indexerId))) {
-        case .noContent: break
-        case let .badRequest(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Not possible")
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "The service refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().grabRelease(path: .init(id: fix.id), body: .json(.init(guid: release.guid, indexerId: release.indexerId))).noContent
         await didFix(fix)
     }
 
@@ -359,18 +237,8 @@ final class Connection {
 
     func loadReleases() async {
         do {
-            let client = try await requiredClient()
-            switch try await client.getTodayReleases() {
-            case let .ok(ok):
-                releases = try ok.body.json
-                releasesError = nil
-            case .unauthorized:
-                releasesError = "This iPhone was removed from the console. Pair it again."
-            case .serviceUnavailable:
-                releasesError = ConnectionError.homeOffline.localizedDescription
-            case let .undocumented(statusCode, _):
-                releasesError = ConnectionError.server(statusCode).localizedDescription
-            }
+            releases = try await requiredClient().getTodayReleases().ok.body.json
+            releasesError = nil
         } catch {
             releasesError = error.quaiMessage
         }
@@ -388,18 +256,8 @@ final class Connection {
 
     func loadRequests() async {
         do {
-            let client = try await requiredClient()
-            switch try await client.listRequests() {
-            case let .ok(ok):
-                requests = try ok.body.json
-                requestsError = nil
-            case .unauthorized:
-                requestsError = "This iPhone was removed from the console. Pair it again."
-            case .serviceUnavailable:
-                requestsError = ConnectionError.homeOffline.localizedDescription
-            case let .undocumented(statusCode, _):
-                requestsError = ConnectionError.server(statusCode).localizedDescription
-            }
+            requests = try await requiredClient().listRequests().ok.body.json
+            requestsError = nil
         } catch {
             requestsError = error.quaiMessage
         }
@@ -407,28 +265,12 @@ final class Connection {
 
     /// Approves the request in Seerr: Radarr or Sonarr take it from there.
     func approve(_ request: Components.Schemas.MediaRequest) async throws {
-        let client = try await requiredClient()
-        switch try await client.approveRequest(path: .init(id: String(request.id))) {
-        case .noContent: break
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Seerr refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().approveRequest(path: .init(id: String(request.id))).noContent
         await didDecide(request)
     }
 
     func decline(_ request: Components.Schemas.MediaRequest) async throws {
-        let client = try await requiredClient()
-        switch try await client.declineRequest(path: .init(id: String(request.id))) {
-        case .noContent: break
-        case .unauthorized: throw ConnectionError.server(401)
-        case .notFound: throw ConnectionError.fixGone
-        case let .badGateway(response): throw ConnectionError.refused((try? response.body.json)?.message ?? "Seerr refused")
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await requiredClient().declineRequest(path: .init(id: String(request.id))).noContent
         await didDecide(request)
     }
 

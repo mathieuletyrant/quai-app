@@ -10,14 +10,7 @@ enum RemoteControl {
         guard let session = ServerSession.stored() else { throw ConnectionError.unreachable }
         let (_, client) = try await session.connect()
         guard let type = Components.Schemas.ActionType(rawValue: action.rawValue) else { return }
-        switch try await client.performAction(body: .json(.init(key: key, action: type))) {
-        case .noContent: return
-        case .badRequest: throw ConnectionError.server(400)
-        case .notFound: throw ConnectionError.server(404)
-        case .unauthorized: throw ConnectionError.server(401)
-        case .serviceUnavailable: throw ConnectionError.homeOffline
-        case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
-        }
+        _ = try await client.performAction(body: .json(.init(key: key, action: type))).noContent
     }
 
     /// Play/Pause flips at once on screen; the server's next push carries the exact position.
