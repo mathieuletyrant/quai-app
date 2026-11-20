@@ -1,4 +1,5 @@
 import { HomeOffline, HomeProtocol, HomeRequired } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { Clock, Config, Context, Data, Deferred, Effect, Layer, Option, Queue, Ref, Schema } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { Socket } from "effect/socket"
@@ -257,7 +258,7 @@ export class HomeLink extends Context.Service<HomeLink, {
           if (Option.isNone(proof) || !verifyProof(hello.value.publicKey, nonce, proof.value.signature)) {
             return { _tag: "Refused", reason: "the proof doesn't match the public key", retryAfterSeconds: 60 }
           }
-          const homeId = HomeProtocol.homeId(hello.value.publicKey)
+          const homeId = HomeId.homeId(hello.value.publicKey)
           if (Option.isSome(expectedHomeId) && homeId !== expectedHomeId.value) {
             return { _tag: "Refused", reason: `this Cloud serves home ${expectedHomeId.value} only (QUAI_HOME_ID), not ${homeId}`, retryAfterSeconds: 3600 }
           }

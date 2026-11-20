@@ -1,4 +1,5 @@
 import { HomeProtocol } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
 import { Socket } from "effect/socket"
 import { createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
@@ -216,7 +217,7 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
     })
 
     return {
-      homeId: HomeProtocol.homeId(publicKey),
+      homeId: HomeId.homeId(publicKey),
       privateKey,
       documents,
       calls,

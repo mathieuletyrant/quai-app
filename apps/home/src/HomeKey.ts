@@ -1,5 +1,6 @@
 import { Context, Effect, FileSystem, Layer } from "effect"
 import { HomeProtocol } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { createHmac, createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
 import { dirname, join } from "node:path"
 import { HomeConfig } from "./Config.ts"
@@ -60,7 +61,7 @@ const fromPrivateKey = (privateKey: KeyObject): HomeKey["Service"] => {
   const raw = Buffer.from(privateKey.export({ format: "jwk" }).d!, "base64url")
   return {
     publicKey,
-    homeId: HomeProtocol.homeId(publicKey),
+    homeId: HomeId.homeId(publicKey),
     sign: (nonce) => sign(null, Buffer.from(HomeProtocol.challengePayload(nonce)), privateKey).toString("base64"),
     webhookToken: createHmac("sha256", raw).update("webhooks").digest("hex").slice(0, 32)
   }

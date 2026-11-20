@@ -1,5 +1,6 @@
 import { NodeHttpServer, NodeSocket } from "@effect/platform-node"
 import { HomeProtocol } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { describe, expect, it } from "@effect/vitest"
 import { ConfigProvider, Effect, Fiber, Layer, Option, Queue, Schema } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
@@ -49,7 +50,7 @@ describe("home link", () => {
 
   it.effect("with QUAI_HOME_ID, any other home is refused, even while the slot is free", () => {
     const ownKey = generateKeyPairSync("ed25519").privateKey
-    const ownId = HomeProtocol.homeId(createPublicKey(ownKey).export({ format: "der", type: "spki" }).toString("base64"))
+    const ownId = HomeId.homeId(createPublicKey(ownKey).export({ format: "der", type: "spki" }).toString("base64"))
     const pinned = link.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: ownId.toUpperCase() } }))))
     return Effect.gen(function*() {
       const l = yield* HomeLink
@@ -214,7 +215,7 @@ describe("home link over a WebSocket", () => {
           expect(Buffer.from(challenge.nonce, "base64")).toHaveLength(32)
           const signature = sign(null, Buffer.from(HomeProtocol.challengePayload(challenge.nonce)), privateKey).toString("base64")
           yield* send({ _tag: "Proof", signature })
-          expect(yield* next).toEqual({ _tag: "Welcome", homeId: HomeProtocol.homeId(publicKey) })
+          expect(yield* next).toEqual({ _tag: "Welcome", homeId: HomeId.homeId(publicKey) })
           const list = yield* next
           if (list._tag !== "StoreList") return yield* Effect.die("no StoreList")
           expect(list.prefix).toBe("")
@@ -225,7 +226,7 @@ describe("home link over a WebSocket", () => {
             yield* Effect.sleep("10 millis")
             home = yield* l.home
           }
-          expect(Option.map(home, (h) => h.homeId)).toEqual(Option.some(HomeProtocol.homeId(publicKey)))
+          expect(Option.map(home, (h) => h.homeId)).toEqual(Option.some(HomeId.homeId(publicKey)))
           expect(yield* l.documents.get("settings")).toEqual(Option.some({ a: 1 }))
         }))
     }).pipe(Effect.provide(server)))

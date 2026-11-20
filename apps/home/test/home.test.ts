@@ -1,4 +1,5 @@
 import { HomeProtocol } from "@quai/api"
+import * as HomeId from "@quai/api/HomeId"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, FileSystem, Logger } from "effect"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
@@ -23,7 +24,7 @@ describe("home key", () => {
         expect(second.homeId).toBe(first.homeId)
         expect(second.webhookToken).toBe(first.webhookToken)
         expect(first.homeId).toMatch(/^[0-9a-f]{32}$/)
-        expect(first.homeId).toBe(HomeProtocol.homeId(first.publicKey))
+        expect(first.homeId).toBe(HomeId.homeId(first.publicKey))
         expect(first.webhookToken).toMatch(/^[0-9a-f]{32}$/)
 
         const other = yield* HomeKey.make(join(dir, "other.key"))
