@@ -47,6 +47,9 @@ final class Connection {
     /// Seerr's requests waiting for approval, once loaded.
     private(set) var requests: Components.Schemas.MediaRequests?
     private(set) var requestsError: String?
+    /// Today's releases, once loaded.
+    private(set) var releases: Components.Schemas.DayReleases?
+    private(set) var releasesError: String?
     private var session: ServerSession?
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
@@ -80,7 +83,8 @@ final class Connection {
             code: link.code,
             name: name,
             apnsEnvironment: Self.apnsEnvironment,
-            pushToStartToken: pushToStartToken
+            pushToStartToken: pushToStartToken,
+            timeZone: TimeZone.current.identifier
         )
         switch try await client.pairDevice(body: .json(body)) {
         case let .ok(ok):
@@ -125,6 +129,8 @@ final class Connection {
         fixesError = nil
         requests = nil
         requestsError = nil
+        releases = nil
+        releasesError = nil
     }
 
     // MARK: Preferences
@@ -347,6 +353,35 @@ final class Connection {
         case let .undocumented(statusCode, _): throw ConnectionError.server(statusCode)
         }
         await didFix(fix)
+    }
+
+    // MARK: Releases
+
+    func loadReleases() async {
+        do {
+            let client = try await requiredClient()
+            switch try await client.getTodayReleases() {
+            case let .ok(ok):
+                releases = try ok.body.json
+                releasesError = nil
+            case .unauthorized:
+                releasesError = "This iPhone was removed from the console. Pair it again."
+            case .serviceUnavailable:
+                releasesError = ConnectionError.homeOffline.localizedDescription
+            case let .undocumented(statusCode, _):
+                releasesError = ConnectionError.server(statusCode).localizedDescription
+            }
+        } catch {
+            releasesError = error.quaiMessage
+        }
+    }
+
+    /// The home's evening follows the iPhones' time zone: told when the app comes to the front.
+    func reportTimeZone() async {
+        let zone = TimeZone.current.identifier
+        await send { client in
+            _ = try await client.updateDevice(body: .json(.init(timeZone: zone)))
+        }
     }
 
     // MARK: Requests

@@ -25,8 +25,8 @@ struct Tonight {
                 if !done { playing.append(activity) }
             case .service:
                 if !done { incidents.append(activity) }
-            case .request:
-                // Requests have their own tile, read from Seerr.
+            case .request, .day:
+                // Requests and tonight's releases have their own tiles, read when the screen opens.
                 break
             case .media:
                 if done {
@@ -74,16 +74,22 @@ struct HomeView: View {
                     NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
                         .buttonStyle(.plain)
                 }
+                if let releases = connection.releases?.items, !releases.isEmpty {
+                    NavigationLink { ReleasesView() } label: { TonightReleasesTile(releases: releases) }
+                        .buttonStyle(.plain)
+                }
                 tiles(tonight)
             }
             .refreshable {
                 await connection.refresh()
                 await connection.loadFixes()
                 await connection.loadRequests()
+                await connection.loadReleases()
             }
             // The To fix list asks Radarr, Sonarr and Reclaimerr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
             .task { await connection.loadRequests() }
+            .task { await connection.loadReleases() }
             .task {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
                 while !Task.isCancelled {
@@ -139,6 +145,53 @@ struct HomeView: View {
         let tile = content()
         return Button { tab = .activity } label: { tile }
             .buttonStyle(.plain)
+    }
+}
+
+/// Today's releases: each with its time and where it stands. Hidden when nothing comes out today.
+private struct TonightReleasesTile: View {
+    let releases: [DayRelease]
+
+    private var here: Int { releases.filter { $0.status == .available }.count }
+
+    var body: some View {
+        Tile {
+            HStack {
+                TileLabel(title: "Tonight", systemImage: "calendar", color: Palette.releases)
+                Spacer(minLength: 8)
+                Text("\(here) of \(releases.count) here")
+                    .font(QuaiFont.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.tertiaryText)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(releases.prefix(4), id: \.id) { release in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(release.airTime)
+                            .font(QuaiFont.caption.monospacedDigit())
+                            .foregroundStyle(Palette.secondaryText)
+                            .frame(width: 44, alignment: .leading)
+                        Text(release.headline)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Palette.primaryText)
+                            .lineLimit(1)
+                        Spacer(minLength: 8)
+                        ReleaseStatusLabel(status: release.status)
+                    }
+                }
+                if releases.count > 4 {
+                    Text("and \(releases.count - 4) more")
+                        .font(QuaiFont.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .padding(.leading, 54)
+                }
+            }
+        }
+        .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens tonight's releases")
     }
 }
 

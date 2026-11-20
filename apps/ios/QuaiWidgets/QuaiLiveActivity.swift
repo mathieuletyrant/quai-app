@@ -30,6 +30,10 @@ struct Model {
     }
     var since: Date? { state.since.map { Date(timeIntervalSince1970: $0) } }
 
+    /// The lines of a step showing a list; empty otherwise.
+    var items: [QuaiActivityAttributes.Item] { state.items ?? [] }
+    var doneCount: Int { items.filter(\.isDone).count }
+
     /// "Downloading · ≈ 4 min · 11 MB/s", "Playing · TV Salon"
     var subtitle: String {
         var parts = [state.tone == .stalled ? "No progress for a while" : paused ? "Paused" : (step?.label ?? "")]
@@ -76,8 +80,12 @@ struct QuaiLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(spacing: 8) {
-                        Timeline(model: model)
-                        if model.attributes.steps.count > 1 { Stepper(model: model) }
+                        if model.items.isEmpty {
+                            Timeline(model: model)
+                        } else {
+                            ItemList(model: model, limit: 3)
+                        }
+                        if model.attributes.steps.count > 1 && model.items.isEmpty { Stepper(model: model) }
                         if !model.actions.isEmpty { ActionButtons(model: model) }
                     }
                     .padding(.horizontal, 4)
@@ -109,8 +117,12 @@ struct LockScreenBanner: View {
                 Spacer(minLength: 8)
                 Headline(model: model)
             }
-            Timeline(model: model)
-            if model.attributes.steps.count > 1 { Stepper(model: model) }
+            if model.items.isEmpty {
+                Timeline(model: model)
+            } else {
+                ItemList(model: model, limit: 4)
+            }
+            if model.attributes.steps.count > 1 && model.items.isEmpty { Stepper(model: model) }
             if !model.actions.isEmpty { ActionButtons(model: model) }
         }
         .foregroundStyle(.white)
@@ -144,6 +156,8 @@ struct Headline: View {
         Group {
             if model.state.tone == .done {
                 Image(systemName: "checkmark.circle.fill").font(.title2).foregroundStyle(Palette.ready)
+            } else if !model.items.isEmpty {
+                Text("\(model.doneCount)/\(model.items.count)")
             } else if model.paused {
                 Image(systemName: "pause.circle.fill").font(.title2)
             } else if let progress = model.state.progress {
@@ -168,6 +182,8 @@ struct CompactValue: View {
         Group {
             if let progress = model.state.progress, model.state.tone != .done {
                 Text(progress, format: .percent.precision(.fractionLength(0)))
+            } else if !model.items.isEmpty, model.state.tone != .done {
+                Text("\(model.doneCount)/\(model.items.count)")
             } else if let endsAt = model.endsAt, endsAt > .now, model.state.tone != .done {
                 Text(timerInterval: Date.now...endsAt, countsDown: true).frame(maxWidth: 52)
             } else {
@@ -219,6 +235,35 @@ struct ActionButtons: View {
     }
 }
 
+/// A step's lines (tonight's releases): a check once here, an arrow while on its way, the air
+/// time in this iPhone's own time zone.
+struct ItemList: View {
+    let model: Model
+    let limit: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(Array(model.items.prefix(limit).enumerated()), id: \.offset) { _, item in
+                HStack(spacing: 8) {
+                    Image(systemName: item.isDone ? "checkmark.circle.fill" : item.isActive ? "arrow.down.circle" : "circle")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(item.isDone ? Palette.ready : item.isActive ? model.tint : .white.opacity(0.45))
+                    Text(item.title)
+                        .font(.subheadline.weight(item.isDone ? .regular : .semibold))
+                        .foregroundStyle(.white.opacity(item.isDone ? 0.6 : 0.95))
+                        .lineLimit(1)
+                    Spacer(minLength: 6)
+                    if let at = item.at {
+                        Text(Date(timeIntervalSince1970: at), style: .time)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct ProgressBar: View {
     let value: Double
     let tint: Color
@@ -262,7 +307,8 @@ struct Ring: View {
 
     var body: some View {
         let steps = max(model.attributes.steps.count - 1, 1)
-        let value = model.state.tone == .done ? 1 : (model.state.progress ?? max(Double(model.state.step) / Double(steps), 0.08))
+        let listed = model.items.isEmpty ? nil : max(Double(model.doneCount) / Double(model.items.count), 0.08)
+        let value = model.state.tone == .done ? 1 : (model.state.progress ?? listed ?? max(Double(model.state.step) / Double(steps), 0.08))
         ZStack {
             Circle().stroke(Palette.track, lineWidth: lineWidth)
             Circle()

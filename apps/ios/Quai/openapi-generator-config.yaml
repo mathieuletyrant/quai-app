@@ -11,3 +11,4 @@ filter:
     - library
     - fixes
     - requests
+    - releases
