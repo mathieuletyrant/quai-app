@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/mathieuletyrant/quai-app/compare/v0.15.0...v0.16.0) (2026-11-20)
+
+
+### ✨ Features
+
+* **ios:** a live bar over the tabs, and a Home about what needs you ([#54](https://github.com/mathieuletyrant/quai-app/issues/54)) ([f185448](https://github.com/mathieuletyrant/quai-app/commit/f185448a5784a9517b55ee680b2fe85365679bb0))
+
 ## [0.15.0](https://github.com/mathieuletyrant/quai-app/compare/v0.14.0...v0.15.0) (2026-11-20)
 
 
