@@ -1,4 +1,4 @@
-import type { DiskSpace, LibraryItem } from "@quai/api"
+import type { DiskSpace, LibraryItem, SearchResult } from "@quai/api"
 import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { movieKey } from "../flows/Events.ts"
@@ -96,6 +96,39 @@ export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: movie.sizeOnDisk ?? 0,
     ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview })
+  }
+}
+
+// The search: `GET /api/v3/movie/lookup?term=`, Radarr asking TMDB. A movie already in Radarr comes
+// back with its Radarr id, and whether it has its file.
+
+const LookupMovie = Schema.Struct({
+  id: Schema.optional(Schema.Number),
+  title: Schema.String,
+  year: Schema.optional(Schema.Number),
+  tmdbId: Schema.Number,
+  hasFile: Schema.optional(Schema.Boolean),
+  overview: Schema.optional(Schema.String),
+  images: Schema.optional(Schema.Array(ArrImage))
+})
+export const RadarrLookup = Schema.Array(LookupMovie)
+
+export const movieLookupPath = (term: string) => `/api/v3/movie/lookup?term=${encodeURIComponent(term)}`
+
+/** A movie the search found: in Radarr (with or without its file) or not added. */
+export const movieResult = (movie: typeof LookupMovie.Type): SearchResult => {
+  const year = knownYear(movie.year)
+  const posterUrl = posterOf(movie.images)
+  const inRadarr = movie.id !== undefined && movie.id > 0
+  return {
+    id: movieKey(movie.tmdbId),
+    kind: "movie",
+    title: movie.title,
+    ...(year === undefined ? {} : { year }),
+    ...(posterUrl === undefined ? {} : { posterUrl }),
+    ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview }),
+    state: !inRadarr ? "notAdded" : movie.hasFile === true ? "available" : "wanted",
+    tmdbId: movie.tmdbId
   }
 }
 

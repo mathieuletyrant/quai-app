@@ -9,6 +9,7 @@ export const RequestsHandlers = HttpApiBuilder.group(QuaiApi, "requests", (handl
     const requests = yield* Requests
     return handlers
       .handle("list", () => requests.list)
+      .handle("create", ({ payload }) => requests.create(payload))
       .handle("approve", ({ params }) => requests.decide(params.id, "approve"))
       .handle("decline", ({ params }) => requests.decide(params.id, "decline"))
   }))

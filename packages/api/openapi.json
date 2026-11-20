@@ -1305,6 +1305,73 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "createRequest",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "RequestsNotConfigured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestsNotConfiguredEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewRequest"
+              }
+            }
+          },
+          "required": true
+        }
       }
     },
     "/api/requests/{id}/approve": {
@@ -1426,6 +1493,63 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SearchResults",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
                 }
               }
             }
@@ -3048,6 +3172,87 @@
           "available"
         ]
       },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryService"
+            }
+          },
+          "canRequest": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "items",
+          "unavailable",
+          "canRequest"
+        ],
+        "additionalProperties": false
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RequestKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SearchState"
+          },
+          "tmdbId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "SearchState": {
+        "type": "string",
+        "enum": [
+          "available",
+          "wanted",
+          "notAdded"
+        ]
+      },
+      "RequestKind": {
+        "type": "string",
+        "enum": [
+          "movie",
+          "series"
+        ]
+      },
       "RequestFailedEncoded": {
         "type": "object",
         "properties": {
@@ -3064,6 +3269,43 @@
         "required": [
           "_tag",
           "message"
+        ],
+        "additionalProperties": false
+      },
+      "RequestsNotConfiguredEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "RequestsNotConfigured"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "NewRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RequestKind"
+          },
+          "tmdbId": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "exclusiveMinimum": 0
+          }
+        },
+        "required": [
+          "kind",
+          "tmdbId"
         ],
         "additionalProperties": false
       },
@@ -3143,13 +3385,6 @@
           "is4k"
         ],
         "additionalProperties": false
-      },
-      "RequestKind": {
-        "type": "string",
-        "enum": [
-          "movie",
-          "series"
-        ]
       },
       "FixFailedEncoded": {
         "type": "object",
@@ -4223,6 +4458,9 @@
     },
     {
       "name": "requests"
+    },
+    {
+      "name": "search"
     },
     {
       "name": "releases"

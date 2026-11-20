@@ -42,3 +42,11 @@ Movie already removed), `GET /api/configuration/queue_cleaner` (`queue-cleaner.j
 `SlowRuleResponse`), `GET /api/jobs/QueueCleaner` (`job-queue-cleaner.json`, `JobInfo`) and
 `GET /api/events?eventType=QueueItemDeleted` (`events-removed.json`, `PaginatedResult<EventListItem>`,
 one of them a dry run). Their download ids are the Radarr and Sonarr queue fixtures'.
+
+The search: `radarr/movie-lookup.json` follows Radarr v5's `GET /api/v3/movie/lookup?term=dune`
+(Dune 2021 and 1984 not added, Dune: Part Two in the library with its file: the same Radarr id 12
+as `radarr/movies.json`), `sonarr/series-lookup.json` Sonarr v4's `GET /api/v3/series/lookup`
+(Dune: Prophecy with its TMDB id, Frank Herbert's Dune without one, neither added). Titles and
+TMDB/TheTVDB ids are the ones the real lookups answered on Nov 20, 2026; the other fields are
+trimmed. `seerr/request-created.json` is what Seerr answers to `POST /api/v1/request` from its
+owner (auto-approved: status 2, with the profile and root folder its settings chose).

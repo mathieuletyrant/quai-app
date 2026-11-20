@@ -97,8 +97,27 @@ describe("allowlist: Seerr", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve", body: { is4k: true } })).toBe(false)
   })
 
-  it("refuses every other write: creating, retrying or deleting a request, the settings, the users", () => {
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } })).toBe(false)
+  it("requests a title as Seerr's owner with its defaults: the title, and a series' seasons", () => {
+    const request = (body: unknown) => allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body })
+    expect(request({ mediaType: "movie", mediaId: 438631 })).toBe(true)
+    expect(request({ mediaType: "tv", mediaId: 95396, seasons: [1] })).toBe(true)
+    // Someone else's request, or Seerr's settings chosen by the Cloud.
+    expect(request({ mediaType: "movie", mediaId: 438631, userId: 2 })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 438631, profileId: 9 })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 438631, rootFolder: "/" })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 438631, serverId: 1 })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 438631, is4k: true })).toBe(false)
+    // A movie has no seasons; a series names them; anything else isn't a title.
+    expect(request({ mediaType: "movie", mediaId: 438631, seasons: [1] })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 95396 })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 95396, seasons: "all" })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 95396, seasons: [] })).toBe(false)
+    expect(request({ mediaType: "music", mediaId: 1 })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: -1 })).toBe(false)
+    expect(request(undefined)).toBe(false)
+  })
+
+  it("refuses every other write: retrying, editing or deleting a request, the settings, the users", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/retry" })).toBe(false)
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/pending" })).toBe(false)
     expect(allowed({ service: "seerr", method: "DELETE", path: "/api/v1/request/12" })).toBe(false)
@@ -108,6 +127,17 @@ describe("allowlist: Seerr", () => {
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/main" })).toBe(false)
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user" })).toBe(false)
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(false)
+  })
+})
+
+describe("allowlist: the search", () => {
+  const { allowed } = HomeProtocol
+  it("looks titles up in Radarr and Sonarr, without adding them", () => {
+    expect(allowed({ service: "radarr", method: "GET", path: "/api/v3/movie/lookup?term=dune" })).toBe(true)
+    expect(allowed({ service: "sonarr", method: "GET", path: "/api/v3/series/lookup?term=severance" })).toBe(true)
+    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/movie", body: { tmdbId: 438631 } })).toBe(false)
+    expect(allowed({ service: "sonarr", method: "POST", path: "/api/v3/series", body: { tvdbId: 371980 } })).toBe(false)
+    expect(allowed({ service: "radarr", method: "GET", path: "/api/v3/movie/lookup/tmdb" })).toBe(false)
   })
 })
 

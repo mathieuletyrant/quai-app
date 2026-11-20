@@ -80,10 +80,13 @@ export const recordedHome = (
 /**
  * The protocol a Home first allowed this call in: an older Home refuses it as not allowed
  * (`HomeProtocol.minProtocolVersion`). Protocol 2 added Reclaimerr and `DELETE`, protocol 3 Seerr
- * and the calendars, protocol 5 Cleanuparr and `PUT`, protocol 6 Prowlarr and the *arr health checks.
+ * and the calendars, protocol 5 Cleanuparr and `PUT`, protocol 6 Prowlarr and the *arr health checks,
+ * protocol 7 the *arr lookups and requesting a title in Seerr.
  */
 const allowedSince = (call: Pick<Call, "service" | "method" | "path">): number =>
-  call.service === "prowlarr" || /\/health$/.test(call.path.split("?")[0]!)
+  /\/lookup$/.test(call.path.split("?")[0]!) || (call.service === "seerr" && call.method === "POST" && call.path === "/api/v1/request")
+    ? 7
+    : call.service === "prowlarr" || /\/health$/.test(call.path.split("?")[0]!)
     ? 6
     : call.service === "cleanuparr" || call.method === "PUT"
     ? 5

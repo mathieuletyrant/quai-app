@@ -12,7 +12,7 @@ import { JournalEntry, JournalQuery } from "./Journal.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 6
+export const protocolVersion = 7
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -23,7 +23,8 @@ export const protocolVersion = 6
  * the Home checks against what the service holds (`AllowRule.against`); an older Home doesn't list
  * Cleanuparr, so nothing asks it for them. Protocol 6 added Prowlarr and the *arr health checks
  * (`/api/v3/health`), for the alerts: an older Home refuses the health watch, so that alert stays
- * quiet, and doesn't list Prowlarr.
+ * quiet, and doesn't list Prowlarr. Protocol 7 added the search (the *arr lookups) and requesting
+ * a title in Seerr: an older Home refuses them, so the search finds nothing and nothing is requested.
  */
 export const minProtocolVersion = 1
 
@@ -32,6 +33,9 @@ export const journalProtocolVersion = 4
 
 /** The first protocol whose Home allows the *arr health checks and Prowlarr. */
 export const arrHealthProtocolVersion = 6
+
+/** The first protocol whose Home allows the *arr lookups and requesting a title in Seerr. */
+export const searchProtocolVersion = 7
 
 /** The services a Home can reach. */
 export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"])
@@ -338,6 +342,18 @@ export const ignoresOneMoreDownload = (current: unknown, body: unknown): boolean
     sameJson({ ...current, ignoredDownloads: null }, { ...body, ignoredDownloads: null })
 }
 
+/**
+ * A new Seerr request, as the API key's user (Seerr's owner) with Seerr's own defaults: the title
+ * and, for a series, its seasons. Never `userId` (someone else's request), `profileId`,
+ * `rootFolder`, `serverId`, `languageProfileId` or `is4k`: Seerr's settings decide those.
+ */
+export const isNewSeerrRequest = (body: unknown): boolean =>
+  isRecord(body) && (
+    body.mediaType === "movie"
+      ? shape({ mediaType: isString, mediaId: isId })(body)
+      : body.mediaType === "tv" && shape({ mediaType: isString, mediaId: isId, seasons: (value) => isIds(value) && (value as Array<number>).length > 0 })(body)
+  )
+
 /** Grabbing one release from the last search: its guid and indexer, nothing else. */
 const grabBody = shape({ guid: isString, indexerId: isId })
 
@@ -379,6 +395,7 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
   radarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/movie$/ },
+    { method: "GET", path: /^\/api\/v3\/movie\/lookup$/ },
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/health$/ },
@@ -387,6 +404,7 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
   sonarr: [
     { method: "GET", path: /^\/api\/v3\/system\/status$/ },
     { method: "GET", path: /^\/api\/v3\/series$/ },
+    { method: "GET", path: /^\/api\/v3\/series\/lookup$/ },
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
@@ -415,12 +433,14 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v1\/candidates$/ },
     { method: "POST", path: /^\/api\/v1\/candidates\/\d+\/protect$/, body: shape({}, { reason: isString }) }
   ],
-  // Seerr (Jellyseerr, Overseerr): its status, the requests and the titles they ask for, and
-  // approving or declining one request. Never creating, editing or deleting a request, and never
-  // its settings: Quai Home sets up Seerr's webhook itself, at start, outside this list.
+  // Seerr (Jellyseerr, Overseerr): its status, the requests and the titles they ask for,
+  // requesting a title as Seerr's owner with its defaults, and approving or declining one request.
+  // Never a request for someone else or with chosen settings, never editing or deleting one, and
+  // never its settings: Quai Home sets up Seerr's webhook itself, at start, outside this list.
   seerr: [
     { method: "GET", path: /^\/api\/v1\/status$/ },
     { method: "GET", path: /^\/api\/v1\/request$/ },
+    { method: "POST", path: /^\/api\/v1\/request$/, body: isNewSeerrRequest },
     { method: "GET", path: /^\/api\/v1\/request\/\d+$/ },
     { method: "POST", path: /^\/api\/v1\/request\/\d+\/(approve|decline)$/ },
     { method: "GET", path: /^\/api\/v1\/movie\/\d+$/ },

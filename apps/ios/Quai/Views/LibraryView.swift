@@ -61,6 +61,7 @@ struct LibraryView: View {
             Screen {
                 TabHeader(eyebrow: summary, title: "Library")
             } content: {
+                SearchEntry()
                 Picker("Show", selection: $scope) {
                     ForEach(LibraryScope.allCases) { Text($0.rawValue).tag($0) }
                 }

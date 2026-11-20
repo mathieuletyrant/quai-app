@@ -1,4 +1,4 @@
-import { type HomeOffline, type MediaRequest, type MediaRequests, type RequestFailed } from "@quai/api"
+import { type HomeOffline, type MediaRequest, type MediaRequests, type NewRequest, type RequestFailed, RequestsNotConfigured } from "@quai/api"
 import { Context, Effect, Layer, Option } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { HomeReads } from "../home/HomeReads.ts"
@@ -17,6 +17,8 @@ type RequestError = HomeOffline | HttpApiError.NotFound | RequestFailed
 export class Requests extends Context.Service<Requests, {
   readonly list: Effect.Effect<MediaRequests, HomeOffline>
   readonly decide: (id: string, decision: "approve" | "decline") => Effect.Effect<void, RequestError>
+  /** Asks Seerr for a title; then has the Hub read the requests again, like a decision. */
+  readonly create: (request: NewRequest) => Effect.Effect<void, HomeOffline | RequestFailed | RequestsNotConfigured>
 }>()("quai/Requests") {
   static readonly layer = Layer.effect(
     Requests,
@@ -59,6 +61,18 @@ export class Requests extends Context.Service<Requests, {
             yield* journal.outcome(
               { level: "info", source: "seerr", kind: `request.${decision}`, subject: requestKey(id), ...named(id, decision) },
               seerr.decide(id, decision).pipe(Effect.catchTag("NotPending", () => Effect.fail(new HttpApiError.NotFound())))
+            )
+            yield* hub.refresh("seerr")
+          }),
+
+        create: ({ kind, tmdbId }) =>
+          Effect.gen(function*() {
+            if (!(yield* reaches)) return yield* Effect.fail(new RequestsNotConfigured({ message: "Quai Home has no Seerr: nothing can be requested." }))
+            const title = (yield* seerr.titleOf(kind, tmdbId))?.title
+            const named = title === undefined ? `TMDB ${tmdbId}` : title
+            yield* journal.outcome(
+              { level: "info", source: "seerr", kind: "request.created", text: `Requested ${named} in Seerr`, ...(title === undefined ? {} : { title }) },
+              seerr.request(kind, tmdbId)
             )
             yield* hub.refresh("seerr")
           })

@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Dune: Prophecy",
+    "sortTitle": "dune prophecy",
+    "status": "continuing",
+    "ended": false,
+    "overview": "Ten thousand years before the ascension of Paul Atreides, two Harkonnen sisters combat forces that threaten the future of humankind, and establish the fabled sect that will become known as the Bene Gesserit.",
+    "network": "HBO",
+    "images": [],
+    "seasons": [{ "seasonNumber": 1, "monitored": false }],
+    "year": 2024,
+    "tvdbId": 367118,
+    "tmdbId": 90228,
+    "imdbId": "tt10466872",
+    "titleSlug": "dune-prophecy",
+    "folder": "Dune - Prophecy",
+    "monitored": false,
+    "added": "0001-01-01T00:00:00Z"
+  },
+  {
+    "title": "Frank Herbert's Dune",
+    "sortTitle": "frank herberts dune",
+    "status": "ended",
+    "ended": true,
+    "overview": "The year is 10,191. Paul Atreides follows his family to the desert planet Arrakis, the only source of the spice.",
+    "network": "Sci-Fi",
+    "images": [],
+    "seasons": [{ "seasonNumber": 1, "monitored": false }],
+    "year": 2000,
+    "tvdbId": 79054,
+    "imdbId": "tt0142032",
+    "titleSlug": "frank-herberts-dune",
+    "folder": "Frank Herbert's Dune",
+    "monitored": false,
+    "added": "0001-01-01T00:00:00Z"
+  }
+]

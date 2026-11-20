@@ -56,6 +56,33 @@ final class ScreenshotTests: XCTestCase {
         screenshot("06-live-sheet")
     }
 
+    /// Search and request: "dune" from the Library, the results, then Dune (2021) requested on Seerr.
+    func testSearch() throws {
+        XCTAssertTrue(tab("Home").waitForExistence(timeout: 20), "The app didn't pair with the preview server")
+        tab("Library").tap()
+        let entry = app.descendants(matching: .any)["searchEntry"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "No search in the Library")
+        entry.tap()
+        let field = app.textFields["searchField"]
+        XCTAssertTrue(field.waitForExistence(timeout: 10), "No search field")
+        field.tap()
+        // The return key searches and puts the keyboard away.
+        field.typeText("dune\n")
+        let request = app.buttons["request-movie:tmdb:438631"]
+        guard request.waitForExistence(timeout: 20) else {
+            screenshot("07-search-no-results")
+            XCTFail("No \"Request on Seerr\" for Dune (2021): the search didn't answer")
+            return
+        }
+        settle()
+        screenshot("07-search-results")
+
+        request.tap()
+        XCTAssertTrue(app.staticTexts["Requested on Seerr"].waitForExistence(timeout: 15), "Dune wasn't requested")
+        settle()
+        screenshot("08-search-requested")
+    }
+
     // MARK: Helpers
 
     private func tab(_ name: String) -> XCUIElement {

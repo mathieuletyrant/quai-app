@@ -197,6 +197,25 @@ final class Connection {
         }
     }
 
+    // MARK: Search
+
+    /// Movies through Radarr, series through Sonarr, each with where it stands in the home.
+    func search(_ term: String) async throws -> Components.Schemas.SearchResults {
+        try await requiredClient().search(query: .init(q: term)).ok.body.json
+    }
+
+    /// Requests a title in Seerr, as its owner: Radarr or Sonarr take it from there, and the
+    /// library and the requests are read again.
+    func request(_ result: Components.Schemas.SearchResult) async throws {
+        guard let tmdbId = result.tmdbId else { return }
+        let body = Components.Schemas.NewRequest(kind: result.kind, tmdbId: tmdbId)
+        _ = try await requiredClient().createRequest(body: .json(body)).noContent
+        Task {
+            await loadLibrary()
+            await loadRequests()
+        }
+    }
+
     // MARK: To fix
 
     func loadFixes() async {
