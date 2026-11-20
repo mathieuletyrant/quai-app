@@ -2,6 +2,10 @@ name: ci
 
 on:
   pull_request:
+  # An agent's branch gets the iOS build and screenshots before any PR.
+  push:
+    branches: ["claude/**"]
+  workflow_dispatch:
 
 jobs:
   typescript:
@@ -38,10 +42,22 @@ jobs:
 
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
+      pushes: ${{ steps.filter.outputs.pushes }}
+      pr: ${{ steps.pr.outputs.open }}
     steps:
       - uses: actions/checkout@v4
+      # A push to a branch with an open PR: its pull_request run does the macOS work.
+      - name: Open PR of this branch
+        id: pr
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "open=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length > 0')" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -49,15 +65,91 @@ jobs:
             ios:
               - 'apps/ios/**'
               - 'packages/api/**'
+              - 'apps/cloud/test/preview.ts'
+              - 'apps/cloud/test/fixtures/**'
+              - '.github/scripts/ios-screenshots.sh'
+              - '.github/scripts/pr-comment.sh'
+              - '.github/workflows/ci.yml'
+            pushes:
+              - 'apps/cloud/src/flows/Activities.ts'
+              - 'apps/cloud/src/flows/Engine.ts'
+              - 'apps/cloud/src/flows/Targeting.ts'
+              - 'apps/cloud/src/push/Notifier.ts'
+              - 'apps/cloud/src/integrations/Hub.ts'
+              - '.claude/skills/verify/live-activity-pushes/**'
+              - '.github/scripts/pr-comment.sh'
+              - '.github/workflows/ci.yml'
 
-  # macOS minutes are billed: only when the app or the contract changes.
-  ios:
+  # The verify skill's live-activity-pushes scenario: a TLA+ model of the order pushes reach the iPhone.
+  live-activity-pushes:
     needs: changes
-    if: needs.changes.outputs.ios == 'true'
-    runs-on: macos-26
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (needs.changes.outputs.pushes == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - run: brew install xcodegen
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/quai
+          key: tla2tools-${{ hashFiles('.claude/skills/verify/live-activity-pushes/verify.sh') }}
+      - name: Model-check
+        id: model
+        run: |
+          set +e
+          .claude/skills/verify/live-activity-pushes/verify.sh > model.txt 2>&1
+          code=$?
+          cat model.txt
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+      - name: Post the result
+        if: always() && steps.model.outputs.code != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CODE: ${{ steps.model.outputs.code }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          case "$CODE" in
+            0) verdict="✅ every result as expected: the code as it is keeps every invariant, the design before the fix still fails (the check can fail)." ;;
+            1) verdict="❌ a result changed (marked \`!!\`): read the counterexample below." ;;
+            *) verdict="⚠️ TLC didn't run." ;;
+          esac
+          {
+            echo "### 🔁 Live Activity pushes, model-checked (TLA+)"
+            echo
+            echo "$verdict at ${HEAD_SHA:0:7} · [run](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}) · [what it proves](https://github.com/${GITHUB_REPOSITORY}/blob/${HEAD_SHA}/.claude/skills/verify/live-activity-pushes/README.md)"
+            echo
+            echo '```'
+            grep -v "^Picked up" model.txt
+            echo '```'
+          } > model.md
+          cat model.md >> "$GITHUB_STEP_SUMMARY"
+          .github/scripts/pr-comment.sh "<!-- quai-live-activity-pushes -->" model.md ${{ github.event.pull_request.number }}
+
+  # macOS minutes are billed: only when the app, the contract or the preview changes.
+  ios:
+    needs: changes
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
+    runs-on: macos-26
+    # A newer commit of the same branch replaces a run still going.
+    concurrency:
+      group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+      cancel-in-progress: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen && (command -v xcbeautify || brew install xcbeautify)
       - working-directory: apps/ios
         run: xcodegen generate
       # Runner images don't always ship the same simulators (some had none): use any available
@@ -77,8 +169,57 @@ jobs:
             udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
-      - working-directory: apps/ios
+      # The compile errors first, as annotations on the files.
+      - name: Build
+        working-directory: apps/ios
         run: >
-          xcodebuild test -project Quai.xcodeproj -scheme Quai
-          -destination 'id=${{ steps.simulator.outputs.udid }}'
+          set -o pipefail &&
+          xcodebuild build-for-testing -project Quai.xcodeproj -scheme "Quai Screenshots"
+          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
           -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+          | xcbeautify --renderer github-actions
+      - name: Unit tests
+        working-directory: apps/ios
+        run: >
+          set -o pipefail &&
+          xcodebuild test -project Quai.xcodeproj -scheme Quai
+          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
+          -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+          | xcbeautify --renderer github-actions
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start the preview server
+        run: |
+          pnpm --filter @quai/cloud preview > preview.log 2>&1 &
+          for i in $(seq 60); do curl -sf http://127.0.0.1:8787/api/health > /dev/null && exit 0; sleep 1; done
+          cat preview.log; exit 1
+      - name: Screenshots
+        working-directory: apps/ios
+        env:
+          TEST_RUNNER_QUAI_PREVIEW_URL: http://127.0.0.1:8787
+          TEST_RUNNER_QUAI_SCREENSHOTS_DIR: ${{ github.workspace }}/screenshots
+        run: >
+          set -o pipefail &&
+          xcodebuild test-without-building -project Quai.xcodeproj -scheme "Quai Screenshots"
+          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
+          -resultBundlePath ../../screenshots.xcresult
+          | xcbeautify --renderer github-actions
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-screenshots
+          path: |
+            screenshots
+            preview.log
+          if-no-files-found: ignore
+      # A fork's PR has a read-only token: its screenshots stay in the artifact.
+      - name: Post the screenshots
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: .github/scripts/ios-screenshots.sh screenshots ${{ github.event.pull_request.number }}

@@ -100,6 +100,13 @@ targets:
     sources: [QuaiTests]
     dependencies:
       - target: Quai
+  # Screenshots of the app paired to the preview server: see QuaiUITests/ScreenshotTests.swift.
+  QuaiUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [QuaiUITests]
+    dependencies:
+      - target: Quai
 schemes:
   Quai:
     build:
@@ -113,3 +120,8 @@ schemes:
     run:
       environmentVariables:
         QUAI_DEMO_ACTIVITY: "download"
+  Quai Screenshots:
+    build:
+      targets: { Quai: all }
+    test:
+      targets: [QuaiUITests]
