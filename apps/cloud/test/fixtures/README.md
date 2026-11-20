@@ -19,3 +19,10 @@ The To fix reads follow Radarr v5 and Sonarr v4's `GET /api/v3/queue` (with `inc
 `reclaimerr/candidates.json` follows Reclaimerr 0.6's `GET /api/v1/candidates`
 (`CandidateListResponse`, backend/models/api_v1/candidates.py). Hashes, guids and magnets are
 masked.
+
+`seerr/` follows Jellyseerr 2's API (`overseerr-api.yml`): `GET /api/v1/request?filter=pending`
+(`requests-pending.json`, a movie and a series asked by Julie), `GET /api/v1/request/{id}`
+(`request-approved.json`), `GET /api/v1/movie/{id}` and `GET /api/v1/tv/{id}` (`movie.json`,
+`tv.json`, trimmed). `webhook-*.json` are what Seerr posts with Quai Home's payload template
+(apps/home/src/SeerrWebhook.ts): pending, approved, declined, an auto-approved request (it must
+start nothing) and the test notification.

@@ -10,10 +10,11 @@ import { ConsoleFixesHandlers, FixesHandlers } from "./http/FixesHandlers.ts"
 import { FlowsHandlers } from "./http/FlowsHandlers.ts"
 import { LibraryHandlers } from "./http/LibraryHandlers.ts"
 import { PushHandlers } from "./http/PushHandlers.ts"
+import { ConsoleRequestsHandlers, RequestsHandlers } from "./http/RequestsHandlers.ts"
 import { SystemHandlers } from "./http/SystemHandlers.ts"
 
-/** Every route of the contract, with its handlers. Needs the home link, the stores, the engine, the library, the To fix list and the public access. */
+/** Every route of the contract, with its handlers. Needs the home link, the stores, the engine, the library, the To fix list, the requests and the public access. */
 export const ApiLive = HttpApiBuilder.layer(QuaiApi, { openapiPath: "/api/openapi.json" }).pipe(
-  Layer.provide([SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers]),
+  Layer.provide([SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, RequestsHandlers, ConsoleRequestsHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers]),
   Layer.provide([DeviceAuthLive, HomeRequiredLive])
 )

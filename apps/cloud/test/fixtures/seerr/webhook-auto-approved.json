@@ -1,0 +1,14 @@
+{
+  "notification_type": "MEDIA_AUTO_APPROVED",
+  "subject": "The Wild Robot (2024)",
+  "image": "https://image.tmdb.org/t/p/w600_and_h900_bestv2/1ffZAucqfvQu36x1C49XfOdjuOG.jpg",
+  "media": {
+    "media_type": "movie",
+    "tmdbId": "1184918",
+    "status": "PROCESSING"
+  },
+  "request": {
+    "request_id": "14",
+    "requestedBy_username": "Mathieu"
+  }
+}

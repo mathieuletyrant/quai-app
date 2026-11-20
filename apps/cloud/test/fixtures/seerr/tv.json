@@ -1,0 +1,55 @@
+{
+  "createdBy": [],
+  "episodeRunTime": [
+    55
+  ],
+  "firstAirDate": "2022-02-17",
+  "genres": [
+    {
+      "id": 18,
+      "name": "Drama"
+    }
+  ],
+  "homepage": "https://tv.apple.com/show/severance",
+  "id": 95396,
+  "inProduction": true,
+  "languages": [
+    "en"
+  ],
+  "lastAirDate": "2025-03-20",
+  "name": "Severance",
+  "networks": [
+    {
+      "id": 2552,
+      "name": "Apple TV+"
+    }
+  ],
+  "numberOfEpisodes": 19,
+  "numberOfSeasons": 2,
+  "originalLanguage": "en",
+  "originalName": "Severance",
+  "overview": "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.",
+  "popularity": 201.2,
+  "posterPath": "/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg",
+  "seasons": [],
+  "status": "Returning Series",
+  "tagline": "",
+  "type": "Scripted",
+  "voteAverage": 8.4,
+  "voteCount": 2100,
+  "credits": {
+    "cast": [],
+    "crew": []
+  },
+  "externalIds": {
+    "tvdbId": 371980
+  },
+  "keywords": [],
+  "mediaInfo": {
+    "id": 32,
+    "tmdbId": 95396,
+    "status": 2,
+    "requests": []
+  },
+  "watchProviders": []
+}

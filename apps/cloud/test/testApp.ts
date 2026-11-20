@@ -12,6 +12,9 @@ import { ConsoleFixesHandlers, FixesHandlers } from "../src/http/FixesHandlers.t
 import { FlowsHandlers } from "../src/http/FlowsHandlers.ts"
 import { LibraryHandlers } from "../src/http/LibraryHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
+import { ConsoleRequestsHandlers, RequestsHandlers } from "../src/http/RequestsHandlers.ts"
+import { Requests } from "../src/requests/Requests.ts"
+import { SeerrTitles } from "../src/integrations/seerr.ts"
 import { SystemHandlers } from "../src/http/SystemHandlers.ts"
 import { Apns } from "../src/push/Apns.ts"
 import { Fixes } from "../src/fixes/Fixes.ts"
@@ -21,9 +24,9 @@ import { ServerInfo } from "../src/Version.ts"
 import { cloudLive, makeFakeHome } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers).pipe(
+export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, ConsoleFixesHandlers, RequestsHandlers, ConsoleRequestsHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
-  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer)),
+  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer, Requests.layer.pipe(Layer.provide(SeerrTitles.layer)))),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
   Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
   Layer.provideMerge(cloudLive),
