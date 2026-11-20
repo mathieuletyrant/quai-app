@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
 import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
-import type { Push } from "../../src/flows/Engine.ts"
+import { emptyState, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
 import { download, dune, engineWith, ev, incident, playback } from "./helpers.ts"
 
 const tags = (pushes: ReadonlyArray<Push>) => pushes.map((p) => `${p._tag}:${p.activity.stepIndex}`)
@@ -156,4 +156,22 @@ describe("incident flow", () => {
       expect(tags(yield* engine.handle({ type: "service.down", subject: radarr, values: { since: 1 } }))).toEqual(["Start:0"])
       expect(tags(yield* engine.handle({ type: "service.up", subject: radarr }))).toEqual(["End:1"])
     }), [incident]))
+})
+
+describe("a flow edited under a running activity", () => {
+  // The download flow with only its first two steps: an activity on "imported" (2) lost its step.
+  const shortened: Flow = { ...download, steps: download.steps.slice(0, 2) }
+  const onImported = onEvent(emptyState, [download], ev.imported(), 0).state
+
+  it("a tick ends it and forgets it, like a deleted flow", () => {
+    const { pushes, state } = onTick(onImported, [shortened], 1_000)
+    expect(tags(pushes)).toEqual(["End:2"])
+    expect(state.activities.size).toBe(0)
+  })
+
+  it("a data event ends it and forgets it", () => {
+    const { pushes, state } = onEvent(onImported, [shortened], ev.progress(0.5), 1_000)
+    expect(tags(pushes)).toEqual(["End:2"])
+    expect(state.activities.size).toBe(0)
+  })
 })
