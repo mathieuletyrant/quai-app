@@ -6,7 +6,7 @@ import { Icon, type IconName } from "./icons.tsx"
 export const errorText = (e: unknown) => typeof e === "object" && e !== null && "message" in e ? String(e.message) : String(e)
 
 const calloutTones = {
-  neutral: "border-line bg-white/[0.03] text-muted",
+  neutral: "border-line bg-white/3 text-muted",
   warn: "border-warn/25 bg-warn-soft/60 text-warn-text",
   danger: "border-danger/30 bg-danger-soft/60 text-danger-text"
 } as const

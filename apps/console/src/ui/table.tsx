@@ -61,7 +61,7 @@ function SkeletonRow({ columns, actions }: { columns: number; actions: boolean }
 
 function TableRow<T>({ row, columns, actions }: { row: T; columns: ReadonlyArray<Column<T>>; actions: ((row: T) => ReactNode) | undefined }) {
   return (
-    <tr className="transition-colors hover:bg-white/[0.025]">
+    <tr className="transition-colors hover:bg-white/2.5">
       {columns.map((c, j) => <td key={j} className={cx("h-14 px-5", c.align === "right" && "text-right", c.className)}>{c.cell(row)}</td>)}
       {actions && <td className="h-14 w-px px-3 text-right whitespace-nowrap">{actions(row)}</td>}
     </tr>
