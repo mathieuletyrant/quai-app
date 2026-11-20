@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.13.0](https://github.com/mathieuletyrant/quai-app/compare/v0.12.3...v0.13.0) (2026-11-20)
+
+
+### ✨ Features
+
+* Journal in the console, kept by Quai Home; phone menu ([#46](https://github.com/mathieuletyrant/quai-app/issues/46)) ([926e46b](https://github.com/mathieuletyrant/quai-app/commit/926e46b4250f5158e1cbe335c2af42d7782b6a8a))
+* show the day's releases as "Today" ([#45](https://github.com/mathieuletyrant/quai-app/issues/45)) ([e5e4112](https://github.com/mathieuletyrant/quai-app/commit/e5e41121765700fcfa9f22353cb3e853f5fc19cd))
+* the app to live with Quai, the console to set it up ([#48](https://github.com/mathieuletyrant/quai-app/issues/48)) ([6fdd558](https://github.com/mathieuletyrant/quai-app/commit/6fdd558e772bd9a6588302a83c0f8d6d87977a3e))
+
 ## [0.12.3](https://github.com/mathieuletyrant/quai-app/compare/v0.12.2...v0.12.3) (2026-11-20)
 
 
