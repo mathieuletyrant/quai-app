@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/mathieuletyrant/quai-app/compare/v0.16.0...v0.16.1) (2026-11-20)
+
+
+### 🐛 Fixes
+
+* **ios:** Play/Pause shows at once in the app, and playback moves on its own ([#56](https://github.com/mathieuletyrant/quai-app/issues/56)) ([c223705](https://github.com/mathieuletyrant/quai-app/commit/c2237050156af274b8ddacdbf0153eea7ae93c95))
+
 ## [0.16.0](https://github.com/mathieuletyrant/quai-app/compare/v0.15.0...v0.16.0) (2026-11-20)
 
 
