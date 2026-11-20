@@ -14,8 +14,11 @@ export interface Read<A> {
 }
 
 type Reads = Readonly<Record<string, Read<unknown> | null>>
-type Values<R extends Reads> = { readonly [K in keyof R]: R[K] extends Read<infer A> ? Option.Option<A> : Option.Option<never> }
-type ServiceOf<R extends Reads> = { [K in keyof R]: R[K] extends Read<unknown> ? R[K]["service"] : never }[keyof R]
+// Distributive over `Read | null`: a read that may be skipped is an Option of its value all the same.
+type ValueOf<T> = T extends Read<infer A> ? Option.Option<A> : Option.Option<never>
+type ServiceOfRead<T> = T extends Read<unknown> ? T["service"] : never
+type Values<R extends Reads> = { readonly [K in keyof R]: ValueOf<R[K]> }
+type ServiceOf<R extends Reads> = { [K in keyof R]: ServiceOfRead<R[K]> }[keyof R]
 
 const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
 

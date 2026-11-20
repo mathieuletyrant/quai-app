@@ -1,19 +1,17 @@
-import { DeviceAuth, HomeOffline, QuaiApi } from "@quai/api"
+import { DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Exit, Layer, Option, Schema } from "effect"
+import { Effect, Exit, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { noSourceAfterMs } from "../src/fixes/Detected.ts"
-import { Fixes } from "../src/fixes/Fixes.ts"
-import { HomeDocuments, HomeError, HomeLink, offlineMessage } from "../src/home/HomeLink.ts"
 import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
 import { blockedMovie, moviesWithoutSource, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
 import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
 import { blockedEpisodes, episodesWithoutSource, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHome, type FakeHomeOptions, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
-import { TestApp } from "./testApp.ts"
+import { TestApp, testAppDroppingOn } from "./testApp.ts"
 
 /** The fixtures' "now": Thursday Nov 19, 2026, noon UTC. */
 const now = Date.parse("2026-11-19T12:00:00Z")
@@ -255,27 +253,9 @@ describe("GET /api/fixes", () => {
 
   it.effect("Quai Home going offline while Radarr's library is read fails the list", () =>
     Effect.gen(function*() {
-      yield* TestClock.setTime(now)
-      const answer = recorded()
-      // Only that read finds Quai Home gone: the rest of the list (and the documents) still answers.
-      const link = Layer.succeed(HomeLink, HomeLink.of({
-        home: Effect.succeed(Option.some({ homeId: "home", services })),
-        call: (request) =>
-          request.path === "/api/v3/movie"
-            ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
-            : Effect.sync(() => {
-              const a = answer({ id: "call", ...request } as Parameters<typeof answer>[0])
-              return "json" in a ? { status: a.status ?? 200, body: JSON.stringify(a.json) } : { status: 404, body: "" }
-            }),
-        setWatches: () => Effect.void,
-        documents: undefined as never,
-        nextEvent: Effect.never,
-        serve: () => Effect.void
-      }))
-      const fixes = yield* Effect.provide(Fixes, Fixes.layer.pipe(Layer.provide([link, HomeDocuments.memory])))
-      const exit = yield* Effect.exit(fixes.list)
-      expect(exit).toStrictEqual(Exit.fail(new HomeOffline({ message: offlineMessage })))
-    }))
+      const { api } = yield* setUp()
+      expect((yield* Effect.flip(api.list()))._tag).toBe("HomeOffline")
+    }).pipe(Effect.provide(testAppDroppingOn("radarr GET /api/v3/movie"))))
 
   it.effect("a title without a source shows up 2 hours after it was added", () =>
     Effect.gen(function*() {
