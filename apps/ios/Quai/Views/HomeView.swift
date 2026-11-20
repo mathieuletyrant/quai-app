@@ -79,17 +79,33 @@ struct HomeView: View {
                         .buttonStyle(.plain)
                 }
                 tiles(today)
+                if !connection.journal.isEmpty {
+                    Button { tab = .activity } label: { RecentTile(entries: connection.journal) }
+                        .buttonStyle(.plain)
+                }
+                if let disk = connection.library?.disk {
+                    Button { tab = .library } label: { StorageTile(reading: DiskReading(disk)) }
+                        .buttonStyle(.plain)
+                }
             }
             .refreshable {
                 await connection.refresh()
                 await connection.loadFixes()
                 await connection.loadRequests()
                 await connection.loadReleases()
+                await connection.loadJournal()
+                await connection.loadLibrary()
             }
             // The To fix list asks Radarr, Sonarr and Reclaimerr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
             .task { await connection.loadRequests() }
             .task { await connection.loadReleases() }
+            .task { await connection.loadJournal() }
+            // The disk comes with the library; the Library tab keeps it current once open.
+            .task {
+                guard connection.library == nil else { return }
+                await connection.loadLibrary()
+            }
             .task {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
                 while !Task.isCancelled {

@@ -36,7 +36,7 @@ You choose which ones run, and what each step shows, in a small flow editor in t
 The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the journal of what Quai did.
 
 **The app**
-- 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you.
+- 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you, what happened lately and how full the disk is.
 - 🎞️ **Library**: your movies and series with their posters, and what's still missing.
 - 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
   one), and what Reclaimerr is about to delete (keep it).

@@ -30,8 +30,13 @@ struct ActivityListView: View {
                         ActivityRow(activity: activity)
                     }
                 }
+                JournalSection()
             }
-            .refreshable { await connection.refresh() }
+            .refreshable {
+                await connection.refresh()
+                await connection.loadJournal()
+            }
+            .task { await connection.loadJournal() }
             .task {
                 // Light polling while the screen is open; the Live Activities themselves are pushed.
                 while !Task.isCancelled {
@@ -104,6 +109,41 @@ private struct StepTrack: View {
                 }
             }
             .accessibilityHidden(true)
+        }
+    }
+}
+
+/// What Quai saw happen, newest first, a page at a time: the history behind the Home's Recent tile.
+private struct JournalSection: View {
+    @Environment(Connection.self) private var connection
+    @State private var loadingOlder = false
+
+    var body: some View {
+        if let error = connection.journalError {
+            MessageTile(title: "Can't load the history", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
+        }
+        if !connection.journal.isEmpty {
+            SectionHeader(title: "History")
+                .padding(.top, 8)
+            Card(spacing: 12) {
+                ForEach(connection.journal, id: \.id) { entry in
+                    JournalRow(entry: entry)
+                }
+                if connection.journalHasMore {
+                    Button {
+                        Task {
+                            loadingOlder = true
+                            await connection.loadOlderJournal()
+                            loadingOlder = false
+                        }
+                    } label: {
+                        Text(loadingOlder ? "Loading…" : "Show older")
+                            .font(QuaiFont.bodyEmphasized)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(loadingOlder)
+                }
+            }
         }
     }
 }

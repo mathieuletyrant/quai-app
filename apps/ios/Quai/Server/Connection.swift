@@ -55,6 +55,10 @@ final class Connection {
     /// Today's releases, once loaded.
     private(set) var releases: Components.Schemas.DayReleases?
     private(set) var releasesError: String?
+    /// The journal, newest first: the first page, then the older ones the Activity tab asked for.
+    private(set) var journal: [Components.Schemas.JournalEntry] = []
+    private(set) var journalHasMore = false
+    private(set) var journalError: String?
     private var session: ServerSession?
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
@@ -128,6 +132,9 @@ final class Connection {
         requestsError = nil
         releases = nil
         releasesError = nil
+        journal = []
+        journalHasMore = false
+        journalError = nil
     }
 
     // MARK: Preferences
@@ -243,6 +250,35 @@ final class Connection {
             releasesError = error.quaiMessage
         }
     }
+
+    // MARK: Journal
+
+    /// The newest page of the journal: what happened to the titles, the requests and the server.
+    func loadJournal() async {
+        do {
+            let page = try await requiredClient().listJournal(query: .init(limit: "\(Self.journalPageSize)")).ok.body.json
+            journal = page.entries
+            journalHasMore = page.more
+            journalError = nil
+        } catch {
+            journalError = error.quaiMessage
+        }
+    }
+
+    /// The next page, older than what's loaded.
+    func loadOlderJournal() async {
+        guard journalHasMore, let oldest = journal.last else { return }
+        do {
+            let page = try await requiredClient().listJournal(query: .init(before: oldest.id, limit: "\(Self.journalPageSize)")).ok.body.json
+            journal += page.entries
+            journalHasMore = page.more
+            journalError = nil
+        } catch {
+            journalError = error.quaiMessage
+        }
+    }
+
+    private static let journalPageSize = 40
 
     /// The home's evening follows the iPhones' time zone: told when the app comes to the front.
     func reportTimeZone() async {
