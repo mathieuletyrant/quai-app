@@ -80,7 +80,8 @@ Covered, at the sync commit:
 
 Bounds and assumptions: one activity key, one iPhone with its push-to-start and activity tokens
 known, no swipe (`dismissed`), at most 7 engine runs for the code as it is and 5 for the design
-before the fix. Each `Deliver` of a fiber happens while it holds the permit. APNs delivers to one device in the order it receives. Expiry timing is not modeled:
+before the fix. In the code as it is, a fiber's `Deliver` steps happen while it holds the
+permit. APNs delivers to one device in the order it receives. Expiry timing is not modeled:
 the heartbeat may end a running activity at any step.
 
 Not covered: several iPhones or keys, swiped-away activities, `Notifier.sendTo` (test
