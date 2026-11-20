@@ -1,6 +1,6 @@
 import { builtInFlows, DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Exit, Layer, Option, Schema } from "effect"
+import { Effect, Exit, Layer, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
@@ -10,7 +10,6 @@ import {
   decodeSeerrWebhook,
   pendingWatchId,
   requestDetail,
-  SeerrTitles,
   SeerrRequestPage,
   seerrEvents,
   splitSubject,
@@ -19,12 +18,11 @@ import {
 } from "../../src/integrations/seerr.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
-import { HomeError, HomeLink, offlineMessage } from "../../src/home/HomeLink.ts"
 import { Requests } from "../../src/requests/Requests.ts"
 import { Integrations } from "../../src/integrations/Integration.ts"
 import { cloudLive, type FakeHomeOptions, makeFakeHome, recordedHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
-import { TestApp } from "../testApp.ts"
+import { TestApp, testAppDroppingOn } from "../testApp.ts"
 
 const now = Date.parse("2026-11-20T10:00:00Z")
 const services = ["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr"] as const
@@ -256,22 +254,12 @@ describe("requests routes", () => {
 })
 
 describe("requests when Quai Home goes offline mid-read", () => {
-  /** Connected when asked, but every call fails as the link drops. */
-  const dropping = Layer.succeed(HomeLink, {
-    home: Effect.succeed(Option.some({ homeId: "h", services: ["seerr" as const] })),
-    call: () => Effect.fail(new HomeError({ reason: "offline", message: offlineMessage })),
-    setWatches: () => Effect.void,
-    documents: undefined as never,
-    nextEvent: Effect.never,
-    serve: () => Effect.void
-  })
-  const hub = Layer.succeed(Hub, { apply: () => Effect.void, beat: Effect.void, sync: Effect.void, refresh: () => Effect.void, handle: () => Effect.void })
-  const layer = Requests.layer.pipe(Layer.provide(SeerrTitles.layer), Layer.provide([dropping, hub]))
-
   it.effect("is HomeOffline (503), not Seerr unavailable or a Seerr failure", () =>
     Effect.gen(function*() {
       const requests = yield* Requests
+      const home = yield* makeFakeHome({ services, answer: seerrAnswers({ request12: "pending", pending: [12] }) })
+      yield* home.connect
       expect((yield* Effect.flip(requests.list))._tag).toBe("HomeOffline")
       expect((yield* Effect.flip(requests.decide("12", "approve")))._tag).toBe("HomeOffline")
-    }).pipe(Effect.provide(layer)))
+    }).pipe(Effect.provide(testAppDroppingOn("seerr GET /api/v1/request", "seerr GET /api/v1/request/12"))))
 })

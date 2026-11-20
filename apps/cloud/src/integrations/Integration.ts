@@ -1,7 +1,9 @@
-import type { ActionType, Flow, HomeProtocol, InvalidAction, ServiceName } from "@quai/api"
-import { Context, type Effect, Schema } from "effect"
+import { type ActionType, type Flow, type HomeProtocol, InvalidAction, type ServiceName } from "@quai/api"
+import { Context, Effect, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
+import type { CallRequest } from "../home/HomeLink.ts"
+import type { HomeReads } from "../home/HomeReads.ts"
 
 /** What an integration sees to decide what to watch, and to read what comes back. */
 export interface WatchContext {
@@ -48,6 +50,16 @@ export interface Webhook {
 
 /** Runs a Live Activity button for the activity it was pressed on. */
 export type ActionHandler = (activity: Activity) => Effect.Effect<void, InvalidAction>
+
+/**
+ * A button's call to `service` (its name as shown) through Quai Home: anything but a 2xx answer,
+ * Quai Home offline included, is an InvalidAction in words (`Seerr: HTTP 500`).
+ */
+export const actionCall = (reads: HomeReads["Service"], service: string, call: CallRequest): Effect.Effect<void, InvalidAction> =>
+  reads.write(call, (message) => new InvalidAction({ message: `${service}: ${message}` })).pipe(
+    Effect.catchTag("HomeOffline", (error) => Effect.fail(new InvalidAction({ message: `${service}: ${error.message}` }))),
+    Effect.asVoid
+  )
 
 /**
  * Everything Quai knows about one service, in one place: the catalog events it produces (by

@@ -2,8 +2,8 @@ import { type ActionType, InvalidAction } from "@quai/api"
 import { Clock, Effect, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent, MediaLookup } from "../flows/Events.ts"
-import { HomeLink } from "../home/HomeLink.ts"
-import { type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
+import { HomeReads } from "../home/HomeReads.ts"
+import { actionCall, type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 
 const Item = Schema.Struct({
   Id: Schema.String,
@@ -153,7 +153,7 @@ const query = (path: string, params: Record<string, string>) => `${path}?${new U
  * buttons, as one-off calls through Quai Home.
  */
 export const jellyfin = Effect.gen(function*() {
-  const link = yield* HomeLink
+  const reads = yield* HomeReads
   // What played at the last snapshot, to tell started, moved and stopped apart.
   let playing = new Map<string, Playing>()
   // Series found, by subject: their episodes are read next.
@@ -162,10 +162,7 @@ export const jellyfin = Effect.gen(function*() {
   const command = (name: PlaybackCommand): ActionHandler => (activity) => {
     const session = sessionOf(activity.subjectKey)
     if (session === null) return Effect.fail(new InvalidAction({ message: "Not a playback." }))
-    return link.call({ service: "jellyfin", method: "POST", path: `/Sessions/${encodeURIComponent(session)}/Playing/${name}` }).pipe(
-      Effect.mapError((e) => new InvalidAction({ message: `Jellyfin: ${e.message}` })),
-      Effect.flatMap((r) => r.status < 300 ? Effect.void : Effect.fail(new InvalidAction({ message: `Jellyfin: HTTP ${r.status}` })))
-    )
+    return actionCall(reads, "Jellyfin", { service: "jellyfin", method: "POST", path: `/Sessions/${encodeURIComponent(session)}/Playing/${name}` })
   }
 
   const actions: Partial<Record<ActionType, ActionHandler>> = {
