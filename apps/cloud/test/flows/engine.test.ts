@@ -96,7 +96,7 @@ describe("download flow", () => {
     }), [download, anime])
   })
 
-  it.effect("pushes leave in the order the engine made them, even from two fibers (verify-live-activity-pushes)", () =>
+  it.effect("pushes leave in the order the engine made them, even from two fibers (verify skill: live-activity-pushes)", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities
       const sent: Array<string> = []

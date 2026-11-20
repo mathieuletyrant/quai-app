@@ -1,8 +1,3 @@
----
-name: verify-live-activity-pushes
-description: Model-check (TLA+/TLC) that the iPhone ends on what Quai's engine has for a Live Activity, whatever order the event fiber and the heartbeat fiber send their pushes in. Use when a change touches Activities.ts, Notifier.ts, Hub.ts (apply, beat, handle), Targeting.ts (deliveryFor) or Engine.ts (onEvent/onTick pushes), or when asked to "model-check the pushes", "verify the Live Activity order" or "prove the pushes".
----
-
 # Verify the Live Activity pushes
 
 **The promise.** Once every push is sent, the iPhone shows a Live Activity exactly while the
@@ -15,11 +10,12 @@ new one that never appears, or a step older than the real one, until the next pu
 ## Run it
 
 ```sh
-apps/cloud/verification/verify.sh
+.claude/skills/verify/live-activity-pushes/verify.sh
 ```
 
-It needs Java 11+, and takes a few seconds. It downloads `tla2tools.jar` once into
-`~/.cache/quai/`, or uses `TLA2TOOLS_JAR=<path>`. It checks each invariant on two designs and
+It needs Java 11+, and takes a few seconds. It downloads TLA+'s `tla2tools.jar` v1.7.4 once
+into `~/.cache/quai/` and checks its SHA-256 (or uses `TLA2TOOLS_JAR=<path>`, unchecked). A new
+TLA+ version means a new `version` and `sha256` in `verify.sh`, and this table seen unchanged. It checks each invariant on two designs and
 compares each result with the one expected today:
 
 | Design (`SendUnderLock`) | `OneActivity` | `ActivityWhileRunning` | `LatestShown` |
@@ -31,7 +27,7 @@ The `FALSE` row is the check's own proof that it can fail: it must keep failing.
 
 Exit 0: nothing changed. Exit 1: a result differs from that table, marked `!!`, with TLC's
 counterexample. Exit 2: TLC didn't run (a syntax error in the model).
-`LiveActivityPushes.cfg` (the code as it is) and `Before.cfg` can be run by hand:
+`LiveActivityPushes.cfg` (the code as it is) and `Before.cfg`, next to this file, can be run by hand:
 `java -jar tla2tools.jar -deadlock -config Before.cfg LiveActivityPushes.tla`.
 
 ## What it found, and the fix
@@ -96,7 +92,7 @@ forward only after checking the model describes the code at the new commit.
 
 ## Changing the model
 
-`apps/cloud/verification/LiveActivityPushes.tla`. Its header says which code each part stands
+`LiveActivityPushes.tla`, next to this file. Its header says which code each part stands
 for: keep it true. A new property gets a line in `checks` in `verify.sh`, and it is shown failing
 on a broken variant first (e.g. setting `shown' = TRUE` on End, like dropping `shown.delete(k)`
 in `Notifier.one`, flips every result). A check never seen failing proves nothing.

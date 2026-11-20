@@ -5,11 +5,16 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-version=v1.8.0
+version=v1.7.4
+sha256=936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88
 jar=${TLA2TOOLS_JAR:-${XDG_CACHE_HOME:-$HOME/.cache}/quai/tla2tools-$version.jar}
-if [ ! -f "$jar" ]; then
-  mkdir -p "$(dirname "$jar")"
-  curl -sfL -o "$jar" "https://github.com/tlaplus/tlaplus/releases/download/$version/tla2tools.jar"
+if [ -z "${TLA2TOOLS_JAR:-}" ]; then
+  if [ ! -f "$jar" ]; then
+    mkdir -p "$(dirname "$jar")"
+    curl -sfL -o "$jar.part" "https://github.com/tlaplus/tlaplus/releases/download/$version/tla2tools.jar"
+    mv "$jar.part" "$jar"
+  fi
+  echo "$sha256  $jar" | sha256sum -c --quiet - || { rm -f "$jar"; echo "tla2tools.jar doesn't match $version's checksum"; exit 2; }
 fi
 
 # design (SendUnderLock) | max engine runs | invariant | expected
@@ -24,6 +29,8 @@ checks=(
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
+# TLC writes its trace files next to the spec: it runs on a copy, in the temporary folder.
+cp LiveActivityPushes.tla "$work/"
 changed=0
 for check in "${checks[@]}"; do
   read -r underLock runs invariant expected <<< "$check"
@@ -31,8 +38,8 @@ for check in "${checks[@]}"; do
   printf 'SPECIFICATION Spec\nCONSTANTS\n    MaxRuns = %s\n    SendUnderLock = %s\nINVARIANTS\n    TypeOK\n    %s\n' \
     "$runs" "$underLock" "$invariant" > "$work/check.cfg"
   log="$work/$underLock-$invariant.log"
-  java -XX:+UseParallelGC -jar "$jar" -deadlock -workers auto -metadir "$work/states" -noGenerateSpecTE \
-    -config "$work/check.cfg" LiveActivityPushes.tla > "$log" 2>&1 || true
+  (cd "$work" && java -XX:+UseParallelGC -jar "$jar" -deadlock -workers auto -metadir "$work/states" \
+    -config check.cfg LiveActivityPushes.tla) > "$log" 2>&1 || true
   if grep -q "No error has been found" "$log"; then
     result=pass
   elif grep -q "Invariant .* is violated" "$log"; then

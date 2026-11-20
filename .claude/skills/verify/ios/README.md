@@ -1,8 +1,3 @@
----
-name: verify-ios
-description: Prove a change to Quai's iOS app without a Mac. Contract checks in pnpm test, the preview server (real Quai Cloud + fake Quai Home on the recorded fixtures), then the ios CI job on a claude/** push, which builds, runs the unit tests and screenshots the app paired to the preview server, posting them on the PR. Use after touching apps/ios, packages/api or the fixtures, before opening a PR, or when asked for "proof", "screenshots of the app" or "verify iOS".
----
-
 # Verify the iOS app
 
 A Linux session can't build Swift. The loop is: catch what TypeScript can, then let the `ios`
