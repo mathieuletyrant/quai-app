@@ -155,8 +155,11 @@ Approve and Decline (Decline asks first); the console has a Requests page. Both 
 Not a flow: fixed rules the Cloud runs when the app or the console asks (`GET /api/fixes`,
 `/console-api/fixes`), on what Quai Home reads then. Nothing is kept; what the user hid lives in
 home documents (`fixes/snoozed/<id>`, `fixes/dismissed/<id>`), cleared once the problem is gone.
-The reads and the rules sit in each service's integration module (`radarr.ts`, `sonarr.ts`,
-`arr.ts`, `reclaimerr.ts`); `fixes/Fixes.ts` runs them and the fixes.
+The services' schemas and paths sit in their integration modules (`radarr.ts`, `sonarr.ts`,
+`arr.ts`, `reclaimerr.ts`). The rules and fixes of movies and series are one adapter per kind
+(`fixes/movies.ts` for Radarr, `fixes/series.ts` for Sonarr, behind `MediaFixes`); `fixes/Fixes.ts`
+runs what they share (finding a problem again, what the user hid, the writes) and Reclaimerr's
+deletions. Fix ids are made and read by `fixes/FixId.ts` only.
 
 | Problem | Rule | Fixes |
 | --- | --- | --- |

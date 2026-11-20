@@ -6,9 +6,11 @@ import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { noSourceAfterMs } from "../src/fixes/Detected.ts"
 import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
-import { blockedMovie, moviesWithoutSource, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
+import { blockedMovie, moviesWithoutSource } from "../src/fixes/movies.ts"
+import { blockedEpisodes, episodesWithoutSource } from "../src/fixes/series.ts"
+import { RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
 import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
-import { blockedEpisodes, episodesWithoutSource, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
+import { SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHome, type FakeHomeOptions, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp, testAppDroppingOn } from "./testApp.ts"
@@ -108,7 +110,7 @@ describe("To fix rules", () => {
       reason: "Unable to identify correct episode(s) using release name and scene mappings",
       actions: ["importAnyway", "remove"]
     })
-    expect(blocked!.target).toMatchObject({ _tag: "Queue", seriesId: 9, downloadId: "0718293A4B5C6D7E8F901234567890123456789A" })
+    expect(blocked!.target).toMatchObject({ kind: "series", _tag: "Queue", seriesId: 9, downloadId: "0718293A4B5C6D7E8F901234567890123456789A" })
   })
 
   it("no source: available, monitored, without a file, not queued, not grabbed, for over 2 hours", () => {
@@ -160,7 +162,7 @@ describe("To fix rules", () => {
       since: Date.parse("2026-11-18T02:00:00Z") / 1000,
       missing: { episodes: ["S02E09", "S02E10"] }
     })
-    expect(severance!.target).toEqual({ _tag: "MissingEpisodes", seriesId: 3, seasonNumber: 2, episodeIds: [309, 310] })
+    expect(severance!.target).toEqual({ kind: "series", _tag: "Missing", seriesId: 3, seasonNumber: 2, episodeIds: [309, 310] })
   })
 
   it("scheduled deletion: what Reclaimerr deletes on its own, soonest first, never what's protected", () => {

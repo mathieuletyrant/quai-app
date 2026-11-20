@@ -113,7 +113,7 @@ export const scheduledDeletions = (candidates: ReadonlyArray<Candidate>, sources
           actions: ["keep", "dismiss"],
           deletion: { deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }
         },
-        target: { _tag: "Candidate", candidateId: candidate.id }
+        target: { kind: "candidate", candidateId: candidate.id }
       }
     })
     .sort((a, b) => (a.fix.deletion?.deletesAt ?? 0) - (b.fix.deletion?.deletesAt ?? 0))

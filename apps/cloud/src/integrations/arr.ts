@@ -79,6 +79,9 @@ export const QueuePage = Schema.Struct({ records: Schema.Array(QueueRecord) })
 /** The queue's largest page: one read covers any home's queue. */
 export const queuePageSize = 500
 
+/** The grabs since `ms` (epoch milliseconds). */
+export const grabsSincePath = (ms: number) => `/api/v3/history/since?date=${encodeURIComponent(new Date(ms).toISOString())}&eventType=grabbed`
+
 /** How far back the grabs are read: a grab older than this, still without a file, doesn't count. */
 export const grabLookbackMs = 30 * 24 * 3600_000
 

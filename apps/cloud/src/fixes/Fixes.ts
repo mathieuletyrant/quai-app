@@ -1,11 +1,9 @@
 import {
-  type EpisodeChoice,
   type Fix,
   FixFailed,
   type Fixes as FixList,
   type FixService,
   HomeOffline,
-  type ImportFile,
   type ImportPreview,
   InvalidFix,
   type Releases
@@ -14,31 +12,9 @@ import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { type CallRequest, HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import {
-  byPreference,
-  echoed,
-  fileOf,
-  grabLookbackMs,
-  isImportBlocked,
-  type ManualImportRow,
-  ManualImportRows,
-  qualityName,
-  QueuePage,
-  rejectionsOf,
-  ReleaseRecords,
-  toRelease
-} from "../integrations/arr.ts"
+import { byPreference, ManualImportRows, ReleaseRecords, toRelease } from "../integrations/arr.ts"
 import { readJson } from "../integrations/Integration.ts"
-import {
-  blockedMovie,
-  grabsSincePath,
-  moviesWithoutSource,
-  RadarrGrabs,
-  RadarrMissing,
-  radarrMissingPath,
-  RadarrMovies,
-  radarrQueuePath
-} from "../integrations/radarr.ts"
+import { RadarrMovies } from "../integrations/radarr.ts"
 import {
   type Candidate,
   CandidatePage,
@@ -49,20 +25,12 @@ import {
   protectReason,
   scheduledDeletions
 } from "../integrations/reclaimerr.ts"
-import {
-  blockedEpisodes,
-  episodeCode,
-  episodesPath,
-  episodesWithoutSource,
-  SonarrEpisodes,
-  SonarrGrabs,
-  SonarrMissing,
-  sonarrMissingPath,
-  sonarrQueuePath,
-  SonarrSeries
-} from "../integrations/sonarr.ts"
+import { SonarrSeries } from "../integrations/sonarr.ts"
 import type { Detected, FixTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
+import { type ImportAssignments, importFiles, isMissing, isQueued, type MediaFixes, type MediaTarget, type MissingOf, type QueuedOf } from "./MediaFixes.ts"
+import { movies } from "./movies.ts"
+import { series } from "./series.ts"
 
 /** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
 export const hiddenPrefix = "fixes/"
@@ -84,6 +52,13 @@ const byUrgency = (a: Detected, b: Detected) =>
   (a.fix.deletion?.deletesAt ?? 0) - (b.fix.deletion?.deletesAt ?? 0) ||
   (a.fix.since ?? 0) - (b.fix.since ?? 0)
 
+/** The media adapters, in the order their problems are listed and their services reported. */
+const media = [movies, series] as const
+
+/** Runs `f` with the adapter of a movie's or a series' target; undefined for a Reclaimerr candidate. */
+const withMedia = <R>(target: FixTarget, f: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => R): R | undefined =>
+  target.kind === "movie" ? f(movies, target) : target.kind === "series" ? f(series, target) : undefined
+
 interface Detection {
   readonly detected: ReadonlyArray<Detected>
   /** The services read in full this time. */
@@ -93,14 +68,15 @@ interface Detection {
 
 /**
  * The To fix list (packages/api `Fixes.ts`): fixed rules run on what Quai Home reads, when asked.
- * Nothing about the problems is kept; what the user hid lives in home documents, and those whose
- * problem is gone are cleared as the list is read.
+ * The rules of movies and series are their adapters' (`movies.ts`, `series.ts`); this runs what
+ * they share. Nothing about the problems is kept; what the user hid lives in home documents, and
+ * those whose problem is gone are cleared as the list is read.
  */
 export class Fixes extends Context.Service<Fixes, {
   readonly list: Effect.Effect<FixList, HomeOffline>
   readonly remove: (id: string, blocklist: boolean) => Effect.Effect<void, FixError>
   readonly importPreview: (id: string) => Effect.Effect<ImportPreview, FixError>
-  readonly importDownload: (id: string, assignments: ReadonlyArray<{ readonly file: string; readonly episodeIds: ReadonlyArray<number> }>) => Effect.Effect<void, FixError>
+  readonly importDownload: (id: string, assignments: ImportAssignments) => Effect.Effect<void, FixError>
   readonly keep: (id: string) => Effect.Effect<void, FixError>
   readonly dismiss: (id: string) => Effect.Effect<void, FixError>
   readonly snooze: (id: string, days: number | undefined) => Effect.Effect<void, FixError>
@@ -137,42 +113,28 @@ export class Fixes extends Context.Service<Fixes, {
       const detect = (only?: FixService) =>
         Effect.gen(function*(): Effect.fn.Return<Detection, HomeOffline> {
           const nowMs = yield* Clock.currentTimeMillis
-          const asked = (service: FixService) => only === undefined || only === service
-          const since = grabsSincePath(nowMs - grabLookbackMs)
-          const radarr = asked("radarr")
-          const sonarr = asked("sonarr")
-          const { values, unavailable } = yield* reads.all({
-            candidates: asked("reclaimerr") ? { service: "reclaimerr", path: candidatesPath, schema: CandidatePage } : null,
-            radarrQueue: radarr ? { service: "radarr", path: radarrQueuePath, schema: QueuePage } : null,
-            radarrMissing: radarr ? { service: "radarr", path: radarrMissingPath, schema: RadarrMissing } : null,
-            radarrGrabs: radarr ? { service: "radarr", path: since, schema: RadarrGrabs } : null,
-            sonarrQueue: sonarr ? { service: "sonarr", path: sonarrQueuePath, schema: QueuePage } : null,
-            sonarrMissing: sonarr ? { service: "sonarr", path: sonarrMissingPath, schema: SonarrMissing } : null,
-            sonarrGrabs: sonarr ? { service: "sonarr", path: since, schema: SonarrGrabs } : null
-          })
-          // A service's rules need all its reads.
-          const movies = Option.all([values.radarrQueue, values.radarrMissing, values.radarrGrabs]).pipe(
-            Option.map(([queue, missing, grabs]) => [
-              ...queue.records.filter(isImportBlocked).map(blockedMovie),
-              ...moviesWithoutSource(missing.records, queue.records, grabs, nowMs)
-            ])
-          )
-          const episodes = Option.all([values.sonarrQueue, values.sonarrMissing, values.sonarrGrabs]).pipe(
-            Option.map(([queue, missing, grabs]) => [
-              ...queue.records.filter(isImportBlocked).map(blockedEpisodes),
-              ...episodesWithoutSource(missing.records, queue.records, grabs, nowMs)
-            ])
-          )
-          const deletions = Option.isNone(values.candidates)
+          const reached = yield* reads.services
+          const asked = (service: FixService) => (only === undefined || only === service) && reached.includes(service)
+          const none = Effect.succeed(Option.none<never>())
+          const [candidates, ...found] = yield* Effect.all([
+            asked("reclaimerr") ? reads.read({ service: "reclaimerr", path: candidatesPath, schema: CandidatePage }) : none,
+            ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
+          ], { concurrency: "unbounded" })
+          const outcomes: ReadonlyArray<readonly [FixService, Option.Option<unknown>]> = [
+            ["reclaimerr", candidates],
+            ...media.map((adapter, i) => [adapter.service, found[i]!] as const)
+          ]
+          const unavailable = outcomes.flatMap(([service, value]) => asked(service) && Option.isNone(value) ? [service] : [])
+          const deletions = Option.isNone(candidates)
             ? []
             : only === undefined
-            ? yield* deletionsWithPosters(values.candidates.value.items)
+            ? yield* deletionsWithPosters(candidates.value.items)
             // Acting on a deletion needs no poster.
-            : scheduledDeletions(values.candidates.value.items)
-          const reached = yield* reads.services
+            : scheduledDeletions(candidates.value.items)
+          const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) => Option.getOrElse(problems, () => []))
           return {
-            detected: [...deletions, ...Option.getOrElse(movies, () => []), ...Option.getOrElse(episodes, () => [])].sort(byUrgency),
-            read: (["reclaimerr", "radarr", "sonarr"] as const).filter((s) => asked(s) && reached.includes(s) && !unavailable.includes(s)),
+            detected: [...deletions, ...detected].sort(byUrgency),
+            read: outcomes.flatMap(([service]) => asked(service) && !unavailable.includes(service) ? [service] : []),
             unavailable
           }
         })
@@ -193,6 +155,13 @@ export class Fixes extends Context.Service<Fixes, {
           found.fix.actions.includes(action)
             ? Effect.succeed(found)
             : Effect.fail(new InvalidFix({ message: `“${found.fix.title}” doesn't offer ${action}` })))
+
+      /** Runs `f` with the adapter of the problem's movie or series, and its target: anything else is `refused`. */
+      const onMedia = <R>(
+        found: Detected,
+        refused: string,
+        f: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => Effect.Effect<R, FixError> | undefined
+      ): Effect.Effect<R, FixError> => withMedia(found.target, f) ?? Effect.fail(new InvalidFix({ message: refused }))
 
       const list = Effect.gen(function*() {
         const { detected, read: complete, unavailable } = yield* detect()
@@ -220,139 +189,72 @@ export class Fixes extends Context.Service<Fixes, {
         }
       })
 
-      const queueTarget = (target: FixTarget) =>
-        target._tag === "Queue" ? Effect.succeed(target) : Effect.fail(new InvalidFix({ message: "not a download" }))
-
-      /** The files of a blocked download, as the *arr's manual import matches them now. */
-      const importRows = (target: Extract<FixTarget, { _tag: "Queue" }>) =>
+      /** The files of a blocked download, as the *arr's manual import matches them now, with its id. */
+      const importRows = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>) =>
         Effect.gen(function*() {
           if (target.downloadId === undefined) return yield* Effect.fail(new InvalidFix({ message: "This download has no id to import it by" }))
-          const hints = target.service === "sonarr" && target.seriesId !== undefined
-            ? `&seriesId=${target.seriesId}${target.seasonNumber === undefined ? "" : `&seasonNumber=${target.seasonNumber}`}`
-            : ""
           const body = yield* write({
-            service: target.service,
+            service: adapter.service,
             method: "GET",
-            path: `/api/v3/manualimport?downloadId=${encodeURIComponent(target.downloadId)}&filterExistingFiles=true${hints}`
+            path: `/api/v3/manualimport?downloadId=${encodeURIComponent(target.downloadId)}&filterExistingFiles=true${adapter.importHints(target)}`
           })
           const rows = readJson(ManualImportRows, body)
-          if (Option.isNone(rows)) return yield* Effect.fail(new FixFailed({ message: `${target.service} answered something Quai can't read` }))
-          return rows.value.filter((row) => row.path !== undefined && row.path !== "")
+          if (Option.isNone(rows)) return yield* Effect.fail(new FixFailed({ message: `${adapter.service} answered something Quai can't read` }))
+          return { downloadId: target.downloadId, rows: rows.value.filter((row) => row.path !== undefined && row.path !== "") }
         })
 
-      /** The series' episodes without a file: the only ones a file may be imported as. */
-      const freeEpisodes = (seriesId: number) =>
+      const importPreview = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>) =>
         Effect.gen(function*() {
-          const body = yield* write({ service: "sonarr", method: "GET", path: episodesPath(seriesId) })
-          const episodes = Option.getOrElse(readJson(SonarrEpisodes, body), () => [])
-          return episodes
-            .filter((e) => e.hasFile !== true && e.seasonNumber > 0)
-            .sort((a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber)
+          const files = (yield* importRows(adapter, target)).rows.map(adapter.importFile)
+          const episodes = files.some((f) => f.needsEpisodes) ? yield* adapter.choices(reads, target) : []
+          return { files, episodes: [...episodes] }
         })
 
-      const toFile = (service: "radarr" | "sonarr", row: ManualImportRow): ImportFile => {
-        const quality = qualityName(row.quality)
-        const episodes = row.episodes ?? []
-        return {
-          file: fileOf(row),
-          ...(row.size === undefined ? {} : { sizeBytes: row.size }),
-          ...(quality === undefined ? {} : { quality }),
-          episodes: episodes.map((e) => episodeCode(e.seasonNumber, e.episodeNumber)),
-          needsEpisodes: service === "sonarr" && episodes.length === 0,
-          rejections: rejectionsOf(row)
-        }
-      }
+      const importDownload = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>, assignments: ImportAssignments) =>
+        Effect.gen(function*() {
+          const { downloadId, rows } = yield* importRows(adapter, target)
+          const choices = rows.length > 0 && assignments.length > 0 ? yield* adapter.choices(reads, target) : []
+          const files = yield* Effect.fromResult(importFiles(adapter, { target, downloadId, rows, assignments, choices }))
+          yield* write({ service: adapter.service, method: "POST", path: "/api/v3/command", body: { name: "ManualImport", importMode: "auto", files } })
+        })
+
+      const searchReleases = <T extends MediaTarget>(adapter: MediaFixes<T>, target: MissingOf<T>) =>
+        Effect.gen(function*() {
+          const body = yield* write({ service: adapter.service, method: "GET", path: adapter.releaseSearch(target) }, { timeoutMs: releaseSearchTimeoutMs })
+          const records = readJson(ReleaseRecords, body)
+          if (Option.isNone(records)) return yield* Effect.fail(new FixFailed({ message: `${adapter.service} answered something Quai can't read` }))
+          return { items: records.value.filter((r) => adapter.usable(target, r)).map(toRelease).sort(byPreference) }
+        })
+
+      const notADownload = "not a download"
 
       return {
         list,
 
         remove: (id, blocklist) =>
-          Effect.gen(function*() {
-            const target = yield* Effect.flatMap(offering(id, "remove"), (found) => queueTarget(found.target))
-            // Never a new search: a blocklisted release is only replaced when the *arr looks again on its own.
-            yield* write({
-              service: target.service,
-              method: "DELETE",
-              path: `/api/v3/queue/${target.queueId}?removeFromClient=true&blocklist=${blocklist}&skipRedownload=true`
-            })
-          }),
+          Effect.flatMap(offering(id, "remove"), (found) =>
+            onMedia(found, notADownload, (adapter, target) =>
+              isQueued(target)
+                // Never a new search: a blocklisted release is only replaced when the *arr looks again on its own.
+                ? Effect.asVoid(write({
+                  service: adapter.service,
+                  method: "DELETE",
+                  path: `/api/v3/queue/${target.queueId}?removeFromClient=true&blocklist=${blocklist}&skipRedownload=true`
+                }))
+                : undefined)),
 
         importPreview: (id) =>
-          Effect.gen(function*() {
-            const target = yield* Effect.flatMap(offering(id, "importAnyway"), (found) => queueTarget(found.target))
-            const files = (yield* importRows(target)).map((row) => toFile(target.service, row))
-            const episodes: Array<EpisodeChoice> = target.service === "sonarr" && target.seriesId !== undefined && files.some((f) => f.needsEpisodes)
-              ? (yield* freeEpisodes(target.seriesId)).map((e) => ({
-                id: e.id,
-                seasonNumber: e.seasonNumber,
-                episodeNumber: e.episodeNumber,
-                ...(e.title === undefined ? {} : { title: e.title })
-              }))
-              : []
-            return { files, episodes }
-          }),
+          Effect.flatMap(offering(id, "importAnyway"), (found) =>
+            onMedia(found, notADownload, (adapter, target) => isQueued(target) ? importPreview(adapter, target) : undefined)),
 
         importDownload: (id, assignments) =>
-          Effect.gen(function*() {
-            const target = yield* Effect.flatMap(offering(id, "importAnyway"), (found) => queueTarget(found.target))
-            const rows = yield* importRows(target)
-            if (rows.length === 0) return yield* Effect.fail(new InvalidFix({ message: "There's no file left to import" }))
-            const downloadId = target.downloadId!
-            const known = new Set(rows.map(fileOf))
-            const unknown = assignments.find((a) => !known.has(a.file))
-            if (unknown !== undefined) return yield* Effect.fail(new InvalidFix({ message: `${unknown.file} isn't in this download` }))
-
-            if (target.service === "radarr") {
-              const files = []
-              for (const row of rows) {
-                const movieId = row.movie?.id ?? target.movieId
-                if (movieId === undefined) return yield* Effect.fail(new InvalidFix({ message: `Radarr doesn't know which movie ${fileOf(row)} is` }))
-                // Importing over a file would replace it: the owner's rule is no upgrades.
-                if (row.movie?.hasFile === true) return yield* Effect.fail(new InvalidFix({ message: "This movie already has a file" }))
-                files.push({ path: row.path!, movieId, downloadId, ...echoed(row) })
-              }
-              yield* write({ service: "radarr", method: "POST", path: "/api/v3/command", body: { name: "ManualImport", importMode: "auto", files } })
-              return
-            }
-
-            const seriesId = target.seriesId
-            if (seriesId === undefined) return yield* Effect.fail(new InvalidFix({ message: "Sonarr doesn't know which series this is" }))
-            const chosen = new Map(assignments.map((a) => [a.file, a.episodeIds]))
-            const free = chosen.size > 0 ? yield* freeEpisodes(seriesId) : []
-            const freeById = new Map(free.map((e) => [e.id, e]))
-            const files = []
-            for (const row of rows) {
-              const file = fileOf(row)
-              const picked = chosen.get(file)
-              if (picked !== undefined) {
-                const episodes = picked.map((episodeId) => freeById.get(episodeId))
-                if (episodes.some((e) => e === undefined)) {
-                  return yield* Effect.fail(new InvalidFix({ message: `Choose episodes of this series that have no file yet for ${file}` }))
-                }
-                const seasons = new Set(episodes.map((e) => e!.seasonNumber))
-                if (seasons.size !== 1) return yield* Effect.fail(new InvalidFix({ message: `The episodes chosen for ${file} must be in one season` }))
-                files.push({ path: row.path!, seriesId, seasonNumber: [...seasons][0]!, episodeIds: [...picked], downloadId, ...echoed(row) })
-                continue
-              }
-              const matched = row.episodes ?? []
-              if (matched.length === 0) return yield* Effect.fail(new InvalidFix({ message: `Choose the episode for ${file}` }))
-              if (matched.some((e) => e.hasFile === true)) return yield* Effect.fail(new InvalidFix({ message: `${file} matches an episode that already has a file` }))
-              files.push({
-                path: row.path!,
-                seriesId: row.series?.id ?? seriesId,
-                seasonNumber: matched[0]!.seasonNumber,
-                episodeIds: matched.map((e) => e.id),
-                downloadId,
-                ...echoed(row)
-              })
-            }
-            yield* write({ service: "sonarr", method: "POST", path: "/api/v3/command", body: { name: "ManualImport", importMode: "auto", files } })
-          }),
+          Effect.flatMap(offering(id, "importAnyway"), (found) =>
+            onMedia(found, notADownload, (adapter, target) => isQueued(target) ? importDownload(adapter, target, assignments) : undefined)),
 
         keep: (id) =>
           Effect.gen(function*() {
             const { target } = yield* offering(id, "keep")
-            if (target._tag !== "Candidate") return yield* Effect.fail(new InvalidFix({ message: "not a Reclaimerr candidate" }))
+            if (target.kind !== "candidate") return yield* Effect.fail(new InvalidFix({ message: "not a Reclaimerr candidate" }))
             yield* write({ service: "reclaimerr", method: "POST", path: protectPath(target.candidateId), body: { reason: protectReason } })
           }),
 
@@ -371,41 +273,16 @@ export class Fixes extends Context.Service<Fixes, {
           }),
 
         releases: (id) =>
-          Effect.gen(function*() {
-            const { target } = yield* offering(id, "searchReleases")
-            const search = target._tag === "MissingMovie"
-              ? { service: "radarr" as const, path: `/api/v3/release?movieId=${target.movieId}` }
-              : target._tag === "MissingEpisodes"
-              ? {
-                service: "sonarr" as const,
-                path: target.episodeIds.length === 1
-                  ? `/api/v3/release?episodeId=${target.episodeIds[0]}`
-                  : `/api/v3/release?seriesId=${target.seriesId}&seasonNumber=${target.seasonNumber}`
-              }
-              : undefined
-            if (search === undefined) return yield* Effect.fail(new InvalidFix({ message: "nothing to search for" }))
-            const body = yield* write({ ...search, method: "GET" }, { timeoutMs: releaseSearchTimeoutMs })
-            const records = readJson(ReleaseRecords, body)
-            if (Option.isNone(records)) return yield* Effect.fail(new FixFailed({ message: `${search.service} answered something Quai can't read` }))
-            // A season search also finds packs of episodes that have their file: only the releases
-            // that cover nothing but missing episodes are offered, so grabbing never replaces a file.
-            const missing = target._tag === "MissingEpisodes" ? new Set(target.episodeIds) : null
-            const usable = missing === null
-              ? records.value
-              : records.value.filter((r) => {
-                const ids = (r.mappedEpisodeInfo ?? []).map((e) => e.id)
-                return ids.length > 0 && ids.every((episodeId) => episodeId !== undefined && missing.has(episodeId))
-              })
-            return { items: usable.map(toRelease).sort(byPreference) }
-          }),
+          Effect.flatMap(offering(id, "searchReleases"), (found) =>
+            onMedia(found, "nothing to search for", (adapter, target) => isMissing(target) ? searchReleases(adapter, target) : undefined)),
 
         grab: (id, release) =>
-          Effect.gen(function*() {
-            // Still without a file now: a title that got one in the meantime is no longer a problem (404).
-            const { target } = yield* offering(id, "searchReleases")
-            const service = target._tag === "MissingMovie" ? "radarr" : "sonarr"
-            yield* write({ service, method: "POST", path: "/api/v3/release", body: { guid: release.guid, indexerId: release.indexerId } })
-          })
+          // Still without a file now: a title that got one in the meantime is no longer a problem (404).
+          Effect.flatMap(offering(id, "searchReleases"), (found) =>
+            onMedia(found, "nothing to search for", (adapter, target) =>
+              isMissing(target)
+                ? Effect.asVoid(write({ service: adapter.service, method: "POST", path: "/api/v3/release", body: { guid: release.guid, indexerId: release.indexerId } }))
+                : undefined))
       } satisfies Fixes["Service"]
     })
   )
