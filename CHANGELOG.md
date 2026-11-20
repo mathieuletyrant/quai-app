@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.2](https://github.com/mathieuletyrant/quai-app/compare/v0.12.1...v0.12.2) (2026-11-20)
+
+
+### 🐛 Fixes
+
+* audit findings (engine crash, APNs timeout, unreadable document, home pinning, qBittorrent login) ([#39](https://github.com/mathieuletyrant/quai-app/issues/39)) ([61067b0](https://github.com/mathieuletyrant/quai-app/commit/61067b09467951a53dc46d197f8a311a22807ead))
+
 ## [0.12.1](https://github.com/mathieuletyrant/quai-app/compare/v0.12.0...v0.12.1) (2026-11-20)
 
 
