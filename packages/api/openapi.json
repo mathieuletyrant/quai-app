@@ -1622,742 +1622,6 @@
         }
       }
     },
-    "/console-api/fixes": {
-      "get": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleListFixes",
-        "parameters": [],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Fixes",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Fixes"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/console-api/fixes/{id}/remove": {
-      "post": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleRemoveDownload",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RemoveDownload"
-              }
-            }
-          },
-          "required": true
-        }
-      }
-    },
-    "/console-api/fixes/{id}/import": {
-      "get": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consolePreviewImport",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "ImportPreview",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportPreview"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleImportDownload",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ImportDownload"
-              }
-            }
-          },
-          "required": true
-        }
-      }
-    },
-    "/console-api/fixes/{id}/keep": {
-      "post": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleKeepTitle",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/console-api/fixes/{id}/dismiss": {
-      "post": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleDismissFix",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/console-api/fixes/{id}/snooze": {
-      "post": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleSnoozeFix",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SnoozeFix"
-              }
-            }
-          },
-          "required": true
-        }
-      }
-    },
-    "/console-api/fixes/{id}/releases": {
-      "get": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleSearchReleases",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Releases",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Releases"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/console-api/fixes/{id}/grab": {
-      "post": {
-        "tags": [
-          "consoleFixes"
-        ],
-        "operationId": "consoleGrabRelease",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "400": {
-            "description": "InvalidFix",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvalidFixEncoded"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "FixFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FixFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GrabRelease"
-              }
-            }
-          },
-          "required": true
-        }
-      }
-    },
-    "/console-api/requests": {
-      "get": {
-        "tags": [
-          "consoleRequests"
-        ],
-        "operationId": "consoleListRequests",
-        "parameters": [],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "MediaRequests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MediaRequests"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/console-api/requests/{id}/approve": {
-      "post": {
-        "tags": [
-          "consoleRequests"
-        ],
-        "operationId": "consoleApproveRequest",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "RequestFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RequestFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/console-api/requests/{id}/decline": {
-      "post": {
-        "tags": [
-          "consoleRequests"
-        ],
-        "operationId": "consoleDeclineRequest",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "schema": {
-              "type": "string"
-            },
-            "required": true
-          }
-        ],
-        "security": [],
-        "responses": {
-          "204": {
-            "description": "<No Content>"
-          },
-          "404": {
-            "description": "NotFound",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "RequestFailed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RequestFailedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/console-api/push-settings": {
       "get": {
         "tags": [
@@ -3097,6 +2361,172 @@
         ],
         "additionalProperties": false
       },
+      "DeviceSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "apnsEnvironment": {
+            "$ref": "#/components/schemas/ApnsEnvironment"
+          },
+          "canStartActivities": {
+            "type": "boolean"
+          },
+          "pairedAt": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "apnsEnvironment",
+          "canStartActivities",
+          "pairedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApnsEnvironment": {
+        "type": "string",
+        "enum": [
+          "development",
+          "production"
+        ]
+      },
+      "PairingCode": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "link": {
+            "type": "string"
+          },
+          "accessHeaderNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "expiresAt",
+          "link",
+          "accessHeaderNames"
+        ],
+        "additionalProperties": false
+      },
+      "effect_HttpApiError_UnauthorizedEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "Unauthorized"
+            ]
+          }
+        },
+        "required": [
+          "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "DayReleases": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayRelease"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryService"
+            }
+          }
+        },
+        "required": [
+          "day",
+          "timeZone",
+          "items",
+          "unavailable"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr"
+        ]
+      },
+      "DayRelease": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "episode",
+              "movie"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "episode": {
+            "type": "string"
+          },
+          "episodeTitle": {
+            "type": "string"
+          },
+          "airsAt": {
+            "type": "number"
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DayReleaseStatus"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "DayReleaseStatus": {
+        "type": "string",
+        "enum": [
+          "missing",
+          "grabbed",
+          "downloading",
+          "available"
+        ]
+      },
       "RequestFailedEncoded": {
         "type": "object",
         "properties": {
@@ -3658,172 +3088,6 @@
           "importBlocked",
           "scheduledDeletion",
           "noSource"
-        ]
-      },
-      "DeviceSummary": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "apnsEnvironment": {
-            "$ref": "#/components/schemas/ApnsEnvironment"
-          },
-          "canStartActivities": {
-            "type": "boolean"
-          },
-          "pairedAt": {
-            "type": "string"
-          },
-          "lastSeenAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "apnsEnvironment",
-          "canStartActivities",
-          "pairedAt"
-        ],
-        "additionalProperties": false
-      },
-      "ApnsEnvironment": {
-        "type": "string",
-        "enum": [
-          "development",
-          "production"
-        ]
-      },
-      "PairingCode": {
-        "type": "object",
-        "properties": {
-          "code": {
-            "type": "string"
-          },
-          "expiresAt": {
-            "type": "string"
-          },
-          "link": {
-            "type": "string"
-          },
-          "accessHeaderNames": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "code",
-          "expiresAt",
-          "link",
-          "accessHeaderNames"
-        ],
-        "additionalProperties": false
-      },
-      "effect_HttpApiError_UnauthorizedEncoded": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "Unauthorized"
-            ]
-          }
-        },
-        "required": [
-          "_tag"
-        ],
-        "additionalProperties": false
-      },
-      "DayReleases": {
-        "type": "object",
-        "properties": {
-          "day": {
-            "type": "string"
-          },
-          "timeZone": {
-            "type": "string"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DayRelease"
-            }
-          },
-          "unavailable": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LibraryService"
-            }
-          }
-        },
-        "required": [
-          "day",
-          "timeZone",
-          "items",
-          "unavailable"
-        ],
-        "additionalProperties": false
-      },
-      "LibraryService": {
-        "type": "string",
-        "enum": [
-          "radarr",
-          "sonarr"
-        ]
-      },
-      "DayRelease": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "episode",
-              "movie"
-            ]
-          },
-          "title": {
-            "type": "string"
-          },
-          "episode": {
-            "type": "string"
-          },
-          "episodeTitle": {
-            "type": "string"
-          },
-          "airsAt": {
-            "type": "number"
-          },
-          "posterUrl": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/DayReleaseStatus"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "title",
-          "status"
-        ],
-        "additionalProperties": false
-      },
-      "DayReleaseStatus": {
-        "type": "string",
-        "enum": [
-          "missing",
-          "grabbed",
-          "downloading",
-          "available"
         ]
       },
       "Library": {
@@ -4389,12 +3653,6 @@
     },
     {
       "name": "console"
-    },
-    {
-      "name": "consoleFixes"
-    },
-    {
-      "name": "consoleRequests"
     },
     {
       "name": "push"

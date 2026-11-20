@@ -21,16 +21,6 @@ export function PageBody({ children, className }: { children: ReactNode; classNa
   return <div className={cx("flex w-full max-w-280 flex-col gap-6 px-4 py-6 md:px-8 md:py-8", className)}>{children}</div>
 }
 
-/** A main column and a narrow one beside it on wide screens. */
-export function WithSidebar({ children, sidebar }: { children: ReactNode; sidebar: ReactNode }) {
-  return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
-      {children}
-      {sidebar}
-    </div>
-  )
-}
-
 /** A surface on the page, with an optional header. */
 export function Panel({ title, description, actions, tone, flush, className, children }: {
   title?: ReactNode

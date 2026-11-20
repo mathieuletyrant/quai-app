@@ -185,56 +185,43 @@ export class FixFailed extends Schema.TaggedError<FixFailed>()("FixFailed", {
 
 const id = { id: Schema.String }
 
-/**
- * The routes of the To fix list, under one name per client (`listFixes`, `consoleListFixes`…):
- * the iPhone's sit behind its token, the console's behind the host's login, like the other
- * console routes.
- */
-const endpoints = (operation: (name: string) => string) =>
-  [
-    HttpApiEndpoint.get("list", "/fixes", { success: Fixes }).annotate(OpenApi.Identifier, operation("listFixes")),
+/** The To fix list, for the app. */
+export class FixesGroup extends HttpApiGroup.make("fixes")
+  .add(
+    HttpApiEndpoint.get("list", "/fixes", { success: Fixes }).annotate(OpenApi.Identifier, "listFixes"),
     HttpApiEndpoint.post("remove", "/fixes/:id/remove", {
       params: id,
       payload: RemoveDownload,
       error: [InvalidFix, FixFailed, HttpApiError.NotFound]
-    }).annotate(OpenApi.Identifier, operation("removeDownload")),
+    }).annotate(OpenApi.Identifier, "removeDownload"),
     HttpApiEndpoint.get("importPreview", "/fixes/:id/import", {
       params: id,
       success: ImportPreview,
       error: [InvalidFix, FixFailed, HttpApiError.NotFound]
-    }).annotate(OpenApi.Identifier, operation("previewImport")),
+    }).annotate(OpenApi.Identifier, "previewImport"),
     HttpApiEndpoint.post("import", "/fixes/:id/import", {
       params: id,
       payload: ImportDownload,
       error: [InvalidFix, FixFailed, HttpApiError.NotFound]
-    }).annotate(OpenApi.Identifier, operation("importDownload")),
+    }).annotate(OpenApi.Identifier, "importDownload"),
     HttpApiEndpoint.post("keep", "/fixes/:id/keep", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, operation("keepTitle")),
+      .annotate(OpenApi.Identifier, "keepTitle"),
     HttpApiEndpoint.post("dismiss", "/fixes/:id/dismiss", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, operation("dismissFix")),
+      .annotate(OpenApi.Identifier, "dismissFix"),
     HttpApiEndpoint.post("snooze", "/fixes/:id/snooze", { params: id, payload: SnoozeFix, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, operation("snoozeFix")),
+      .annotate(OpenApi.Identifier, "snoozeFix"),
     HttpApiEndpoint.get("releases", "/fixes/:id/releases", {
       params: id,
       success: Releases,
       error: [InvalidFix, FixFailed, HttpApiError.NotFound]
-    }).annotate(OpenApi.Identifier, operation("searchReleases")),
+    }).annotate(OpenApi.Identifier, "searchReleases"),
     HttpApiEndpoint.post("grab", "/fixes/:id/grab", {
       params: id,
       payload: GrabRelease,
       error: [InvalidFix, FixFailed, HttpApiError.NotFound]
-    }).annotate(OpenApi.Identifier, operation("grabRelease"))
-  ] as const
-
-/** The To fix list, for the app. */
-export class FixesGroup extends HttpApiGroup.make("fixes")
-  .add(...endpoints((name) => name))
+    }).annotate(OpenApi.Identifier, "grabRelease")
+  )
   .middleware(DeviceAuth)
   .middleware(HomeRequired)
   .prefix("/api") {}
 
-/** The same list, for the console's To fix page. */
-export class ConsoleFixesGroup extends HttpApiGroup.make("consoleFixes")
-  .add(...endpoints((name) => `console${name[0]!.toUpperCase()}${name.slice(1)}`))
-  .middleware(HomeRequired)
-  .prefix("/console-api") {}

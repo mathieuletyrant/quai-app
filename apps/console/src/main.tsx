@@ -1,27 +1,24 @@
 import type { Health } from "@quai/api"
 import { type ReactNode, StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
-import { call, type HomeStatus, probeHome, useFixCount, useFixCountProbe, useHome, useHomeProbe } from "./client.ts"
-import { FixesPage } from "./pages/Fixes.tsx"
+import { call, type HomeStatus, probeHome, useHome, useHomeProbe } from "./client.ts"
 import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
-import { RequestsPage } from "./pages/Requests.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
 import { Button, cx, Icon, type IconName, Logo, StatusDot, type Tone } from "./ui"
 import "./styles.css"
 
+/** The console is for setting Quai up, in the order it's done; living with it happens in the app. */
 const pages = {
-  iphones: { label: "iPhones", icon: "phone", render: () => <IphonesPage /> },
-  fixes: { label: "To fix", icon: "wrench", render: () => <FixesPage /> },
-  requests: { label: "Requests", icon: "person", render: () => <RequestsPage /> },
+  settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> },
   flows: { label: "Flows", icon: "flows", render: () => <FlowsPage /> },
-  settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> }
+  iphones: { label: "iPhones", icon: "phone", render: () => <IphonesPage /> }
 } as const satisfies Record<string, { label: string; icon: IconName; render: () => ReactNode }>
 type Page = keyof typeof pages
 
 const fromHash = (): Page => {
   const hash = window.location.hash.slice(1)
-  return hash in pages ? (hash as Page) : "iphones"
+  return hash in pages ? (hash as Page) : "settings"
 }
 
 const homeLabel: Record<HomeStatus, { readonly tone: Tone; readonly text: string }> = {
@@ -31,7 +28,6 @@ const homeLabel: Record<HomeStatus, { readonly tone: Tone; readonly text: string
 }
 
 function NavLink({ page, current }: { page: Page; current: boolean }) {
-  const fixes = useFixCount()
   return (
     <a
       href={`#${page}`}
@@ -43,7 +39,6 @@ function NavLink({ page, current }: { page: Page; current: boolean }) {
     >
       <Icon name={pages[page].icon} size={17} className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"} />
       {pages[page].label}
-      {page === "fixes" && fixes !== null && fixes > 0 && <span className="ml-auto rounded-md bg-fix-soft px-1.5 py-0.5 text-mini font-semibold text-fix-text tabular-nums">{fixes}</span>}
     </a>
   )
 }
@@ -89,6 +84,16 @@ function Connection({ health, cloudDown }: { health: Health | null; cloudDown: b
   )
 }
 
+/** The console's rule, under its pages: the day-to-day is in the app. */
+function AppNote() {
+  return (
+    <p className="flex gap-2 px-2 text-caption text-muted">
+      <Icon name="phone" size={14} className="mt-0.5 shrink-0 text-faint" />
+      <span>Requests, fixes and today's releases are in the Quai app.</span>
+    </p>
+  )
+}
+
 function Wordmark() {
   return <span className="text-brand font-bold tracking-title">Quai</span>
 }
@@ -125,7 +130,6 @@ function App() {
   const [cloudDown, setCloudDown] = useState(false)
   const { status } = useHome()
   useHomeProbe()
-  useFixCountProbe()
 
   useEffect(() => {
     const onHash = () => setPage(fromHash())
@@ -139,13 +143,16 @@ function App() {
     <div className="flex min-h-screen flex-col md:flex-row">
       {/* Sidebar on wide screens. */}
       <nav aria-label="Console" className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-r border-line bg-sidebar px-3 pt-4 pb-3 md:flex">
-        <a href="#iphones" className="mb-5 flex items-center gap-2.5 rounded-control px-2 py-1">
+        <a href="#settings" className="mb-5 flex items-center gap-2.5 rounded-control px-2 py-1">
           <Logo />
           <Wordmark />
-          <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Console</span>
+          <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Setup</span>
         </a>
         {order.map((p) => <NavLink key={p} page={p} current={page === p} />)}
-        <div className="mt-auto"><Connection health={health} cloudDown={cloudDown} /></div>
+        <div className="mt-auto flex flex-col gap-3">
+          <AppNote />
+          <Connection health={health} cloudDown={cloudDown} />
+        </div>
       </nav>
 
       {/* Top bar on phones. */}
@@ -164,6 +171,7 @@ function App() {
         <div className="flex gap-1 overflow-x-auto px-3 pb-2.5">
           {order.map((p) => <NavLink key={p} page={p} current={page === p} />)}
         </div>
+        <div className="px-2 pb-2.5"><AppNote /></div>
       </nav>
 
       <main className="flex min-w-0 flex-1 flex-col">
