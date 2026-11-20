@@ -24,37 +24,35 @@ compares each result with the one expected today:
 
 | Design (`SendUnderLock`) | `OneActivity` | `ActivityWhileRunning` | `LatestShown` |
 | --- | --- | --- | --- |
-| `FALSE`: the code as it is | pass | **fail** (finding 2) | **fail** (finding 1) |
-| `TRUE`: pushes sent before the permit is released | pass | pass | pass |
+| `TRUE`: the code as it is, pushes sent holding the permit | pass | pass | pass |
+| `FALSE`: sent after the permit is released (the code before `71db126`) | pass | **fail** | **fail** |
+
+The `FALSE` row is the check's own proof that it can fail: it must keep failing.
 
 Exit 0: nothing changed. Exit 1: a result differs from that table, marked `!!`, with TLC's
 counterexample. Exit 2: TLC didn't run (a syntax error in the model).
-`LiveActivityPushes.cfg` (everything, code as it is) and `UnderLock.cfg` can be run by hand:
-`java -jar tla2tools.jar -deadlock -config UnderLock.cfg LiveActivityPushes.tla`.
+`LiveActivityPushes.cfg` (the code as it is) and `Before.cfg` can be run by hand:
+`java -jar tla2tools.jar -deadlock -config Before.cfg LiveActivityPushes.tla`.
 
-## Findings (open, product code unchanged)
+## What it found, and the fix
 
-`Activities.run` computes the pushes under a one-permit `Semaphore`, but the caller hands them
-to `Notifier.send` after the permit is released. Two fibers call it: the event fiber
+Before `71db126`, `Activities.run` computed the pushes under its one-permit `Semaphore`, and the
+Hub sent them after the permit was released. Two fibers do this: the event fiber
 (`Hub.layerFed`: `handle` → `apply`) and the heartbeat (`Hub.layer`: `beat`, every 5 s). Their
-pushes can reach APNs in the opposite order from the one the engine made them in, and
-`apnsBody` stamps each one with the time it is sent, so iOS keeps whichever arrives last.
+pushes could reach APNs in the opposite order, and `apnsBody` stamps each push at send time, so
+iOS kept whichever arrived last:
 
-1. **`LatestShown`.** The engine makes Start (v1, event fiber), then the heartbeat makes an
-   Update (v2). The heartbeat sends v2 first, then the event fiber sends v1. The iPhone shows
-   v1 until the next push.
-2. **`ActivityWhileRunning`.** The heartbeat ends an expired activity (End). An event about
-   the same key then gets there first, and since `shown` is still set, it goes out as an Update
-   to the old token. The End follows and ends the activity on the iPhone, while the engine
-   runs it again. The reverse order (End made after a Start that was not sent yet) leaves an
-   activity on the iPhone that will never get its End. The shortest trace TLC prints for this
-   one has the heartbeat end an activity it just started, which onTick only does after
-   `expireAfterMinutes` without an event. The real window is that expiry meeting an event,
-   rarer than the trace suggests.
+1. `LatestShown`: Start (v1, events) then Update (v2, heartbeat); v2 sent first, v1 after: the
+   iPhone shows v1 until the next push.
+2. `ActivityWhileRunning`: the heartbeat ends an expired activity while an event about the same
+   key goes out first as an Update to the old token; the End follows and ends what the engine
+   runs again. The other order leaves an activity on the iPhone that never gets its End.
 
-The fix the model supports: send the pushes while holding the permit (or per key, in engine
-order). If the code changes that way, move the table's `FALSE` row expectations to pass in
-`verify.sh` once the model's `Compute`/`Deliver` describe the new code.
+The fix: `Activities.handle(event, send)` and `tick(send)` run `send` (the Hub passes
+`notifier.send`) before releasing the permit. Its unit test is "pushes leave in the order the
+engine made them, even from two fibers" in `apps/cloud/test/flows/engine.test.ts`: it fails when
+the send moves out of the permit. Cost: the permit is held during APNs sends, so events wait for
+them (`apns.send` has its own timeout).
 
 ## Reading a result
 
@@ -74,24 +72,24 @@ Covered, at the sync commit:
 
 | Code | Model |
 | --- | --- |
-| `apps/cloud/src/flows/Activities.ts`: `run` (permit around compute, released before return) | `Compute`, `lock` |
+| `apps/cloud/src/flows/Activities.ts`: `run` (permit around compute and `send`) | `Compute`, `lock` |
 | `apps/cloud/src/integrations/Hub.ts`: `apply`, `beat`, `layerFed`, `layer` | the two fibers, `EventChange`/`TickChange` |
 | `apps/cloud/src/push/Notifier.ts`: `one` (deliveryFor, `shown.add`/`delete`, `apns.send`) | `Deliver`, `shown` |
 | `apps/cloud/src/flows/Targeting.ts`: `deliveryFor`, no swipe, tokens known | `Deliver`'s branches |
 | `apps/cloud/src/flows/Engine.ts`: which pushes `onEvent`/`onTick` can make | `EventChange`, `TickChange` |
 
 Bounds and assumptions: one activity key, one iPhone with its push-to-start and activity tokens
-known, no swipe (`dismissed`), at most 5 engine runs for the code as it is and 7 for the fixed
-design. APNs delivers to one device in the order it receives. Expiry timing is not modeled:
+known, no swipe (`dismissed`), at most 7 engine runs for the code as it is and 5 for the design
+before the fix. Each `Deliver` of a fiber happens while it holds the permit. APNs delivers to one device in the order it receives. Expiry timing is not modeled:
 the heartbeat may end a running activity at any step.
 
 Not covered: several iPhones or keys, swiped-away activities, `Notifier.sendTo` (test
 buttons), timeouts and retries of `apns.send`, Quai Home disconnecting mid-push, and the
 iPhone's own play/pause shown at once (`PendingPlayback`).
 
-**Sync commit: `a7aa6ae`.** The verification describes the files above as they are at this
+**Sync commit: `71db126`.** The verification describes the files above as they are at this
 commit. Before trusting a pass, run
-`git diff a7aa6ae -- apps/cloud/src/flows/Activities.ts apps/cloud/src/push/Notifier.ts apps/cloud/src/integrations/Hub.ts apps/cloud/src/flows/Targeting.ts apps/cloud/src/flows/Engine.ts`.
+`git diff 71db126 -- apps/cloud/src/flows/Activities.ts apps/cloud/src/push/Notifier.ts apps/cloud/src/integrations/Hub.ts apps/cloud/src/flows/Targeting.ts apps/cloud/src/flows/Engine.ts`.
 If one of those diffs touches what the table maps, update the model, then move this commit
 forward only after checking the model describes the code at the new commit.
 
