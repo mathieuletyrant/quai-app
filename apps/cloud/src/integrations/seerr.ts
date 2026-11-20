@@ -3,7 +3,7 @@ import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
-import { type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
+import { type ActionHandler, anyEnabledFlow, type Integration, readSnapshot, runningWhere, type WatchContext, watchOf } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./arr.ts"
 
 /**
@@ -327,12 +327,11 @@ export const seerr = Effect.gen(function*() {
     webhook: { read: (body) => Effect.map(decodeSeerrWebhook(body), seerrEvents) },
     watcher: {
       watches: (context) =>
-        anyEnabledFlow(context, "request") ? [{ id: pendingWatchId, service: "seerr", path: pendingPath, everySeconds: 60 }] : [],
-      read: ({ status, body }, context) =>
+        anyEnabledFlow(context, "request") ? [watchOf(pendingWatchId, pendingRead, 60)] : [],
+      read: (snapshot, context) =>
         Effect.gen(function*() {
-          if (status !== 200) return yield* Effect.as(Effect.logWarning(`Seerr answered HTTP ${status}`), [])
-          const page = readJson(SeerrRequestPage, body)
-          if (Option.isNone(page)) return yield* Effect.as(Effect.logWarning("Seerr: could not read the requests"), [])
+          const page = yield* readSnapshot(pendingRead, snapshot)
+          if (Option.isNone(page)) return []
           const pending = waiting(page.value.results)
           const started = yield* Effect.forEach(
             pending.filter((r) => unfollowed(context, r)),

@@ -1,23 +1,32 @@
 import type { DayRelease, HomeProtocol } from "@quai/api"
 import { Effect, Option } from "effect"
 import type { FlowEvent, Subject } from "../flows/Events.ts"
-import { dayOf, dayRange } from "../releases/Day.ts"
-import { activityItems, allAvailable, type DayInputs, dayReleases, startsAt, summary } from "../releases/Tonight.ts"
-import { QueuePage } from "./arr.ts"
-import { anyEnabledFlow, type Integration, readJson, type Snapshot, type WatchContext } from "./Integration.ts"
-import { RadarrCalendar, radarrCalendarPath, radarrCalendarQueuePath } from "./radarr.ts"
-import { SonarrCalendar, sonarrCalendarPath, sonarrCalendarQueuePath } from "./sonarr.ts"
+import { dayOf } from "../releases/Day.ts"
+import {
+  activityItems,
+  allAvailable,
+  dayInputs,
+  type DayReads,
+  dayReads,
+  dayReleases,
+  type DayValue,
+  startsAt,
+  summary
+} from "../releases/Tonight.ts"
+import { anyEnabledFlow, type Integration, readSnapshot, type WatchContext, watchOf } from "./Integration.ts"
 
 /** One activity for the day: `day:2026-11-20`. */
 export const dayKey = (day: string) => `day:${day}`
 export const dayOfKey = (key: string) => key.startsWith("day:") ? key.slice(4) : null
 
-export const calendarWatchIds = {
+export const calendarWatchIds: { readonly [K in keyof DayReads]: string } = {
   episodes: "calendar:sonarr",
   movies: "calendar:radarr",
   sonarrQueue: "calendar:sonarr-queue",
   radarrQueue: "calendar:radarr-queue"
-} as const
+}
+
+const dayReadKeys = ["episodes", "sonarrQueue", "movies", "radarrQueue"] as const satisfies ReadonlyArray<keyof DayReads>
 
 /** Every 5 minutes while the day's activity runs, every 30 otherwise (to know when to start it). */
 export const pollSeconds = { running: 300, idle: 1800 } as const
@@ -32,20 +41,15 @@ const dayActivities = (context: WatchContext) => {
 
 const subjectOf = (day: string): Subject => ({ kind: "day", key: dayKey(day), title: "Tonight" })
 
-/** The watches of the day: Sonarr's and Radarr's calendars and queues, in the home's day. */
+/** The watches of the day: its reads (`dayReads`), in the home's day. */
 export const calendarWatches = (context: WatchContext): ReadonlyArray<HomeProtocol.Watch> => {
   if (!anyEnabledFlow(context, "day")) return []
   const today = dayOf(context.now, context.timeZone)
-  const { start, end } = dayRange(today, context.timeZone)
   const everySeconds = dayActivities(context).some((a) => a.subjectKey === dayKey(today)) ? pollSeconds.running : pollSeconds.idle
-  const day = 24 * 3600_000
-  return [
-    { id: calendarWatchIds.episodes, service: "sonarr" as const, path: sonarrCalendarPath(start, end), everySeconds },
-    { id: calendarWatchIds.sonarrQueue, service: "sonarr" as const, path: sonarrCalendarQueuePath, everySeconds },
-    // Radarr's dates are days at midnight UTC: a day wider each side, then the home's day is kept.
-    { id: calendarWatchIds.movies, service: "radarr" as const, path: radarrCalendarPath(start - day, end + day), everySeconds },
-    { id: calendarWatchIds.radarrQueue, service: "radarr" as const, path: radarrCalendarQueuePath, everySeconds }
-  ].filter((w) => context.services.includes(w.service))
+  const reads = dayReads(today, context.timeZone)
+  return dayReadKeys
+    .map((key) => watchOf(calendarWatchIds[key], reads[key], everySeconds))
+    .filter((w) => context.services.includes(w.service))
 }
 
 /**
@@ -95,40 +99,20 @@ export const dayEvents = (context: WatchContext, releases: ReadonlyArray<DayRele
  * at midnight. Never grabs anything.
  */
 export const releases = Effect.sync((): Integration => {
-  const read = new Map<string, { readonly path: string; readonly body: unknown }>()
-
-  const inputs = (context: WatchContext): DayInputs | null => {
-    const current = new Map(calendarWatches(context).map((w) => [w.id, w.path]))
-    const value = <A>(id: string): A | undefined => {
-      const r = read.get(id)
-      return r !== undefined && current.get(id) === r.path ? r.body as A : undefined
-    }
-    const got: DayInputs = {
-      episodes: value(calendarWatchIds.episodes),
-      movies: value(calendarWatchIds.movies),
-      sonarrQueue: value(calendarWatchIds.sonarrQueue),
-      radarrQueue: value(calendarWatchIds.radarrQueue)
-    }
-    return got.episodes === undefined && got.movies === undefined ? null : got
-  }
+  /** What each watch last said, decoded, with the path it was read at. */
+  const read = new Map<string, { readonly path: string; readonly value: unknown }>()
 
   const evaluate = (context: WatchContext): ReadonlyArray<FlowEvent> => {
-    const got = inputs(context)
-    return dayEvents(context, got === null ? null : dayReleases(dayOf(context.now, context.timeZone), context.timeZone, got))
-  }
-
-  const decode = ({ watch, body }: Snapshot): Option.Option<unknown> => {
-    switch (watch.id) {
-      case calendarWatchIds.episodes:
-        return readJson(SonarrCalendar, body)
-      case calendarWatchIds.movies:
-        return readJson(RadarrCalendar, body)
-      case calendarWatchIds.sonarrQueue:
-      case calendarWatchIds.radarrQueue:
-        return Option.map(readJson(QueuePage, body), (page) => page.records)
-      default:
-        return Option.none()
+    const today = dayOf(context.now, context.timeZone)
+    // Only what was read for the watches of now: yesterday's calendars don't count.
+    const current = new Map(calendarWatches(context).map((w) => [w.id, w.path]))
+    const value = <K extends keyof DayReads>(key: K): DayValue<K> | undefined => {
+      const r = read.get(calendarWatchIds[key])
+      return r !== undefined && current.get(calendarWatchIds[key]) === r.path ? r.value as DayValue<K> : undefined
     }
+    const got = { episodes: value("episodes"), movies: value("movies"), sonarrQueue: value("sonarrQueue"), radarrQueue: value("radarrQueue") }
+    const releases = got.episodes === undefined && got.movies === undefined ? null : dayReleases(today, context.timeZone, dayInputs(got))
+    return dayEvents(context, releases)
   }
 
   return {
@@ -137,10 +121,11 @@ export const releases = Effect.sync((): Integration => {
       watches: calendarWatches,
       read: (snapshot, context) =>
         Effect.gen(function*() {
-          if (snapshot.status !== 200) return yield* Effect.as(Effect.logWarning(`${snapshot.watch.service} calendar answered HTTP ${snapshot.status}`), [])
-          const value = decode(snapshot)
-          if (Option.isNone(value)) return yield* Effect.as(Effect.logWarning(`${snapshot.watch.service}: could not read ${snapshot.watch.id}`), [])
-          read.set(snapshot.watch.id, { path: snapshot.watch.path, body: value.value })
+          const key = dayReadKeys.find((k) => calendarWatchIds[k] === snapshot.watch.id)
+          if (key === undefined) return []
+          const value = yield* readSnapshot<unknown>(dayReads(dayOf(context.now, context.timeZone), context.timeZone)[key], snapshot)
+          if (Option.isNone(value)) return []
+          read.set(snapshot.watch.id, { path: snapshot.watch.path, value: value.value })
           return evaluate(context)
         }),
       tick: (context) => Effect.sync(() => evaluate(context))

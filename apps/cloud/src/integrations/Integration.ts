@@ -1,9 +1,9 @@
 import { type ActionType, type Flow, type HomeProtocol, InvalidAction, type ServiceName } from "@quai/api"
-import { Context, Effect, Schema } from "effect"
+import { Context, Effect, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import type { CallRequest } from "../home/HomeLink.ts"
-import type { HomeReads } from "../home/HomeReads.ts"
+import type { HomeReads, Read } from "../home/HomeReads.ts"
 
 /** What an integration sees to decide what to watch, and to read what comes back. */
 export interface WatchContext {
@@ -91,3 +91,22 @@ export const anyEnabledFlow = (context: Pick<WatchContext, "flows">, subject: Fl
 /** Reads a JSON body against a schema; `None` when it doesn't fit. */
 export const readJson = <A, I>(schema: Schema.Codec<A, I>, body: string) =>
   Schema.decodeUnknownOption(Schema.fromJsonString(schema))(body)
+
+/** A read watched: Quai Home polls the same GET the Cloud reads once, so both are defined once. */
+export const watchOf = (id: string, read: Read<unknown>, everySeconds: number): HomeProtocol.Watch => ({
+  id,
+  service: read.service,
+  path: read.path,
+  everySeconds
+})
+
+/**
+ * A snapshot of a watched read, decoded as the read is: None, logged with its service and path
+ * (never what it answered), when the service answered other than 200 or with what Quai can't read.
+ */
+export const readSnapshot = <A>(read: Read<A>, snapshot: Snapshot): Effect.Effect<Option.Option<A>> => {
+  const value = snapshot.status === 200 ? readJson(read.schema, snapshot.body) : Option.none<A>()
+  if (Option.isSome(value)) return Effect.succeed(value)
+  const why = snapshot.status === 200 ? "an answer Quai can't read" : `HTTP ${snapshot.status}`
+  return Effect.as(Effect.logWarning(`${snapshot.watch.service} ${snapshot.watch.path.split("?")[0]}: ${why}`), value)
+}

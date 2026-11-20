@@ -12,12 +12,12 @@ import { Devices } from "../../src/home/Devices.ts"
 import { QueuePage } from "../../src/integrations/arr.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
 import { RadarrCalendar } from "../../src/integrations/radarr.ts"
-import { calendarWatchIds, dayEvents, pollSeconds } from "../../src/integrations/releases.ts"
+import { calendarWatches, calendarWatchIds, dayEvents, pollSeconds } from "../../src/integrations/releases.ts"
 import { SonarrCalendar } from "../../src/integrations/sonarr.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { apnsBody } from "../../src/push/ApnsPayload.ts"
 import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/releases/Day.ts"
-import { activityItems, dayReleases, startsAt } from "../../src/releases/Tonight.ts"
+import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/Tonight.ts"
 import { cloudLive, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp, testAppDroppingOn } from "../testApp.ts"
@@ -173,6 +173,12 @@ describe("Tonight's releases flow", () => {
     const devices = yield* Devices
     const { code } = yield* devices.createPairingCode
     yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development", timeZone: paris })
+  })
+
+  it("the Tonight tile and the day flows read the same GETs: the watches are the day's reads", () => {
+    const context = { flows: [tonight], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris }
+    const watched = calendarWatches({ ...context, services: [...context.services] }).map((w) => `${w.service} ${w.path}`)
+    expect(watched.sort()).toEqual(Object.values(dayReads("2026-11-20", paris)).map((r) => `${r.service} ${r.path}`).sort())
   })
 
   it.effect("watches the calendars of the home's day, starts at 18:00, ticks off what arrives, ends when all are here", () =>
