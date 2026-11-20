@@ -1,5 +1,5 @@
 import type { Health } from "@quai/api"
-import { StrictMode, useEffect, useState } from "react"
+import { type ReactNode, StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { call, type HomeStatus, probeHome, useFixCount, useFixCountProbe, useHome, useHomeProbe } from "./client.ts"
 import { FixesPage } from "./pages/Fixes.tsx"
@@ -16,7 +16,7 @@ const pages = {
   requests: { label: "Requests", icon: "person", render: () => <RequestsPage /> },
   flows: { label: "Flows", icon: "flows", render: () => <FlowsPage /> },
   settings: { label: "Settings", icon: "settings", render: () => <SettingsPage /> }
-} as const satisfies Record<string, { label: string; icon: IconName; render: () => React.ReactNode }>
+} as const satisfies Record<string, { label: string; icon: IconName; render: () => ReactNode }>
 type Page = keyof typeof pages
 
 const fromHash = (): Page => {
@@ -37,16 +37,40 @@ function NavLink({ page, current }: { page: Page; current: boolean }) {
       href={`#${page}`}
       aria-current={current ? "page" : undefined}
       className={cx(
-        "group flex h-9 shrink-0 items-center gap-2.5 rounded-control px-3 text-[13px] font-semibold transition-colors",
+        "group flex h-9 shrink-0 items-center gap-2.5 rounded-control px-3 text-body font-semibold transition-colors",
         current ? "bg-raised text-text ring-1 ring-line ring-inset" : "text-muted hover:bg-white/4 hover:text-text"
       )}
     >
       <Icon name={pages[page].icon} size={17} className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"} />
       {pages[page].label}
-      {page === "fixes" && fixes !== null && fixes > 0 && (
-        <span className="ml-auto rounded-md bg-fix-soft px-1.5 py-0.5 text-[11.5px] font-semibold text-fix-text tabular-nums">{fixes}</span>
-      )}
+      {page === "fixes" && fixes !== null && fixes > 0 && <span className="ml-auto rounded-md bg-fix-soft px-1.5 py-0.5 text-mini font-semibold text-fix-text tabular-nums">{fixes}</span>}
     </a>
+  )
+}
+
+/** "v0.12.1" for a release, the version as is otherwise ("dev"). */
+const versionLabel = (version: string) => /^\d/.test(version) ? `v${version}` : version
+
+/** Where Quai Cloud stands: its version once it answered. */
+const cloudLabel = (health: Health | null, cloudDown: boolean): { readonly tone: Tone; readonly text: ReactNode } => {
+  if (health) return { tone: "ok", text: <span className="font-mono text-mini">{versionLabel(health.version)}</span> }
+  if (cloudDown) return { tone: "danger", text: "Unreachable" }
+  return { tone: "neutral", text: "Checking…" }
+}
+
+/** One of Quai's two parts, its icon and where it stands. */
+function Part({ icon, name, tone, pulse = false, children }: { icon: IconName; name: string; tone: Tone; pulse?: boolean; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="grid size-7 shrink-0 place-items-center rounded-item bg-raised text-muted"><Icon name={icon} size={15} /></span>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="text-small font-semibold">{name}</p>
+        <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted">
+          <StatusDot tone={tone} pulse={pulse} />
+          {children}
+        </p>
+      </div>
+    </div>
   )
 }
 
@@ -54,30 +78,19 @@ function NavLink({ page, current }: { page: Page; current: boolean }) {
 function Connection({ health, cloudDown }: { health: Health | null; cloudDown: boolean }) {
   const { status } = useHome()
   const home = cloudDown ? { tone: "neutral" as const, text: "Unknown" } : homeLabel[status]
+  const cloud = cloudLabel(health, cloudDown)
   return (
     <div className="flex flex-col gap-2.5 rounded-card border border-line bg-panel p-3">
-      <div className="flex items-center gap-2.5">
-        <span className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-raised text-muted"><Icon name="home" size={15} /></span>
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="text-[12.5px] font-semibold">Quai Home</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted">
-            <StatusDot tone={home.tone} pulse={status === "online" && !cloudDown} />
-            {home.text}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2.5 border-t border-line pt-2.5">
-        <span className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-raised text-muted"><Icon name="cloud" size={15} /></span>
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="text-[12.5px] font-semibold">Quai Cloud</p>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted">
-            <StatusDot tone={health ? "ok" : cloudDown ? "danger" : "neutral"} />
-            {health ? <span className="font-mono text-[11.5px]">{/^\d/.test(health.version) ? `v${health.version}` : health.version}</span> : cloudDown ? "Unreachable" : "Checking…"}
-          </p>
-        </div>
+      <Part icon="home" name="Quai Home" tone={home.tone} pulse={status === "online" && !cloudDown}>{home.text}</Part>
+      <div className="border-t border-line pt-2.5">
+        <Part icon="cloud" name="Quai Cloud" tone={cloud.tone}>{cloud.text}</Part>
       </div>
     </div>
   )
+}
+
+function Wordmark() {
+  return <span className="text-brand font-bold tracking-title">Quai</span>
 }
 
 /** Across the top of every page while Quai Home isn't linked: what still works, and a retry. */
@@ -86,7 +99,7 @@ function OfflineBanner() {
   return (
     <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-danger/25 bg-danger-soft/50 px-4 py-2.5 md:px-8">
       <Icon name="unlink" size={16} className="text-danger-text" />
-      <p className="min-w-0 flex-1 text-[13px] text-text-2">
+      <p className="min-w-0 flex-1 text-body text-text-2">
         <span className="font-semibold text-text">Quai Home is offline.</span>{" "}
         <span className="hidden text-muted sm:inline">iPhones and flows are kept at home: they can't be read or changed until it reconnects to Quai Cloud.</span>
       </p>
@@ -128,8 +141,8 @@ function App() {
       <nav aria-label="Console" className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-r border-line bg-sidebar px-3 pt-4 pb-3 md:flex">
         <a href="#iphones" className="mb-5 flex items-center gap-2.5 rounded-control px-2 py-1">
           <Logo />
-          <span className="text-[16px] font-bold tracking-[-0.02em]">Quai</span>
-          <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-[10.5px] font-semibold tracking-[0.04em] text-muted uppercase">Console</span>
+          <Wordmark />
+          <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Console</span>
         </a>
         {order.map((p) => <NavLink key={p} page={p} current={page === p} />)}
         <div className="mt-auto"><Connection health={health} cloudDown={cloudDown} /></div>
@@ -139,9 +152,9 @@ function App() {
       <nav aria-label="Console" className="border-b border-line bg-sidebar md:hidden">
         <div className="flex h-14 items-center gap-2.5 px-4">
           <Logo size={26} />
-          <span className="text-[16px] font-bold tracking-[-0.02em]">Quai</span>
+          <Wordmark />
           <span className={cx(
-            "ml-auto inline-flex h-7 items-center gap-2 rounded-full border px-2.5 text-[12px] font-semibold",
+            "ml-auto inline-flex h-7 items-center gap-2 rounded-full border px-2.5 text-caption font-semibold",
             status === "offline" ? "border-danger/30 text-danger-text" : "border-line-strong text-muted"
           )}>
             <StatusDot tone={homeLabel[status].tone} />
