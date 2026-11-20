@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
-import { epochSeconds, knownYear, posterOf, type RadarrMovie } from "./radarr.ts"
+import { epochSeconds, knownYear, posterOf } from "./arr.ts"
+import type { RadarrMovie } from "./radarr.ts"
 import type { SonarrSeries } from "./sonarr.ts"
 
 /**

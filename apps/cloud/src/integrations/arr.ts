@@ -2,15 +2,34 @@ import type { Release } from "@quai/api"
 import { Schema } from "effect"
 
 /**
- * What Radarr and Sonarr share for the To fix list: they run on the same framework, so their
- * queue, release search and manual import differ only in the fields naming the media. Only the
- * fields Quai reads; Radarr v5/v6 and Sonarr v4.
+ * What Radarr and Sonarr share: they run on the same framework, so their images, dates, queue,
+ * release search and manual import differ only in the fields naming the media. Only the fields
+ * Quai reads; Radarr v5/v6 and Sonarr v4.
  */
 
-const Images = Schema.optional(Schema.Array(Schema.Struct({
+/** One of an *arr's images: only its kind and public URL. */
+export const ArrImage = Schema.Struct({
   coverType: Schema.String,
   remoteUrl: Schema.optional(Schema.String)
-})))
+})
+
+const Images = Schema.optional(Schema.Array(ArrImage))
+
+/** The poster's public URL (TMDB, TheTVDB). Never the service's own `url`: that one needs its key. */
+export const posterOf = (images: ReadonlyArray<typeof ArrImage.Type> | undefined): string | undefined => {
+  const remote = images?.find((i) => i.coverType === "poster")?.remoteUrl
+  return remote !== undefined && /^https:\/\//.test(remote) ? remote : undefined
+}
+
+/** Epoch seconds of an *arr date; their "unknown" is year 1 (`0001-01-01T00:00:00Z`). */
+export const epochSeconds = (iso: string | undefined): number | undefined => {
+  if (iso === undefined) return undefined
+  const ms = Date.parse(iso)
+  return Number.isNaN(ms) || ms <= 0 ? undefined : Math.floor(ms / 1000)
+}
+
+/** A year the *arr knows: they write 0 when they don't. */
+export const knownYear = (year: number | undefined) => year !== undefined && year > 0 ? Math.trunc(year) : undefined
 
 const StatusMessage = Schema.Struct({
   title: Schema.optional(Schema.NullOr(Schema.String)),

@@ -1,6 +1,6 @@
 import { type ActivityItem, type DayRelease, defaultStartsAt } from "@quai/api"
-import type { QueueRecord } from "../integrations/arr.ts"
-import { epochSeconds, posterOf, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
+import { epochSeconds, posterOf, type QueueRecord } from "../integrations/arr.ts"
+import { type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
 import { episodeCode, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
 import { dayRange, instantOf } from "./Day.ts"
 

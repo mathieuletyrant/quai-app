@@ -4,9 +4,8 @@ import type { Detected } from "../fixes/Detected.ts"
 import { noSourceAfterMs } from "../fixes/Detected.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { seriesKey } from "../flows/Events.ts"
-import { type QueueRecord, queueMessages, queuePageSize } from "./arr.ts"
+import { ArrImage, epochSeconds, knownYear, posterOf, type QueueRecord, queueMessages, queuePageSize } from "./arr.ts"
 import type { Integration } from "./Integration.ts"
-import { ArrImage, epochSeconds, knownYear, posterOf } from "./radarr.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
