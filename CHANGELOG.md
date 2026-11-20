@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/mathieuletyrant/quai-app/compare/v0.11.0...v0.12.0) (2026-11-20)
+
+
+### ✨ Features
+
+* Seerr requests to approve, tonight's releases ([#34](https://github.com/mathieuletyrant/quai-app/issues/34)) ([24e6150](https://github.com/mathieuletyrant/quai-app/commit/24e61503585e01310cc5f0d57a17fa6501d4e0e9))
+
 ## [0.11.0](https://github.com/mathieuletyrant/quai-app/compare/v0.10.0...v0.11.0) (2026-11-20)
 
 
