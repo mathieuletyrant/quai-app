@@ -1,0 +1,15 @@
+{
+  "id": 21,
+  "status": 2,
+  "createdAt": "2026-11-20T21:58:00.000Z",
+  "updatedAt": "2026-11-20T21:58:00.000Z",
+  "type": "movie",
+  "is4k": false,
+  "serverId": 0,
+  "profileId": 9,
+  "rootFolder": "/downloads/movies",
+  "media": { "id": 34, "mediaType": "movie", "tmdbId": 438631, "status": 2 },
+  "requestedBy": { "id": 1, "displayName": "Mathieu" },
+  "modifiedBy": { "id": 1, "displayName": "Mathieu" },
+  "seasonCount": 0
+}

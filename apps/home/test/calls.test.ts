@@ -110,7 +110,7 @@ describe("To fix calls", () => {
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 
-  it.effect("approves a Seerr request with its API key, and never creates one", () => {
+  it.effect("approves a Seerr request with its API key, and creates one only as Seerr's owner with its defaults", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
       const calls = yield* Calls
@@ -119,9 +119,16 @@ describe("To fix calls", () => {
       expect(seen[0]!.url.href).toBe("http://seerr:5055/api/v1/request/12/approve")
       expect(seen[0]!.headers["x-api-key"]).toBe("masked")
       expect(seen[0]!.body).toBeNull()
-      const created = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } }))
-      expect(created).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      expect(seen).toHaveLength(1)
+      const created = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 438631 } }))
+      expect(created).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(seen[1]!.url.href).toBe("http://seerr:5055/api/v1/request")
+      expect(JSON.parse(String(seen[1]!.body))).toEqual({ mediaType: "movie", mediaId: 438631 })
+      // As someone else, or with a profile chosen by the Cloud: refused without calling Seerr.
+      for (const body of [{ mediaType: "movie", mediaId: 438631, userId: 2 }, { mediaType: "movie", mediaId: 438631, profileId: 9 }]) {
+        const refused = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request", body }))
+        expect(refused).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
+      }
+      expect(seen).toHaveLength(2)
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 

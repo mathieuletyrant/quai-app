@@ -22,6 +22,7 @@ import { PublicAccess } from "./PublicAccess.ts"
 import { HomeTime } from "./releases/HomeTime.ts"
 import { Releases } from "./releases/Releases.ts"
 import { Requests } from "./requests/Requests.ts"
+import { Search } from "./search/Search.ts"
 import { ServerInfo } from "./Version.ts"
 
 // All configuration comes from environment variables. Nothing about a home is kept here: it
@@ -50,7 +51,7 @@ const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
   Layer.provideMerge(HomeLink.layer)
 )
 
-const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
+const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer, Search.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Releases.layer)),
   Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
   Layer.provideMerge(Activities.layer),

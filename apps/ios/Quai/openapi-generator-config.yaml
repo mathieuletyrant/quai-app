@@ -11,6 +11,7 @@ filter:
     - library
     - fixes
     - requests
+    - search
     - releases
     - journal
     - alerts

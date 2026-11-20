@@ -27,6 +27,16 @@ export const RequestStatus = { pending: 1, approved: 2, declined: 3, failed: 4, 
 export const pendingPath = "/api/v1/request?take=50&skip=0&filter=pending&sort=added&sortDirection=asc"
 export const requestPath = (id: number) => `/api/v1/request/${id}`
 export const decisionPath = (id: number, decision: "approve" | "decline") => `/api/v1/request/${id}/${decision}`
+/** Asking for a title: `POST /api/v1/request`. */
+export const newRequestPath = "/api/v1/request"
+
+/**
+ * The body of a new request, the only one Quai Home lets through (`isNewSeerrRequest`): the title
+ * and, for a series, its first season. Seerr's settings decide the rest.
+ */
+export const newRequestBody = (kind: "movie" | "series", tmdbId: number) =>
+  kind === "movie" ? { mediaType: "movie", mediaId: tmdbId } : { mediaType: "tv", mediaId: tmdbId, seasons: [1] }
+
 export const detailsPath = (kind: "movie" | "tv", tmdbId: number) => `/api/v1/${kind}/${tmdbId}`
 
 /** TMDB's public poster URL, at the width the app shows. */
@@ -212,6 +222,8 @@ export class NotPending extends Data.TaggedError("NotPending")<{ readonly id: nu
  */
 export class Seerr extends Context.Service<Seerr, {
   readonly details: (request: SeerrRequest) => Effect.Effect<TitleDetails | undefined, HomeOffline>
+  /** A title as Seerr names it, by its TMDB id: read once, then kept in memory. */
+  readonly titleOf: (kind: "movie" | "series", tmdbId: number) => Effect.Effect<TitleDetails | undefined, HomeOffline>
   /** The pending requests with their titles, or None when Seerr didn't answer. */
   readonly pending: Effect.Effect<Option.Option<ReadonlyArray<MediaRequest>>, HomeOffline>
   /** A request as it is now; None when Seerr didn't answer, `"gone"` when it was deleted. */
@@ -222,30 +234,37 @@ export class Seerr extends Context.Service<Seerr, {
    * has the Hub read the requests again, so the Live Activity follows.
    */
   readonly decide: (id: number, decision: "approve" | "decline") => Effect.Effect<void, HomeOffline | NotPending | RequestFailed>
+  /**
+   * Requests a title as Seerr's owner (the API key's user), with Seerr's defaults. Seerr refusing
+   * (already requested, a quota) is a `RequestFailed` in its words.
+   */
+  readonly request: (kind: "movie" | "series", tmdbId: number) => Effect.Effect<void, HomeOffline | RequestFailed>
 }>()("quai/Seerr") {
   static readonly layer = Layer.effect(
     Seerr,
     Effect.gen(function*() {
       const reads = yield* HomeReads
       const cache = new Map<string, TitleDetails>()
-      const details = (request: SeerrRequest) =>
+      const titleOf = (media: "movie" | "series", tmdbId: number) =>
         Effect.gen(function*() {
-          const kind = kindOf(request) === "series" ? "tv" as const : "movie" as const
-          const key = `${kind}:${request.media.tmdbId}`
+          const kind = media === "series" ? "tv" as const : "movie" as const
+          const key = `${kind}:${tmdbId}`
           const known = cache.get(key)
           if (known !== undefined) return known
-          const body = yield* reads.read({ service: "seerr", path: detailsPath(kind, request.media.tmdbId), schema: SeerrTitle })
+          const body = yield* reads.read({ service: "seerr", path: detailsPath(kind, tmdbId), schema: SeerrTitle })
           const found = Option.flatMap(body, (title) => Option.fromNullishOr(titleDetails(title)))
           if (Option.isNone(found)) return undefined
           if (cache.size >= 500) cache.clear()
           cache.set(key, found.value)
           return found.value
         })
+      const details = (request: SeerrRequest) => titleOf(kindOf(request), request.media.tmdbId)
       const withTitles = (requests: ReadonlyArray<SeerrRequest>) =>
         Effect.forEach(waiting(requests), (r) => Effect.map(details(r), (d) => toMediaRequest(r, d)), { concurrency: 4 })
       const current = (id: number) => reads.read<SeerrRequest | "gone">({ service: "seerr", path: requestPath(id), schema: SeerrRequest, notFound: "gone" })
       return {
         details,
+        titleOf,
         pending: Effect.flatMap(
           reads.read(pendingRead),
           Option.match({ onNone: () => Effect.succeed(Option.none()), onSome: (page) => Effect.map(withTitles(page.results), Option.some) })
@@ -257,7 +276,12 @@ export class Seerr extends Context.Service<Seerr, {
             if (Option.isNone(now)) return yield* Effect.fail(new RequestFailed({ message: "Seerr didn't answer" }))
             if (now.value === "gone" || now.value.status !== RequestStatus.pending) return yield* Effect.fail(new NotPending({ id }))
             yield* reads.write({ service: "seerr", method: "POST", path: decisionPath(id, decision) }, (message) => new RequestFailed({ message }))
-          })
+          }),
+        request: (kind, tmdbId) =>
+          Effect.asVoid(reads.write(
+            { service: "seerr", method: "POST", path: newRequestPath, body: newRequestBody(kind, tmdbId) },
+            (message) => new RequestFailed({ message })
+          ))
       }
     })
   )

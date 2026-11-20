@@ -23,6 +23,7 @@ import { PublicAccess } from "../src/PublicAccess.ts"
 import { Apns } from "../src/push/Apns.ts"
 import { Releases } from "../src/releases/Releases.ts"
 import { Requests } from "../src/requests/Requests.ts"
+import { Search } from "../src/search/Search.ts"
 import { ServerInfo } from "../src/Version.ts"
 import { type FakeHome, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
@@ -75,7 +76,11 @@ const previewRoutes = (days: number): Readonly<Record<string, Recording>> => ({
   "cleanuparr GET /api/queue-rules/slow": "cleanuparr/slow-rules.json",
   "cleanuparr GET /api/jobs/QueueCleaner": shifted("cleanuparr/job-queue-cleaner.json", days),
   "cleanuparr GET /api/events": shifted("cleanuparr/events-removed.json", days),
-  "jellyfin GET /Items": "jellyfin/items-movie.json"
+  "jellyfin GET /Items": "jellyfin/items-movie.json",
+  // The search answers the same titles whatever is typed: the recorded lookups for "dune".
+  "radarr GET /api/v3/movie/lookup": "radarr/movie-lookup.json",
+  "sonarr GET /api/v3/series/lookup": "sonarr/series-lookup.json",
+  "seerr POST /api/v1/request": "seerr/request-created.json"
 })
 
 /** Something going on: Dune downloading at 42 %. */
@@ -119,7 +124,7 @@ const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
   Layer.provideMerge(HomeLink.layer)
 )
 
-const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
+const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer, Search.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Releases.layer)),
   Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
   Layer.provideMerge(Activities.layer),

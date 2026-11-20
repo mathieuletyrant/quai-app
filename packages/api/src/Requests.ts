@@ -42,17 +42,31 @@ export const MediaRequests = Schema.Struct({
 }).annotate({ identifier: "MediaRequests" })
 export type MediaRequests = typeof MediaRequests.Type
 
-/** Seerr refused or failed the approval: its answer, in its words. */
+/** Seerr refused or failed the request or the approval: its answer, in its words. */
 export class RequestFailed extends Schema.TaggedError<RequestFailed>()("RequestFailed", {
   message: Schema.String
 }, { httpApiStatus: 502 }) {}
 
+/** A title to request in Seerr, by its TMDB id: a series asks for its first season. */
+export const NewRequest = Schema.Struct({
+  kind: RequestKind,
+  tmdbId: Schema.Int.check(Schema.isGreaterThan(0))
+}).annotate({ identifier: "NewRequest" })
+export type NewRequest = typeof NewRequest.Type
+
+/** Quai Home has no Seerr: nothing can be requested. */
+export class RequestsNotConfigured extends Schema.TaggedError<RequestsNotConfigured>()("RequestsNotConfigured", {
+  message: Schema.String
+}, { httpApiStatus: 409 }) {}
+
 const id = { id: Schema.String }
 
-/** Seerr's requests waiting for approval, for the app's Requests tile and screen. */
+/** Seerr's requests: those waiting for approval (the app's Requests tile and screen), and asking for a title. */
 export class RequestsGroup extends HttpApiGroup.make("requests")
   .add(
     HttpApiEndpoint.get("list", "/requests", { success: MediaRequests }).annotate(OpenApi.Identifier, "listRequests"),
+    HttpApiEndpoint.post("create", "/requests", { payload: NewRequest, error: [RequestFailed, RequestsNotConfigured] })
+      .annotate(OpenApi.Identifier, "createRequest"),
     HttpApiEndpoint.post("approve", "/requests/:id/approve", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
       .annotate(OpenApi.Identifier, "approveRequest"),
     HttpApiEndpoint.post("decline", "/requests/:id/decline", { params: id, error: [RequestFailed, HttpApiError.NotFound] })

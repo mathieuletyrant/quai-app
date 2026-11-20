@@ -1,4 +1,4 @@
-import type { LibraryItem } from "@quai/api"
+import type { LibraryItem, SearchResult } from "@quai/api"
 import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { seriesKey } from "../flows/Events.ts"
@@ -136,6 +136,42 @@ export const librarySeries = (series: SonarrSeries): LibraryItem => {
     sizeBytes: series.statistics?.sizeOnDisk ?? 0,
     ...(series.overview === undefined || series.overview === "" ? {} : { overview: series.overview }),
     episodes: { have, total }
+  }
+}
+
+// The search: `GET /api/v3/series/lookup?term=`, Sonarr asking TheTVDB. A series already in Sonarr
+// comes back with its Sonarr id and statistics. Sonarr v4 names the TMDB id when it knows it: a
+// Seerr request needs it.
+
+const LookupSeries = Schema.Struct({
+  id: Schema.optional(Schema.Number),
+  title: Schema.String,
+  year: Schema.optional(Schema.Number),
+  tvdbId: Schema.Number,
+  tmdbId: Schema.optional(Schema.Number),
+  overview: Schema.optional(Schema.String),
+  images: Schema.optional(Schema.Array(ArrImage)),
+  statistics: Schema.optional(Schema.Struct({ episodeFileCount: Schema.optional(Schema.Number) }))
+})
+export const SonarrLookup = Schema.Array(LookupSeries)
+
+export const seriesLookupPath = (term: string) => `/api/v3/series/lookup?term=${encodeURIComponent(term)}`
+
+/** A series the search found: in Sonarr (with some episode on disk or not) or not added. */
+export const seriesResult = (series: typeof LookupSeries.Type): SearchResult => {
+  const year = knownYear(series.year)
+  const posterUrl = posterOf(series.images)
+  const inSonarr = series.id !== undefined && series.id > 0
+  const have = series.statistics?.episodeFileCount ?? 0
+  return {
+    id: seriesKey(series.tvdbId),
+    kind: "series",
+    title: series.title,
+    ...(year === undefined ? {} : { year }),
+    ...(posterUrl === undefined ? {} : { posterUrl }),
+    ...(series.overview === undefined || series.overview === "" ? {} : { overview: series.overview }),
+    state: !inSonarr ? "notAdded" : have > 0 ? "available" : "wanted",
+    ...(series.tmdbId === undefined || series.tmdbId <= 0 ? {} : { tmdbId: series.tmdbId })
   }
 }
 
