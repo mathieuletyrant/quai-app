@@ -81,9 +81,19 @@ export const summary = (releases: ReadonlyArray<DayRelease>) =>
 export const allAvailable = (releases: ReadonlyArray<DayRelease>) =>
   releases.length > 0 && releases.every((r) => r.status === "available")
 
-/** When the day's activity starts: the flow's time, or the first release's air time if earlier. */
+/**
+ * How much earlier than the flow's time a release airing earlier starts the activity. iOS stops
+ * updating a Live Activity after about 8 hours: started at 03:00 for a night of releases, it would
+ * be frozen by the evening.
+ */
+export const earliestStartMs = 3 * 3600_000
+
+/**
+ * When the day's activity starts: the flow's time, or the first release's air time if earlier,
+ * but never more than 3 hours before the flow's time.
+ */
 export const startsAt = (day: string, zone: string, time: string | undefined, releases: ReadonlyArray<DayRelease>) => {
   const configured = instantOf(day, time ?? defaultStartsAt, zone)
   const first = Math.min(...releases.flatMap((r) => r.airsAt === undefined ? [] : [r.airsAt * 1000]))
-  return Math.min(configured, first)
+  return Math.max(configured - earliestStartMs, Math.min(configured, first))
 }

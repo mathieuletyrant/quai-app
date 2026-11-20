@@ -108,7 +108,8 @@ monitored episodes airing that day (Sonarr's `GET /api/v3/calendar`, by `airDate
 monitored movies whose digital or physical release is that day (Radarr's calendar; a cinema
 release doesn't count), each `available` (its file is there), `downloading` or `grabbed` (in the
 queue) or `missing`. The activity starts at the flow's time (`startsAt`, default 18:00), or when
-the day's first release airs if earlier, as long as something is still awaited; it shows up to 4
+the day's first release airs if earlier but never more than 3 hours earlier (iOS stops updating a
+Live Activity after about 8 hours), as long as something is still awaited; it shows up to 4
 lines (what's still awaited first) and "2 of 5 here"; it reaches "All here" and ends once every
 release has its file, or ends where it is at midnight. Quai never grabs anything for it.
 
@@ -136,7 +137,8 @@ poll, every day.
 Seerr has a single webhook agent (one URL). At start, Quai Home takes it only when it has no URL,
 or already points to Quai Home's own receiver (then it updates it), with Quai's JSON
 template (type, title, request id, media type and TMDB id, requester) and the pending, approved
-and declined types. Another URL is left untouched (logged), even with the agent turned off. Either way, the Cloud polls the
+and declined types. Another URL is left untouched (logged), even with the agent turned off.
+Either way, the Cloud polls the
 pending requests every minute while a request flow is on: the way in without the webhook, and the
 safety net for a notification missed while Quai Home was down. A request that leaves the pending
 list is read once (`GET /api/v1/request/{id}`) to tell approved from declined. The webhook settings

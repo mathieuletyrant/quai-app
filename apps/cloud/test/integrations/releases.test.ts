@@ -111,6 +111,9 @@ describe("tonight's releases", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     expect(new Date(startsAt("2026-11-20", paris, undefined, releases)).toISOString()).toBe("2026-11-20T17:00:00.000Z")
     expect(new Date(startsAt("2026-11-20", paris, "21:30", releases)).toISOString()).toBe("2026-11-20T19:00:00.000Z")
+    // A release at 03:00 doesn't start it at 03:00 (iOS stops updating it after ~8 h): 3 h early at most.
+    const night = [{ ...releases[0]!, airsAt: Date.parse("2026-11-20T02:00:00Z") / 1000 }, ...releases.slice(1)]
+    expect(new Date(startsAt("2026-11-20", paris, undefined, night)).toISOString()).toBe("2026-11-20T14:00:00.000Z")
   })
 
   it("past 4 releases, the lines are cut but the count is the whole day's", () => {
@@ -240,6 +243,27 @@ describe("Tonight's releases flow", () => {
       // The new day's calendars are watched; yesterday's reads don't start anything today.
       expect(home.watch(calendarWatchIds.episodes)!.path).toContain("start=2026-11-20T23%3A00%3A00.000Z")
       expect((yield* day).filter((a) => a.endedAt === null)).toEqual([])
+    }).pipe(Effect.provide(engine)))
+
+  it.effect("a release at 03:00 starts it at 15:00 at the earliest, not in the night", () =>
+    Effect.gen(function*() {
+      yield* TestClock.setTime(Date.parse("2026-11-20T01:00:00Z"))
+      const home = yield* makeFakeHome({ services, answer: answer() })
+      yield* home.connect
+      yield* pairParis
+      const hub = yield* Hub
+      yield* hub.beat
+      const early = (fixture("sonarr/calendar.json") as Array<{ airDateUtc: string }>).map((e, i) => i === 1 ? { ...e, airDateUtc: "2026-11-20T02:00:00Z" } : e)
+      yield* home.snapshot(calendarWatchIds.episodes, early)
+      yield* TestClock.setTime(Date.parse("2026-11-20T02:00:00Z"))
+      yield* hub.beat
+      expect(yield* day).toEqual([])
+      yield* TestClock.setTime(Date.parse("2026-11-20T13:59:00Z"))
+      yield* hub.beat
+      expect(yield* day).toEqual([])
+      yield* TestClock.setTime(Date.parse("2026-11-20T14:00:00Z"))
+      yield* hub.beat
+      expect((yield* day).map((a) => a.enteredAt)).toEqual([Date.parse("2026-11-20T14:00:00Z")])
     }).pipe(Effect.provide(engine)))
 
   it.effect("starts nothing when everything is already here", () =>

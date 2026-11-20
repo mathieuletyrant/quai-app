@@ -67,7 +67,7 @@ export const FlowFilter = Schema.Struct({
   devices: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
    * day flows: the local time ("18:00", the home's time zone) the activity starts at, or earlier
-   * when the day's first release airs before. Absent: 18:00.
+   * (3 hours at most) when the day's first release airs before. Absent: 18:00.
    */
   startsAt: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^([01]\d|2[0-3]):[0-5]\d$/)))
 }).annotate({ identifier: "FlowFilter" })
