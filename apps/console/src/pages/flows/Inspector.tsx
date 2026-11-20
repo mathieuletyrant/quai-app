@@ -1,4 +1,4 @@
-import { type CatalogAction, type CatalogEvent, stepShows } from "@quai/api"
+import { type CatalogAction, type CatalogEvent, defaultStartsAt, stepShows } from "@quai/api"
 import { Callout, Chip, Field, FieldLabel, IconButton, Input, InspectorSection as Section, Segmented, Select } from "../../ui.tsx"
 import { type Draft, type DraftStep, eventName, type EventType, palette, serviceNames, showLabels, skippedFor } from "./draft.ts"
 import { IconPicker } from "./IconPicker.tsx"
@@ -41,6 +41,15 @@ export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: (change: 
             onChange={(v) => onChange((d) => { d.filter.mediaType = v })}
           />
         </div>
+      )}
+      {flow.subject === "day" && (
+        <Field label="Starts at" hint="In the iPhones' time zone. Earlier when a release airs before; ends when all are here, or at midnight.">
+          <Input
+            type="time"
+            value={flow.filter.startsAt ?? defaultStartsAt}
+            onChange={(e) => onChange((d) => { if (/^\d{2}:\d{2}$/.test(e.target.value)) d.filter.startsAt = e.target.value })}
+          />
+        </Field>
       )}
       {flow.subject === "playback" && (
         <Field label="Jellyfin devices" hint="Comma-separated, as Jellyfin names them. Empty: every device.">

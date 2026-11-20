@@ -1,4 +1,4 @@
-import type { CatalogEvent } from "@quai/api"
+import { type CatalogEvent, defaultStartsAt } from "@quai/api"
 import type { ReactNode } from "react"
 import { cx, Eyebrow, Icon } from "../../ui.tsx"
 import { actionGlyph, actionLabels, type Draft, endsAtLastStep, eventName, serviceNames, showLabels, skippedFor, subjects } from "./draft.ts"
@@ -87,6 +87,8 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
     ? { any: "Movies and series", movie: "Movies only", series: "Series only" }[flow.filter.mediaType ?? "any"]
     : flow.subject === "playback"
     ? (flow.filter.devices ?? []).length > 0 ? (flow.filter.devices ?? []).join(", ") : "Every Jellyfin device"
+    : flow.subject === "day"
+    ? `From ${flow.filter.startsAt ?? defaultStartsAt}, or the first air time if earlier`
     : "Every service"
   const ending = [
     flow.lingerMinutes > 0 ? `Stays ${flow.lingerMinutes} min on screen` : "Leaves the screen at once",
