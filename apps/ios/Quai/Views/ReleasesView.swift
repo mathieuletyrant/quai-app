@@ -99,9 +99,16 @@ struct ReleaseStatusLabel: View {
     }
 
     var body: some View {
-        Text(label.text)
-            .font(QuaiFont.eyebrow)
-            .foregroundStyle(label.color)
+        if status == .available {
+            Image(systemName: "checkmark")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(label.color)
+                .accessibilityLabel(label.text)
+        } else {
+            Text(label.text)
+                .font(QuaiFont.eyebrow)
+                .foregroundStyle(label.color)
+        }
     }
 }
 

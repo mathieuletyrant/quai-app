@@ -47,30 +47,6 @@ struct JournalRow: View {
     }
 }
 
-/// The Home's last few lines of the journal; the rest is in the Activity tab.
-struct RecentTile: View {
-    let entries: [JournalEntry]
-
-    var body: some View {
-        Tile {
-            HStack {
-                TileLabel(title: "Recent", systemImage: "clock.arrow.circlepath", color: Palette.accent)
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.tertiaryText)
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(entries.prefix(3), id: \.id) { entry in
-                    JournalRow(entry: entry)
-                }
-            }
-        }
-        .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
-        .accessibilityHint("Opens the Activity tab")
-    }
-}
-
 /// The media disk as the Storage tile reads it.
 struct DiskReading: Equatable {
     let freeBytes: Double
@@ -83,11 +59,14 @@ struct DiskReading: Equatable {
 
     var usedShare: Double { totalBytes > 0 ? 1 - freeBytes / totalBytes : 0 }
 
-    /// "85% used"
-    var caption: String { "\(Format.percent(usedShare)) used" }
+    /// "793 GB"
+    var free: String { Format.bytes(freeBytes) }
+
+    /// "free of 1.96 TB"
+    var ofTotal: String { "free of \(Format.bytes(totalBytes))" }
 }
 
-/// The media disk: free space, and a bar that fills up.
+/// The media disk on one line: the free space, and a bar that fills up.
 struct StorageTile: View {
     let reading: DiskReading
     /// The Low disk space alert is going on.
@@ -97,31 +76,24 @@ struct StorageTile: View {
 
     var body: some View {
         Tile {
-            HStack {
-                TileLabel(title: "Storage", systemImage: "internaldrive.fill", color: color)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "internaldrive.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(color)
+                Text(reading.free)
+                    .font(.system(size: 15, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(isLow ? Palette.toFix : Palette.primaryText)
+                Text(reading.ofTotal)
+                    .font(QuaiFont.caption)
+                    .foregroundStyle(Palette.secondaryText)
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.tertiaryText)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(Format.bytes(reading.freeBytes))
-                    .font(QuaiFont.value)
-                    .monospacedDigit()
-                    .foregroundStyle(isLow ? Palette.toFix : Palette.primaryText)
-                Text("free")
-                    .font(QuaiFont.headline)
-                    .foregroundStyle(Palette.primaryText)
-                Spacer(minLength: 8)
-                Text("of \(Format.bytes(reading.totalBytes))")
-                    .font(QuaiFont.caption)
-                    .foregroundStyle(Palette.secondaryText)
-            }
-            ProgressBar(value: reading.usedShare, color: color, height: 8)
+            ProgressBar(value: reading.usedShare, color: color)
                 .accessibilityHidden(true)
-            Text(reading.caption)
-                .font(QuaiFont.caption)
-                .foregroundStyle(Palette.secondaryText)
         }
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)

@@ -82,6 +82,25 @@ struct TodayTests {
         #expect(!today.isEmpty)
     }
 
+    @Test func theLiveBarShowsPlaybackFirstThenDownloads() throws {
+        let today = try Today([
+            activity("download", "Dune", progress: 0.2),
+            activity("download", "Nero"),
+            activity("playback", "The Bear"),
+            activity("download", "Runner", progress: 0.6),
+        ], subjects: ["download": .media, "playback": .playback])
+        let live = LiveNow(today)
+        #expect(live.items.map(\.activity.attributes.title) == ["The Bear", "Runner", "Dune"])
+        #expect(live.playing.map(\.attributes.title) == ["The Bear"])
+        #expect(live.downloading.map(\.attributes.title) == ["Runner", "Dune"])
+        #expect(LiveNow(try Today([activity("download", "Nero")], subjects: [:])).isEmpty)
+    }
+
+    @Test func aDownloadWithoutSpeedShowsItsStep() throws {
+        let item = LiveItem.downloading(try activity("download", "Dune", progress: 0.2))
+        #expect(item.subtitle == "Searching")
+    }
+
     @Test func anUnknownFlowIsMediaAndNothingIsEmpty() throws {
         #expect(Today([], subjects: [:]).isEmpty)
         let today = try Today([activity("anime", "Frieren")], subjects: [:])

@@ -39,7 +39,7 @@ You choose which ones run, and what each step shows, in a small flow editor in t
 The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the alerts and the journal of what Quai did.
 
 **The app**
-- 🏠 **Home**: what's downloading, what's ready, today's releases, requests waiting for you, what happened lately and how full the disk is.
+- 🏠 **Home**: what to fix, requests waiting for you, today's releases, the alerts and how full the disk is. What plays and downloads follows you in a bar above the tabs, like Music's mini player.
 - 🎞️ **Library**: your movies and series with their posters, and what's still missing.
 - 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
   one), what Reclaimerr is about to delete and what Cleanuparr is about to take out of the queue

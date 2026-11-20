@@ -48,13 +48,24 @@ extension RunningActivity {
     var tint: Color { Palette.tint(tone: content.tone.rawValue, color: attributes.color) }
 }
 
-/// The Home tab: today's downloads, requests, playback and incidents, as tiles.
+/// The Home tab: what needs you (to fix, to approve), what comes out today, what's on its way,
+/// the alerts and the disk. What plays and downloads is in the live bar, over the tabs.
 struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
 
     private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
-    private var diskIsLow: Bool { connection.alerts?.items.contains { $0.kind == .diskLow } ?? false }
+    private var alerts: [Components.Schemas.ActiveAlert] { connection.alerts?.items ?? [] }
+    private var fixes: [Fix] { connection.fixes?.items ?? [] }
+    private var requests: [Components.Schemas.MediaRequest] { connection.requests?.items ?? [] }
+    private var releases: [DayRelease] { connection.releases?.items ?? [] }
+    private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
+
+    /// Nothing asks for a look: the Home says so instead of showing empty tiles.
+    private var isQuiet: Bool {
+        fixes.isEmpty && requests.isEmpty && releases.isEmpty && alerts.isEmpty
+            && today.requested.isEmpty && today.ready.isEmpty
+    }
 
     var body: some View {
         NavigationStack {
@@ -64,22 +75,34 @@ struct HomeView: View {
                 if let error = connection.lastError {
                     MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
                 }
-                if let fixes = connection.fixes?.items, !fixes.isEmpty {
+                if !fixes.isEmpty {
                     NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
                         .buttonStyle(.plain)
                 }
-                if let requests = connection.requests?.items, !requests.isEmpty {
+                if !requests.isEmpty {
                     NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
                         .buttonStyle(.plain)
                 }
-                if let releases = connection.releases?.items, !releases.isEmpty {
+                if !releases.isEmpty {
                     NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
                         .buttonStyle(.plain)
                 }
-                tiles(today)
-                if !connection.journal.isEmpty {
-                    Button { tab = .activity } label: { RecentTile(entries: connection.journal) }
-                        .buttonStyle(.plain)
+                if !today.requested.isEmpty {
+                    openActivity { OnTheirWayTile(activities: today.requested) }
+                }
+                if !today.ready.isEmpty {
+                    openActivity { ReadyTile(activities: today.ready) }
+                }
+                if !alerts.isEmpty {
+                    AlertsTile(alerts: alerts)
+                }
+                if isQuiet && connection.lastError == nil {
+                    MessageTile(
+                        title: "All quiet",
+                        message: "Nothing to fix, approve or wait for right now.",
+                        systemImage: "moon.stars.fill",
+                        color: Palette.accent
+                    )
                 }
                 if let disk = connection.library?.disk {
                     Button { tab = .library } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
@@ -91,7 +114,6 @@ struct HomeView: View {
                 await connection.loadFixes()
                 await connection.loadRequests()
                 await connection.loadReleases()
-                await connection.loadJournal()
                 await connection.loadLibrary()
                 await connection.loadAlerts()
             }
@@ -99,56 +121,17 @@ struct HomeView: View {
             .task { await connection.loadFixes() }
             .task { await connection.loadRequests() }
             .task { await connection.loadReleases() }
-            .task { await connection.loadJournal() }
             // The disk comes with the library; the Library tab keeps it current once open.
             .task {
                 guard connection.library == nil else { return }
                 await connection.loadLibrary()
             }
             .task {
-                // Light polling while the screen is open; the Live Activities themselves are pushed.
+                // The activities are read app-wide, for the live bar; the alerts while the Home is open.
                 while !Task.isCancelled {
-                    await connection.refresh()
                     await connection.loadAlerts()
                     try? await Task.sleep(for: .seconds(15))
                 }
-            }
-        }
-    }
-
-    @ViewBuilder private func tiles(_ today: Today) -> some View {
-        if today.isEmpty {
-            if connection.lastError == nil {
-                MessageTile(
-                    title: "All quiet",
-                    message: "Nothing downloading or playing right now.",
-                    systemImage: "moon.stars.fill",
-                    color: Palette.accent
-                )
-            }
-            // An alert lasts: it shows even when nothing moves.
-            if let alerts = connection.alerts?.items, !alerts.isEmpty {
-                IncidentsTile(alerts: alerts)
-            }
-        } else {
-            if let first = today.downloading.first {
-                openActivity { DownloadsTile(top: first, others: today.downloading.count - 1) }
-            }
-            if !today.requested.isEmpty {
-                openActivity { OnTheirWayTile(activities: today.requested) }
-            }
-            HStack(alignment: .top, spacing: Metrics.tileSpacing) {
-                openActivity {
-                    CountTile(
-                        title: "Ready", systemImage: "checkmark.circle.fill", color: Palette.releases,
-                        count: today.ready.count,
-                        caption: today.ready.isEmpty ? "nothing new yet" : (today.ready.count == 1 ? "title to watch" : "titles to watch")
-                    )
-                }
-                IncidentsTile(alerts: connection.alerts?.items ?? [])
-            }
-            if !today.playing.isEmpty {
-                openActivity { PlayingTile(activities: today.playing) }
             }
         }
     }
@@ -161,7 +144,8 @@ struct HomeView: View {
     }
 }
 
-/// Today's releases: each with its time and where it stands. Hidden when nothing comes out today.
+/// Today's releases: each with its time, the episodes under the title, and where it stands.
+/// Hidden when nothing comes out today.
 private struct TodayReleasesTile: View {
     let releases: [DayRelease]
 
@@ -173,7 +157,7 @@ private struct TodayReleasesTile: View {
     var body: some View {
         Tile {
             HStack {
-                TileLabel(title: "Today", systemImage: "calendar", color: Palette.releases)
+                TileLabel(title: "Out today", systemImage: "calendar", color: Palette.releases)
                 Spacer(minLength: 8)
                 Text("\(here) of \(releases.count) here")
                     .font(QuaiFont.caption)
@@ -182,28 +166,9 @@ private struct TodayReleasesTile: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.tertiaryText)
             }
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 ForEach(lines.prefix(4), id: \.id) { line in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(line.airTime)
-                            .font(QuaiFont.caption.monospacedDigit())
-                            .foregroundStyle(Palette.secondaryText)
-                            .frame(width: 44, alignment: .leading)
-                        Text(line.title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Palette.primaryText)
-                            .lineLimit(1)
-                        // The episode code never truncates: it's what tells two lines apart.
-                        if let episodes = line.episodes {
-                            Text(episodes)
-                                .font(QuaiFont.caption.monospacedDigit())
-                                .foregroundStyle(Palette.secondaryText)
-                                .lineLimit(1)
-                                .fixedSize()
-                        }
-                        Spacer(minLength: 8)
-                        ReleaseStatusLabel(status: line.status)
-                    }
+                    TodayReleaseRow(line: line)
                 }
                 if hiddenCount > 0 {
                     Text("and \(hiddenCount) more")
@@ -216,6 +181,103 @@ private struct TodayReleasesTile: View {
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens today's releases")
+    }
+}
+
+/// "18:00  Percy Jackson and the Olympians ✓" with "S03E01–E02" under the title.
+private struct TodayReleaseRow: View {
+    let line: TodayLine
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(line.airTime)
+                .font(QuaiFont.caption.monospacedDigit())
+                .foregroundStyle(Palette.secondaryText)
+                .frame(width: 44, alignment: .leading)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(line.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.primaryText)
+                    .lineLimit(1)
+                if let episodes = line.episodes {
+                    Text(episodes)
+                        .font(QuaiFont.caption.monospacedDigit())
+                        .foregroundStyle(Palette.secondaryText)
+                }
+            }
+            Spacer(minLength: 8)
+            ReleaseStatusLabel(status: line.status)
+        }
+    }
+}
+
+/// Titles that just became ready to watch.
+private struct ReadyTile: View {
+    let activities: [RunningActivity]
+
+    var body: some View {
+        Tile {
+            TileLabel(title: "Ready to watch", systemImage: "checkmark.circle.fill", color: Palette.ok)
+            ForEach(activities.prefix(3), id: \.attributes.key) { activity in
+                Text(activity.attributes.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.primaryText)
+                    .lineLimit(1)
+            }
+            if activities.count > 3 {
+                Text("and \(activities.count - 3) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
+            }
+        }
+    }
+}
+
+/// What's wrong right now, whatever its kind (a service down, the disk low, a problem an *arr
+/// reports): one line each, with when it started. Hidden when all is well.
+private struct AlertsTile: View {
+    let alerts: [Components.Schemas.ActiveAlert]
+
+    var body: some View {
+        Tile {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(alerts.count, format: .number)
+                    .font(QuaiFont.value)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.incident)
+                Text(alerts.count == 1 ? "alert" : "alerts")
+                    .font(QuaiFont.headline)
+                    .foregroundStyle(Palette.primaryText)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(alerts, id: \.id) { alert in
+                    AlertRow(alert: alert)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct AlertRow: View {
+    let alert: Components.Schemas.ActiveAlert
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(alert.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.primaryText)
+                if let detail = alert.detail {
+                    Text(detail)
+                        .font(QuaiFont.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                }
+            }
+            Spacer(minLength: 8)
+            Text(Date(timeIntervalSince1970: alert.since / 1000), format: .dateTime.hour().minute())
+                .font(QuaiFont.caption.monospacedDigit())
+                .foregroundStyle(Palette.secondaryText)
+                .fixedSize()
+        }
     }
 }
 
@@ -319,38 +381,6 @@ private struct FixesTile: View {
     }
 }
 
-private struct DownloadsTile: View {
-    let top: RunningActivity
-    let others: Int
-
-    private var details: String {
-        var parts: [String] = []
-        if let remaining = top.content.remainingSeconds { parts.append(Format.remaining(remaining)) }
-        if let speed = top.content.bytesPerSecond, speed > 0 { parts.append(Format.speed(speed)) }
-        if others > 0 { parts.append(others == 1 ? "1 more download" : "\(others) more downloads") }
-        return parts.isEmpty ? top.stepLabel : parts.joined(separator: " · ")
-    }
-
-    var body: some View {
-        Tile {
-            TileLabel(title: "Downloads", systemImage: "arrow.down", color: Palette.downloads)
-            HStack(alignment: .firstTextBaseline) {
-                Text(top.attributes.title).font(QuaiFont.headline).lineLimit(1)
-                Spacer(minLength: 8)
-                if let progress = top.content.progress {
-                    Text(Format.percent(progress))
-                        .font(.system(size: 17, weight: .bold))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.downloads)
-                }
-            }
-            .foregroundStyle(Palette.primaryText)
-            ProgressBar(value: top.content.progress ?? 0, color: top.content.tone == .stalled ? Palette.stalled : Palette.downloads)
-            Text(details).font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
-        }
-    }
-}
-
 private struct OnTheirWayTile: View {
     let activities: [RunningActivity]
 
@@ -371,72 +401,6 @@ private struct OnTheirWayTile: View {
             }
             if activities.count > 3 {
                 Text("and \(activities.count - 3) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
-            }
-        }
-    }
-}
-
-/// The alerts going on (a service down, the disk low, a problem an *arr reports), or all good.
-private struct IncidentsTile: View {
-    let alerts: [Components.Schemas.ActiveAlert]
-
-    private var caption: String {
-        if alerts.isEmpty { return "all good" }
-        return alerts.map { alert in alert.detail.map { "\(alert.title): \($0)" } ?? alert.title }.joined(separator: " · ")
-    }
-
-    var body: some View {
-        CountTile(
-            title: "Incidents", systemImage: "exclamationmark.triangle.fill",
-            color: alerts.isEmpty ? Palette.ok : Palette.incident,
-            count: alerts.count,
-            caption: caption
-        )
-    }
-}
-
-private struct CountTile: View {
-    let title: String
-    let systemImage: String
-    let color: Color
-    let count: Int
-    let caption: String
-
-    var body: some View {
-        Tile {
-            TileLabel(title: title, systemImage: systemImage, color: color)
-            Text(count, format: .number)
-                .font(QuaiFont.value)
-                .monospacedDigit()
-                .foregroundStyle(Palette.primaryText)
-            Text(caption)
-                .font(QuaiFont.caption)
-                .foregroundStyle(Palette.secondaryText)
-                .lineLimit(2)
-        }
-    }
-}
-
-private struct PlayingTile: View {
-    let activities: [RunningActivity]
-
-    var body: some View {
-        Tile {
-            TileLabel(title: "Playing", systemImage: "play.fill", color: Palette.playback)
-            ForEach(activities, id: \.attributes.key) { activity in
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(activity.attributes.title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Palette.primaryText)
-                            .lineLimit(1)
-                        if let detail = activity.content.detail, !detail.isEmpty {
-                            Text(detail).font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
-                        }
-                    }
-                    Spacer(minLength: 8)
-                    PlaybackClock(content: activity.content)
-                }
             }
         }
     }
