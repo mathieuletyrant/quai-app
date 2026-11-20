@@ -52,16 +52,15 @@ export function NavList({ label, items, current, onNavigate }: {
 export function Sidebar({ brand, footer, children }: { brand: ReactNode; footer: ReactNode; children: ReactNode }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 border-r border-line bg-sidebar px-3 pt-4 pb-3 md:flex">
-      {brand}
+      <div className="mb-5">{brand}</div>
       {children}
       <div className="mt-auto">{footer}</div>
     </aside>
   )
 }
 
-/** The bar at the top on phones: the logo, where you are, a status, and the button that opens the menu. */
-export function TopBar({ logo, title, status, menuOpen, onMenu }: {
-  logo: ReactNode
+/** The bar at the top on phones: the button that opens the menu, where you are, and a status. */
+export function TopBar({ title, status, menuOpen, onMenu }: {
   title: string
   status: ReactNode
   menuOpen: boolean
@@ -69,10 +68,9 @@ export function TopBar({ logo, title, status, menuOpen, onMenu }: {
 }) {
   return (
     <header className="sticky top-0 z-40 flex h-top-bar items-center gap-3 border-b border-line bg-sidebar px-4 md:hidden">
-      {logo}
+      <IconButton label="Open menu" icon="menu" className="-ml-2" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={onMenu} />
       <p className="min-w-0 flex-1 truncate text-heading font-semibold tracking-heading">{title}</p>
       {status}
-      <IconButton label="Open menu" icon="menu" outlined aria-haspopup="dialog" aria-expanded={menuOpen} onClick={onMenu} />
     </header>
   )
 }
@@ -89,12 +87,14 @@ const useScrollLock = (locked: boolean) => {
 }
 
 /**
- * A sheet from the side on phones, over a dimmed page. A modal `<dialog>`: the page behind is inert
+ * A sheet from the left on phones, where the sidebar sits on wide screens,, over a dimmed page. A modal `<dialog>`: the page behind is inert
  * (focus stays inside), Escape and a tap on the backdrop close it, focus goes back where it was.
  */
-export function Drawer({ open, label, onClose, footer, children }: {
+export function Drawer({ open, label, brand, onClose, footer, children }: {
   open: boolean
   label: string
+  /** At the top, as in the sidebar. */
+  brand: ReactNode
   onClose: () => void
   footer?: ReactNode
   children: ReactNode
@@ -117,9 +117,9 @@ export function Drawer({ open, label, onClose, footer, children }: {
       {open && (
         <>
           <div aria-hidden="true" onClick={onClose} className="absolute inset-0 bg-black/60 motion-safe:animate-fade" />
-          <div className="absolute inset-y-0 right-0 flex w-drawer max-w-[85vw] flex-col gap-4 overflow-y-auto border-l border-line bg-sidebar px-3 pt-3 pb-4 shadow-pop motion-safe:animate-sheet">
-            <div className="flex items-center justify-between pl-3">
-              <p className="text-title font-semibold tracking-heading">{label}</p>
+          <div className="absolute inset-y-0 left-0 flex w-drawer max-w-[85vw] flex-col gap-4 overflow-y-auto border-r border-line bg-sidebar px-3 pt-3 pb-4 shadow-pop motion-safe:animate-sheet">
+            <div className="flex items-center gap-1">
+              <div className="min-w-0 flex-1">{brand}</div>
               <IconButton label="Close menu" icon="x" onClick={onClose} />
             </div>
             {children}

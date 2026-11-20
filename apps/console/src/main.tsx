@@ -87,20 +87,15 @@ function Wordmark() {
   return <span className="text-brand font-bold tracking-title">Quai</span>
 }
 
-/** The sidebar's head: the logo, the name, and what this is. */
+/** The head of the sidebar and the phone menu: the logo, the name, and what this is. */
 function Brand() {
   return (
-    <a href="#iphones" className="mb-5 flex items-center gap-2.5 rounded-control px-2 py-1">
+    <a href="#iphones" className="flex items-center gap-2.5 rounded-control px-2 py-1">
       <Logo />
       <Wordmark />
       <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Console</span>
     </a>
   )
-}
-
-/** The phone top bar's logo, back to the first page. */
-function HomeLink() {
-  return <a href="#iphones" aria-label="Quai, iPhones" className="rounded-logo"><Logo /></a>
 }
 
 /** Across the top of every page while Quai Home isn't linked: what still works, and a retry. */
@@ -153,13 +148,12 @@ function App() {
     <div className="flex min-h-screen flex-col md:flex-row">
       <Sidebar brand={<Brand />} footer={connection}>{nav()}</Sidebar>
       <TopBar
-        logo={<HomeLink />}
         title={pages[page].label}
         status={<StatusDot tone={homeState(status, cloudDown).tone} label={homeDotLabel(status, cloudDown)} />}
         menuOpen={menuOpen}
         onMenu={() => setMenuOpen(true)}
       />
-      <Drawer open={menuOpen} label="Menu" onClose={closeMenu} footer={connection}>{nav(closeMenu)}</Drawer>
+      <Drawer open={menuOpen} label="Menu" brand={<Brand />} onClose={closeMenu} footer={connection}>{nav(closeMenu)}</Drawer>
 
       <main className="flex min-w-0 flex-1 flex-col">
         {status === "offline" && <OfflineBanner />}
