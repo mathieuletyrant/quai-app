@@ -19,7 +19,6 @@ export const palette = ["#FFC230", "#FF8A3D", "#FF6B5B", "#B57EDC", "#8B8CF8", "
 export const subjects: Record<Flow["subject"], { readonly label: string; readonly description: string; readonly icon: string }> = {
   media: { label: "Downloads", description: "A title from Radarr or Sonarr to Jellyfin.", icon: "arrow.down" },
   playback: { label: "Playback", description: "What plays on Jellyfin, with remote buttons.", icon: "play.fill" },
-  service: { label: "Server health", description: "A service that stops answering.", icon: "server.rack" },
   request: { label: "Requests", description: "A Seerr request waiting for approval, with Approve and Decline.", icon: "person.fill.questionmark" },
   day: { label: "Today's releases", description: "The day's episodes and movies from Sonarr and Radarr, from a time you pick.", icon: "calendar" }
 }

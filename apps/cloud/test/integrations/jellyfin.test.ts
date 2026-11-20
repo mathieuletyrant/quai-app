@@ -1,3 +1,4 @@
+import { defaultAlertSettings } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import type { Activity } from "../../src/flows/Engine.ts"
@@ -72,7 +73,7 @@ const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provi
 describe("Jellyfin integration", () => {
   const withJellyfin = <A, E>(test: (integration: Effect.Success<typeof jellyfin>) => Effect.Effect<A, E, HomeLink>) =>
     Effect.flatMap(jellyfin, test).pipe(Effect.provide(link))
-  const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC" })
+  const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC", alerts: defaultAlertSettings })
 
   it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once found by its TMDB id", () =>
     withJellyfin((integration) =>

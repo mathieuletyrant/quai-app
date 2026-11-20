@@ -106,7 +106,7 @@ describe("link", () => {
           protocol: HomeProtocol.protocolVersion,
           homeVersion: "dev",
           publicKey: key.publicKey,
-          services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"]
+          services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "prowlarr"]
         })
         const nonce = randomBytes(32).toString("base64")
         yield* cloud(connection, { _tag: "Challenge", nonce })

@@ -3,6 +3,7 @@ import { Config, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpStaticServer } from "effect/http"
 import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
+import { Alerts } from "./alerts/Alerts.ts"
 import { ActionRunner } from "./flows/ActionRunner.ts"
 import { Fixes } from "./fixes/Fixes.ts"
 import { Activities } from "./flows/Activities.ts"
@@ -51,7 +52,7 @@ const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
 
 const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Releases.layer)),
-  Layer.provideMerge(Notifier.layer),
+  Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
   Layer.provideMerge(Activities.layer),
   Layer.provideMerge(Layer.mergeAll(Apns.layer, PublicAccess.layer, IntegrationsLive, HomeTime.layer)),
   Layer.provideMerge(Home)

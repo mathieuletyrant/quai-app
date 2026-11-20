@@ -33,6 +33,8 @@ export class HomeConfig extends Context.Service<HomeConfig, {
   readonly reclaimerr: ServiceEndpoint | null
   /** Seerr (Jellyseerr, Overseerr): its API key, from Settings > General. */
   readonly seerr: ServiceEndpoint | null
+  /** Prowlarr: read for the alerts only (is it up, what its System > Status reports). */
+  readonly prowlarr: ServiceEndpoint | null
 }>()("quai-home/HomeConfig") {
   static readonly layer = Layer.effect(
     HomeConfig,
@@ -61,6 +63,7 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         jellyfin: yield* endpoint("JELLYFIN"),
         reclaimerr: yield* endpoint("RECLAIMERR"),
         seerr: yield* endpoint("SEERR"),
+        prowlarr: yield* endpoint("PROWLARR"),
         qbittorrent: Option.isSome(qbUrl)
           ? { url: trimSlash(qbUrl.value), username: Option.getOrNull(qbUser), password: Option.getOrNull(qbPassword) }
           : null
@@ -71,6 +74,6 @@ export class HomeConfig extends Context.Service<HomeConfig, {
 
 /** The services this home can reach, in the order the protocol lists them. */
 export const configuredServices = (config: HomeConfig["Service"]): ReadonlyArray<HomeProtocol.HomeService> =>
-  (["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"] as const).filter((service) => config[service] !== null)
+  (["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "prowlarr"] as const).filter((service) => config[service] !== null)
 
 const trimSlash = (url: string) => url.replace(/\/+$/, "")

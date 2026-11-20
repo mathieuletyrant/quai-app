@@ -7,7 +7,7 @@ import { HomeDocuments } from "../../src/home/HomeLink.ts"
 
 export const download = builtInFlows.find((f) => f.id === "download")!
 export const playback = builtInFlows.find((f) => f.id === "playback")!
-export const incident = builtInFlows.find((f) => f.id === "incident")!
+export const requestFlow = builtInFlows.find((f) => f.id === "request")!
 
 export const dune: Subject = { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" }
 

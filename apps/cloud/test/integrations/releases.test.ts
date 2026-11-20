@@ -1,4 +1,4 @@
-import { builtInFlows, DeviceAuth, QuaiApi } from "@quai/api"
+import { builtInFlows, defaultAlertSettings, DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Option, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
@@ -127,7 +127,7 @@ describe("today's releases", () => {
   it("past 4 releases, the lines are cut but the count is the whole day's", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     const many = [...releases, ...releases.map((r) => ({ ...r, id: `${r.id}b` }))]
-    const context = { flows: [today], running: [], services: ["sonarr" as const], now: Date.parse("2026-11-20T17:00:00Z"), timeZone: paris }
+    const context = { flows: [today], running: [], services: ["sonarr" as const], now: Date.parse("2026-11-20T17:00:00Z"), timeZone: paris, alerts: defaultAlertSettings }
     const [start] = dayEvents(context, many)
     expect(start!.values?.items).toHaveLength(4)
     expect([start!.values?.here, start!.values?.total, start!.values?.detail]).toEqual([2, 8, "2 of 8 here"])
@@ -176,7 +176,7 @@ describe("Today's releases flow", () => {
   })
 
   it("the Today tile and the day flows read the same GETs: the watches are the day's reads", () => {
-    const context = { flows: [today], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris }
+    const context = { flows: [today], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris, alerts: defaultAlertSettings }
     const watched = calendarWatches({ ...context, services: [...context.services] }).map((w) => `${w.service} ${w.path}`)
     expect(watched.sort()).toEqual(Object.values(dayReads("2026-11-20", paris)).map((r) => `${r.service} ${r.path}`).sort())
   })

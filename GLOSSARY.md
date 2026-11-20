@@ -44,3 +44,10 @@ view and hands the rest to Quai Home in batches (`JournalAppend`); Quai Home kee
 5000 lines, in `/data/journal/` (one JSON line per entry, one file per UTC day), with its own lines
 (webhooks in, allowlist refusals, services it can't reach). The console reads pages back with
 `JournalRead`.
+
+**Alert** (`Alerts`, `packages/api/src/Alerts.ts`, `apps/cloud/src/alerts/`). Something wrong that
+may last: a service that stopped answering (*service down*), the media disk under a share of free
+space (*disk low*), a problem Radarr, Sonarr or Prowlarr report on their System > Status page (*arr
+health*). Not a Live Activity: one notification when it starts, one when it's over. Set up in the
+console's Alerts page, muted per iPhone in the app; the ones going on show on the app's Home. See
+[docs/alerts.md](docs/alerts.md).

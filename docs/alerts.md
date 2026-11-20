@@ -1,0 +1,33 @@
+# Alerts
+
+An **alert** is something wrong that may last: a service that stopped answering, the media disk
+filling up, a problem an *arr reports about itself. It isn't a Live Activity, which follows
+something that moves and ends soon (a download, a playback): a Live Activity left on the Lock
+Screen for days says nothing new, and iOS ends it after 8 hours anyway. An alert is a plain
+notification when it starts, another when it's over, and a line on the app's Home while it lasts.
+
+## The alerts
+
+| Alert | Read from | Starts | Over | Setting |
+| --- | --- | --- | --- | --- |
+| Service down | each service Quai Home reaches, its status endpoint, every minute | no answer (or a 5xx) for N minutes | the first answer | N, 5 by default |
+| Disk low | Radarr's (else Sonarr's) `/api/v3/diskspace`, the largest disk, every 10 minutes | under N % free | N + 2 % free, so it doesn't flap | N, 10 by default |
+| *arr health | Radarr's and Sonarr's `/api/v3/health`, Prowlarr's `/api/v1/health`, every 5 minutes | a check at the level or above appears | the check is gone | warnings and errors, or errors only (default) |
+
+Each is on by default and turned off in the console's **Alerts** page. A kind turned off ends its
+alerts without a notification and stops its reads.
+
+## How it works
+
+- Each source is an integration's `alertWatcher` (`health.ts`, `disk.ts`, `arrHealth.ts`): its
+  reading is an `AlertState`, *every alert of this kind and scope going on now* (scope: a service,
+  or `disk`). Those not listed are over. A reading that knows nothing new says nothing.
+- `Alerts.apply` compares it with the alerts going on, kept by Quai Home in `alerts/active`, so a
+  restarted Cloud doesn't notify again. What starts and what ends is one notification each and one
+  journal line (`alert.raised`, `alert.over`). One still going only gets its text updated (the
+  disk's free space), without a notification.
+- Notifications are APNs `alert` pushes on the app's own topic, with the same key as the Live
+  Activities, to every iPhone that sent a notification token and didn't mute that kind
+  (`mutedAlerts` in its preferences, Settings → Notifications in the app).
+- Settings live in `alerts/settings` at home. `GET /api/alerts` gives the app the alerts going on
+  and the kinds turned on, for the Home's Incidents tile.

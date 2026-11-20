@@ -19,8 +19,6 @@ export const catalog: ReadonlyArray<{
   { type: "playback.started", subject: "playback", label: "Playback started (Jellyfin)", data: false, services: ["jellyfin"] },
   { type: "playback.progress", subject: "playback", label: "Playback position (Jellyfin)", data: true, services: ["jellyfin"] },
   { type: "playback.stopped", subject: "playback", label: "Playback stopped (Jellyfin)", data: false, services: ["jellyfin"] },
-  { type: "service.down", subject: "service", label: "Service down for 5 min", data: false, services: ["quai"] },
-  { type: "service.up", subject: "service", label: "Service back", data: false, services: ["quai"] },
   { type: "request.pending", subject: "request", label: "Request waiting for approval (Seerr)", data: false, services: ["seerr"] },
   { type: "request.approved", subject: "request", label: "Request approved (Seerr)", data: false, services: ["seerr"] },
   { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] },
@@ -53,7 +51,6 @@ export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
   media: ["progress", "speed", "eta"],
   // The countdown draws the bar too (held where it is while paused).
   playback: ["timer"],
-  service: ["since"],
   request: [],
   day: ["list"]
 }
@@ -134,21 +131,6 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     endOn: "playback.stopped",
     lingerMinutes: 0,
     expireAfterMinutes: 15
-  },
-  {
-    id: "incident",
-    name: "Server incident",
-    builtIn: true,
-    enabled: true,
-    color: "#FF6B5B",
-    icon: "exclamationmark.triangle.fill",
-    subject: "service",
-    filter: {},
-    steps: [
-      { id: "down", label: "Down", icon: "exclamationmark.triangle.fill", on: "service.down", show: { since: true } },
-      { id: "back", label: "Back", icon: "checkmark", on: "service.up", show: {} }
-    ],
-    lingerMinutes: 5
   },
   {
     id: "request",

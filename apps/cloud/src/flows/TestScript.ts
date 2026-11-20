@@ -15,7 +15,6 @@ export interface Beat {
 const titles: Record<Flow["subject"], string> = {
   media: "Big Buck Bunny (test)",
   playback: "Big Buck Bunny · TV (test)",
-  service: "Radarr (test)",
   request: "Big Buck Bunny (test)",
   day: "Today (test)"
 }

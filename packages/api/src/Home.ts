@@ -27,7 +27,7 @@ export const minProtocolVersion = 1
 export const journalProtocolVersion = 4
 
 /** The services a Home can reach. */
-export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr"])
+export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "prowlarr"])
 export type HomeService = typeof HomeService.Type
 
 /** The services whose webhooks the Home receives and forwards. Jellyfin is polled (its sessions). */
@@ -322,6 +322,7 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/movie$/ },
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
+    { method: "GET", path: /^\/api\/v3\/health$/ },
     ...arrFixes("movie")
   ],
   sonarr: [
@@ -330,7 +331,12 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
+    { method: "GET", path: /^\/api\/v3\/health$/ },
     ...arrFixes("series")
+  ],
+  prowlarr: [
+    { method: "GET", path: /^\/api\/v1\/system\/status$/ },
+    { method: "GET", path: /^\/api\/v1\/health$/ }
   ],
   qbittorrent: [
     { method: "GET", path: /^\/api\/v2\/app\/version$/ },

@@ -255,7 +255,6 @@ describe("what an event means", () => {
   it("one plain line per step event, none for the data events", () => {
     const request = { kind: "request" as const, key: "request:12", title: "Paddington in Peru", mediaType: "movie" as const, requester: "Julie" }
     const tv = { kind: "playback" as const, key: "playback:s:i", title: "Dune", device: "Living room TV" }
-    const radarr = { kind: "service" as const, key: "service:radarr", title: "Radarr" }
     expect(eventNote({ type: "request.pending", subject: request }, "seerr")).toMatchObject({
       source: "seerr",
       text: "Julie asked for Paddington in Peru: waiting for approval",
@@ -263,8 +262,6 @@ describe("what an event means", () => {
       title: "Paddington in Peru"
     })
     expect(eventNote({ type: "playback.started", subject: tv }, "jellyfin")?.text).toBe("Dune started playing on Living room TV")
-    expect(eventNote({ type: "service.down", subject: radarr }, "quai")).toMatchObject({ level: "error", source: "radarr", text: "Radarr hasn't answered for 5 minutes" })
-    expect(eventNote({ type: "service.down", subject: radarr }, "quai")).not.toHaveProperty("subject")
     expect(eventNote({ type: "playback.progress", subject: tv }, "jellyfin")).toBeNull()
     expect(eventNote({ type: "download.progress", downloadId: "h" }, "qbittorrent")).toBeNull()
   })
@@ -275,7 +272,7 @@ describe("what an event means", () => {
       home.journal.push(
         { id: journalId(20_001, "c", 0), at: 20_001, level: "info", source: "radarr", kind: "media.grabbed", text: "Radarr grabbed a release of Dune", subject: "movie:tmdb:1", title: "Dune" },
         { id: journalId(20_002, "h", 0), at: 20_002, level: "warn", source: "sonarr", kind: "call.refused", text: "refused" },
-        { id: journalId(20_003, "c", 1), at: 20_003, level: "error", source: "radarr", kind: "service.down", text: "Radarr hasn't answered for 5 minutes" },
+        { id: journalId(20_003, "c", 1), at: 20_003, level: "warn", source: "radarr", kind: "alert.raised", text: "Radarr isn't answering: No answer for 5 minutes" },
         { id: journalId(20_004, "c", 2), at: 20_004, level: "error", source: "apple", kind: "push.refused", text: "Apple refused the push" }
       )
       yield* home.connect
@@ -290,7 +287,7 @@ describe("what an event means", () => {
         Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
       )).journal
       const page = yield* phone.recent({ query: { limit: 1 } })
-      expect(page.entries.map((e) => e.kind)).toEqual(["service.down"])
+      expect(page.entries.map((e) => e.kind)).toEqual(["alert.raised"])
       expect(page.more).toBe(true)
       const older = yield* phone.recent({ query: { before: page.entries[0]!.id } })
       expect(older.entries.map((e) => e.kind)).toEqual(["media.grabbed"])

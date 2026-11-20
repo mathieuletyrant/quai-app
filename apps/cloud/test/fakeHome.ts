@@ -1,3 +1,4 @@
+import { Alerts } from "../src/alerts/Alerts.ts"
 import { HomeProtocol, type JournalEntry, journalPage } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
@@ -275,7 +276,7 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
  */
 export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link: Layer.Layer<HomeLink> = HomeLink.layer) =>
   Hub.layerFed.pipe(
-    Layer.provideMerge(Notifier.layer),
+    Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
     Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
     Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),

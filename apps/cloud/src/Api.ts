@@ -2,6 +2,7 @@ import { QuaiApi } from "@quai/api"
 import { Layer } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { HomeRequiredLive } from "./home/HomeLink.ts"
+import { AlertsHandlers, ConsoleAlertsHandlers } from "./http/AlertsHandlers.ts"
 import { ConnectionHandlers } from "./http/ConnectionHandlers.ts"
 import { ConsoleHandlers } from "./http/ConsoleHandlers.ts"
 import { DeviceAuthLive } from "./http/DeviceAuth.ts"
@@ -17,6 +18,6 @@ import { SystemHandlers } from "./http/SystemHandlers.ts"
 
 /** Every route of the contract, with its handlers. Needs the home link, the stores, the engine, the library, the To fix list, the requests, the journal and the public access. */
 export const ApiLive = HttpApiBuilder.layer(QuaiApi, { openapiPath: "/api/openapi.json" }).pipe(
-  Layer.provide([SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers, AppJournalHandlers]),
+  Layer.provide([SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers, AppJournalHandlers, AlertsHandlers, ConsoleAlertsHandlers]),
   Layer.provide([DeviceAuthLive, HomeRequiredLive])
 )

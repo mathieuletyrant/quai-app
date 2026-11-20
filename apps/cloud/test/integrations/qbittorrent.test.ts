@@ -1,3 +1,4 @@
+import { defaultAlertSettings } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
 import type { Activity } from "../../src/flows/Engine.ts"
@@ -24,7 +25,7 @@ const activity = (stepIndex: number, downloadId: string | null): Activity => ({
   pushedFingerprint: null
 })
 
-const ctx = (running: ReadonlyArray<Activity>): WatchContext => ({ flows: [download], running, services: ["qbittorrent"], now: 0, timeZone: "UTC" })
+const ctx = (running: ReadonlyArray<Activity>): WatchContext => ({ flows: [download], running, services: ["qbittorrent"], now: 0, timeZone: "UTC", alerts: defaultAlertSettings })
 
 describe("qBittorrent", () => {
   const watcher = qbittorrent.watcher!

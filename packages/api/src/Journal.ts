@@ -13,7 +13,7 @@ export const JournalLevel = Schema.Literals(["info", "warn", "error"]).annotate(
 export type JournalLevel = typeof JournalLevel.Type
 
 /** Where a line comes from: a service, Apple (pushes), Quai Home or Quai Cloud itself. */
-export const JournalSource = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "apple", "home", "cloud"])
+export const JournalSource = Schema.Literals(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "apple", "home", "cloud"])
   .annotate({ identifier: "JournalSource" })
 export type JournalSource = typeof JournalSource.Type
 export const journalSources: ReadonlyArray<JournalSource> = JournalSource.literals
@@ -22,6 +22,7 @@ export const journalSources: ReadonlyArray<JournalSource> = JournalSource.litera
 export const journalSourceNames: Record<JournalSource, string> = {
   radarr: "Radarr",
   sonarr: "Sonarr",
+  prowlarr: "Prowlarr",
   qbittorrent: "qBittorrent",
   jellyfin: "Jellyfin",
   seerr: "Seerr",
@@ -167,8 +168,8 @@ export const appJournalKinds: ReadonlyArray<string> = [
   "media.available",
   "playback.started",
   "playback.stopped",
-  "service.down",
-  "service.up",
+  "alert.raised",
+  "alert.over",
   "request.pending",
   "request.approved",
   "request.declined",

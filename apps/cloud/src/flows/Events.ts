@@ -13,7 +13,7 @@ export type MediaLookup =
     readonly episodes: ReadonlyArray<{ readonly season: number; readonly episode: number }>
   }
 
-/** What one activity follows. `key` is unique per subject: `movie:tmdb:1`, `playback:<session>:<item>`, `service:radarr`, `request:12`. */
+/** What one activity follows. `key` is unique per subject: `movie:tmdb:1`, `playback:<session>:<item>`, `request:12`. */
 export type Subject =
   | {
     readonly kind: "media"
@@ -23,7 +23,6 @@ export type Subject =
     readonly lookup?: MediaLookup
   }
   | { readonly kind: "playback"; readonly key: string; readonly title: string; readonly device: string }
-  | { readonly kind: "service"; readonly key: string; readonly title: string }
   | { readonly kind: "day"; readonly key: string; readonly title: string }
   | {
     readonly kind: "request"

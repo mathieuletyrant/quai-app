@@ -4,8 +4,9 @@ A **flow** describes one kind of Live Activity: what starts it, the steps it goe
 each step shows, and when it ends. The server runs flows; the iPhone only draws what the server
 describes, so a new flow never needs an app update.
 
-The four Live Activities of the v1 spec become built-in flows (Download, Jellyfin playback,
-Server incident, Today's releases), plus Requests (Seerr requests to approve).
+The Live Activities of the v1 spec become built-in flows (Download, Jellyfin playback, Today's
+releases), plus Requests (Seerr requests to approve). The v1 spec's Server incident is no Live
+Activity anymore: something wrong that may last is an [alert](alerts.md), a plain notification.
 Built-in flows can be edited and duplicated in the console; custom flows are made from the same pieces.
 
 ## Model
@@ -18,7 +19,7 @@ Flow
   enabled       off: no activity starts for anyone
   color         hex, the activity's tint ("#FFC230")
   icon          SF Symbol name, the flow's glyph ("arrow.down")
-  subject       what one activity follows: media | playback | service | request | day
+  subject       what one activity follows: media | playback | request | day
   filter        media, request: movies, series or both · playback: Jellyfin device names (empty: all)
                 · day: the local time it starts at (`startsAt`, default 18:00)
   steps         1 to 6, in order (below)
@@ -56,8 +57,6 @@ Events are normalized by the adapters; flows only see these. Each belongs to a s
 | `playback.started` | playback | Jellyfin sessions (polled) | title, device, end time |
 | `playback.progress` | playback | Jellyfin sessions (polled) | end time, paused |
 | `playback.stopped` | playback | Jellyfin sessions (polled) | |
-| `service.down` | service | health checks (polled) | service name, since |
-| `service.up` | service | health checks (polled) | |
 | `request.pending` | request | Seerr `MEDIA_PENDING` (webhook), pending requests (polled) | title, requester, kind, year |
 | `request.approved` | request | Seerr `MEDIA_APPROVED` (webhook), or gone from the pending list approved | |
 | `releases.today` | day | Sonarr and Radarr calendars (polled), at the flow's time | the day's releases (lines), "1 of 4 here" |
@@ -96,7 +95,6 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `sonarr` | same, for episodes | — | — |
 | `qbittorrent` | — | download progress, every 5 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
-| `quai` (health) | — | `service.down` / `service.up`, every minute, while a service flow is on | — |
 | `reclaimerr` | — | — | — (only feeds the To fix list) |
 | `releases` | — | Sonarr's and Radarr's calendars and queues for the home's day, every 5 min while the day's activity runs, every 30 min otherwise, while a day flow is on | — |
 | `seerr` | `request.*` (when Quai Home could set the webhook up) | pending requests, every 60 s, while a request flow is on | `request.approve`, `request.decline` |
@@ -235,7 +233,7 @@ only known once the app opens.
 - qBittorrent is read every 5 s (the Home protocol's minimum) while a step shows progress.
 - Polling only runs for what an enabled flow needs: qBittorrent while a step shows progress,
   Jellyfin availability while an import awaits it, Jellyfin sessions while a playback flow is on,
-  health checks while a service flow is on, Seerr's pending requests (every 60 s) while a request
+  Seerr's pending requests (every 60 s) while a request
   flow is on, the calendars and queues while a day flow is on.
 
 ## Console
@@ -254,7 +252,6 @@ it richer is the catalog (events, actions) and the filters, not the editor.
 | Anime: series only, without the Searching step | ✅ |
 | Living room night: playback on the TV only, with Play/Pause and Stop | ✅ |
 | Express downloads: Downloading → Ready only | ✅ |
-| Server incident limited to Radarr and Sonarr | ❌ needs a service filter |
 | French subtitles: Imported → Subtitles found → Ready | ❌ needs a Bazarr event |
 | Requests to approve, with Approve and Decline | ✅ |
 | 4K movies, Julie's requests | ❌ needs quality profile and requester filters (Seerr) |

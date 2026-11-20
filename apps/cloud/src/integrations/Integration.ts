@@ -1,5 +1,6 @@
-import { type ActionType, type Flow, type HomeProtocol, InvalidAction, type ServiceName } from "@quai/api"
+import { type ActionType, type AlertSettings, type Flow, type HomeProtocol, InvalidAction, type ServiceName } from "@quai/api"
 import { Context, Effect, Option, Schema } from "effect"
+import type { AlertState } from "../alerts/Alerts.ts"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import type { CallRequest } from "../home/HomeLink.ts"
@@ -16,7 +17,14 @@ export interface WatchContext {
   readonly now: number
   /** The home's time zone (IANA): see `HomeTime`. */
   readonly timeZone: string
+  /** Which alerts are on, and their thresholds. */
+  readonly alerts: AlertSettings
 }
+
+/** What a reading means: catalog events for the flows, or the state of an alert. */
+export type Signal = FlowEvent | AlertState
+
+export const isAlertState = (signal: Signal): signal is AlertState => "_tag" in signal && signal._tag === "AlertState"
 
 /** What Quai Home read for one watch, sent because it changed (or is the first read). */
 export interface Snapshot {
@@ -29,18 +37,18 @@ export interface Snapshot {
  * A service that doesn't push (or not everything): Quai Home polls it on the LAN, only while a
  * flow needs it, and sends what it read when it changes. The meaning of it is read here.
  */
-export interface Watcher {
+export interface Watcher<S extends Signal = FlowEvent> {
   /**
    * The watches needed now. Ids are unique across integrations (prefix them with the service) and
    * stable while the watch is the same: the Hub sends a new list only when it changes.
    */
   readonly watches: (context: WatchContext) => ReadonlyArray<HomeProtocol.Watch>
   /** A snapshot of one of its watches, as catalog events. Logs and skips what it can't read. */
-  readonly read: (snapshot: Snapshot, context: WatchContext) => Effect.Effect<ReadonlyArray<FlowEvent>>
+  readonly read: (snapshot: Snapshot, context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
   /** Quai Home couldn't read one of its watches (unreachable, refused). Once per failure streak. */
-  readonly failed?: (watch: HomeProtocol.Watch, reason: string, context: WatchContext) => Effect.Effect<ReadonlyArray<FlowEvent>>
+  readonly failed?: (watch: HomeProtocol.Watch, reason: string, context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
   /** Every heartbeat while the home is connected: for what only time changes (health's 5 minutes). */
-  readonly tick?: (context: WatchContext) => Effect.Effect<ReadonlyArray<FlowEvent>>
+  readonly tick?: (context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
 }
 
 /** A service that pushes: its payloads, forwarded by Quai Home, read as catalog events. */
@@ -69,6 +77,8 @@ export interface Integration {
   readonly service: ServiceName
   readonly webhook?: Webhook
   readonly watcher?: Watcher
+  /** Readings that say whether an alert is going on (alerts/Alerts.ts), rather than flow events. */
+  readonly alertWatcher?: Watcher<AlertState>
   readonly actions: Partial<Record<ActionType, ActionHandler>>
 }
 

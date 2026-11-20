@@ -13,7 +13,7 @@ export interface ApnsCredentials {
   readonly keyPem: Redacted.Redacted<string>
   readonly keyId: string
   readonly teamId: string
-  /** The app's bundle id; Live Activity pushes go to `<topic>.push-type.liveactivity`. */
+  /** The app's bundle id: notifications go to it, Live Activity pushes to `<topic>.push-type.liveactivity`. */
   readonly topic: string
 }
 
@@ -25,6 +25,8 @@ export class ApnsError extends Data.TaggedError("ApnsError")<{
 }> {}
 
 export interface ApnsRequest {
+  /** A Live Activity's update, or a plain notification (an alert). Absent: a Live Activity. */
+  readonly pushType?: "liveactivity" | "alert"
   readonly environment: ApnsEnvironment
   readonly deviceToken: string
   readonly body: object
@@ -146,8 +148,8 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
                 ":method": "POST",
                 ":path": `/3/device/${request.deviceToken}`,
                 authorization: `bearer ${token}`,
-                "apns-push-type": "liveactivity",
-                "apns-topic": `${credentials.topic}.push-type.liveactivity`,
+                "apns-push-type": request.pushType ?? "liveactivity",
+                "apns-topic": request.pushType === "alert" ? credentials.topic : `${credentials.topic}.push-type.liveactivity`,
                 "apns-priority": String(request.priority),
                 "apns-expiration": String(Math.floor(now / 1000) + 3600),
                 "content-type": "application/json"

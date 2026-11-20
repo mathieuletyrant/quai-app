@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { testScript } from "../../src/flows/TestScript.ts"
 import { builtInFlows } from "@quai/api"
-import { download, incident, playback } from "./helpers.ts"
+import { download, playback } from "./helpers.ts"
 
 describe("test script", () => {
   it("plays every step in order, starts and ends, with fake progress where a step shows it", () => {
@@ -20,10 +20,6 @@ describe("test script", () => {
     expect(beats[0]!.push.activity.values).toMatchObject({ paused: false, startsAt: 1_000, endsAt: 41_000 })
     expect(beats.map((b) => b.push._tag)).toEqual(["Start", "Update", "Update", "End"])
     expect(beats.map((b) => b.push.activity.values.paused)).toEqual([false, true, false, false])
-  })
-
-  it("time since for incidents", () => {
-    expect(testScript(incident, 1_000, "t")[0]!.push.activity.values.since).toBe(1_000)
   })
 
   it("requests: the requester, and the last step ends it as the engine would, end event or not", () => {

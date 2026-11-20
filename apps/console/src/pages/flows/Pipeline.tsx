@@ -22,8 +22,6 @@ const filterSummary = (flow: Draft) => {
     }
     case "day":
       return `From ${flow.filter.startsAt ?? defaultStartsAt}, or the first air time if earlier`
-    case "service":
-      return "Every service"
   }
 }
 

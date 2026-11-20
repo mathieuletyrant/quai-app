@@ -4,7 +4,7 @@ import { Effect } from "effect"
 import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
 import { emptyState, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
-import { download, dune, engineWith, ev, incident, playback } from "./helpers.ts"
+import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 
 const tags = (pushes: ReadonlyArray<Push>) => pushes.map((p) => `${p._tag}:${p.activity.stepIndex}`)
 
@@ -146,16 +146,16 @@ describe("playback flow", () => {
     }), [{ ...playback, filter: { devices: ["TV Salon"] } }]))
 })
 
-describe("incident flow", () => {
-  const radarr = { kind: "service" as const, key: "service:radarr", title: "Radarr" }
+describe("request flow", () => {
+  const dune = { kind: "request" as const, key: "request:1", title: "Dune", mediaType: "movie" as const, requester: "Julie" }
 
-  it.effect("down then back; back alone starts nothing", () =>
+  it.effect("pending then approved; approved alone starts nothing", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities
-      expect(yield* engine.handle({ type: "service.up", subject: radarr })).toEqual([])
-      expect(tags(yield* engine.handle({ type: "service.down", subject: radarr, values: { since: 1 } }))).toEqual(["Start:0"])
-      expect(tags(yield* engine.handle({ type: "service.up", subject: radarr }))).toEqual(["End:1"])
-    }), [incident]))
+      expect(yield* engine.handle({ type: "request.approved", subject: dune })).toEqual([])
+      expect(tags(yield* engine.handle({ type: "request.pending", subject: dune }))).toEqual(["Start:0"])
+      expect(tags(yield* engine.handle({ type: "request.approved", subject: dune }))).toEqual(["End:1"])
+    }), [requestFlow]))
 })
 
 describe("a flow edited under a running activity", () => {
