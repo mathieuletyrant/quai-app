@@ -34,7 +34,7 @@ data needs a route in `previewRoutes` (and a fixture, per `fixtures/README.md`).
 
 ## 3. Build and screenshots (CI, ~10 min)
 
-Push the branch (`claude/**` triggers `ci.yml` without a PR). The `ios` job:
+Push the branch (`claude/**` triggers `ci.yml` without a PR; once the branch has an open PR, the push run skips `ios` and the PR's run does it). The `ios` job:
 
 1. **Build**: `build-for-testing`; Swift errors appear as annotations (xcbeautify). Read them
    with the GitHub MCP tools: `actions_list` for the run, `get_job_logs` with `failed_only`.

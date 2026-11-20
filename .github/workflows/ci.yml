@@ -42,11 +42,22 @@ jobs:
 
   changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
       pushes: ${{ steps.filter.outputs.pushes }}
+      pr: ${{ steps.pr.outputs.open }}
     steps:
       - uses: actions/checkout@v4
+      # A push to a branch with an open PR: its pull_request run does the macOS work.
+      - name: Open PR of this branch
+        id: pr
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "open=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length > 0')" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -72,7 +83,9 @@ jobs:
   # The verify skill's live-activity-pushes scenario: a TLA+ model of the order pushes reach the iPhone.
   live-activity-pushes:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.pushes == 'true'
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (needs.changes.outputs.pushes == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -123,11 +136,13 @@ jobs:
   # macOS minutes are billed: only when the app, the contract or the preview changes.
   ios:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.ios == 'true'
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
     runs-on: macos-26
-    # A push and its PR run the same commit: the newest run wins.
+    # A newer commit of the same branch replaces a run still going.
     concurrency:
-      group: ios-${{ github.head_ref || github.ref_name }}
+      group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
       cancel-in-progress: true
     permissions:
       contents: write
