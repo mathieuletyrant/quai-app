@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.17.0](https://github.com/mathieuletyrant/quai-app/compare/v0.16.1...v0.17.0) (2026-11-21)
+
+
+### ✨ Features
+
+* **ios:** a feedback loop without a Mac: contract checks, a preview server, screenshots on the PR ([#58](https://github.com/mathieuletyrant/quai-app/issues/58)) ([dad32f3](https://github.com/mathieuletyrant/quai-app/commit/dad32f3e7a2156f6ce609937ba54d08445e86798))
+* open titles in Radarr or Sonarr, and follow their own Missing and Not Available ([#62](https://github.com/mathieuletyrant/quai-app/issues/62)) ([5132855](https://github.com/mathieuletyrant/quai-app/commit/5132855c4e1f0525b72d11a377053088ebffbf37))
+
 ## [0.16.1](https://github.com/mathieuletyrant/quai-app/compare/v0.16.0...v0.16.1) (2026-11-20)
 
 
