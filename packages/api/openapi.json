@@ -3735,6 +3735,12 @@
           },
           "episodes": {
             "$ref": "#/components/schemas/EpisodeCount"
+          },
+          "webUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [

@@ -60,7 +60,8 @@ export class Link extends Context.Service<Link, {
         protocol: HomeProtocol.protocolVersion,
         homeVersion,
         publicKey: key.publicKey,
-        services: configuredServices(config)
+        services: configuredServices(config),
+        webUrls: config.webUrls
       })
 
       const runStore = (request: StoreRequest): Effect.Effect<HomeMessage> => {

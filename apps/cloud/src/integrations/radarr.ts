@@ -93,6 +93,8 @@ const LibraryMovie = Schema.Struct({
   title: Schema.String,
   year: Schema.optional(Schema.Number),
   tmdbId: Schema.Number,
+  /** The movie's page in Radarr's web UI is `/movie/<titleSlug>`. */
+  titleSlug: Schema.optional(Schema.String),
   added: Schema.optional(Schema.String),
   hasFile: Schema.optional(Schema.Boolean),
   monitored: Schema.optional(Schema.Boolean),
@@ -113,7 +115,12 @@ export const DiskSpaces = Schema.Array(Schema.Struct({
  * A movie as the library lists it: on disk when it has its file; else wanted while Radarr is
  * monitoring it (before it's out too: Radarr grabs it once it is), not monitored otherwise.
  */
-export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
+/** The movie's page at each of Radarr's web addresses. */
+export const movieWebUrls = (movie: RadarrMovie, bases: ReadonlyArray<string>) =>
+  movie.titleSlug === undefined ? [] : bases.map((base) => `${base}/movie/${encodeURIComponent(movie.titleSlug!)}`)
+
+export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string> = []): LibraryItem => {
+  const webUrls = movieWebUrls(movie, webBases)
   const year = knownYear(movie.year)
   const posterUrl = posterOf(movie.images)
   const addedAt = epochSeconds(movie.added)
@@ -126,7 +133,8 @@ export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
     status: movie.hasFile === true ? "available" : movie.monitored === false ? "notMonitored" : "wanted",
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: movie.sizeOnDisk ?? 0,
-    ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview })
+    ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview }),
+    ...(webUrls.length === 0 ? {} : { webUrls })
   }
 }
 

@@ -120,6 +120,8 @@ your own account.
 | `QUAI_DATA_DIR` | Where Home keeps its data (default `./data`, `/data` in the image) |
 | `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (Settings → General) |
 | `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | Sonarr (Settings → General) |
+| `QUAI_RADARR_WEB_URL`, `QUAI_RADARR_PUBLIC_URL` | Optional: where an iPhone opens Radarr, at home and from outside. The app's Library links each movie to its page, at the one that matches where the iPhone reaches Quai |
+| `QUAI_SONARR_WEB_URL`, `QUAI_SONARR_PUBLIC_URL` | The same for Sonarr and the series |
 | `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | Jellyfin (Dashboard → API Keys) |
 | `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | qBittorrent Web UI |
 | `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General) |

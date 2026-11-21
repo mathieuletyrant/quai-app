@@ -71,6 +71,9 @@ final class Connection {
     var isPaired: Bool { session != nil }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
+    /// Quai answers at its first address, the one at home (the pairing code lists it first). With
+    /// a single address, the app can't tell: it counts as away.
+    var isAtHome: Bool { serverURLs.count > 1 && serverURL == serverURLs.first }
     /// What the proxy in front of the public address requires.
     var accessHeaders: [AccessHeader] { session?.accessHeaders ?? [] }
 
@@ -104,7 +107,7 @@ final class Connection {
         let paired = try await client.pairDevice(body: .json(body)).ok.body.json
         let session = ServerSession(
             token: paired.token,
-            urls: [url] + link.serverURLs.filter { $0 != url },
+            urls: link.serverURLs.contains(url) ? link.serverURLs : [url] + link.serverURLs,
             accessHeaders: link.accessHeaders
         )
         session.save()

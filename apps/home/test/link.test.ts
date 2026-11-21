@@ -96,7 +96,7 @@ const linked = (connections: Queue.Queue<Connection>) =>
   })
 
 describe("link", () => {
-  it.effect("says Hello with the public key and the services, proves the key, and is linked on Welcome", () =>
+  it.effect("says Hello with the public key, the services and where an iPhone opens them, proves the key, and is linked on Welcome", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const key = yield* HomeKey
@@ -106,7 +106,8 @@ describe("link", () => {
           protocol: HomeProtocol.protocolVersion,
           homeVersion: "dev",
           publicKey: key.publicKey,
-          services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"]
+          services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"],
+          webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"] }
         })
         const nonce = randomBytes(32).toString("base64")
         yield* cloud(connection, { _tag: "Challenge", nonce })

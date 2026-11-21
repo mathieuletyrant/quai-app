@@ -41,7 +41,12 @@ export const LibraryItem = Schema.Struct({
   addedAt: Schema.optionalKey(Schema.Finite),
   sizeBytes: Schema.Finite,
   overview: Schema.optionalKey(Schema.String),
-  episodes: Schema.optionalKey(EpisodeCount)
+  episodes: Schema.optionalKey(EpisodeCount),
+  /**
+   * The title's page in Radarr or Sonarr, at each address Quai Home gave: at home first, then from
+   * outside. Absent when it gave none.
+   */
+  webUrls: Schema.optionalKey(Schema.Array(Schema.String))
 }).annotate({ identifier: "LibraryItem" })
 export type LibraryItem = typeof LibraryItem.Type
 

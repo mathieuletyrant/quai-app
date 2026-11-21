@@ -46,6 +46,8 @@ export interface FakeHomeOptions {
    */
   readonly strict?: boolean
   readonly services?: ReadonlyArray<HomeProtocol.HomeService>
+  /** Where an iPhone opens Radarr and Sonarr, sent in Hello. Default: none. */
+  readonly webUrls?: HomeProtocol.WebUrls
   readonly protocol?: number
   /** Signs with another key than the one in Hello. */
   readonly badProof?: boolean
@@ -241,7 +243,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         protocol: options.protocol ?? HomeProtocol.protocolVersion,
         homeVersion: "test",
         publicKey,
-        services: options.services ?? ["radarr", "sonarr", "qbittorrent", "jellyfin"]
+        services: options.services ?? ["radarr", "sonarr", "qbittorrent", "jellyfin"],
+        ...(options.webUrls === undefined ? {} : { webUrls: options.webUrls })
       })))
       yield* settle
     })

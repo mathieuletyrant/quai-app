@@ -37,7 +37,7 @@ describe("library adapters", () => {
   it.effect("reads Radarr's movies: file or not, the public poster, never the key-bound one", () =>
     Effect.gen(function*() {
       const movies = yield* Schema.decodeUnknownEffect(RadarrMovies)(fixture("radarr/movies.json"))
-      expect(movies.map(libraryMovie)).toEqual([
+      expect(movies.map((movie) => libraryMovie(movie))).toEqual([
         {
           id: "movie:12",
           kind: "movie",
@@ -67,7 +67,7 @@ describe("library adapters", () => {
   it.effect("reads Sonarr's series: available once every expected episode has a file", () =>
     Effect.gen(function*() {
       const series = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series.json"))
-      expect(series.map(librarySeries).map((s) => [s.title, s.status, s.episodes, s.posterUrl])).toEqual([
+      expect(series.map((one) => librarySeries(one)).map((s) => [s.title, s.status, s.episodes, s.posterUrl])).toEqual([
         ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg"],
         ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg"]
       ])
@@ -131,6 +131,23 @@ describe("GET /api/library", () => {
         "radarr GET /api/v3/movie",
         "sonarr GET /api/v3/series"
       ])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("links each title to its page in Radarr or Sonarr, at home first, when Quai Home gave their addresses", () =>
+    Effect.gen(function*() {
+      const { api } = yield* phoneOn({
+        answer: recorded,
+        webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"], sonarr: ["https://sonarr.example.com"] }
+      })
+      const items = (yield* api.library.library()).items
+      expect(items.find((i) => i.id === "movie:12")?.webUrls).toEqual(["http://umbrel.local:7878/movie/693134", "https://radarr.example.com/movie/693134"])
+      expect(items.find((i) => i.id === "series:3")?.webUrls).toEqual(["https://sonarr.example.com/series/severance"])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("no link when Quai Home gave no address", () =>
+    Effect.gen(function*() {
+      const { api } = yield* phoneOn({ answer: recorded })
+      expect((yield* api.library.library()).items.every((i) => i.webUrls === undefined)).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service that doesn't answer is unavailable; the others still show", () =>

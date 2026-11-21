@@ -87,6 +87,8 @@ const LibrarySeries = Schema.Struct({
   year: Schema.optional(Schema.Number),
   tvdbId: Schema.Number,
   tmdbId: Schema.optional(Schema.Number),
+  /** The series' page in Sonarr's web UI is `/series/<titleSlug>`. */
+  titleSlug: Schema.optional(Schema.String),
   added: Schema.optional(Schema.String),
   monitored: Schema.optional(Schema.Boolean),
   /** The next monitored episode's air date, when one is coming. */
@@ -119,7 +121,12 @@ const seriesStatus = (series: SonarrSeries, have: number, total: number): Librar
   return have > 0 ? "available" : "notMonitored"
 }
 
-export const librarySeries = (series: SonarrSeries): LibraryItem => {
+/** The series' page at each of Sonarr's web addresses. */
+export const seriesWebUrls = (series: SonarrSeries, bases: ReadonlyArray<string>) =>
+  series.titleSlug === undefined ? [] : bases.map((base) => `${base}/series/${encodeURIComponent(series.titleSlug!)}`)
+
+export const librarySeries = (series: SonarrSeries, webBases: ReadonlyArray<string> = []): LibraryItem => {
+  const webUrls = seriesWebUrls(series, webBases)
   const year = knownYear(series.year)
   const posterUrl = posterOf(series.images)
   const addedAt = epochSeconds(series.added)
@@ -135,7 +142,8 @@ export const librarySeries = (series: SonarrSeries): LibraryItem => {
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: series.statistics?.sizeOnDisk ?? 0,
     ...(series.overview === undefined || series.overview === "" ? {} : { overview: series.overview }),
-    episodes: { have, total }
+    episodes: { have, total },
+    ...(webUrls.length === 0 ? {} : { webUrls })
   }
 }
 

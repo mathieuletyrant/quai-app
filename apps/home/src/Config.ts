@@ -37,6 +37,8 @@ export class HomeConfig extends Context.Service<HomeConfig, {
   readonly cleanuparr: ServiceEndpoint | null
   /** Prowlarr: read for the alerts only (is it up, what its System > Status reports). */
   readonly prowlarr: ServiceEndpoint | null
+  /** Where an iPhone opens Radarr and Sonarr: at home, then from outside. Sent in Hello. */
+  readonly webUrls: HomeProtocol.WebUrls
 }>()("quai-home/HomeConfig") {
   static readonly layer = Layer.effect(
     HomeConfig,
@@ -55,6 +57,13 @@ export class HomeConfig extends Context.Service<HomeConfig, {
       const qbUser = yield* opt("QUAI_QBITTORRENT_USERNAME")
       const qbPassword = yield* secret("QUAI_QBITTORRENT_PASSWORD")
       const internalUrl = yield* opt("QUAI_INTERNAL_URL")
+      const webUrlsOf = (prefix: string) =>
+        Effect.map(
+          Effect.all([opt(`QUAI_${prefix}_WEB_URL`), opt(`QUAI_${prefix}_PUBLIC_URL`)]),
+          (urls) => urls.flatMap((url) => Option.isSome(url) && url.value.trim() !== "" ? [trimSlash(url.value.trim())] : [])
+        )
+      const radarrWebUrls = yield* webUrlsOf("RADARR")
+      const sonarrWebUrls = yield* webUrlsOf("SONARR")
       return {
         cloudUrl: yield* Config.schema(Schema.String.check(Schema.isPattern(/^wss?:\/\//)), "QUAI_CLOUD_URL"),
         port: yield* Config.Port("QUAI_HOME_PORT").pipe(Config.withDefault(8788)),
@@ -69,7 +78,11 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         prowlarr: yield* endpoint("PROWLARR"),
         qbittorrent: Option.isSome(qbUrl)
           ? { url: trimSlash(qbUrl.value), username: Option.getOrNull(qbUser), password: Option.getOrNull(qbPassword) }
-          : null
+          : null,
+        webUrls: {
+          ...(radarrWebUrls.length === 0 ? {} : { radarr: radarrWebUrls }),
+          ...(sonarrWebUrls.length === 0 ? {} : { sonarr: sonarrWebUrls })
+        }
       }
     })
   )

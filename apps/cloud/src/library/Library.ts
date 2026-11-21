@@ -56,14 +56,15 @@ export class Library extends Context.Service<Library, {
           ? yield* reads.read({ service: "sonarr", path: "/api/v3/diskspace", schema: DiskSpaces })
           : radarrDisk
 
+        const webUrls = yield* reads.webUrls
         const flows = yield* flowStore.all
         const running = [...(yield* activities.snapshot).activities.values()].filter((a) => a.endedAt === null)
         const progress = downloadsOf(running, flows)
         const withDownload = (key: string, item: LibraryItem) => progress.has(key) ? downloading(item, progress.get(key)) : item
 
         const items = [
-          ...Option.getOrElse(movies, () => []).map((m) => withDownload(movieKey(m.tmdbId), libraryMovie(m))),
-          ...Option.getOrElse(series, () => []).map((s) => withDownload(seriesKey(s.tvdbId), librarySeries(s)))
+          ...Option.getOrElse(movies, () => []).map((m) => withDownload(movieKey(m.tmdbId), libraryMovie(m, webUrls.radarr))),
+          ...Option.getOrElse(series, () => []).map((s) => withDownload(seriesKey(s.tvdbId), librarySeries(s, webUrls.sonarr)))
         ].sort(newestFirst)
         const disk: DiskSpace | undefined = Option.getOrUndefined(Option.flatMap(disks, (d) => Option.fromNullishOr(mediaDisk(d))))
         return { items, ...(disk === undefined ? {} : { disk }), unavailable }
