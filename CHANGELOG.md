@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/mathieuletyrant/quai-app/compare/v0.17.0...v0.18.0) (2026-11-21)
+
+
+### ✨ Features
+
+* notify a deletion Reclaimerr plans, and say why in plain words ([#63](https://github.com/mathieuletyrant/quai-app/issues/63)) ([dba83fe](https://github.com/mathieuletyrant/quai-app/commit/dba83fe54123b39f4cf734a4aa0752d3f33cd291))
+
 ## [0.17.0](https://github.com/mathieuletyrant/quai-app/compare/v0.16.1...v0.17.0) (2026-11-21)
 
 
