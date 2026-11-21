@@ -2,7 +2,7 @@ import { Schema } from "effect"
 
 /** What one activity follows. */
 /** What an alert is about (Alerts.ts): a service down, the media disk low, a problem an *arr reports. */
-export const AlertKind = Schema.Literals(["serviceDown", "diskLow", "arrHealth"]).annotate({ identifier: "AlertKind" })
+export const AlertKind = Schema.Literals(["serviceDown", "diskLow", "arrHealth", "deletionPlanned"]).annotate({ identifier: "AlertKind" })
 export type AlertKind = typeof AlertKind.Type
 
 export const FlowSubject = Schema.Literals(["media", "playback", "request", "day"]).annotate({ identifier: "FlowSubject" })

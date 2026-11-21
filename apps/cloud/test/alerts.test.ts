@@ -1,11 +1,14 @@
 import { describe, expect, it } from "@effect/vitest"
 import { defaultAlertSettings, type DeviceId } from "@quai/api"
 import { Effect, Layer, Redacted, Schema } from "effect"
+import { HomeDocuments } from "../src/home/HomeLink.ts"
 import { generateKeyPairSync } from "node:crypto"
 import { Alerts, alertState, reconcile } from "../src/alerts/Alerts.ts"
 import { Devices } from "../src/home/Devices.ts"
 import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
+import { deletionsState, deletionsWatchId } from "../src/integrations/deletions.ts"
 import { diskDetail, diskState } from "../src/integrations/disk.ts"
+import { CandidatePage, reasonSummary } from "../src/integrations/reclaimerr.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
 import { Apns } from "../src/push/Apns.ts"
 import { cloud, makeFakeHome } from "./fakeHome.ts"
@@ -47,6 +50,77 @@ describe("alerts", () => {
       expect(arrHealthState("radarr", checks, "error").raised.map((r) => [r.what, r.title])).toEqual([["DownloadClientCheck", "Radarr reports a problem"]])
       expect(arrHealthState("radarr", checks, "warning").raised.map((r) => r.what)).toEqual(["IndexerStatusCheck", "DownloadClientCheck"])
     }))
+
+  it("a Reclaimerr reason, readable: the rule, then what each condition found, no library hash nor time of day", () => {
+    expect(reasonSummary(
+      "Watched movies not revisited: Library matches any f137a2dd21bbc1b99aa5c0f6bf02a805 (f137a2dd21bbc1b99aa5c0f6bf02a805), Never watched is false (9 views; last watched 2026-11-04 21:35:11.102901), Days since watched > 15 (16)"
+    )).toBe("Watched movies not revisited · 9 views; last watched 2026-11-04 · 16 days since watched")
+    expect(reasonSummary("Low rated and unwatched: Rating below 6.5 | Never watched")).toBe("Low rated and unwatched · Rating below 6.5 · Never watched")
+    expect(reasonSummary("Rating < 6.5 (5.9)")).toBe("Rating < 6.5 (5.9)")
+    expect(reasonSummary("Low rated: Rating < 6.5 (5.9)")).toBe("Low rated · Rating: 5.9")
+  })
+
+  it.effect("a planned deletion: one alert per title, again on its last day; protected, let go or not planned starts nothing", () =>
+    Effect.gen(function*() {
+      const { items } = yield* Schema.decodeUnknownEffect(CandidatePage)(fixture("reclaimerr/candidates.json"))
+      const fiveDaysBefore = Date.parse("2026-11-19T03:00:00Z")
+      const planned = deletionsState(items, new Set(), fiveDaysBefore).raised
+      // Up is scheduled; Cars 2 is eligible (its date passed: today); Coco is protected, Lost and Brave aren't deleting.
+      expect(planned.map((r) => [r.what, r.title])).toEqual([
+        ["42", "Up will be deleted in 5 days"],
+        ["43:last-day", "Cars 2 will be moved today"]
+      ])
+      expect(planned[0]).toMatchObject({ detail: "Unwatched for a year · Last watched more than 365 days ago", silentOver: true })
+      const lastDay = deletionsState(items, new Set(), Date.parse("2026-11-23T05:00:00Z")).raised
+      expect(lastDay.map((r) => [r.what, r.title])[0]).toEqual(["42:last-day", "Up will be deleted tomorrow"])
+      expect(deletionsState(items, new Set([42, 43]), fiveDaysBefore).raised).toEqual([])
+    }))
+
+  it.effect("a planned deletion is notified when planned and on its last day; kept, it ends without a word", () =>
+    Effect.gen(function*() {
+      const apple = yield* fakeApns
+      const apns = yield* Apns.make({ keyPem: Redacted.make(keyPem), keyId: "KEY123", teamId: "TEAM456", topic: "com.mathieuletyrant.quai" }, { development: apple.url, production: apple.url })
+      yield* Effect.gen(function*() {
+        const home = yield* makeFakeHome({ services: ["radarr", "reclaimerr"] })
+        yield* home.connect
+        const devices = yield* Devices
+        const { code } = yield* devices.createPairingCode
+        const paired = yield* devices.pair({ code, name: "Mathieu", apnsEnvironment: "development" })
+        if (paired._tag === "None") return yield* Effect.die("pairing failed")
+        yield* devices.update(paired.value.deviceId, { notificationToken: "note-mathieu" })
+
+        expect(home.state.watches.find((w) => w.id === deletionsWatchId)?.path).toBe("/api/v1/candidates?page=1&per_page=200")
+        // The test clock stays at 0: each reading moves Up's date closer instead.
+        const up = (fixture("reclaimerr/candidates.json") as { items: Array<{ id: number }> }).items.find((c) => c.id === 42)!
+        const upIn = (hours: number) => ({ items: [{ ...up, auto_delete_eligible_at: new Date(hours * 3600_000).toISOString() }] })
+
+        yield* home.snapshot(deletionsWatchId, upIn(5 * 24))
+        expect(apple.hits.map((h) => [h.body.aps.alert.title, h.body.aps["thread-id"]])).toEqual([["Up will be deleted in 5 days", "deletionPlanned"]])
+
+        // The next days: the text follows, no new notification.
+        yield* home.snapshot(deletionsWatchId, upIn(4 * 24))
+        expect(apple.hits).toHaveLength(1)
+        expect((yield* (yield* Alerts).active).items.map((a) => a.title)).toEqual(["Up will be deleted in 4 days"])
+
+        // Its last day: one more notification, the first days' alert ends without one.
+        yield* home.snapshot(deletionsWatchId, upIn(20))
+        expect(apple.hits.map((h) => h.body.aps.alert.title)).toEqual(["Up will be deleted in 5 days", "Up will be deleted tomorrow"])
+
+        // Kept: it leaves the list, nobody is notified.
+        yield* home.snapshot(deletionsWatchId, { items: [] })
+        expect(apple.hits).toHaveLength(2)
+        expect((yield* (yield* Alerts).active).items).toEqual([])
+      }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.succeed(Apns, apns)))))
+    }))
+
+  it.effect("settings saved before a kind existed keep their values and get the new kind's defaults", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome()
+      yield* home.connect
+      const { deletionPlanned: _, ...older } = { ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } }
+      yield* (yield* HomeDocuments).put("alerts/settings", older)
+      expect(yield* (yield* Alerts).settings).toEqual({ ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } })
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
 
   it.effect("watched, notified once to the iPhones that allowed it and didn't mute it, ended once, kept at home", () =>
     Effect.gen(function*() {
@@ -103,7 +177,7 @@ describe("alerts", () => {
 
         // Turned off: its alerts end without a notification, and its watches go.
         yield* alerts.saveSettings({ ...defaultAlertSettings, arrHealth: { enabled: false, level: "error" } })
-        expect((yield* alerts.active)).toEqual({ items: [], enabled: ["serviceDown", "diskLow"] })
+        expect((yield* alerts.active)).toEqual({ items: [], enabled: ["serviceDown", "diskLow", "deletionPlanned"] })
         expect(apple.hits).toHaveLength(5)
       }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))

@@ -10,8 +10,8 @@ import type { SonarrSeries } from "./sonarr.ts"
  * external API, `/api/v1`, takes a scoped bearer token (Settings > Integrations); Quai needs
  * `candidates:manage` (which grants `candidates:read`), and `system:read` for its health check.
  *
- * No events and no Live Activity action: it only feeds the To fix list, so it isn't one of the
- * Hub's integrations. Read when the list is asked for.
+ * No events and no Live Activity action: it feeds the To fix list, read when the list is asked for,
+ * and the Planned deletion alert (`deletions.ts`), which reads the candidates every 30 minutes.
  */
 
 /** The cleanup candidates, newest first. 200 is the API's largest page. */
@@ -43,6 +43,61 @@ const Candidate = Schema.Struct({
 export type Candidate = typeof Candidate.Type
 
 export const CandidatePage = Schema.Struct({ items: Schema.Array(Candidate) })
+
+/**
+ * A candidate's reason, readable: Reclaimerr writes its rule's name, then each condition with what it
+ * found, `Watched movies not revisited: Library matches any f137… (f137…), Never watched is false
+ * (9 views; last watched 2026-11-04 21:35:11.102901), Days since watched > 15 (16)`. Kept: the rule's
+ * name and what each condition found, `Watched movies not revisited · 9 views; last watched
+ * 2026-11-04 · 16 days since watched`. Library conditions say nothing to the reader; a condition
+ * Quai can't read is kept as written.
+ */
+export const reasonSummary = (reason: string): string => {
+  const colon = reason.indexOf(": ")
+  if (colon < 0) return withDays(reason)
+  const rule = reason.slice(0, colon)
+  const facts = conditionsOf(reason.slice(colon + 2))
+    .filter((condition) => !condition.startsWith("Library "))
+    .map(factOf)
+  return [rule, ...facts].map(withDays).join(" · ")
+}
+
+/** Conditions are separated by ", " or " | ", but never inside the parentheses of what was found. */
+const conditionsOf = (text: string): ReadonlyArray<string> => {
+  const parts: Array<string> = []
+  let depth = 0
+  let current = ""
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!
+    if (character === "(") depth++
+    if (character === ")") depth--
+    const separator = depth === 0 && (text.startsWith(", ", index) || text.startsWith(" | ", index))
+    if (separator) {
+      parts.push(current.trim())
+      current = ""
+      index += text.startsWith(", ", index) ? 1 : 2
+      continue
+    }
+    current += character
+  }
+  if (current.trim() !== "") parts.push(current.trim())
+  return parts
+}
+
+const conditionPattern = /^(.+?) (is|is not|>|>=|<|<=|=|!=) (.+?) \((.+)\)$/
+
+/** "Days since watched > 15 (16)" → "16 days since watched"; "Never watched is false (9 views…)" → "9 views…". */
+const factOf = (condition: string): string => {
+  const match = conditionPattern.exec(condition)
+  if (match === null) return condition
+  const [, label, operator, , found] = match as unknown as [string, string, string, string, string]
+  if (label.startsWith("Days since ")) return `${found} days since ${label.slice("Days since ".length).toLowerCase()}`
+  if (operator === "is" || operator === "is not") return found
+  return `${label}: ${found}`
+}
+
+/** "2026-11-04 21:35:11.102901" → "2026-11-04". */
+const withDays = (text: string) => text.replace(/(\d{4}-\d{2}-\d{2})[ T]\d{2}:\d{2}:\d{2}(\.\d+)?/g, "$1")
 
 /** The states in which Reclaimerr deletes the title on its own, at a known date. */
 const deleting = new Set(["scheduled", "eligible", "postponed"])
@@ -108,7 +163,7 @@ export const scheduledDeletions = (candidates: ReadonlyArray<Candidate>, sources
           title: candidate.title,
           ...(year === undefined ? {} : { year }),
           ...(posterUrl === undefined ? {} : { posterUrl }),
-          reason: candidate.reason,
+          reason: reasonSummary(candidate.reason),
           ...(since === undefined ? {} : { since }),
           actions: ["keep", "dismiss"],
           deletion: { deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }

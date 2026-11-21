@@ -2,6 +2,7 @@ import { Effect, Layer } from "effect"
 import { Journal } from "../journal/Journal.ts"
 import { arrHealth } from "./arrHealth.ts"
 import { cleanuparr } from "./cleanuparr.ts"
+import { deletions } from "./deletions.ts"
 import { disk } from "./disk.ts"
 import { health } from "./health.ts"
 import { Integrations } from "./Integration.ts"
@@ -18,5 +19,5 @@ import { sonarr } from "./sonarr.ts"
  */
 export const IntegrationsLive = Layer.effect(
   Integrations,
-  Effect.all([radarr, Effect.succeed(sonarr), Effect.succeed(qbittorrent), jellyfin, seerr, releases, health, Effect.map(Effect.service(Journal), cleanuparr), Effect.succeed(disk), Effect.succeed(arrHealth)])
+  Effect.all([radarr, Effect.succeed(sonarr), Effect.succeed(qbittorrent), jellyfin, seerr, releases, health, Effect.map(Effect.service(Journal), cleanuparr), Effect.succeed(disk), Effect.succeed(arrHealth), deletions])
 ).pipe(Layer.provideMerge(Seerr.layer))
