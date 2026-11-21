@@ -18,7 +18,7 @@ struct TitleDetailView: View {
         case .wanted:
             return (item.kind == .movie ? "Wanted · no file yet" : "Wanted · episodes missing", Palette.wantedText)
         case .notAvailable:
-            return (item.kind == .movie ? "Not available · not out yet" : "Not available · nothing aired yet", Palette.secondaryText)
+            return (item.kind == .movie ? "Not available · not out yet" : "Nothing missing · nothing to download", Palette.secondaryText)
         case .notMonitored:
             return ("Not monitored", Palette.secondaryText)
         }
