@@ -179,7 +179,7 @@ describe("To fix rules", () => {
       ["Cars 2", { deletesAt: Date.parse("2026-11-18T03:00:00Z") / 1000, operation: "move" }],
       ["Up", { deletesAt: Date.parse("2026-11-24T03:00:00Z") / 1000, operation: "delete" }]
     ])
-    expect(deletions[1]!.fix).toMatchObject({ id: "deletion-42", reason: "Unwatched for a year: Last watched more than 365 days ago", actions: ["keep", "dismiss"] })
+    expect(deletions[1]!.fix).toMatchObject({ id: "deletion-42", reason: "Unwatched for a year · Last watched more than 365 days ago", actions: ["keep", "dismiss"] })
     expect(deletions.every((d) => d.fix.posterUrl === undefined)).toBe(true)
   })
 

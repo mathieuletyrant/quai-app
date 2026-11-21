@@ -56,7 +56,7 @@ import { series } from "./series.ts"
 /** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
 export const hiddenPrefix = "fixes/"
 const snoozedKey = (id: string) => `fixes/snoozed/${id}`
-const dismissedKey = (id: string) => `fixes/dismissed/${id}`
+export const dismissedKey = (id: string) => `fixes/dismissed/${id}`
 
 /** A snooze: until a date, or (no `until`) until the problem goes away, a release grabbed. */
 const Hidden = Schema.Struct({ at: Schema.Number, until: Schema.optional(Schema.Number) })

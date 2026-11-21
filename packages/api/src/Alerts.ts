@@ -27,6 +27,10 @@ export const AlertSettings = Schema.Struct({
     enabled: Schema.Boolean,
     /** What Radarr, Sonarr and Prowlarr report on their System > Status page, from this level up. */
     level: Schema.Literals(["warning", "error"])
+  }),
+  /** A title Reclaimerr is going to delete (or move) on its own: when it's planned, and the day before. */
+  deletionPlanned: Schema.Struct({
+    enabled: Schema.Boolean
   })
 }).annotate({ identifier: "AlertSettings" })
 export type AlertSettings = typeof AlertSettings.Type
@@ -34,7 +38,8 @@ export type AlertSettings = typeof AlertSettings.Type
 export const defaultAlertSettings: AlertSettings = {
   serviceDown: { enabled: true, afterMinutes: 5 },
   diskLow: { enabled: true, belowPercent: 10 },
-  arrHealth: { enabled: true, level: "error" }
+  arrHealth: { enabled: true, level: "error" },
+  deletionPlanned: { enabled: true }
 }
 
 /** The free space, in points above the threshold, at which a low disk is over: it doesn't flap around it. */

@@ -13,15 +13,19 @@ notification when it starts, another when it's over, and a line on the app's Hom
 | Service down | each service Quai Home reaches, its status endpoint, every minute | no answer (or a 5xx) for N minutes | the first answer | N, 5 by default |
 | Disk low | Radarr's (else Sonarr's) `/api/v3/diskspace`, the largest disk, every 10 minutes | under N % free | N + 2 % free, so it doesn't flap | N, 10 by default |
 | *arr health | Radarr's and Sonarr's `/api/v3/health`, Prowlarr's `/api/v1/health`, every 5 minutes | a check at the level or above appears | the check is gone | warnings and errors, or errors only (default) |
+| Planned deletion | Reclaimerr's `/api/v1/candidates`, every 30 minutes | Reclaimerr plans to delete (or move) a title on its own, and again on its last day | deleted, kept, or let go in Quai: without a notification | on or off |
 
 Each is on by default and turned off in the console's **Alerts** page. A kind turned off ends its
 alerts without a notification and stops its reads.
 
 ## How it works
 
-- Each source is an integration's `alertWatcher` (`health.ts`, `disk.ts`, `arrHealth.ts`): its
+- Each source is an integration's `alertWatcher` (`health.ts`, `disk.ts`, `arrHealth.ts`, `deletions.ts`): its
   reading is an `AlertState`, *every alert of this kind and scope going on now* (scope: a service,
-  or `disk`). Those not listed are over. A reading that knows nothing new says nothing.
+  or `disk`). Those not listed are over. A reading that knows nothing new says nothing. A planned
+  deletion is one alert per title, its id changing on the last day: the first days' alert ends
+  silently (`silentOver`) and the last day's starts with its own notification.
+- Settings saved before a kind existed get that kind's defaults; the others are kept.
 - `Alerts.apply` compares it with the alerts going on, kept by Quai Home in `alerts/active`, so a
   restarted Cloud doesn't notify again. What starts and what ends is one notification each and one
   journal line (`alert.raised`, `alert.over`). One still going only gets its text updated (the
