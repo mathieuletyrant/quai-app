@@ -11,7 +11,9 @@ the shape of Radarr v5's `GET /api/v3/movie` and `GET /api/v3/diskspace` and Son
 `GET /api/v3/series`, trimmed to a few titles. `radarr/movie-unmonitored.json` and
 `sonarr/series-unmonitored.json` are a movie and a series left unmonitored without a file (watched,
 then deleted); `sonarr/series-announced.json` is a monitored series added before anything aired, its
-episodes without an air date (no `nextAiring`, statistics 0 of 0).
+episodes without an air date (no `nextAiring`, statistics 0 of 0). `radarr/movie-by-tmdb.json` is
+`GET /api/v3/movie?tmdbId=693134`: Dune, out (`isAvailable`, Radarr's "Missing" rather than "Not
+Available").
 
 The To fix reads follow Radarr v5 and Sonarr v4's `GET /api/v3/queue` (with `includeMovie`, or
 `includeSeries` and `includeEpisode`), `GET /api/v3/wanted/missing`, `GET /api/v3/history/since`,

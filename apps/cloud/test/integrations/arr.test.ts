@@ -1,8 +1,14 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
+import { HomeLink } from "../../src/home/HomeLink.ts"
+import { HomeReads } from "../../src/home/HomeReads.ts"
+import { Journal } from "../../src/journal/Journal.ts"
 import { decodeRadarrWebhook, radarr, radarrEvents } from "../../src/integrations/radarr.ts"
 import { decodeSonarrWebhook, episodeLabel, sonarr, sonarrEvents } from "../../src/integrations/sonarr.ts"
+import { makeFakeHome, type Recording, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
+
+const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(HomeLink.layer))
 
 const radarrPayload = (name: string) => decodeRadarrWebhook(fixture(`radarr/${name}.json`))
 const sonarrPayload = (name: string) => decodeSonarrWebhook(fixture(`sonarr/${name}.json`))
@@ -36,8 +42,39 @@ describe("Radarr webhooks", () => {
 
   it.effect("the integration reads a posted body the same way", () =>
     Effect.gen(function*() {
-      const events = yield* radarr.webhook!.read(fixture("radarr/grab.json"))
+      const home = yield* makeFakeHome()
+      yield* home.connect
+      const integration = yield* radarr
+      const events = yield* integration.webhook!.read(fixture("radarr/grab.json"))
       expect(events.map((e) => e.type)).toEqual(["media.grabbed"])
+      expect(home.calls).toEqual([])
+    }).pipe(Effect.provide(link)))
+
+  const added = (movies: Recording) =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome({ answer: recordedHome({ "radarr GET /api/v3/movie": movies }) })
+      yield* home.connect
+      const integration = yield* radarr
+      const events = yield* integration.webhook!.read(fixture("radarr/movie-added.json"))
+      return { types: events.map((e) => e.type), paths: home.calls.map((c) => c.path) }
+    }).pipe(Effect.provide(link))
+
+  it.effect("a movie added that Radarr lists \"Missing\" starts a search", () =>
+    Effect.gen(function*() {
+      const { types, paths } = yield* added("radarr/movie-by-tmdb.json")
+      expect(types).toEqual(["media.added"])
+      expect(paths).toEqual(["/api/v3/movie?tmdbId=693134"])
+    }))
+
+  it.effect("a movie added before it is out (Radarr's \"Not Available\") starts nothing", () =>
+    Effect.gen(function*() {
+      const announced = (fixture("radarr/movie-by-tmdb.json") as Array<object>).map((m) => ({ ...m, status: "announced", isAvailable: false }))
+      expect((yield* added({ json: announced })).types).toEqual([])
+    }))
+
+  it.effect("when Radarr can't say, the search starts all the same", () =>
+    Effect.gen(function*() {
+      expect((yield* added({ status: 500 })).types).toEqual(["media.added"])
     }))
 
   it.effect("the Test button gives nothing", () =>

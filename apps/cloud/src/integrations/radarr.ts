@@ -1,8 +1,9 @@
 import type { DiskSpace, LibraryItem } from "@quai/api"
-import { Effect, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { movieKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, knownYear, posterOf, queuePageSize } from "./arr.ts"
+import { HomeReads, type Read } from "../home/HomeReads.ts"
 import type { Integration } from "./Integration.ts"
 
 const Movie = Schema.Struct({
@@ -48,12 +49,42 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
 
 export const decodeRadarrWebhook = Schema.decodeUnknownEffect(RadarrWebhook)
 
-/** Radarr pushes: added, grabbed and imported come by webhook. It has no actions yet. */
-export const radarr: Integration = {
+/** A movie by its TMDB id, for Radarr's own verdict on it: "Missing" or "Not Available". */
+export const movieAvailabilityRead = (tmdbId: number): Read<ReadonlyArray<{ readonly isAvailable?: boolean | undefined }>> => ({
   service: "radarr",
-  webhook: { read: (body) => Effect.map(decodeRadarrWebhook(body), radarrEvents) },
-  actions: {}
-}
+  path: `/api/v3/movie?tmdbId=${tmdbId}`,
+  schema: Schema.Array(Schema.Struct({ isAvailable: Schema.optional(Schema.Boolean) }))
+})
+
+/**
+ * Radarr pushes: added, grabbed and imported come by webhook. It has no actions yet. A movie added
+ * before it is out (Radarr lists it "Not Available") starts nothing: Radarr won't search it until
+ * then, and its grab starts the activity on the day. When Radarr can't say, the activity starts.
+ */
+export const radarr = Effect.gen(function*() {
+  const reads = yield* HomeReads
+
+  const notAvailableYet = (tmdbId: number) =>
+    reads.read(movieAvailabilityRead(tmdbId)).pipe(
+      Effect.map(Option.match({ onNone: () => false, onSome: (movies) => movies[0]?.isAvailable === false })),
+      Effect.catchTag("HomeOffline", () => Effect.succeed(false))
+    )
+
+  const integration: Integration = {
+    service: "radarr",
+    webhook: {
+      read: (body) =>
+        Effect.gen(function*() {
+          const payload = yield* decodeRadarrWebhook(body)
+          const events = radarrEvents(payload)
+          if (payload.eventType !== "MovieAdded" || payload.movie === undefined) return events
+          return (yield* notAvailableYet(payload.movie.tmdbId)) ? [] : events
+        })
+    },
+    actions: {}
+  }
+  return integration
+})
 
 // The library: `GET /api/v3/movie` and `GET /api/v3/diskspace`, read once when the app asks.
 
