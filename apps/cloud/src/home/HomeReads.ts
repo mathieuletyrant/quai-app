@@ -57,6 +57,8 @@ type Outcome =
 export class HomeReads extends Context.Service<HomeReads, {
   /** The services the connected Quai Home reaches. */
   readonly services: Effect.Effect<ReadonlyArray<HomeProtocol.HomeService>, HomeOffline>
+  /** Where an iPhone opens Radarr and Sonarr, as the connected Quai Home gave them. */
+  readonly webUrls: Effect.Effect<HomeProtocol.WebUrls, HomeOffline>
   /**
    * A GET's body. None when Quai Home didn't get an answer in time or refused the call, when the
    * service answered other than 2xx, or with a body that doesn't decode.
@@ -111,6 +113,9 @@ export class HomeReads extends Context.Service<HomeReads, {
       const services = Effect.flatMap(link.home, (home) =>
         Option.isSome(home) ? Effect.succeed(home.value.services) : Effect.fail(new HomeOffline({ message: offlineMessage })))
 
+      const webUrls = Effect.flatMap(link.home, (home) =>
+        Option.isSome(home) ? Effect.succeed(home.value.webUrls ?? {}) : Effect.fail(new HomeOffline({ message: offlineMessage })))
+
       const read = <A>(r: Read<A>) =>
         Effect.gen(function*() {
           const answer = yield* call({ service: r.service, method: "GET", path: r.path })
@@ -159,7 +164,7 @@ export class HomeReads extends Context.Service<HomeReads, {
             ? Effect.succeed(answer.body)
             : Effect.fail(refused(serviceError(answer.status, answer.body))))
 
-      return { services, read, all, write } satisfies HomeReads["Service"]
+      return { services, webUrls, read, all, write } satisfies HomeReads["Service"]
     })
   )
 }

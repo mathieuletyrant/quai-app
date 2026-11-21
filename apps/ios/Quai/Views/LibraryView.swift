@@ -14,6 +14,15 @@ extension Components.Schemas.LibraryItem {
     var posterThumbnail: URL? { PosterSize.grid.url(posterUrl) }
 
     var posterLarge: URL? { PosterSize.large.url(posterUrl) }
+
+    var serviceName: String { kind == .movie ? "Radarr" : "Sonarr" }
+
+    /// The title's page in Radarr or Sonarr: the address at home while the app reaches Quai at
+    /// home, the last one (from outside) otherwise.
+    func webURL(atHome: Bool) -> URL? {
+        guard let urls = webUrls, let chosen = atHome ? urls.first : urls.last else { return nil }
+        return URL(string: chosen)
+    }
 }
 
 /// What the segmented control shows.
@@ -142,6 +151,7 @@ struct LibraryView: View {
                 ForEach(shown) { item in
                     Button { selected = item } label: { PosterCell(item: item) }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("title-\(item.id)")
                 }
             }
             .padding(.top, 4)
@@ -189,13 +199,14 @@ struct PosterCell: View {
     }
 }
 
-/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk, nor when not monitored.
+/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk, nor when
+/// Radarr or Sonarr isn't looking for it (not monitored, or not out yet).
 struct StatusBadge: View {
     let item: LibraryItem
 
     var body: some View {
         switch item.status {
-        case .available, .notMonitored:
+        case .available, .notAvailable, .notMonitored:
             EmptyView()
         case .wanted:
             Badge(text: "wanted", fill: Palette.wantedFill, color: Palette.wantedText)

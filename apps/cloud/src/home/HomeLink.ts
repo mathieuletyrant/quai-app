@@ -45,6 +45,8 @@ export interface LinkedHome {
   readonly services: ReadonlyArray<HomeService>
   /** The protocol it speaks (from its Hello): what it can do, `journalProtocolVersion` and up a journal. */
   readonly protocol: number
+  /** Where an iPhone opens Radarr and Sonarr (from its Hello), at home first. */
+  readonly webUrls?: HomeProtocol.WebUrls
 }
 
 /** What Quai Home tells, in the order it told it. */
@@ -112,6 +114,7 @@ interface Connection {
   readonly homeId: string
   readonly services: ReadonlyArray<HomeService>
   readonly protocol: number
+  readonly webUrls: HomeProtocol.WebUrls
   readonly send: (message: CloudMessage) => Effect.Effect<void>
   readonly pending: Map<string, Deferred.Deferred<Answer, HomeError>>
   /** Loaded from Quai Home after the Welcome: until then the home isn't ready. */
@@ -121,7 +124,7 @@ interface Connection {
 }
 
 type HandshakeOutcome =
-  | { readonly _tag: "Accepted"; readonly homeId: string; readonly services: ReadonlyArray<HomeService>; readonly protocol: number }
+  | { readonly _tag: "Accepted"; readonly homeId: string; readonly services: ReadonlyArray<HomeService>; readonly protocol: number; readonly webUrls: HomeProtocol.WebUrls }
   | { readonly _tag: "Refused"; readonly reason: string; readonly retryAfterSeconds: number }
 
 /** Verifies a Proof: an Ed25519 signature of `challengePayload(nonce)` by the Hello's public key. */
@@ -274,7 +277,7 @@ export class HomeLink extends Context.Service<HomeLink, {
           for (const other of connections.values()) {
             if (other.homeId !== homeId) return { _tag: "Refused", reason: "this Cloud serves one home", retryAfterSeconds: 300 }
           }
-          return { _tag: "Accepted", homeId, services: hello.value.services, protocol }
+          return { _tag: "Accepted", homeId, services: hello.value.services, protocol, webUrls: hello.value.webUrls ?? {} }
         })
 
         const outcome = yield* handshake
@@ -289,6 +292,7 @@ export class HomeLink extends Context.Service<HomeLink, {
           homeId,
           services: outcome.services,
           protocol: outcome.protocol,
+          webUrls: outcome.webUrls,
           send,
           pending: new Map(),
           documents: null,
@@ -319,7 +323,7 @@ export class HomeLink extends Context.Service<HomeLink, {
           const answer = yield* request(connection, (id) => HomeProtocol.StoreList.make({ id, prefix: "" })).pipe(Effect.flatMap(failedWith))
           if (answer._tag !== "StoreDocuments") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
           connection.documents = new Map(answer.documents.map((d) => [d.key, d.value]))
-          yield* Queue.offer(events, { _tag: "Ready", home: { homeId, services: connection.services, protocol: connection.protocol } })
+          yield* Queue.offer(events, { _tag: "Ready", home: { homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls } })
           yield* Deferred.succeed(loaded, undefined)
           yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))
         }).pipe(
@@ -388,7 +392,7 @@ export class HomeLink extends Context.Service<HomeLink, {
         const connection = ready()
         return connection === null
           ? Option.none()
-          : Option.some({ homeId: connection.homeId, services: connection.services, protocol: connection.protocol })
+          : Option.some({ homeId: connection.homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls })
       }),
       call: (call, options) =>
         Effect.gen(function*() {

@@ -124,4 +124,13 @@ struct LibraryItemTests {
         #expect(items.filter(LibraryScope.series.includes).map(\.id) == ["series:2"])
         #expect(items.filter(LibraryFilter.wanted.includes).map(\.id) == ["movie:1"])
     }
+    @Test func opensTheTitleInRadarrAtTheAddressThatMatchesWhereTheIPhoneIs() throws {
+        let json = #"[{"id":"movie:12","kind":"movie","title":"Dune","status":"available","sizeBytes":1,"webUrls":["http://umbrel.local:7878/movie/693134","https://radarr.example.com/movie/693134"]},{"id":"series:3","kind":"series","title":"Severance","status":"wanted","sizeBytes":0,"webUrls":["https://sonarr.example.com/series/severance"]},{"id":"movie:1","kind":"movie","title":"A","status":"wanted","sizeBytes":0}]"#
+        let items = try JSONDecoder().decode([LibraryItem].self, from: Data(json.utf8))
+        #expect(items[0].webURL(atHome: true)?.absoluteString == "http://umbrel.local:7878/movie/693134")
+        #expect(items[0].webURL(atHome: false)?.absoluteString == "https://radarr.example.com/movie/693134")
+        #expect(items[1].webURL(atHome: true)?.absoluteString == "https://sonarr.example.com/series/severance")
+        #expect(items[1].serviceName == "Sonarr")
+        #expect(items[2].webURL(atHome: true) == nil)
+    }
 }

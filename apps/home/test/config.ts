@@ -19,7 +19,8 @@ export const testConfig = {
   reclaimerr: { url: "http://reclaimerr:8000", apiKey: key },
   seerr: { url: "http://seerr:5055", apiKey: key },
   cleanuparr: { url: "http://cleanuparr:11011", apiKey: key },
-  prowlarr: { url: "http://prowlarr:9696", apiKey: key }
+  prowlarr: { url: "http://prowlarr:9696", apiKey: key },
+  webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"] }
 } satisfies HomeConfig["Service"]
 
 export const configLayer = (overrides: Partial<HomeConfig["Service"]> = {}) =>

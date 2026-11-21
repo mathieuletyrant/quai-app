@@ -30,6 +30,15 @@ final class ScreenshotTests: XCTestCase {
         settle()
         screenshot("02-library")
 
+        let dune = app.buttons["title-movie:12"]
+        if dune.waitForExistence(timeout: 5) {
+            dune.tap()
+            settle()
+            screenshot("02-library-title")
+            app.buttons["Close"].firstMatch.tap()
+            settle()
+        }
+
         tab("Activity").tap()
         settle()
         screenshot("03-activity")

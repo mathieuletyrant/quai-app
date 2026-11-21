@@ -54,8 +54,17 @@ export const Hello = Schema.TaggedStruct("Hello", {
   /** The home's Ed25519 public key (SPKI, base64). The home id is its fingerprint. */
   publicKey: Schema.String,
   /** The services this Home has a URL (and key) for. */
-  services: Schema.Array(HomeService)
+  services: Schema.Array(HomeService),
+  /**
+   * Where an iPhone opens Radarr's and Sonarr's own pages, at home first, then from outside: the
+   * app's links to a title. Optional: a Home without them sends none, and the app shows no link.
+   */
+  webUrls: Schema.optionalKey(Schema.Struct({
+    radarr: Schema.optionalKey(Schema.Array(Schema.String)),
+    sonarr: Schema.optionalKey(Schema.Array(Schema.String))
+  }))
 })
+export type WebUrls = NonNullable<typeof Hello.Type["webUrls"]>
 
 /** `challengePayload(nonce)` signed with the home's private key (Ed25519, base64). */
 export const Proof = Schema.TaggedStruct("Proof", {

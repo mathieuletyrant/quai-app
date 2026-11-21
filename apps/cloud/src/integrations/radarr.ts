@@ -1,8 +1,9 @@
 import type { DiskSpace, LibraryItem } from "@quai/api"
-import { Effect, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { movieKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, knownYear, posterOf, queuePageSize } from "./arr.ts"
+import { HomeReads, type Read } from "../home/HomeReads.ts"
 import type { Integration } from "./Integration.ts"
 
 const Movie = Schema.Struct({
@@ -48,12 +49,42 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
 
 export const decodeRadarrWebhook = Schema.decodeUnknownEffect(RadarrWebhook)
 
-/** Radarr pushes: added, grabbed and imported come by webhook. It has no actions yet. */
-export const radarr: Integration = {
+/** A movie by its TMDB id, for Radarr's own verdict on it: "Missing" or "Not Available". */
+export const movieAvailabilityRead = (tmdbId: number): Read<ReadonlyArray<{ readonly isAvailable?: boolean | undefined }>> => ({
   service: "radarr",
-  webhook: { read: (body) => Effect.map(decodeRadarrWebhook(body), radarrEvents) },
-  actions: {}
-}
+  path: `/api/v3/movie?tmdbId=${tmdbId}`,
+  schema: Schema.Array(Schema.Struct({ isAvailable: Schema.optional(Schema.Boolean) }))
+})
+
+/**
+ * Radarr pushes: added, grabbed and imported come by webhook. It has no actions yet. A movie added
+ * before it is out (Radarr lists it "Not Available") starts nothing: Radarr won't search it until
+ * then, and its grab starts the activity on the day. When Radarr can't say, the activity starts.
+ */
+export const radarr = Effect.gen(function*() {
+  const reads = yield* HomeReads
+
+  const notAvailableYet = (tmdbId: number) =>
+    reads.read(movieAvailabilityRead(tmdbId)).pipe(
+      Effect.map(Option.match({ onNone: () => false, onSome: (movies) => movies[0]?.isAvailable === false })),
+      Effect.catchTag("HomeOffline", () => Effect.succeed(false))
+    )
+
+  const integration: Integration = {
+    service: "radarr",
+    webhook: {
+      read: (body) =>
+        Effect.gen(function*() {
+          const payload = yield* decodeRadarrWebhook(body)
+          const events = radarrEvents(payload)
+          if (payload.eventType !== "MovieAdded" || payload.movie === undefined) return events
+          return (yield* notAvailableYet(payload.movie.tmdbId)) ? [] : events
+        })
+    },
+    actions: {}
+  }
+  return integration
+})
 
 // The library: `GET /api/v3/movie` and `GET /api/v3/diskspace`, read once when the app asks.
 
@@ -62,9 +93,13 @@ const LibraryMovie = Schema.Struct({
   title: Schema.String,
   year: Schema.optional(Schema.Number),
   tmdbId: Schema.Number,
+  /** The movie's page in Radarr's web UI is `/movie/<titleSlug>`. */
+  titleSlug: Schema.optional(Schema.String),
   added: Schema.optional(Schema.String),
   hasFile: Schema.optional(Schema.Boolean),
   monitored: Schema.optional(Schema.Boolean),
+  /** Radarr's own verdict: past its minimum availability. False is its "Not Available". */
+  isAvailable: Schema.optional(Schema.Boolean),
   sizeOnDisk: Schema.optional(Schema.Number),
   overview: Schema.optional(Schema.String),
   images: Schema.optional(Schema.Array(ArrImage))
@@ -82,7 +117,20 @@ export const DiskSpaces = Schema.Array(Schema.Struct({
  * A movie as the library lists it: on disk when it has its file; else wanted while Radarr is
  * monitoring it (before it's out too: Radarr grabs it once it is), not monitored otherwise.
  */
-export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
+/** The movie's page at each of Radarr's web addresses. */
+export const movieWebUrls = (movie: RadarrMovie, bases: ReadonlyArray<string>) =>
+  movie.titleSlug === undefined ? [] : bases.map((base) => `${base}/movie/${encodeURIComponent(movie.titleSlug!)}`)
+
+/** As Radarr sorts it: on disk, not monitored, Not Available, or Missing (wanted). */
+const movieStatus = (movie: RadarrMovie): LibraryItem["status"] => {
+  if (movie.hasFile === true) return "available"
+  if (movie.monitored === false) return "notMonitored"
+  if (movie.isAvailable === false) return "notAvailable"
+  return "wanted"
+}
+
+export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string> = []): LibraryItem => {
+  const webUrls = movieWebUrls(movie, webBases)
   const year = knownYear(movie.year)
   const posterUrl = posterOf(movie.images)
   const addedAt = epochSeconds(movie.added)
@@ -92,10 +140,11 @@ export const libraryMovie = (movie: RadarrMovie): LibraryItem => {
     title: movie.title,
     ...(year === undefined ? {} : { year }),
     ...(posterUrl === undefined ? {} : { posterUrl }),
-    status: movie.hasFile === true ? "available" : movie.monitored === false ? "notMonitored" : "wanted",
+    status: movieStatus(movie),
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: movie.sizeOnDisk ?? 0,
-    ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview })
+    ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview }),
+    ...(webUrls.length === 0 ? {} : { webUrls })
   }
 }
 

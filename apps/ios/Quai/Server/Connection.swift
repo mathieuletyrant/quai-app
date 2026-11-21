@@ -63,12 +63,17 @@ final class Connection {
     private(set) var journalError: String?
     private var session: ServerSession?
     private var pendingPlayback = PendingPlayback()
+    /// The search for an address that answers, while one runs.
+    private var connecting: Task<(url: URL, client: Client), any Error>?
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
     var isPaired: Bool { session != nil }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
+    /// Quai answers at its first address, the one at home (the pairing code lists it first). With
+    /// a single address, the app can't tell: it counts as away.
+    var isAtHome: Bool { ServerSession.isAtHome(serverURL, in: serverURLs) }
     /// What the proxy in front of the public address requires.
     var accessHeaders: [AccessHeader] { session?.accessHeaders ?? [] }
 
@@ -102,12 +107,13 @@ final class Connection {
         let paired = try await client.pairDevice(body: .json(body)).ok.body.json
         let session = ServerSession(
             token: paired.token,
-            urls: [url] + link.serverURLs.filter { $0 != url },
+            urls: ServerSession.pairedURLs(link.serverURLs, answered: url),
             accessHeaders: link.accessHeaders
         )
         session.save()
         self.session = session
         serverURL = url
+        connecting = nil
         lastError = nil
         await refresh()
     }
@@ -118,12 +124,14 @@ final class Connection {
         session.accessHeaders = headers
         session.save()
         self.session = session
+        connecting = nil
         await refresh()
     }
 
     func disconnect() {
         ServerSession.clear()
         session = nil
+        connecting = nil
         serverURL = nil
         activities = []
         flowSubjects = [:]
@@ -158,8 +166,9 @@ final class Connection {
     // MARK: Activities
 
     func refresh() async {
-        guard let client = await authenticatedClient() else { return }
+        guard session != nil else { return }
         do {
+            let client = try await requiredClient()
             activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
             lastError = nil
             await learnSubjects()
@@ -347,17 +356,16 @@ final class Connection {
         await loadFixes()
     }
 
-    /// Prefers the address that answered last; on another network, tries the others.
+    /// A client on the address that answers first. The calls made together (the app coming to the
+    /// front starts several) share one search rather than each asking every address.
     private func requiredClient() async throws -> Client {
         guard let session else { throw ConnectionError.unreachable }
-        do {
-            let (url, client) = try await session.connect(preferring: serverURL)
-            serverURL = url
-            return client
-        } catch {
-            lastError = error.quaiMessage
-            throw error
-        }
+        let search = connecting ?? Task { try await session.connect() }
+        connecting = search
+        defer { if connecting == search { connecting = nil } }
+        let (url, client) = try await search.value
+        serverURL = url
+        return client
     }
 
     /// The token that lets the server start a Live Activity on this iPhone. Runs as long as the app does.

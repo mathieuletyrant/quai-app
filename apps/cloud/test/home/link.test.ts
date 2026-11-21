@@ -21,9 +21,9 @@ describe("home link", () => {
       yield* home.connect
       expect(home.state.welcomed).toBe(home.homeId)
       const l = yield* HomeLink
-      expect(yield* l.home).toEqual(Option.some({ homeId: home.homeId, services: ["radarr", "jellyfin"], protocol: HomeProtocol.protocolVersion }))
+      expect(yield* l.home).toEqual(Option.some({ homeId: home.homeId, services: ["radarr", "jellyfin"], protocol: HomeProtocol.protocolVersion, webUrls: {} }))
       expect(yield* l.documents.get("flows/anime")).toEqual(Option.some({ id: "anime" }))
-      expect(yield* nextEvent).toEqual({ _tag: "Ready", home: { homeId: home.homeId, services: ["radarr", "jellyfin"], protocol: HomeProtocol.protocolVersion } })
+      expect(yield* nextEvent).toEqual({ _tag: "Ready", home: { homeId: home.homeId, services: ["radarr", "jellyfin"], protocol: HomeProtocol.protocolVersion, webUrls: {} } })
     }).pipe(Effect.provide(link)))
 
   it.effect("a bad proof, an older protocol and a second home are refused", () =>

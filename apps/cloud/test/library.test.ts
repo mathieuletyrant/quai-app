@@ -37,7 +37,7 @@ describe("library adapters", () => {
   it.effect("reads Radarr's movies: file or not, the public poster, never the key-bound one", () =>
     Effect.gen(function*() {
       const movies = yield* Schema.decodeUnknownEffect(RadarrMovies)(fixture("radarr/movies.json"))
-      expect(movies.map(libraryMovie)).toEqual([
+      expect(movies.map((movie) => libraryMovie(movie))).toEqual([
         {
           id: "movie:12",
           kind: "movie",
@@ -60,21 +60,23 @@ describe("library adapters", () => {
           sizeBytes: 0,
           overview: "A young runner chases one last race across the desert."
         },
-        { id: "movie:51", kind: "movie", title: "Nero", year: 2027, status: "wanted", addedAt: 1794298323, sizeBytes: 0 }
+        { id: "movie:51", kind: "movie", title: "Nero", year: 2027, status: "notAvailable", addedAt: 1794298323, sizeBytes: 0 }
       ])
     }))
 
   it.effect("reads Sonarr's series: available once every expected episode has a file", () =>
     Effect.gen(function*() {
       const series = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series.json"))
-      expect(series.map(librarySeries).map((s) => [s.title, s.status, s.episodes, s.posterUrl])).toEqual([
+      expect(series.map((one) => librarySeries(one)).map((s) => [s.title, s.status, s.episodes, s.posterUrl])).toEqual([
         ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg"],
         ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg"]
       ])
-      // Nothing on disk: wanted while the series is monitored, coming episode or not.
+      // Nothing on disk and nothing aired that Sonarr monitors: not available yet, coming episode or not.
       const empty = { episodeFileCount: 0, episodeCount: 0, sizeOnDisk: 0 }
-      expect(librarySeries({ ...series[1]!, statistics: empty, nextAiring: "2026-12-01T02:00:00Z" }).status).toBe("wanted")
-      expect(librarySeries({ ...series[1]!, statistics: empty }).status).toBe("wanted")
+      expect(librarySeries({ ...series[1]!, statistics: empty, nextAiring: "2026-12-01T02:00:00Z" }).status).toBe("notAvailable")
+      expect(librarySeries({ ...series[1]!, statistics: empty }).status).toBe("notAvailable")
+      // Nothing on disk, monitored episodes aired: Sonarr misses them.
+      expect(librarySeries({ ...series[1]!, statistics: { episodeFileCount: 0, episodeCount: 8, sizeOnDisk: 0 } }).status).toBe("wanted")
       expect(librarySeries({ ...series[1]!, statistics: empty, monitored: false }).status).toBe("notMonitored")
       // Unmonitored with its files: on disk, whatever is missing.
       expect(librarySeries({ ...series[0]!, monitored: false }).status).toBe("available")
@@ -86,11 +88,11 @@ describe("library adapters", () => {
       expect(librarySeries(reacher!)).toMatchObject({ title: "Reacher", status: "notMonitored", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
     }))
 
-  it.effect("an announced series, nothing aired nor dated yet, is wanted", () =>
+  it.effect("an announced series, nothing aired nor dated yet, isn't available yet", () =>
     Effect.gen(function*() {
       const [announced] = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series-announced.json"))
       expect(announced!.nextAiring).toBeUndefined()
-      expect(librarySeries(announced!)).toMatchObject({ title: "The Last of Us", status: "wanted", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
+      expect(librarySeries(announced!)).toMatchObject({ title: "The Last of Us", status: "notAvailable", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
     }))
 
   it.effect("a movie without its file and unmonitored isn't wanted", () =>
@@ -98,6 +100,7 @@ describe("library adapters", () => {
       const [oppenheimer] = yield* Schema.decodeUnknownEffect(RadarrMovies)(fixture("radarr/movie-unmonitored.json"))
       expect(libraryMovie(oppenheimer!)).toMatchObject({ title: "Oppenheimer", status: "notMonitored", sizeBytes: 0 })
       expect(libraryMovie({ ...oppenheimer!, monitored: true }).status).toBe("wanted")
+      expect(libraryMovie({ ...oppenheimer!, monitored: true, isAvailable: false }).status).toBe("notAvailable")
     }))
 
   it.effect("the media disk is the largest mount Radarr sees", () =>
@@ -119,7 +122,7 @@ describe("GET /api/library", () => {
       const library = yield* api.library.library()
       expect(library.items.map((i) => [i.id, i.status])).toEqual([
         ["movie:48", "wanted"],
-        ["movie:51", "wanted"],
+        ["movie:51", "notAvailable"],
         ["series:3", "downloading"],
         ["series:7", "available"],
         ["movie:12", "available"]
@@ -131,6 +134,31 @@ describe("GET /api/library", () => {
         "radarr GET /api/v3/movie",
         "sonarr GET /api/v3/series"
       ])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("links each title to its page in Radarr or Sonarr, at home first, when Quai Home gave their addresses", () =>
+    Effect.gen(function*() {
+      const { api } = yield* phoneOn({
+        answer: recorded,
+        webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"], sonarr: ["https://sonarr.example.com"] }
+      })
+      const items = (yield* api.library.library()).items
+      expect(items.find((i) => i.id === "movie:12")?.webUrls).toEqual(["http://umbrel.local:7878/movie/693134", "https://radarr.example.com/movie/693134"])
+      expect(items.find((i) => i.id === "series:3")?.webUrls).toEqual(["https://sonarr.example.com/series/severance"])
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("no link for a title without its slug, and the slug is escaped", () =>
+    Effect.gen(function*() {
+      const [dune] = yield* Schema.decodeUnknownEffect(RadarrMovies)(fixture("radarr/movies.json"))
+      const { titleSlug: _, ...noSlug } = dune!
+      expect(libraryMovie(noSlug, ["http://radarr"]).webUrls).toBeUndefined()
+      expect(libraryMovie({ ...dune!, titleSlug: "a b/c" }, ["http://radarr"]).webUrls).toEqual(["http://radarr/movie/a%20b%2Fc"])
+    }))
+
+  it.effect("no link when Quai Home gave no address", () =>
+    Effect.gen(function*() {
+      const { api } = yield* phoneOn({ answer: recorded })
+      expect((yield* api.library.library()).items.every((i) => i.webUrls === undefined)).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service that doesn't answer is unavailable; the others still show", () =>

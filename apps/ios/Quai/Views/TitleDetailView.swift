@@ -3,6 +3,7 @@ import SwiftUI
 /// A title of the library, opened from its poster: where it stands, its size, its story.
 struct TitleDetailView: View {
     let item: LibraryItem
+    @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
 
     private var statusLine: (text: String, color: Color) {
@@ -16,6 +17,8 @@ struct TitleDetailView: View {
             return (["Downloading", item.progress.map(Format.percent)].compactMap { $0 }.joined(separator: " · "), Palette.downloads)
         case .wanted:
             return (item.kind == .movie ? "Wanted · no file yet" : "Wanted · episodes missing", Palette.wantedText)
+        case .notAvailable:
+            return (item.kind == .movie ? "Not available · not out yet" : "Nothing missing · nothing to download", Palette.secondaryText)
         case .notMonitored:
             return ("Not monitored", Palette.secondaryText)
         }
@@ -64,7 +67,16 @@ struct TitleDetailView: View {
                     if let addedAt = item.addedAt {
                         ListRow(title: "Added", value: Date(timeIntervalSince1970: addedAt).formatted(date: .abbreviated, time: .omitted))
                     }
-                    ListRow(title: "In", value: item.kind == .movie ? "Radarr" : "Sonarr")
+                    ListRow(title: "In", value: item.serviceName)
+                }
+                if let page = item.webURL(atHome: connection.isAtHome) {
+                    GroupedSection {
+                        Link(destination: page) {
+                            ListRow(title: "Open in \(item.serviceName)", systemImage: "arrow.up.right.square", iconColor: Palette.accent, chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("open-in-service")
+                    }
                 }
                 if let overview = item.overview {
                     Card(spacing: 8) {

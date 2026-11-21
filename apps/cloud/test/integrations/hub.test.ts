@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { Activities } from "../../src/flows/Activities.ts"
 import { FlowStore } from "../../src/flows/FlowStore.ts"
+import { HomeReads } from "../../src/home/HomeReads.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
 import { type Integration, Integrations } from "../../src/integrations/Integration.ts"
 import { qbittorrent } from "../../src/integrations/qbittorrent.ts"
@@ -26,8 +27,9 @@ const probe: Integration = {
   actions: {}
 }
 
-const layer = (integrations: ReadonlyArray<Integration>) =>
-  cloud(Layer.succeed(Integrations, integrations)).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
+const layer = (integrations: ReadonlyArray<Integration | Effect.Effect<Integration, never, HomeReads>>) =>
+  cloud(Layer.effect(Integrations, Effect.all(integrations.map((i) => Effect.isEffect(i) ? i : Effect.succeed(i)))))
+    .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
 
 const setWatches = (home: { readonly received: ReadonlyArray<{ readonly _tag: string }> }) =>
   home.received.filter((m) => m._tag === "SetWatches").length

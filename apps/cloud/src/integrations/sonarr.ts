@@ -87,6 +87,8 @@ const LibrarySeries = Schema.Struct({
   year: Schema.optional(Schema.Number),
   tvdbId: Schema.Number,
   tmdbId: Schema.optional(Schema.Number),
+  /** The series' page in Sonarr's web UI is `/series/<titleSlug>`. */
+  titleSlug: Schema.optional(Schema.String),
   added: Schema.optional(Schema.String),
   monitored: Schema.optional(Schema.Boolean),
   /** The next monitored episode's air date, when one is coming. */
@@ -106,20 +108,26 @@ export type SonarrSeries = typeof LibrarySeries.Type
 /**
  * A series as the library lists it. `episodeCount` is Sonarr's own count: its monitored episodes
  * that aired, plus every episode that has a file (monitored or not), 0 when none.
- * - wanted: the series is monitored, and has no file yet (announced, nothing aired, or episodes
- *   without an air date: Sonarr grabs them when they come) or fewer files than `episodeCount`;
+ * - wanted: the series is monitored and has fewer files than `episodeCount`: monitored aired
+ *   episodes without their file, what Sonarr lists in Wanted → Missing;
  * - available: otherwise, once some episode has its file, monitored or not;
+ * - not available: monitored, nothing on disk and nothing missing: announced, or only episodes
+ *   still to air (or unmonitored) are left;
  * - not monitored: the series isn't monitored, and nothing is on disk.
- * A monitored series whose episodes are all unmonitored can't be told apart from an announced one
- * from these statistics: it shows as wanted.
  */
 const seriesStatus = (series: SonarrSeries, have: number, total: number): LibraryItem["status"] => {
   const monitored = series.monitored !== false
-  if (monitored && (have === 0 || have < total)) return "wanted"
-  return have > 0 ? "available" : "notMonitored"
+  if (monitored && have < total) return "wanted"
+  if (have > 0) return "available"
+  return monitored ? "notAvailable" : "notMonitored"
 }
 
-export const librarySeries = (series: SonarrSeries): LibraryItem => {
+/** The series' page at each of Sonarr's web addresses. */
+export const seriesWebUrls = (series: SonarrSeries, bases: ReadonlyArray<string>) =>
+  series.titleSlug === undefined ? [] : bases.map((base) => `${base}/series/${encodeURIComponent(series.titleSlug!)}`)
+
+export const librarySeries = (series: SonarrSeries, webBases: ReadonlyArray<string> = []): LibraryItem => {
+  const webUrls = seriesWebUrls(series, webBases)
   const year = knownYear(series.year)
   const posterUrl = posterOf(series.images)
   const addedAt = epochSeconds(series.added)
@@ -135,7 +143,8 @@ export const librarySeries = (series: SonarrSeries): LibraryItem => {
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: series.statistics?.sizeOnDisk ?? 0,
     ...(series.overview === undefined || series.overview === "" ? {} : { overview: series.overview }),
-    episodes: { have, total }
+    episodes: { have, total },
+    ...(webUrls.length === 0 ? {} : { webUrls })
   }
 }
 

@@ -40,11 +40,10 @@ struct ServerSession: Sendable, Equatable {
         UserDefaults.standard.removeObject(forKey: urlsKey)
     }
 
-    /// An authenticated client on the first address that answers, `preferred` first. Throws
+    /// An authenticated client on the first address that answers. Throws
     /// `ConnectionError.blockedByProxy` when only a proxy answered, `.unreachable` otherwise.
-    func connect(preferring preferred: URL? = nil) async throws -> (url: URL, client: Client) {
-        let ordered = (preferred.map { [$0] } ?? []) + urls.filter { $0 != preferred }
-        let url = try await Self.firstReachable(ordered, accessHeaders: accessHeaders)
+    func connect() async throws -> (url: URL, client: Client) {
+        let url = try await Self.firstReachable(urls, accessHeaders: accessHeaders)
         let middlewares: [any ClientMiddleware] = [
             QuaiErrorsMiddleware(),
             AccessHeadersMiddleware(headers: accessHeaders),
@@ -53,23 +52,55 @@ struct ServerSession: Sendable, Equatable {
         return (url, Client(serverURL: url, transport: URLSessionTransport(), middlewares: middlewares))
     }
 
+    /// What pairing keeps: the code's addresses in its order, at home first, plus the one that
+    /// answered when the code didn't list it.
+    static func pairedURLs(_ listed: [URL], answered: URL) -> [URL] {
+        listed.contains(answered) ? listed : [answered] + listed
+    }
+
+    /// Quai answers at the first of several addresses, the one at home. With a single address the
+    /// app can't tell: it counts as away.
+    static func isAtHome(_ current: URL?, in urls: [URL]) -> Bool {
+        urls.count > 1 && current == urls.first
+    }
+
     static func firstReachable(_ urls: [URL], accessHeaders: [AccessHeader]) async throws -> URL {
-        var blocked = false
-        for url in urls {
-            switch await probe(url, accessHeaders: accessHeaders) {
-            case .reachable: return url
-            case .blocked: blocked = true
-            case .unreachable: continue
+        try await firstReachable(urls) { url in await probe(url, accessHeaders: accessHeaders) }
+    }
+
+    /// Every address is asked at once, and the first to answer wins: away from home the local one
+    /// only fails at its timeout, so asking one after the other said "Can't reach" before the
+    /// public one had its turn. At home the local one answers first.
+    static func firstReachable(_ urls: [URL], probe: @escaping @Sendable (URL) async -> Probe) async throws -> URL {
+        let (reached, blocked) = await withTaskGroup(of: (URL, Probe).self) { group in
+            for url in urls {
+                group.addTask { (url, await probe(url)) }
             }
+            var blocked = false
+            for await (url, answer) in group {
+                switch answer {
+                case .reachable:
+                    group.cancelAll()
+                    return (Optional(url), blocked)
+                case .blocked: blocked = true
+                case .unreachable: continue
+                }
+            }
+            return (nil, blocked)
         }
+        if let reached { return reached }
         throw blocked ? ConnectionError.blockedByProxy : ConnectionError.unreachable
     }
 
-    private enum Probe { case reachable, blocked, unreachable }
+    enum Probe: Sendable { case reachable, blocked, unreachable }
+
+    /// 10 s: on mobile data, the first request through a tunnel (DNS, TLS, the proxy) can take
+    /// more than a few seconds.
+    private static let probeTimeout: TimeInterval = 10
 
     private static func probe(_ url: URL, accessHeaders: [AccessHeader]) async -> Probe {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 3
+        configuration.timeoutIntervalForRequest = probeTimeout
         let transport = URLSessionTransport(configuration: .init(session: URLSession(configuration: configuration)))
         let client = Client(serverURL: url, transport: transport, middlewares: [AccessHeadersMiddleware(headers: accessHeaders)])
         do {

@@ -93,6 +93,7 @@ const FakeHomeLinked = Layer.effectDiscard(
     const home = yield* makeFakeHome({
       strict: false,
       services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"],
+      webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"], sonarr: ["http://umbrel.local:8989"] },
       answer: recordedHome(previewRoutes(days))
     })
     yield* home.connect

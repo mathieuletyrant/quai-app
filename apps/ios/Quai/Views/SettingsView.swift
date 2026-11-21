@@ -69,7 +69,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    GroupedSection(header: "Connection", footer: "The app tries each address, the one that answered last first.") {
+                    GroupedSection(header: "Connection", footer: "The app tries every address at once and uses the first that answers.") {
                         ForEach(connection.serverURLs, id: \.self) { url in
                             ListRow(title: Self.address(url)) {
                                 if url == connection.serverURL { Text("In use") }
