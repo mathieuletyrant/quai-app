@@ -147,6 +147,14 @@ describe("GET /api/library", () => {
       expect(items.find((i) => i.id === "series:3")?.webUrls).toEqual(["https://sonarr.example.com/series/severance"])
     }).pipe(Effect.provide(TestApp)))
 
+  it.effect("no link for a title without its slug, and the slug is escaped", () =>
+    Effect.gen(function*() {
+      const [dune] = yield* Schema.decodeUnknownEffect(RadarrMovies)(fixture("radarr/movies.json"))
+      const { titleSlug: _, ...noSlug } = dune!
+      expect(libraryMovie(noSlug, ["http://radarr"]).webUrls).toBeUndefined()
+      expect(libraryMovie({ ...dune!, titleSlug: "a b/c" }, ["http://radarr"]).webUrls).toEqual(["http://radarr/movie/a%20b%2Fc"])
+    }))
+
   it.effect("no link when Quai Home gave no address", () =>
     Effect.gen(function*() {
       const { api } = yield* phoneOn({ answer: recorded })

@@ -52,6 +52,18 @@ struct ServerSession: Sendable, Equatable {
         return (url, Client(serverURL: url, transport: URLSessionTransport(), middlewares: middlewares))
     }
 
+    /// What pairing keeps: the code's addresses in its order, at home first, plus the one that
+    /// answered when the code didn't list it.
+    static func pairedURLs(_ listed: [URL], answered: URL) -> [URL] {
+        listed.contains(answered) ? listed : [answered] + listed
+    }
+
+    /// Quai answers at the first of several addresses, the one at home. With a single address the
+    /// app can't tell: it counts as away.
+    static func isAtHome(_ current: URL?, in urls: [URL]) -> Bool {
+        urls.count > 1 && current == urls.first
+    }
+
     static func firstReachable(_ urls: [URL], accessHeaders: [AccessHeader]) async throws -> URL {
         try await firstReachable(urls) { url in await probe(url, accessHeaders: accessHeaders) }
     }

@@ -41,4 +41,17 @@ struct FirstReachableTests {
             try await ServerSession.firstReachable([local, publicURL]) { url in url == publicURL ? .blocked : .unreachable }
         }
     }
+
+    @Test func pairingKeepsTheCodesOrderAtHomeFirstWhicheverAnswered() {
+        #expect(ServerSession.pairedURLs([local, publicURL], answered: publicURL) == [local, publicURL])
+        let typed = URL(string: "http://192.168.1.10:3078")!
+        #expect(ServerSession.pairedURLs([local, publicURL], answered: typed) == [typed, local, publicURL])
+    }
+
+    @Test func atHomeWhileQuaiAnswersAtItsFirstAddress() {
+        #expect(ServerSession.isAtHome(local, in: [local, publicURL]))
+        #expect(!ServerSession.isAtHome(publicURL, in: [local, publicURL]))
+        #expect(!ServerSession.isAtHome(local, in: [local]))
+        #expect(!ServerSession.isAtHome(nil, in: [local, publicURL]))
+    }
 }
