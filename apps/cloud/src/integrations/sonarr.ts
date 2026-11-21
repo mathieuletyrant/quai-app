@@ -108,17 +108,18 @@ export type SonarrSeries = typeof LibrarySeries.Type
 /**
  * A series as the library lists it. `episodeCount` is Sonarr's own count: its monitored episodes
  * that aired, plus every episode that has a file (monitored or not), 0 when none.
- * - wanted: the series is monitored, and has no file yet (announced, nothing aired, or episodes
- *   without an air date: Sonarr grabs them when they come) or fewer files than `episodeCount`;
+ * - wanted: the series is monitored and has fewer files than `episodeCount`: monitored aired
+ *   episodes without their file, what Sonarr lists in Wanted → Missing;
  * - available: otherwise, once some episode has its file, monitored or not;
+ * - not available: monitored, nothing on disk and nothing missing: announced, or only episodes
+ *   still to air (or unmonitored) are left;
  * - not monitored: the series isn't monitored, and nothing is on disk.
- * A monitored series whose episodes are all unmonitored can't be told apart from an announced one
- * from these statistics: it shows as wanted.
  */
 const seriesStatus = (series: SonarrSeries, have: number, total: number): LibraryItem["status"] => {
   const monitored = series.monitored !== false
-  if (monitored && (have === 0 || have < total)) return "wanted"
-  return have > 0 ? "available" : "notMonitored"
+  if (monitored && have < total) return "wanted"
+  if (have > 0) return "available"
+  return monitored ? "notAvailable" : "notMonitored"
 }
 
 /** The series' page at each of Sonarr's web addresses. */

@@ -199,13 +199,14 @@ struct PosterCell: View {
     }
 }
 
-/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk, nor when not monitored.
+/// "wanted" or the download's percent, on the poster's corner. Nothing once on disk, nor when
+/// Radarr or Sonarr isn't looking for it (not monitored, or not out yet).
 struct StatusBadge: View {
     let item: LibraryItem
 
     var body: some View {
         switch item.status {
-        case .available, .notMonitored:
+        case .available, .notAvailable, .notMonitored:
             EmptyView()
         case .wanted:
             Badge(text: "wanted", fill: Palette.wantedFill, color: Palette.wantedText)

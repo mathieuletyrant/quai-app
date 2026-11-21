@@ -98,6 +98,8 @@ const LibraryMovie = Schema.Struct({
   added: Schema.optional(Schema.String),
   hasFile: Schema.optional(Schema.Boolean),
   monitored: Schema.optional(Schema.Boolean),
+  /** Radarr's own verdict: past its minimum availability. False is its "Not Available". */
+  isAvailable: Schema.optional(Schema.Boolean),
   sizeOnDisk: Schema.optional(Schema.Number),
   overview: Schema.optional(Schema.String),
   images: Schema.optional(Schema.Array(ArrImage))
@@ -119,6 +121,14 @@ export const DiskSpaces = Schema.Array(Schema.Struct({
 export const movieWebUrls = (movie: RadarrMovie, bases: ReadonlyArray<string>) =>
   movie.titleSlug === undefined ? [] : bases.map((base) => `${base}/movie/${encodeURIComponent(movie.titleSlug!)}`)
 
+/** As Radarr sorts it: on disk, not monitored, Not Available, or Missing (wanted). */
+const movieStatus = (movie: RadarrMovie): LibraryItem["status"] => {
+  if (movie.hasFile === true) return "available"
+  if (movie.monitored === false) return "notMonitored"
+  if (movie.isAvailable === false) return "notAvailable"
+  return "wanted"
+}
+
 export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string> = []): LibraryItem => {
   const webUrls = movieWebUrls(movie, webBases)
   const year = knownYear(movie.year)
@@ -130,7 +140,7 @@ export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string>
     title: movie.title,
     ...(year === undefined ? {} : { year }),
     ...(posterUrl === undefined ? {} : { posterUrl }),
-    status: movie.hasFile === true ? "available" : movie.monitored === false ? "notMonitored" : "wanted",
+    status: movieStatus(movie),
     ...(addedAt === undefined ? {} : { addedAt }),
     sizeBytes: movie.sizeOnDisk ?? 0,
     ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview }),
