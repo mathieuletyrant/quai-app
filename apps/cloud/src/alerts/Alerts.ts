@@ -26,6 +26,8 @@ export interface Raised {
   readonly detail?: string
   /** The notification when it's over: "Radarr answers again". */
   readonly over: string
+  /** Over without a notification: a planned deletion ends because it was handled, mostly by the user. */
+  readonly silentOver?: boolean
 }
 
 /**
@@ -53,11 +55,15 @@ const StoredAlert = Schema.Struct({
   title: Schema.String,
   detail: Schema.optionalKey(Schema.String),
   over: Schema.String,
+  silentOver: Schema.optionalKey(Schema.Boolean),
   since: Schema.Number
 })
 type StoredAlert = typeof StoredAlert.Type
 
-const decodeSettings = Schema.decodeUnknownOption(AlertSettingsSchema)
+const decodeAlertSettings = Schema.decodeUnknownOption(AlertSettingsSchema)
+/** Saved before a kind existed, the settings get its defaults; the others are kept. */
+const decodeSettings = (doc: unknown) =>
+  decodeAlertSettings(typeof doc === "object" && doc !== null ? { ...defaultAlertSettings, ...doc } : doc)
 const decodeActive = Schema.decodeUnknownOption(Schema.Array(StoredAlert))
 
 export const alertId = (kind: AlertKind, scope: string, what: string) => `${kind}:${scope}:${what}`
@@ -77,8 +83,14 @@ export const reconcile = (stored: ReadonlyArray<StoredAlert>, state: AlertState,
     const raised = raisedIds.get(alert.id)
     if (raised === undefined) continue
     // Still going: its text follows the reading (the disk's free space), no new notification.
-    const { detail: _, ...rest } = alert
-    next.push({ ...rest, title: raised.title, over: raised.over, ...(raised.detail === undefined ? {} : { detail: raised.detail }) })
+    const { detail: _, silentOver: __, ...rest } = alert
+    next.push({
+      ...rest,
+      title: raised.title,
+      over: raised.over,
+      ...(raised.detail === undefined ? {} : { detail: raised.detail }),
+      ...(raised.silentOver === true ? { silentOver: true } : {})
+    })
   }
   for (const [id, raised] of raisedIds) {
     if (stored.some((alert) => alert.id === id)) continue
@@ -89,7 +101,8 @@ export const reconcile = (stored: ReadonlyArray<StoredAlert>, state: AlertState,
       title: raised.title,
       over: raised.over,
       since: now,
-      ...(raised.detail === undefined ? {} : { detail: raised.detail })
+      ...(raised.detail === undefined ? {} : { detail: raised.detail }),
+      ...(raised.silentOver === true ? { silentOver: true } : {})
     }
     started.push(alert)
     next.push(alert)
@@ -175,7 +188,7 @@ export class Alerts extends Context.Service<Alerts, {
           }
           for (const alert of change.over) {
             yield* journal.log({ level: "info", source: sourceOf(alert.scope), kind: "alert.over", text: alert.over })
-            yield* notify(alert, alert.over, undefined)
+            if (alert.silentOver !== true) yield* notify(alert, alert.over, undefined)
           }
         })).pipe(
           Effect.catchTag("HomeOffline", (error) => Effect.logWarning(`alert not applied: ${error.message}`))

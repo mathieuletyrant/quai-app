@@ -2352,12 +2352,25 @@
               "level"
             ],
             "additionalProperties": false
+          },
+          "deletionPlanned": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "enabled"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [
           "serviceDown",
           "diskLow",
-          "arrHealth"
+          "arrHealth",
+          "deletionPlanned"
         ],
         "additionalProperties": false
       },
@@ -2403,7 +2416,8 @@
         "enum": [
           "serviceDown",
           "diskLow",
-          "arrHealth"
+          "arrHealth",
+          "deletionPlanned"
         ]
       },
       "ActiveAlert": {
