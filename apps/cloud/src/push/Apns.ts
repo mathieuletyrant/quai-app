@@ -42,6 +42,15 @@ const jwtLifetimeMs = 50 * 60_000
  */
 export const sendTimeoutMs = 10_000
 
+/**
+ * A connection idle for this long is closed before the next push rather than reused: a network
+ * between Quai and Apple may forget an idle connection without a word, and the next push then waits
+ * on a dead one (2026-11-23: a Start lost this way, so the Live Activity never appeared).
+ */
+export const idleMs = 5 * 60_000
+
+const timeoutReason = `no answer within ${sendTimeoutMs / 1000} s`
+
 /** The iOS app's bundle id when `QUAI_APNS_TOPIC` isn't set. */
 export const defaultTopic = "com.mathieuletyrant.quai"
 
@@ -102,21 +111,35 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
         }
       }
       const sessions = new Map<ApnsEnvironment, http2.ClientHttp2Session>()
+      /** When each session last sent a push, epoch milliseconds. */
+      const lastUsed = new Map<http2.ClientHttp2Session, number>()
       const jwt = yield* Ref.make<{ token: string; issuedAt: number } | null>(null)
       yield* Effect.addFinalizer(() => Effect.sync(() => sessions.forEach((s) => s.close())))
 
-      const session = (environment: ApnsEnvironment) => {
+      const session = (environment: ApnsEnvironment, now: number) => {
         const existing = sessions.get(environment)
-        if (existing !== undefined && !existing.closed && !existing.destroyed) return existing
+        if (existing !== undefined && !existing.closed && !existing.destroyed) {
+          if (now - (lastUsed.get(existing) ?? now) < idleMs) {
+            lastUsed.set(existing, now)
+            return existing
+          }
+          sessions.delete(environment)
+          lastUsed.delete(existing)
+          existing.close()
+        }
         const created = http2.connect(hosts[environment])
         // Only while it is the current one: a session dropped after a timeout may close after its successor opened.
-        const forget = () => sessions.get(environment) === created && sessions.delete(environment)
+        const forget = () => {
+          lastUsed.delete(created)
+          if (sessions.get(environment) === created) sessions.delete(environment)
+        }
         created.on("error", forget)
         created.on("close", forget)
         created.on("goaway", forget)
         // Don't keep the process alive just for an idle push connection.
         created.unref()
         sessions.set(environment, created)
+        lastUsed.set(created, now)
         return created
       }
 
@@ -134,7 +157,8 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
         return token
       })
 
-      const send = (request: ApnsRequest) =>
+      /** One try: an answer, an error, or no answer within `sendTimeoutMs` (the connection is dropped). */
+      const attempt = (request: ApnsRequest) =>
         Effect.gen(function*() {
           const token = yield* providerToken
           const now = yield* Clock.currentTimeMillis
@@ -143,7 +167,7 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
           return yield* Effect.callback<void, ApnsError>((resume) => {
             let stream: http2.ClientHttp2Stream
             try {
-              opened = session(request.environment)
+              opened = session(request.environment, now)
               stream = opened.request({
                 ":method": "POST",
                 ":path": `/3/device/${request.deviceToken}`,
@@ -182,14 +206,23 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
                     if (sessions.get(request.environment) === opened) sessions.delete(request.environment)
                     opened.destroy()
                   }
+                  if (opened !== undefined) lastUsed.delete(opened)
                   yield* Effect.logWarning(`APNs ${request.environment} didn't answer within ${sendTimeoutMs / 1000} s: reconnecting`)
-                  return yield* Effect.fail(
-                    new ApnsError({ status: null, reason: `no answer within ${sendTimeoutMs / 1000} s`, tokenGone: false })
-                  )
+                  return yield* Effect.fail(new ApnsError({ status: null, reason: timeoutReason, tokenGone: false }))
                 })
             })
           )
         })
+
+      /**
+       * A push that got no answer is tried once more, on a new connection: a dead connection most
+       * likely never carried it, and a lost Start means no Live Activity at all.
+       */
+      const send = (request: ApnsRequest) =>
+        attempt(request).pipe(
+          Effect.catchTag("ApnsError", (error) =>
+            error.reason === timeoutReason ? attempt(request) : Effect.fail(error))
+        )
 
       return { configured: true, send }
     })
