@@ -125,3 +125,9 @@ schemes:
       targets: { Quai: all }
     test:
       targets: [QuaiUITests]
+  # The CI builds both test bundles once, then runs each with test-without-building.
+  Quai CI:
+    build:
+      targets: { Quai: all }
+    test:
+      targets: [QuaiTests, QuaiUITests]

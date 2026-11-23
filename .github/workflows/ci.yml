@@ -3,8 +3,9 @@ name: ci
 on:
   pull_request:
   # An agent's branch gets the iOS build and screenshots before any PR.
+  # main only builds the app: PRs restore its DerivedData (a PR's cache can't come from another branch).
   push:
-    branches: ["claude/**"]
+    branches: [main, "claude/**"]
   workflow_dispatch:
 
 jobs:
@@ -149,6 +150,13 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      # On main the job only warms the cache.
+      TESTS: ${{ github.ref != 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
+      # No index, no coverage, one architecture: nothing the CI reads.
+      XCODE_FLAGS: >-
+        -project Quai.xcodeproj -scheme "Quai CI" -configuration Debug -derivedDataPath build
+        -skipPackagePluginValidation -enableCodeCoverage NO
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen && (command -v xcbeautify || brew install xcbeautify)
@@ -171,47 +179,80 @@ jobs:
             udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          echo "xcode=$(xcodebuild -version | tr '\n' ' ' | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
+      # A cold simulator takes minutes before the first test: boot it while the app builds.
+      - name: Boot the simulator
+        if: env.TESTS == 'true'
+        run: xcrun simctl boot ${{ steps.simulator.outputs.udid }} || true
+      # The packages' checkouts and builds: a run then only compiles what changed.
+      - name: Restore DerivedData
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            apps/ios/build
+            !apps/ios/build/Logs
+          key: ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-${{ github.sha }}
+          restore-keys: |
+            ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-
+            ios-dd-${{ steps.simulator.outputs.xcode }}-
       # The compile errors first, as annotations on the files.
       - name: Build
+        id: build
         working-directory: apps/ios
         run: >
           set -o pipefail &&
-          xcodebuild build-for-testing -project Quai.xcodeproj -scheme "Quai Screenshots"
-          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
-          -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+          eval xcodebuild build-for-testing $XCODE_FLAGS
+          -destination 'id=${{ steps.simulator.outputs.udid }}'
+          CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=YES
           | xcbeautify --renderer github-actions
+      - name: Save DerivedData
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            apps/ios/build
+            !apps/ios/build/Logs
+          key: ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-${{ github.sha }}
+      - name: Wait for the simulator
+        if: env.TESTS == 'true'
+        run: xcrun simctl bootstatus ${{ steps.simulator.outputs.udid }} -b
       - name: Unit tests
+        if: env.TESTS == 'true'
         working-directory: apps/ios
         run: >
           set -o pipefail &&
-          xcodebuild test -project Quai.xcodeproj -scheme Quai
-          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
-          -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
+          eval xcodebuild test-without-building $XCODE_FLAGS -only-testing:QuaiTests
+          -destination 'id=${{ steps.simulator.outputs.udid }}'
           | xcbeautify --renderer github-actions
       - uses: pnpm/action-setup@v4
+        if: env.TESTS == 'true'
       - uses: actions/setup-node@v4
+        if: env.TESTS == 'true'
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - if: env.TESTS == 'true'
+        run: pnpm install --frozen-lockfile
       - name: Start the preview server
+        if: env.TESTS == 'true'
         run: |
           pnpm --filter @quai/cloud preview > preview.log 2>&1 &
           for i in $(seq 60); do curl -sf http://127.0.0.1:8787/api/health > /dev/null && exit 0; sleep 1; done
           cat preview.log; exit 1
       - name: Screenshots
+        if: env.TESTS == 'true'
         working-directory: apps/ios
         env:
           TEST_RUNNER_QUAI_PREVIEW_URL: http://127.0.0.1:8787
           TEST_RUNNER_QUAI_SCREENSHOTS_DIR: ${{ github.workspace }}/screenshots
         run: >
           set -o pipefail &&
-          xcodebuild test-without-building -project Quai.xcodeproj -scheme "Quai Screenshots"
-          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
+          eval xcodebuild test-without-building $XCODE_FLAGS -only-testing:QuaiUITests
+          -destination 'id=${{ steps.simulator.outputs.udid }}'
           -resultBundlePath ../../screenshots.xcresult
           | xcbeautify --renderer github-actions
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && env.TESTS == 'true'
         with:
           name: ios-screenshots
           path: |
@@ -220,7 +261,7 @@ jobs:
           if-no-files-found: ignore
       # A fork's PR has a read-only token: its screenshots stay in the artifact.
       - name: Post the screenshots
-        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: always() && env.TESTS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

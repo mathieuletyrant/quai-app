@@ -32,15 +32,16 @@ curl -s localhost:8787/api/library -H "authorization: Bearer $token" | jq .
 `pnpm dev:console` against it shows the console on the same home. A screen that needs other
 data needs a route in `previewRoutes` (and a fixture, per `fixtures/README.md`).
 
-## 3. Build and screenshots (CI, ~10 min)
+## 3. Build and screenshots (CI)
 
 Push the branch (`claude/**` triggers `ci.yml` without a PR; once the branch has an open PR, the push run skips `ios` and the PR's run does it). The `ios` job:
 
-1. **Build**: `build-for-testing`; Swift errors appear as annotations (xcbeautify). Read them
+1. **Build**: one `build-for-testing` of the `Quai CI` scheme (both test bundles), from the
+   DerivedData cached by the last build of the branch or of `main`, while the simulator boots. Swift errors appear as annotations (xcbeautify). Read them
    with the GitHub MCP tools: `actions_list` for the run, `get_job_logs` with `failed_only`.
-2. **Unit tests**: `QuaiTests`.
-3. **Screenshots**: starts the preview server, runs `QuaiUITests/ScreenshotTests.swift` (scheme
-   `Quai Screenshots`). The app pairs to it through `QUAI_PREVIEW_PAIRING` (DEBUG only,
+2. **Unit tests**: `QuaiTests`, `test-without-building`.
+3. **Screenshots**: starts the preview server, runs `QuaiUITests/ScreenshotTests.swift`
+   (`test-without-building`; locally, the `Quai Screenshots` scheme). The app pairs to it through `QUAI_PREVIEW_PAIRING` (DEBUG only,
    `Quai/App/PreviewPairing.swift`), the same pairing as the console's QR code.
 4. **Post**: the PNGs go to the `ios-screenshots` branch (`runs/<run id>/`), the job summary,
    and one comment on the branch's open PR, kept up to date (`.github/scripts/ios-screenshots.sh`).
