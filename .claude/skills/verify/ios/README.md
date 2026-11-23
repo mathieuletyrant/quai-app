@@ -13,12 +13,13 @@ Swift client, then let the `ios` job (macOS) build and photograph the app, and r
 - a schema the app reads holds `Schema.Number` (number or `"Infinity"`/`"NaN"`): Swift gets an
   enum, not a `Double`. Use `Schema.Finite`.
 
-After changing `packages/api`: `pnpm gen:openapi`, then `pnpm gen:client`, and commit
-`openapi.json` and `apps/ios/Quai/Generated`. `gen:client` (`apps/ios/scripts/gen-client.sh`)
-runs the generator pinned in `apps/ios/Tools` and needs Swift, on Linux too: without it,
+After changing `packages/api`: `pnpm gen:openapi`, commit `openapi.json`. The Swift client
+(`apps/ios/Quai/Generated`) isn't committed: the `ios-client` CI job (Linux) generates it with the
+generator pinned in `apps/ios/Tools` and hands it to the `ios` job. To read it in a session,
+`pnpm gen:client` (`apps/ios/scripts/gen-client.sh`) needs Swift, on Linux too:
 `curl -sSfL https://download.swift.org/swift-6.2-release/ubuntu2404/swift-6.2-RELEASE/swift-6.2-RELEASE-ubuntu24.04.tar.gz | tar xz -C /opt/swift --strip-components=1`
-(into an empty `/opt/swift`), then `PATH=/opt/swift/usr/bin:$PATH`. The first run builds the
-generator (~2 min). The `ios-client` CI job fails while the committed client differs.
+(into an empty `/opt/swift`), then `PATH=/opt/swift/usr/bin:$PATH`; the first run builds the
+generator (~2 min).
 
 ## 2. The preview server (Linux)
 
@@ -41,7 +42,7 @@ data needs a route in `previewRoutes` (and a fixture, per `fixtures/README.md`).
 
 Push the branch (`claude/**` triggers `ci.yml` without a PR; once the branch has an open PR, the push run skips `ios` and the PR's run does it). The `ios` job:
 
-1. **Build**: `build-for-testing` for a generic simulator, while the simulator boots and the
+1. **Build**: with the client from `ios-client`, `build-for-testing` for a generic simulator, while the simulator boots and the
    preview server starts. Swift errors appear as annotations (xcbeautify). Read them with the
    GitHub MCP tools: `actions_list` for the run, `get_job_logs` with `failed_only`.
 2. **Tests and screenshots**: one `test-without-building`. `QuaiTests` holds the unit tests and

@@ -49,6 +49,8 @@ jobs:
           BUILD="$(date -u +%Y%m%d%H%M)"
           key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
           sed -i '' "s/MARKETING_VERSION: \"[^\"]*\"/MARKETING_VERSION: \"$version\"/; s/CURRENT_PROJECT_VERSION: \"[^\"]*\"/CURRENT_PROJECT_VERSION: \"$BUILD\"/" project.yml
+          # The client isn't committed: generated before XcodeGen lists the sources.
+          scripts/gen-client.sh
           xcodegen generate
           auth=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
           # Archived unsigned, signed once by the export with the cloud-managed distribution
