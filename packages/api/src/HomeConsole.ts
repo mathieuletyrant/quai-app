@@ -74,8 +74,10 @@ export class HomeStatusGroup extends HttpApiGroup.make("home")
 /** What reaching a service with its address and key gave. */
 export const ServiceCheck = Schema.Struct({
   outcome: Schema.Literals(["ok", "refused", "unreachable", "failed"]),
-  /** In words: "Radarr 6.0.4", "The key was refused (HTTP 401)". */
-  message: Schema.String
+  /** In words: "Radarr 6.0.4", "Radarr refused the key (HTTP 401)". */
+  message: Schema.String,
+  /** The version the service reported, when it did: "6.0.4". */
+  version: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "ServiceCheck" })
 export type ServiceCheck = typeof ServiceCheck.Type
 

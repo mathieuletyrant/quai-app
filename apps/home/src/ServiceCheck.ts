@@ -30,7 +30,10 @@ export const verdict = (service: HomeProtocol.HomeService, status: number, body:
   const version = service === "qbittorrent"
     ? Option.some(body.trim()).pipe(Option.filter((v) => /^v?\d[\w.-]*$/.test(v)))
     : Option.map(decodeVersion(body), (b) => b.version)
-  return { outcome: "ok", message: Option.match(version, { onNone: () => `${name} reached`, onSome: (v) => `${name} ${v.replace(/^v/, "")}` }) }
+  return Option.match(Option.map(version, (v) => v.replace(/^v/, "")), {
+    onNone: () => ({ outcome: "ok", message: `${name} reached` }),
+    onSome: (v) => ({ outcome: "ok", message: `${name} ${v}`, version: v })
+  })
 }
 
 /** Reaches the service with its address and key as they are now. Never fails: what went wrong is the check's outcome. */

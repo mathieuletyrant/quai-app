@@ -2,7 +2,7 @@ import { type HomeProtocol, journalSourceNames, type ServiceCheck, type ServiceS
 import { type FormEvent, type ReactNode, useState } from "react"
 import { callHome } from "../client.ts"
 import { useLoad } from "../load.ts"
-import { Async, Badge, Button, Code, ErrorCallout, Field, Icon, IconButton, Input, Item, ItemList, Mono, PageBar, PageBody, Panel, SkeletonList, Status, type Tone } from "../ui"
+import { Async, Badge, Button, Code, ErrorCallout, Field, Icon, IconButton, Input, Item, ItemList, Mono, PageBar, PageBody, Panel, SkeletonList, type Tone } from "../ui"
 
 type Service = HomeProtocol.HomeService
 
@@ -31,11 +31,17 @@ const secretName = (service: Service) => service === "qbittorrent" ? "Password" 
 const secretPlaceholder = (setup: ServiceSetup) =>
   setup.hasSecret ? "Leave empty to keep the saved one" : setup.service === "qbittorrent" ? "Optional" : "Paste it here"
 
-/** What reaching the service gave: checked when the page opens, and after each save. */
+/** What each outcome reads as, in a pill. */
+const checkLabels: Record<ServiceCheck["outcome"], string> = { ok: "Connected", refused: "Key refused", unreachable: "Unreachable", failed: "Error" }
+
+/** "Connected · 6.0.4", or the outcome alone. */
+const checkLabel = (check: ServiceCheck) => check.version === undefined ? checkLabels[check.outcome] : `${checkLabels[check.outcome]} · ${check.version}`
+
+/** What reaching the service gave, as a pill: checked when the page opens, and after each save. The whole message on hover. */
 function CheckStatus({ setup, check }: { setup: ServiceSetup; check: ServiceCheck | null }) {
-  if (setup.source === "none") return <span className="text-faint">Not set</span>
-  if (check === null) return <span className="text-muted">Checking…</span>
-  return <Status tone={checkTones[check.outcome]}>{check.message}</Status>
+  if (setup.source === "none") return <Badge>Not set</Badge>
+  if (check === null) return <Badge>Checking…</Badge>
+  return <span title={check.message}><Badge tone={checkTones[check.outcome]} dot>{checkLabel(check)}</Badge></span>
 }
 
 /** The address, and where it comes from when it isn't this page. */

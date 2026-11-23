@@ -159,8 +159,8 @@ describe("services page", () => {
   })
 
   it("reads what a check got back", () => {
-    expect(verdict("radarr", 200, JSON.stringify({ version: "6.0.4" }))).toEqual({ outcome: "ok", message: "Radarr 6.0.4" })
-    expect(verdict("qbittorrent", 200, "v5.1.2")).toEqual({ outcome: "ok", message: "qBittorrent 5.1.2" })
+    expect(verdict("radarr", 200, JSON.stringify({ version: "6.0.4" }))).toEqual({ outcome: "ok", message: "Radarr 6.0.4", version: "6.0.4" })
+    expect(verdict("qbittorrent", 200, "v5.1.2")).toEqual({ outcome: "ok", message: "qBittorrent 5.1.2", version: "5.1.2" })
     expect(verdict("seerr", 200, "{}")).toEqual({ outcome: "ok", message: "Seerr reached" })
     expect(verdict("sonarr", 401, "")).toMatchObject({ outcome: "refused" })
     expect(verdict("sonarr", 500, "")).toMatchObject({ outcome: "failed" })
@@ -175,7 +175,7 @@ describe("services page", () => {
       const saved = yield* request("PUT", "/home-api/services/radarr", { cookie, body: { url: "http://radarr:7878", secret: "good" } })
       expect(saved.json).toEqual({
         setup: { service: "radarr", source: "saved", url: "http://radarr:7878", hasSecret: true },
-        check: { outcome: "ok", message: "Radarr 6.0.4.10291" }
+        check: { outcome: "ok", message: "Radarr 6.0.4.10291", version: "6.0.4.10291" }
       })
       // A new address alone keeps the key.
       yield* request("PUT", "/home-api/services/radarr", { cookie, body: { url: "http://radarr:7878" } })
