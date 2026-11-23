@@ -274,8 +274,8 @@ struct SymbolSquare: View {
     }
 }
 
-/// A small 2:3 poster, with a symbol badge on its corner. `fallback` shows while it loads, when
-/// it fails, and when there is no poster.
+/// A small 2:3 poster, with a symbol badge on its corner. A shimmering block while it loads;
+/// `fallback` when it fails or there is no poster.
 struct PosterThumbnail<Fallback: View>: View {
     let url: URL?
     var width: CGFloat = 52
@@ -303,6 +303,11 @@ struct PosterThumbnail<Fallback: View>: View {
                                 .offset(x: 5, y: 5)
                         }
                     }
+            } else if url != nil, case .empty = phase {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Palette.raised)
+                    .frame(width: width, height: width * 1.5)
+                    .shimmering()
             } else {
                 fallback
             }

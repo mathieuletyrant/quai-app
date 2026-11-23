@@ -183,7 +183,7 @@ private struct HomeSkeleton: View {
     }
 }
 
-/// Today's releases: each with its time, the episodes under the title, and where it stands.
+/// Today's releases: each with its poster, the episodes and time under the title, and where it stands.
 /// Hidden when nothing comes out today.
 private struct TodayReleasesTile: View {
     let releases: [DayRelease]
@@ -213,7 +213,7 @@ private struct TodayReleasesTile: View {
                     Text("and \(hiddenCount) more")
                         .font(QuaiFont.caption)
                         .foregroundStyle(Palette.secondaryText)
-                        .padding(.leading, 54)
+                        .padding(.leading, 44)
                 }
             }
         }
@@ -223,26 +223,25 @@ private struct TodayReleasesTile: View {
     }
 }
 
-/// "18:00  Percy Jackson and the Olympians ✓" with "S03E01–E02" under the title.
+/// Its poster, "Percy Jackson and the Olympians" with "S03E01–E02 · 18:00" under it, and where it stands.
 private struct TodayReleaseRow: View {
     let line: TodayLine
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(line.airTime)
-                .font(QuaiFont.caption.monospacedDigit())
-                .foregroundStyle(Palette.secondaryText)
-                .frame(width: 44, alignment: .leading)
-            VStack(alignment: .leading, spacing: 1) {
+        HStack(spacing: 12) {
+            PosterThumbnail(url: PosterSize.small.url(line.posterUrl), width: 32, cornerRadius: 7) {
+                SymbolSquare(systemImage: line.isMovie ? "film" : "tv", color: Palette.releases, size: 32)
+            }
+            .frame(width: 32, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(line.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Palette.primaryText)
                     .lineLimit(1)
-                if let episodes = line.episodes {
-                    Text(episodes)
-                        .font(QuaiFont.caption.monospacedDigit())
-                        .foregroundStyle(Palette.secondaryText)
-                }
+                Text(line.detail)
+                    .font(QuaiFont.caption.monospacedDigit())
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(1)
             }
             Spacer(minLength: 8)
             ReleaseStatusLabel(status: line.status)
