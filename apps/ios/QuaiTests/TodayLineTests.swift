@@ -31,6 +31,21 @@ struct TodayLineTests {
         #expect(lines[0].episodes == nil)
     }
 
+    @Test func carriesThePosterAndTheDetail() throws {
+        let items = try releases(#"""
+        [{"id":"episode:1","kind":"episode","title":"Tracker","episode":"S04E07","airsAt":1795150800,"status":"missing"},
+         {"id":"episode:2","kind":"episode","title":"Tracker","episode":"S04E08","airsAt":1795150800,"posterUrl":"https://image.tmdb.org/t/p/original/tracker.jpg","status":"missing"},
+         {"id":"movie:1","kind":"movie","title":"Noël à la page","status":"available"}]
+        """#)
+        let lines = TodayLine.lines(items)
+        #expect(lines[0].posterUrl == "https://image.tmdb.org/t/p/original/tracker.jpg")
+        #expect(lines[0].isMovie == false)
+        #expect(lines[0].detail == "S04E07–E08 · \(lines[0].airTime)")
+        #expect(lines[1].posterUrl == nil)
+        #expect(lines[1].isMovie)
+        #expect(lines[1].detail == "Movie")
+    }
+
     @Test func writesTheEpisodeCodes() {
         #expect(TodayLine.episodeCodes([]) == nil)
         #expect(TodayLine.episodeCodes(["S02E04"]) == "S02E04")

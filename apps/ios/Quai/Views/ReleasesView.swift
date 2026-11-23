@@ -20,6 +20,9 @@ struct TodayLine: Equatable {
     let title: String
     /// "S01E03", "S02E04–E05", "S02E04, E07"; nil for a movie.
     let episodes: String?
+    let isMovie: Bool
+    /// The first poster among its releases.
+    let posterUrl: String?
     /// The least advanced of its releases: "here" only once they all are.
     let status: Components.Schemas.DayReleaseStatus
     let releaseCount: Int
@@ -43,10 +46,18 @@ struct TodayLine: Equatable {
                 airTime: group[0].airTime,
                 title: group[0].title,
                 episodes: episodeCodes(group.compactMap(\.episode)),
+                isMovie: group[0].kind.rawValue == "movie",
+                posterUrl: group.lazy.compactMap(\.posterUrl).first,
                 status: group.map(\.status).min { rank($0) < rank($1) } ?? group[0].status,
                 releaseCount: group.count
             )
         }
+    }
+
+    /// Under the title: "S02E04–E05 · 21:00" for a series, "Movie" for a movie (no time).
+    var detail: String {
+        guard let episodes else { return "Movie" }
+        return "\(episodes) · \(airTime)"
     }
 
     /// "S02E04" + "S02E05" → "S02E04–E05"; "S02E04" + "S02E07" → "S02E04, E07".
