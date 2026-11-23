@@ -93,7 +93,7 @@ describe("today's releases", () => {
       kind: "episode",
       episodeTitle: "Cold Harbor",
       airsAt: Date.parse("2026-11-20T19:00:00Z") / 1000,
-      posterUrl: "https://artworks.thetvdb.com/banners/posters/371980-1.jpg"
+      posterUrl: "https://image.tmdb.org/t/p/original/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg"
     })
     // "TBA" isn't a title.
     expect(releases[2]!.episodeTitle).toBeUndefined()
