@@ -159,6 +159,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
     runs-on: macos-26
+    timeout-minutes: 30
     # A newer commit of the same branch replaces a run still going.
     concurrency:
       group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
@@ -168,9 +169,10 @@ jobs:
       pull-requests: write
     env:
       # No coverage, no index, one architecture (the runners are Apple silicon): nothing the CI reads.
+      # The system git: Xcode's own took 6 minutes to resolve the three packages.
       XCODE_FLAGS: >-
         -project Quai.xcodeproj -scheme Quai -configuration Debug -derivedDataPath build
-        -skipPackagePluginValidation -enableCodeCoverage NO
+        -scmProvider system -enableCodeCoverage NO
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

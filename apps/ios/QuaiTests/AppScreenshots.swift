@@ -3,6 +3,9 @@ import Testing
 import UIKit
 @testable import Quai
 
+/// Outside the suite: its `@Suite` attribute can't refer to the suite's own members.
+private let previewURL = ProcessInfo.processInfo.environment["QUAI_PREVIEW_URL"].flatMap(URL.init(string:))
+
 /// The app paired to the preview server (`pnpm --filter @quai/cloud preview`: the real Quai Cloud
 /// and a fake Quai Home answering from the recorded fixtures), photographed screen by screen.
 /// The views are hosted in a window of the test host: no UI automation, no app launch per screen.
@@ -11,9 +14,8 @@ import UIKit
 /// `QUAI_SCREENSHOTS_DIR`, a folder of the Mac the PNGs are written to. From xcodebuild, pass them
 /// as `TEST_RUNNER_QUAI_PREVIEW_URL` and `TEST_RUNNER_QUAI_SCREENSHOTS_DIR`.
 @MainActor
-@Suite(.serialized, .enabled(if: AppScreenshots.previewURL != nil, "needs the preview server"))
+@Suite(.serialized, .enabled(if: previewURL != nil, "needs the preview server"))
 struct AppScreenshots {
-    nonisolated static let previewURL = ProcessInfo.processInfo.environment["QUAI_PREVIEW_URL"].flatMap(URL.init(string:))
 
     @Test func homeLoading() async throws {
         let connection = try await Self.pairedConnection()
