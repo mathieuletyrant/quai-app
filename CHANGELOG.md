@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/mathieuletyrant/quai-app/compare/v0.20.0...v0.21.0) (2026-11-23)
+
+
+### ✨ Features
+
+* **ios:** show posters on the Home's Out today tile ([#72](https://github.com/mathieuletyrant/quai-app/issues/72)) ([3090a12](https://github.com/mathieuletyrant/quai-app/commit/3090a128ad7d08f5c9e96a8aaf88857ad30a7a46))
+
 ## [0.20.0](https://github.com/mathieuletyrant/quai-app/compare/v0.19.0...v0.20.0) (2026-11-23)
 
 
