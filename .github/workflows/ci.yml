@@ -209,19 +209,24 @@ jobs:
             udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
-      # A cold simulator takes minutes before the first test: it boots while the app builds.
-      - name: Boot the simulator
-        run: xcrun simctl boot ${{ steps.simulator.outputs.udid }} > simulator-boot.log 2>&1 &
-      # The compile errors first, as annotations on the files. A generic destination: a specific
-      # simulator makes xcodebuild wait for it to boot before it builds anything.
-      - name: Build
+      # A cold simulator takes about 5 minutes to boot, and xcodebuild starts nothing while one
+      # boots: the boot starts once the compiler runs, so the two overlap. The compile errors come
+      # as annotations on the files.
+      - name: Build, and boot the simulator
         working-directory: apps/ios
-        run: >
-          set -o pipefail &&
-          eval xcodebuild build-for-testing $XCODE_FLAGS
-          -destination "'generic/platform=iOS Simulator'" ARCHS=arm64
-          CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
-          | xcbeautify --renderer github-actions
+        env:
+          UDID: ${{ steps.simulator.outputs.udid }}
+        run: |
+          eval xcodebuild build-for-testing $XCODE_FLAGS \
+            -destination "'generic/platform=iOS Simulator'" ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO > build.log 2>&1 &
+          build=$!
+          until grep -qE '^(SwiftCompile|CompileSwift|SwiftDriver) ' build.log || ! kill -0 "$build" 2> /dev/null; do sleep 1; done
+          echo "Booting the simulator at $(date -u +%T)"
+          xcrun simctl boot "$UDID" > simulator-boot.log 2>&1 &
+          status=0; wait "$build" || status=$?
+          xcbeautify --renderer github-actions < build.log
+          exit "$status"
       - name: Wait for the simulator and the preview server
         run: |
           xcrun simctl bootstatus ${{ steps.simulator.outputs.udid }} -b
