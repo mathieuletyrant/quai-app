@@ -11,7 +11,7 @@ import { type Candidate, CandidatePage, candidatesPath, deletionCandidates, reas
 export const candidatesRead: Read<typeof CandidatePage.Type> = { service: "reclaimerr", path: candidatesPath, schema: CandidatePage }
 
 /** How often Quai Home reads Reclaimerr's candidates while the alert is on. */
-export const deletionsEverySeconds = 1800
+export const deletionsEverySeconds = 60
 
 export const deletionsWatchId = "reclaimerr:candidates"
 
@@ -51,7 +51,7 @@ export const deletionsState = (candidates: ReadonlyArray<Candidate>, dismissed: 
     deletionCandidates(candidates).filter((candidate) => !dismissed.has(candidate.id)).map((candidate) => deletionRaised(candidate, now))
   )
 
-/** Reclaimerr's candidates every 30 minutes, while the Planned deletion alert is on. */
+/** Reclaimerr's candidates every minute, while the Planned deletion alert is on. */
 export const deletions = Effect.gen(function*() {
   const documents = yield* HomeDocuments
 

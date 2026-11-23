@@ -90,6 +90,8 @@ describe("alerts", () => {
         yield* devices.update(paired.value.deviceId, { notificationToken: "note-mathieu" })
 
         expect(home.state.watches.find((w) => w.id === deletionsWatchId)?.path).toBe("/api/v1/candidates?page=1&per_page=200")
+        // Every minute: a title Reclaimerr plans at its scan is notified before it can be let go unseen.
+        expect(home.state.watches.find((w) => w.id === deletionsWatchId)?.everySeconds).toBe(60)
         // The test clock stays at 0: each reading moves Up's date closer instead.
         const up = (fixture("reclaimerr/candidates.json") as { items: Array<{ id: number }> }).items.find((c) => c.id === 42)!
         const upIn = (hours: number) => ({ items: [{ ...up, auto_delete_eligible_at: new Date(hours * 3600_000).toISOString() }] })
