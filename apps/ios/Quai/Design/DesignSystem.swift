@@ -362,6 +362,100 @@ struct MessageTile: View {
     }
 }
 
+// MARK: Loading
+
+/// A grey block standing for text or a number that hasn't loaded yet.
+struct SkeletonBar: View {
+    var width: CGFloat?
+    var height: CGFloat = 14
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: height / 2.5, style: .continuous)
+            .fill(Palette.raised)
+            .frame(width: width, height: height)
+            .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
+    }
+}
+
+/// A Home tile's shape while it loads: its label, its count, then rows with a small poster.
+struct SkeletonTile: View {
+    var rows = 3
+    var showsValue = true
+
+    /// Rows of different lengths, so the shape reads as text.
+    private let rowWidths: [CGFloat] = [190, 140, 170]
+
+    var body: some View {
+        Tile {
+            VStack(alignment: .leading, spacing: 12) {
+                SkeletonBar(width: 96, height: 12)
+                if showsValue {
+                    SkeletonBar(width: 132, height: 26)
+                }
+                ForEach(0..<rows, id: \.self) { row in
+                    HStack(spacing: 10) {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .fill(Palette.raised)
+                            .frame(width: 24, height: 36)
+                        SkeletonBar(width: rowWidths[row % rowWidths.count])
+                    }
+                }
+            }
+            .shimmering()
+        }
+    }
+}
+
+/// The disk tile's shape while the library loads.
+struct SkeletonStorageTile: View {
+    var body: some View {
+        Tile {
+            VStack(alignment: .leading, spacing: 12) {
+                SkeletonBar(width: 150, height: 14)
+                SkeletonBar(height: 6)
+            }
+            .shimmering()
+        }
+    }
+}
+
+/// A light sweeping across the view's shape, the way iOS hints that content is on its way.
+/// Still with Reduce Motion.
+private struct Shimmer: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var phase: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if !reduceMotion {
+                    GeometryReader { geometry in
+                        let band = geometry.size.width * 0.6
+                        LinearGradient(
+                            colors: [.clear, Color.white.opacity(0.07), .clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: band)
+                        // From fully off the left edge to fully off the right one.
+                        .offset(x: -band + phase * (geometry.size.width + band))
+                    }
+                    .mask(content)
+                    .allowsHitTesting(false)
+                }
+            }
+            .onAppear {
+                withAnimation(.linear(duration: 1.4).delay(0.2).repeatForever(autoreverses: false)) {
+                    phase = 1
+                }
+            }
+    }
+}
+
+extension View {
+    func shimmering() -> some View { modifier(Shimmer()) }
+}
+
 // MARK: Grouped lists
 
 /// The header over a group of rows: "ON THIS IPHONE".

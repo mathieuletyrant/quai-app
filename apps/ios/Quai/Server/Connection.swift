@@ -360,6 +360,9 @@ final class Connection {
     /// front starts several) share one search rather than each asking every address.
     private func requiredClient() async throws -> Client {
         guard let session else { throw ConnectionError.unreachable }
+        #if DEBUG
+        if let delay = PreviewPairing.readDelay { try await Task.sleep(for: delay) }
+        #endif
         let search = connecting ?? Task { try await session.connect() }
         connecting = search
         defer { if connecting == search { connecting = nil } }
