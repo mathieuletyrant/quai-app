@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/mathieuletyrant/quai-app/compare/v0.18.0...v0.18.1) (2026-11-23)
+
+
+### 🐛 Fixes
+
+* read Reclaimerr's candidates every minute, so a planned deletion is notified at once ([#65](https://github.com/mathieuletyrant/quai-app/issues/65)) ([aa16653](https://github.com/mathieuletyrant/quai-app/commit/aa166537b950d56920b26017a25dceda1a0c9a49))
+
 ## [0.18.0](https://github.com/mathieuletyrant/quai-app/compare/v0.17.0...v0.18.0) (2026-11-21)
 
 
