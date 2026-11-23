@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/mathieuletyrant/quai-app/compare/v0.18.2...v0.19.0) (2026-11-23)
+
+
+### ✨ Features
+
+* **ios:** show the Home's tiles as skeletons while they load ([0d094c3](https://github.com/mathieuletyrant/quai-app/commit/0d094c38f8ae0d4d9b335c47f593085fbfb19cb0))
+
 ## [0.18.2](https://github.com/mathieuletyrant/quai-app/compare/v0.18.1...v0.18.2) (2026-11-23)
 
 
