@@ -5,6 +5,13 @@ import Foundation
 /// through the same pairing as the console's QR code.
 enum PreviewPairing {
     static let environmentKey = "QUAI_PREVIEW_PAIRING"
+    /// Seconds every read waits before going out, so the tests can photograph the loading states.
+    static let readDelayKey = "QUAI_PREVIEW_READ_DELAY"
+
+    static var readDelay: Duration? {
+        guard let value = ProcessInfo.processInfo.environment[readDelayKey], let seconds = Double(value) else { return nil }
+        return .seconds(seconds)
+    }
 
     @MainActor static func pairIfRequested(_ connection: Connection) async {
         guard let value = ProcessInfo.processInfo.environment[environmentKey],

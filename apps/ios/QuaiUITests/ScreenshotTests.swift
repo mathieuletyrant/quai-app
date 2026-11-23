@@ -15,6 +15,10 @@ final class ScreenshotTests: XCTestCase {
         let link = try await Self.pairingLink()
         app = XCUIApplication()
         app.launchEnvironment["QUAI_PREVIEW_PAIRING"] = link
+        if name.contains("testHomeLoading") {
+            // Long enough for the Home to show its skeleton before any read answers.
+            app.launchEnvironment["QUAI_PREVIEW_READ_DELAY"] = "12"
+        }
         app.launch()
         allowNotifications()
     }
@@ -50,6 +54,14 @@ final class ScreenshotTests: XCTestCase {
         app.buttons["Notifications"].firstMatch.tap()
         settle()
         screenshot("05-settings-notifications")
+    }
+
+    /// The Home while its first reads are on their way: the tiles' skeletons.
+    func testHomeLoading() throws {
+        XCTAssertTrue(tab("Home").waitForExistence(timeout: 20), "The app didn't pair with the preview server")
+        XCTAssertTrue(app.descendants(matching: .any)["homeLoading"].waitForExistence(timeout: 5), "The Home showed no skeleton")
+        settle(1)
+        screenshot("00-home-loading")
     }
 
     func testLiveSheet() throws {

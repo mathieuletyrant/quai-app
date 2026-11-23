@@ -179,6 +179,7 @@ private struct HomeSkeleton: View {
         }
         .accessibilityElement()
         .accessibilityLabel("Loading")
+        .accessibilityIdentifier("homeLoading")
     }
 }
 
