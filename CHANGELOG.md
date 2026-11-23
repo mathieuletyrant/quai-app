@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.20.0](https://github.com/mathieuletyrant/quai-app/compare/v0.19.0...v0.20.0) (2026-11-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* the console is served by quai-home on :8788 behind QUAI_HOME_PASSWORD (locked without it); Quai Cloud serves no console and refuses /console-api on its port. Update Quai Home and Quai Cloud together.
+
+### ✨ Features
+
+* serve the console from Quai Home, with a Services page for the keys ([#71](https://github.com/mathieuletyrant/quai-app/issues/71)) ([3a3c5f0](https://github.com/mathieuletyrant/quai-app/commit/3a3c5f0d1807222d38727f9da135299a83a8fb8b))
+
 ## [0.19.0](https://github.com/mathieuletyrant/quai-app/compare/v0.18.2...v0.19.0) (2026-11-23)
 
 
