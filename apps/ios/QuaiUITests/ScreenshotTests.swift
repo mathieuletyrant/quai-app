@@ -89,8 +89,13 @@ final class ScreenshotTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(seconds))
     }
 
-    /// The app asks for notifications once paired: Springboard shows the prompt over it.
+    /// The app asks for notifications once paired: Springboard shows the prompt over it, only on the
+    /// first launch after the install, so the next tests don't wait for it.
+    private static var askedForNotifications = false
+
     private func allowNotifications() {
+        guard !Self.askedForNotifications else { return }
+        Self.askedForNotifications = true
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         let allow = springboard.buttons["Allow"]
         if allow.waitForExistence(timeout: 8) { allow.tap() }

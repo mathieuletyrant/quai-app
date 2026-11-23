@@ -153,7 +153,7 @@ jobs:
     env:
       # On main the job only warms the cache.
       TESTS: ${{ github.ref != 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
-      # No index, no coverage, one architecture: nothing the CI reads.
+      # No index, no coverage, one architecture (the runners are Apple silicon): nothing the CI reads.
       XCODE_FLAGS: >-
         -project Quai.xcodeproj -scheme "Quai CI" -configuration Debug -derivedDataPath build
         -skipPackagePluginValidation -enableCodeCoverage NO
@@ -183,7 +183,7 @@ jobs:
       # A cold simulator takes minutes before the first test: boot it while the app builds.
       - name: Boot the simulator
         if: env.TESTS == 'true'
-        run: xcrun simctl boot ${{ steps.simulator.outputs.udid }} || true
+        run: xcrun simctl boot ${{ steps.simulator.outputs.udid }} > simulator-boot.log 2>&1 &
       # The packages' checkouts and builds: a run then only compiles what changed.
       - name: Restore DerivedData
         uses: actions/cache/restore@v4
@@ -195,15 +195,16 @@ jobs:
           restore-keys: |
             ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-
             ios-dd-${{ steps.simulator.outputs.xcode }}-
-      # The compile errors first, as annotations on the files.
+      # The compile errors first, as annotations on the files. A generic destination: a specific
+      # simulator makes xcodebuild wait for it to boot before it builds anything.
       - name: Build
         id: build
         working-directory: apps/ios
         run: >
           set -o pipefail &&
           eval xcodebuild build-for-testing $XCODE_FLAGS
-          -destination 'id=${{ steps.simulator.outputs.udid }}'
-          CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=YES
+          -destination "'generic/platform=iOS Simulator'" ARCHS=arm64
+          CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
           | xcbeautify --renderer github-actions
       - name: Save DerivedData
         if: always() && steps.build.outcome == 'success'
