@@ -2,7 +2,7 @@ import { type HomeProtocol, journalSourceNames, type ServiceCheck, type ServiceS
 import { type FormEvent, type ReactNode, useState } from "react"
 import { callHome } from "../client.ts"
 import { useLoad } from "../load.ts"
-import { Async, Badge, Button, Code, ErrorCallout, Field, Icon, IconButton, Input, Item, ItemList, Mono, PageBar, PageBody, Panel, SkeletonList, type Tone } from "../ui"
+import { Async, Badge, Button, Code, ErrorCallout, Field, Icon, Input, Item, ItemList, Mono, PageBar, PageBody, Panel, SkeletonList, type Tone } from "../ui"
 
 type Service = HomeProtocol.HomeService
 
@@ -50,12 +50,11 @@ function ServiceAddress({ setup }: { setup: ServiceSetup }): ReactNode {
   return (
     <span className="flex min-w-0 items-center gap-2">
       <Mono className="truncate">{setup.url}</Mono>
-      {setup.source === "environment" && <Badge tone="info">Env</Badge>}
     </span>
   )
 }
 
-function ServiceForm({ setup, onSaved, onCancel }: { setup: ServiceSetup; onSaved: (check: ServiceCheck) => void; onCancel: () => void }) {
+function ServiceForm({ setup, onSaved, onRemove }: { setup: ServiceSetup; onSaved: (check: ServiceCheck) => void; onRemove: () => void }) {
   const [url, setUrl] = useState(setup.url ?? "")
   const [secret, setSecret] = useState("")
   const [username, setUsername] = useState(setup.username ?? "")
@@ -96,23 +95,27 @@ function ServiceForm({ setup, onSaved, onCancel }: { setup: ServiceSetup; onSave
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={saving}>{saving ? "Checking…" : "Save and check"}</Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>
+        {setup.source === "saved" && <Button type="button" variant="danger" icon="trash" className="ml-auto" onClick={onRemove}>Remove</Button>}
       </div>
     </form>
   )
 }
 
-/** The row's button: set up, change, or nothing for a service the environment sets. */
-function ServiceAction({ setup, editing, onEdit, onRemove }: { setup: ServiceSetup; editing: boolean; onEdit: () => void; onRemove: () => void }) {
-  if (setup.source === "environment" || editing) return null
-  if (setup.source === "none") return <Button variant="secondary" size="sm" icon="plus" onClick={onEdit}>Set up</Button>
+/**
+ * The row's one action, the same on every row: set up or edit, which opens the form below. A
+ * service the environment sets says so in its place.
+ */
+function ServiceAction({ setup, editing, onToggle }: { setup: ServiceSetup; editing: boolean; onToggle: () => void }) {
+  if (setup.source === "environment") return <span title="Set by Quai Home's environment variables"><Badge tone="info">Env</Badge></span>
   return (
-    <span className="flex gap-1">
-      <Button variant="secondary" size="sm" onClick={onEdit}>Change</Button>
-      <IconButton icon="trash" label={`Remove ${journalSourceNames[setup.service]}`} className="hover:bg-danger-soft hover:text-danger-text" onClick={onRemove} />
-    </span>
+    <Button variant="ghost" size="sm" aria-expanded={editing} onClick={onToggle}>
+      {actionLabel(setup, editing)}
+      <Icon name="chevronDown" size={14} className={editing ? "rotate-180 transition-transform" : "transition-transform"} />
+    </Button>
   )
 }
+
+const actionLabel = (setup: ServiceSetup, editing: boolean) => editing ? "Close" : setup.source === "none" ? "Set up" : "Edit"
 
 /** One service: its address, whether Quai Home reaches it, and its form when open. */
 function ServiceRow({ setup, onChanged }: { setup: ServiceSetup; onChanged: () => void }) {
@@ -124,7 +127,11 @@ function ServiceRow({ setup, onChanged }: { setup: ServiceSetup; onChanged: () =
   )
   const remove = () => {
     if (!window.confirm(`Remove ${journalSourceNames[setup.service]}? Quai leaves out what it does until it's set again.`)) return
-    void callHome((c) => c.services.remove({ params: { service: setup.service } })).then(onChanged, checked.setError)
+    void callHome((c) => c.services.remove({ params: { service: setup.service } })).then(() => {
+      setEditing(false)
+      setFresh(null)
+      onChanged()
+    }, checked.setError)
   }
   const saved = (result: ServiceCheck) => {
     setFresh(result)
@@ -138,10 +145,10 @@ function ServiceRow({ setup, onChanged }: { setup: ServiceSetup; onChanged: () =
       subtitle={about[setup.service].use}
       detail={setup.url === undefined ? undefined : <ServiceAddress setup={setup} />}
       state={<CheckStatus setup={setup} check={fresh ?? checked.data} />}
-      action={<ServiceAction setup={setup} editing={editing} onEdit={() => setEditing(true)} onRemove={remove} />}
+      action={<ServiceAction setup={setup} editing={editing} onToggle={() => setEditing(!editing)} />}
       open={editing}
     >
-      {editing && <ServiceForm setup={setup} onCancel={() => setEditing(false)} onSaved={saved} />}
+      {editing && <ServiceForm setup={setup} onSaved={saved} onRemove={remove} />}
     </Item>
   )
 }
