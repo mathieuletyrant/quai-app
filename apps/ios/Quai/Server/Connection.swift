@@ -68,6 +68,10 @@ final class Connection {
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
+    /// How long every read waits before going out (DEBUG only), so the screenshot tests can
+    /// photograph the loading states.
+    @ObservationIgnored var readDelay: Duration?
+
     var isPaired: Bool { session != nil }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
@@ -361,7 +365,7 @@ final class Connection {
     private func requiredClient() async throws -> Client {
         guard let session else { throw ConnectionError.unreachable }
         #if DEBUG
-        if let delay = PreviewPairing.readDelay { try await Task.sleep(for: delay) }
+        if let readDelay { try await Task.sleep(for: readDelay) }
         #endif
         let search = connecting ?? Task { try await session.connect() }
         connecting = search

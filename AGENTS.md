@@ -10,7 +10,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 | `apps/home` | Quai Home: runs next to the services with their keys (environment, or the console's Services page in `/data`), links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents, serves the console behind `QUAI_HOME_PASSWORD` and relays its `/console-api` requests to the Cloud. |
 | `apps/cloud` | Quai Cloud, Effect on Node: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, answers the console's routes Quai Home relays (never on its public port). No interface, keeps nothing: the home's data lives in Quai Home. |
 | `apps/console` | React + Vite web console, served by Quai Home, with typed clients derived from `packages/api` (`QuaiApi` relayed to the Cloud, `HomeConsoleApi` Quai Home's own). |
-| `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json`. |
+| `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json` into `Quai/Generated`, not committed: the CI's `ios-client` job makes it, `pnpm gen:client` locally. |
 | `Dockerfile` | The two server deliverables, one build: `--target home` and `--target cloud` (default). |
 
 ## Host-agnostic
@@ -48,7 +48,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 ## iOS
 
 - Quai's refusals become a `ConnectionError` in `QuaiErrorsMiddleware` only (from the answer's `_tag` and `message`), proxy refusals in `AccessHeadersMiddleware`. A call reads only its success with the generated throwing accessors (`try await client.listFixes().ok.body.json`, `.noContent`): no `switch` over an `Output`, no error message per route.
-- Without a Mac, the `verify` skill's `ios` scenario (`.claude/skills/verify/ios/`) is the loop: `pnpm test` checks the contract for the generated client (`packages/api/test/ios.test.ts`), the preview server (`pnpm --filter @quai/cloud preview`: real Quai Cloud, fake Quai Home on the fixtures) serves the app, and the `ios` CI job builds, tests and posts screenshots of the app paired to it (a push to `claude/**` is enough). A view change is done when its screenshot looks right.
+- Without a Mac, the `verify` skill's `ios` scenario (`.claude/skills/verify/ios/`) is the loop: `pnpm test` checks the contract for the generated client (`packages/api/test/ios.test.ts`), the CI generates it (`ios-client`, Linux), the preview server (`pnpm --filter @quai/cloud preview`: real Quai Cloud, fake Quai Home on the fixtures) serves the app, and the `ios` CI job builds, tests and posts screenshots of the views paired to it (`QuaiTests/AppScreenshots.swift`) (a push to `claude/**` is enough). A view change is done when its screenshot looks right.
 
 ## Console
 
@@ -82,12 +82,13 @@ pnpm install
 pnpm check        # tsc in every package
 pnpm test         # vitest in every package
 pnpm gen:openapi  # regenerate packages/api/openapi.json
+pnpm gen:client   # the iOS client in apps/ios/Quai/Generated (not committed), needs Swift
 pnpm dev:cloud    # Quai Cloud on :8787
 pnpm dev:home     # Quai Home on :8788 (QUAI_CLOUD_URL=ws://localhost:8787/home QUAI_HOME_PASSWORD=…)
 pnpm dev:console  # console on :5173 (proxies /api, /console-api and /home-api to Quai Home on :8788)
 ```
 
-iOS (macOS): `cd apps/ios && xcodegen generate && open Quai.xcodeproj`.
+iOS (macOS): `pnpm gen:client && cd apps/ios && xcodegen generate && open Quai.xcodeproj`.
 
 ## Before finishing a task
 

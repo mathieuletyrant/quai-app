@@ -135,13 +135,31 @@ jobs:
           cat model.md >> "$GITHUB_STEP_SUMMARY"
           .github/scripts/pr-comment.sh "<!-- quai-live-activity-pushes -->" model.md ${{ github.event.pull_request.number }}
 
+  # The app's client isn't committed: generated here, outside the Xcode build, and handed to the
+  # ios job. The generator comes from the cache that swift-tools.yml keeps on main.
+  ios-client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: apps/ios/Tools/.build
+          key: swift-openapi-generator-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
+      - run: apps/ios/scripts/gen-client.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-client
+          path: apps/ios/Quai/Generated
+          retention-days: 3
+
   # macOS minutes are billed: only when the app, the contract or the preview changes.
   ios:
-    needs: changes
+    needs: [changes, ios-client]
     if: >
       github.event_name == 'workflow_dispatch' ||
       (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
     runs-on: macos-26
+    timeout-minutes: 30
     # A newer commit of the same branch replaces a run still going.
     concurrency:
       group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
@@ -149,8 +167,28 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      # No coverage, no index, one architecture (the runners are Apple silicon): nothing the CI reads.
+      # The system git: Xcode's own took 6 minutes to resolve the three packages.
+      XCODE_FLAGS: >-
+        -project Quai.xcodeproj -scheme Quai -configuration Debug -derivedDataPath build
+        -scmProvider system -enableCodeCoverage NO
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Started now, ready by the tests: the screenshots are of the app paired to it.
+      - name: Start the preview server
+        run: pnpm --filter @quai/cloud preview > preview.log 2>&1 &
+      # Before XcodeGen, which lists the sources it finds.
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-client
+          path: apps/ios/Quai/Generated
       - run: brew install xcodegen && (command -v xcbeautify || brew install xcbeautify)
       - working-directory: apps/ios
         run: xcodegen generate
@@ -171,44 +209,40 @@ jobs:
             udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
-      # The compile errors first, as annotations on the files.
-      - name: Build
+      # A cold simulator takes about 5 minutes to boot, and xcodebuild starts nothing while one
+      # boots: the boot starts once the compiler runs, so the two overlap. The compile errors come
+      # as annotations on the files.
+      - name: Build, and boot the simulator
         working-directory: apps/ios
-        run: >
-          set -o pipefail &&
-          xcodebuild build-for-testing -project Quai.xcodeproj -scheme "Quai Screenshots"
-          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
-          -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-          | xcbeautify --renderer github-actions
-      - name: Unit tests
-        working-directory: apps/ios
-        run: >
-          set -o pipefail &&
-          xcodebuild test -project Quai.xcodeproj -scheme Quai
-          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
-          -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO
-          | xcbeautify --renderer github-actions
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Start the preview server
+        env:
+          UDID: ${{ steps.simulator.outputs.udid }}
         run: |
-          pnpm --filter @quai/cloud preview > preview.log 2>&1 &
+          eval xcodebuild build-for-testing $XCODE_FLAGS \
+            -destination "'generic/platform=iOS Simulator'" ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO > build.log 2>&1 &
+          build=$!
+          until grep -qE '^(SwiftCompile|CompileSwift|SwiftDriver) ' build.log || ! kill -0 "$build" 2> /dev/null; do sleep 1; done
+          echo "Booting the simulator at $(date -u +%T)"
+          xcrun simctl boot "$UDID" > simulator-boot.log 2>&1 &
+          status=0; wait "$build" || status=$?
+          xcbeautify --renderer github-actions < build.log
+          exit "$status"
+      - name: Wait for the simulator and the preview server
+        run: |
+          xcrun simctl bootstatus ${{ steps.simulator.outputs.udid }} -b
           for i in $(seq 60); do curl -sf http://127.0.0.1:8787/api/health > /dev/null && exit 0; sleep 1; done
           cat preview.log; exit 1
-      - name: Screenshots
+      # The unit tests and, with the preview server, the screenshots (QuaiTests/AppScreenshots.swift).
+      - name: Tests and screenshots
         working-directory: apps/ios
         env:
           TEST_RUNNER_QUAI_PREVIEW_URL: http://127.0.0.1:8787
           TEST_RUNNER_QUAI_SCREENSHOTS_DIR: ${{ github.workspace }}/screenshots
         run: >
           set -o pipefail &&
-          xcodebuild test-without-building -project Quai.xcodeproj -scheme "Quai Screenshots"
-          -destination 'id=${{ steps.simulator.outputs.udid }}' -derivedDataPath build
-          -resultBundlePath ../../screenshots.xcresult
+          eval xcodebuild test-without-building $XCODE_FLAGS
+          -destination "'id=${{ steps.simulator.outputs.udid }}'"
+          -resultBundlePath ../../tests.xcresult
           | xcbeautify --renderer github-actions
       - uses: actions/upload-artifact@v4
         if: always()
