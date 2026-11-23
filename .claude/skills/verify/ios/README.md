@@ -1,7 +1,7 @@
 # Verify the iOS app
 
-A Linux session can't build Swift. The loop is: catch what TypeScript can, then let the `ios`
-job (macOS) build and photograph the app, and read its result.
+A Linux session can't build the app. The loop is: catch what TypeScript can, regenerate the
+Swift client, then let the `ios` job (macOS) build and photograph the app, and read its result.
 
 ## 1. Contract checks (seconds, Linux)
 
@@ -13,7 +13,12 @@ job (macOS) build and photograph the app, and read its result.
 - a schema the app reads holds `Schema.Number` (number or `"Infinity"`/`"NaN"`): Swift gets an
   enum, not a `Double`. Use `Schema.Finite`.
 
-After changing `packages/api`: `pnpm gen:openapi`, commit `openapi.json`.
+After changing `packages/api`: `pnpm gen:openapi`, then `pnpm gen:client`, and commit
+`openapi.json` and `apps/ios/Quai/Generated`. `gen:client` (`apps/ios/scripts/gen-client.sh`)
+runs the generator pinned in `apps/ios/Tools` and needs Swift, on Linux too: without it,
+`curl -sSfL https://download.swift.org/swift-6.2-release/ubuntu2404/swift-6.2-RELEASE/swift-6.2-RELEASE-ubuntu24.04.tar.gz | tar xz -C /opt/swift --strip-components=1`
+(into an empty `/opt/swift`), then `PATH=/opt/swift/usr/bin:$PATH`. The first run builds the
+generator (~2 min). The `ios-client` CI job fails while the committed client differs.
 
 ## 2. The preview server (Linux)
 
@@ -36,14 +41,14 @@ data needs a route in `previewRoutes` (and a fixture, per `fixtures/README.md`).
 
 Push the branch (`claude/**` triggers `ci.yml` without a PR; once the branch has an open PR, the push run skips `ios` and the PR's run does it). The `ios` job:
 
-1. **Build**: one `build-for-testing` of the `Quai CI` scheme (both test bundles), from the
-   DerivedData cached by the last build of the branch or of `main`, while the simulator boots. Swift errors appear as annotations (xcbeautify). Read them
-   with the GitHub MCP tools: `actions_list` for the run, `get_job_logs` with `failed_only`.
-2. **Unit tests**: `QuaiTests`, `test-without-building`.
-3. **Screenshots**: starts the preview server, runs `QuaiUITests/ScreenshotTests.swift`
-   (`test-without-building`; locally, the `Quai Screenshots` scheme). The app pairs to it through `QUAI_PREVIEW_PAIRING` (DEBUG only,
-   `Quai/App/PreviewPairing.swift`), the same pairing as the console's QR code.
-4. **Post**: the PNGs go to the `ios-screenshots` branch (`runs/<run id>/`), the job summary,
+1. **Build**: `build-for-testing` for a generic simulator, while the simulator boots and the
+   preview server starts. Swift errors appear as annotations (xcbeautify). Read them with the
+   GitHub MCP tools: `actions_list` for the run, `get_job_logs` with `failed_only`.
+2. **Tests and screenshots**: one `test-without-building`. `QuaiTests` holds the unit tests and
+   `AppScreenshots.swift`, which pairs a `Connection` to the preview server with a code from the
+   console's route (the same pairing as the QR code) and photographs the views in a window of the
+   test host: no UI automation, no app launch per screen. Without `QUAI_PREVIEW_URL` the suite is off.
+3. **Post**: the PNGs go to the `ios-screenshots` branch (`runs/<run id>/`), the job summary,
    and one comment on the branch's open PR, kept up to date (`.github/scripts/ios-screenshots.sh`).
    Also in the `ios-screenshots` artifact, with `preview.log`.
 
@@ -54,14 +59,15 @@ the job is green.
 
 ## Adding a screen
 
-A view worth seeing gets a step in `ScreenshotTests` (tap, `settle()`, `screenshot("NN-name")`)
-and, if a tap needs it, an `accessibilityIdentifier`. Names sort in the comment: keep the number.
+A view worth seeing gets a test in `AppScreenshots`: `show` it (`RootView` on a tab, or the view
+itself in a `NavigationStack` or a sheet), wait `until` its data is in the `Connection`,
+`settle()`, `screenshot(window, "NN-name")`. Names sort in the comment: keep the number.
 
 ## Triage
 
 | Symptom | Cause |
 | --- | --- |
-| "didn't pair with the preview server" | the server didn't start (`preview.log`), or the pairing failed: the app prints `Preview pairing failed:` in the test log |
+| "gave no pairing code" or a pairing error | the server didn't start (`preview.log`), or the pairing failed: the error is in the test log |
+| "Waited … for …" | the read never answered: the preview has no route for it, or it failed (`preview.log`) |
 | a tile empty or "unavailable" | the preview has no route for that call: see `previewRoutes` |
 | "No live bar" | the download (movie-added, grab, torrent snapshot) didn't become an activity |
-| a notification prompt in a shot | `allowNotifications()` missed Springboard's "Allow" button |

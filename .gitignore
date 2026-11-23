@@ -11,3 +11,4 @@ apps/ios/*.xcodeproj/
 apps/ios/build/
 apps/ios/DerivedData/
 xcuserdata/
+apps/ios/Tools/.build/

@@ -11,7 +11,7 @@ the PR what each one showed.
 
 | Scenario | Run it when the change touches | Proves | Run |
 | --- | --- | --- | --- |
-| [`ios/`](ios/README.md) | `apps/ios`, `packages/api/openapi.json`, `apps/cloud/test/fixtures`, `apps/cloud/test/preview.ts` | the generated Swift client fits the contract; the app builds, its tests pass, and its screens look right against a real Quai Cloud | `pnpm test`, then a push to `claude/**` (CI, ~10 min) |
+| [`ios/`](ios/README.md) | `apps/ios`, `packages/api/openapi.json`, `apps/cloud/test/fixtures`, `apps/cloud/test/preview.ts` | the generated Swift client fits the contract and is up to date; the app builds, its tests pass, and its screens look right against a real Quai Cloud | `pnpm test`, then a push to `claude/**` (CI, a few minutes) |
 | [`live-activity-pushes/`](live-activity-pushes/README.md) | `apps/cloud/src/flows/Activities.ts`, `Engine.ts`, `Targeting.ts`, `apps/cloud/src/push/Notifier.ts`, `apps/cloud/src/integrations/Hub.ts` | the iPhone ends on what the engine has, whatever order the two fibers send in | `.claude/skills/verify/live-activity-pushes/verify.sh` (seconds, Java) |
 
 CI runs both when their files change (`ci.yml`: jobs `ios` and `live-activity-pushes`) and posts

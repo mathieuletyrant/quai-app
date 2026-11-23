@@ -3,9 +3,8 @@ name: ci
 on:
   pull_request:
   # An agent's branch gets the iOS build and screenshots before any PR.
-  # main only builds the app: PRs restore its DerivedData (a PR's cache can't come from another branch).
   push:
-    branches: [main, "claude/**"]
+    branches: ["claude/**"]
   workflow_dispatch:
 
 jobs:
@@ -48,6 +47,7 @@ jobs:
       pull-requests: read
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
+      client: ${{ steps.filter.outputs.client }}
       pushes: ${{ steps.filter.outputs.pushes }}
       pr: ${{ steps.pr.outputs.open }}
     steps:
@@ -65,13 +65,20 @@ jobs:
           filters: |
             ios:
               - 'apps/ios/**'
-              # The app's client is generated from openapi.json, kept up to date by the contract test:
-              # the protocol to Quai Home and the console's own API don't reach it.
+              # The app's client (Quai/Generated) comes from openapi.json, kept up to date by the contract
+              # test: the protocol to Quai Home and the console's own API don't reach it.
               - 'packages/api/openapi.json'
               - 'apps/cloud/test/preview.ts'
               - 'apps/cloud/test/fixtures/**'
               - '.github/scripts/ios-screenshots.sh'
               - '.github/scripts/pr-comment.sh'
+              - '.github/workflows/ci.yml'
+            client:
+              - 'packages/api/openapi.json'
+              - 'apps/ios/Quai/openapi-generator-config.yaml'
+              - 'apps/ios/Quai/Generated/**'
+              - 'apps/ios/Tools/**'
+              - 'apps/ios/scripts/gen-client.sh'
               - '.github/workflows/ci.yml'
             pushes:
               - 'apps/cloud/src/flows/Activities.ts'
@@ -136,6 +143,26 @@ jobs:
           cat model.md >> "$GITHUB_STEP_SUMMARY"
           .github/scripts/pr-comment.sh "<!-- quai-live-activity-pushes -->" model.md ${{ github.event.pull_request.number }}
 
+  # The app's client is committed (Quai/Generated): it must be what the generator makes of openapi.json.
+  ios-client:
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.client == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: apps/ios/Tools/.build
+          key: swift-openapi-generator-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
+      - run: apps/ios/scripts/gen-client.sh
+      - name: Compare with the committed client
+        run: |
+          git add -N apps/ios/Quai/Generated
+          if ! git diff --exit-code --stat apps/ios/Quai/Generated; then
+            echo "::error::apps/ios/Quai/Generated is out of date: run apps/ios/scripts/gen-client.sh and commit it."
+            exit 1
+          fi
+
   # macOS minutes are billed: only when the app, the contract or the preview changes.
   ios:
     needs: changes
@@ -151,14 +178,21 @@ jobs:
       contents: write
       pull-requests: write
     env:
-      # On main the job only warms the cache.
-      TESTS: ${{ github.ref != 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
-      # No index, no coverage, one architecture (the runners are Apple silicon): nothing the CI reads.
+      # No coverage, no index, one architecture (the runners are Apple silicon): nothing the CI reads.
       XCODE_FLAGS: >-
-        -project Quai.xcodeproj -scheme "Quai CI" -configuration Debug -derivedDataPath build
+        -project Quai.xcodeproj -scheme Quai -configuration Debug -derivedDataPath build
         -skipPackagePluginValidation -enableCodeCoverage NO
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Started now, ready by the tests: the screenshots are of the app paired to it.
+      - name: Start the preview server
+        run: pnpm --filter @quai/cloud preview > preview.log 2>&1 &
       - run: brew install xcodegen && (command -v xcbeautify || brew install xcbeautify)
       - working-directory: apps/ios
         run: xcodegen generate
@@ -179,26 +213,12 @@ jobs:
             udid=$(xcrun simctl create "Quai CI" "$type" "$runtime")
           fi
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
-          echo "xcode=$(xcodebuild -version | tr '\n' ' ' | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
-      # A cold simulator takes minutes before the first test: boot it while the app builds.
+      # A cold simulator takes minutes before the first test: it boots while the app builds.
       - name: Boot the simulator
-        if: env.TESTS == 'true'
         run: xcrun simctl boot ${{ steps.simulator.outputs.udid }} > simulator-boot.log 2>&1 &
-      # The packages' checkouts and builds: a run then only compiles what changed.
-      - name: Restore DerivedData
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            apps/ios/build
-            !apps/ios/build/Logs
-          key: ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-${{ github.sha }}
-          restore-keys: |
-            ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-
-            ios-dd-${{ steps.simulator.outputs.xcode }}-
       # The compile errors first, as annotations on the files. A generic destination: a specific
       # simulator makes xcodebuild wait for it to boot before it builds anything.
       - name: Build
-        id: build
         working-directory: apps/ios
         run: >
           set -o pipefail &&
@@ -206,54 +226,25 @@ jobs:
           -destination "'generic/platform=iOS Simulator'" ARCHS=arm64
           CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
           | xcbeautify --renderer github-actions
-      - name: Save DerivedData
-        if: always() && steps.build.outcome == 'success'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            apps/ios/build
-            !apps/ios/build/Logs
-          key: ios-dd-${{ steps.simulator.outputs.xcode }}-${{ hashFiles('apps/ios/project.yml') }}-${{ github.sha }}
-      - name: Wait for the simulator
-        if: env.TESTS == 'true'
-        run: xcrun simctl bootstatus ${{ steps.simulator.outputs.udid }} -b
-      - name: Unit tests
-        if: env.TESTS == 'true'
-        working-directory: apps/ios
-        run: >
-          set -o pipefail &&
-          eval xcodebuild test-without-building $XCODE_FLAGS -only-testing:QuaiTests
-          -destination 'id=${{ steps.simulator.outputs.udid }}'
-          | xcbeautify --renderer github-actions
-      - uses: pnpm/action-setup@v4
-        if: env.TESTS == 'true'
-      - uses: actions/setup-node@v4
-        if: env.TESTS == 'true'
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - if: env.TESTS == 'true'
-        run: pnpm install --frozen-lockfile
-      - name: Start the preview server
-        if: env.TESTS == 'true'
+      - name: Wait for the simulator and the preview server
         run: |
-          pnpm --filter @quai/cloud preview > preview.log 2>&1 &
+          xcrun simctl bootstatus ${{ steps.simulator.outputs.udid }} -b
           for i in $(seq 60); do curl -sf http://127.0.0.1:8787/api/health > /dev/null && exit 0; sleep 1; done
           cat preview.log; exit 1
-      - name: Screenshots
-        if: env.TESTS == 'true'
+      # The unit tests and, with the preview server, the screenshots (QuaiTests/AppScreenshots.swift).
+      - name: Tests and screenshots
         working-directory: apps/ios
         env:
           TEST_RUNNER_QUAI_PREVIEW_URL: http://127.0.0.1:8787
           TEST_RUNNER_QUAI_SCREENSHOTS_DIR: ${{ github.workspace }}/screenshots
         run: >
           set -o pipefail &&
-          eval xcodebuild test-without-building $XCODE_FLAGS -only-testing:QuaiUITests
-          -destination 'id=${{ steps.simulator.outputs.udid }}'
-          -resultBundlePath ../../screenshots.xcresult
+          eval xcodebuild test-without-building $XCODE_FLAGS
+          -destination "'id=${{ steps.simulator.outputs.udid }}'"
+          -resultBundlePath ../../tests.xcresult
           | xcbeautify --renderer github-actions
       - uses: actions/upload-artifact@v4
-        if: always() && env.TESTS == 'true'
+        if: always()
         with:
           name: ios-screenshots
           path: |
@@ -262,7 +253,7 @@ jobs:
           if-no-files-found: ignore
       # A fork's PR has a read-only token: its screenshots stay in the artifact.
       - name: Post the screenshots
-        if: always() && env.TESTS == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
