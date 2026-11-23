@@ -11,7 +11,7 @@ import type { SonarrSeries } from "./sonarr.ts"
  * `candidates:manage` (which grants `candidates:read`), and `system:read` for its health check.
  *
  * No events and no Live Activity action: it feeds the To fix list, read when the list is asked for,
- * and the Planned deletion alert (`deletions.ts`), which reads the candidates every 30 minutes.
+ * and the Planned deletion alert (`deletions.ts`), which reads the candidates every minute.
  */
 
 /** The cleanup candidates, newest first. 200 is the API's largest page. */
