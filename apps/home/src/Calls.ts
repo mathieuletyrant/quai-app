@@ -135,8 +135,12 @@ export class Calls extends Context.Service<Calls, {
         run: (call) => {
           const rule = HomeProtocol.allowRule(call)
           if (rule === undefined) return refuse(call, "outside its allowlist")
-          if (!auth.configured.includes(call.service)) return failed(call.id, `${call.service} is not configured`)
-          return rule.against === undefined ? send(call, rule) : checked(call, rule.against)
+          return Effect.flatMap(auth.configured, (configured) =>
+            !configured.includes(call.service)
+              ? failed(call.id, `${call.service} is not configured`)
+              : rule.against === undefined
+              ? send(call, rule)
+              : checked(call, rule.against))
         }
       }
     })

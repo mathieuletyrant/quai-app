@@ -76,7 +76,7 @@ Today both parts run on your own server. A hosted Cloud, so you only run Home, i
 ## 🚀 Install
 
 ☂️ **Umbrel**: install **Quai** from [Mathieu's Umbrel App Store](https://github.com/mathieuletyrant/umbrel-community-app-store),
-paste your API keys in its settings, open it and scan the QR code with the iPhone.
+open it, set the services' addresses and keys in its **Services** page, and scan the QR code with the iPhone.
 
 🐳 **Docker**: run both images side by side.
 
@@ -92,17 +92,18 @@ services:
     volumes: ["./keys:/keys:ro"]
   home:
     image: ghcr.io/mathieuletyrant/quai-home:latest
+    ports: ["8788:8788"]
     environment:
       QUAI_CLOUD_URL: ws://cloud:8787/home
+      QUAI_CLOUD_APP_URL: http://<server>:8787
+      QUAI_HOME_PASSWORD: change-me
       QUAI_INTERNAL_URL: http://home:8788
-      QUAI_RADARR_URL: http://radarr:7878
-      QUAI_RADARR_API_KEY: ...
-      QUAI_SONARR_URL: http://sonarr:8989
-      QUAI_SONARR_API_KEY: ...
     volumes: ["./data:/data"]
 ```
 
-Then open `http://<server>:8787`, choose **Pair an iPhone** and scan the code.
+Then open the console at `http://<server>:8788`, sign in with `QUAI_HOME_PASSWORD`, set the
+services' addresses and keys in **Services** (they stay in Quai Home's `/data`, never sent to Quai
+Cloud), then choose **Pair an iPhone** and scan the code.
 
 Live Activities need an Apple push key, and Apple only accepts pushes signed with the key of the
 app's own developer account. Until the hosted Cloud exists, self-hosting means building the app with
@@ -115,10 +116,13 @@ your own account.
 
 | Env | |
 |---|---|
-| `QUAI_CLOUD_URL` | The Cloud's WebSocket, e.g. `ws://cloud:8787/home` |
+| `QUAI_CLOUD_URL` | The Cloud's WebSocket, e.g. `ws://cloud:8787/home`. Without it Quai Home runs alone, and its console says what to set |
+| `QUAI_CLOUD_APP_URL` | Where the iPhone reaches Quai Cloud at home, for the pairing QR code, when `QUAI_CLOUD_URL` is an address only Home reaches (`http://server:8787`). Default: `QUAI_CLOUD_URL` in http(s) |
+| `QUAI_HOME_PASSWORD` | The console's password. Without it the console stays locked |
+| `QUAI_HOME_PORT` | The console, the webhooks and `/health` (default `8788`) |
 | `QUAI_INTERNAL_URL` | How Radarr and Sonarr reach Home, for the webhooks it sets up |
 | `QUAI_DATA_DIR` | Where Home keeps its data (default `./data`, `/data` in the image) |
-| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (Settings → General) |
+| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (Settings → General). Each service can be set in the console's Services page instead; a variable set here wins |
 | `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | Sonarr (Settings → General) |
 | `QUAI_RADARR_WEB_URL`, `QUAI_RADARR_PUBLIC_URL` | Optional: where an iPhone opens Radarr, at home and from outside. The app's Library links each movie to its page, at the one that matches where the iPhone reaches Quai |
 | `QUAI_SONARR_WEB_URL`, `QUAI_SONARR_PUBLIC_URL` | The same for Sonarr and the series |
@@ -129,13 +133,13 @@ your own account.
 | `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations) |
 | `QUAI_CLEANUPARR_URL`, `QUAI_CLEANUPARR_API_KEY` | Cleanuparr (Settings → Account); on Umbrel `http://mathieu-cleanuparr_server_1:11011` |
 
-A service without its URL and key is skipped.
+A service set neither here nor in the console's Services page is skipped.
 
 **Quai Cloud**
 
 | Env | Default | |
 |---|---|---|
-| `QUAI_PORT` | `8787` | API, console and the `/home` WebSocket |
+| `QUAI_PORT` | `8787` | The app's API and the `/home` WebSocket (the console is Quai Home's) |
 | `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | | Apple push key (.p8) |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The app's bundle id |
 | `QUAI_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
@@ -150,7 +154,8 @@ A service without its URL and key is skipped.
 ```sh
 pnpm install
 pnpm dev:cloud     # Quai Cloud on :8787
-pnpm dev:console   # console on :5173
+QUAI_CLOUD_URL=ws://localhost:8787/home QUAI_HOME_PASSWORD=dev pnpm dev:home   # Quai Home on :8788
+pnpm dev:console   # console on :5173, through Quai Home
 pnpm check && pnpm test
 ```
 
@@ -159,7 +164,7 @@ pnpm check && pnpm test
 | `packages/api` | The contract (Effect `HttpApi` + `Schema`), exported as `openapi.json` |
 | `apps/home` | Quai Home |
 | `apps/cloud` | Quai Cloud (Effect on Node) |
-| `apps/console` | Web console (React, Vite) |
+| `apps/console` | Web console (React, Vite), served by Quai Home |
 | `apps/ios` | iPhone app and Live Activities (SwiftUI, XcodeGen) |
 
 iOS: `cd apps/ios && xcodegen generate && open Quai.xcodeproj`.

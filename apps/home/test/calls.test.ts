@@ -12,7 +12,7 @@ import { fakeHttp, type Seen } from "./fakeHttp.ts"
 type Route = Parameters<typeof fakeHttp>[0]
 
 const callsWith = (route: Route, seen: Array<Seen>, config = configLayer()) =>
-  Calls.layer.pipe(Layer.provide(ServiceAuth.layer), Layer.provideMerge(journalLayer), Layer.provide([config, fakeHttp(route, seen)]))
+  Calls.layer.pipe(Layer.provide(ServiceAuth.fromConfig), Layer.provideMerge(journalLayer), Layer.provide([config, fakeHttp(route, seen)]))
 
 const request = (fields: Omit<HomeProtocol.Call, "_tag" | "id">): HomeProtocol.Call => ({
   _tag: "Call",
@@ -157,7 +157,7 @@ describe("To fix calls", () => {
       yield* TestClock.adjust("1 second")
       expect(yield* Fiber.join(search)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
     }).pipe(Effect.provide(Calls.layer.pipe(
-      Layer.provide(ServiceAuth.layer),
+      Layer.provide(ServiceAuth.fromConfig),
       Layer.provide([configLayer(), journalLayer, Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
     ))))
 
@@ -334,7 +334,7 @@ describe("call timeout", () => {
       yield* TestClock.adjust("10 seconds")
       expect(yield* Fiber.join(fiber)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
     }).pipe(Effect.provide(Calls.layer.pipe(
-      Layer.provide(ServiceAuth.layer),
+      Layer.provide(ServiceAuth.fromConfig),
       Layer.provide([configLayer(), journalLayer, Layer.succeed(HttpClient.HttpClient, HttpClient.make(() => Effect.never))])
     ))))
 })

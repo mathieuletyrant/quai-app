@@ -7,9 +7,9 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 | Path | Role |
 | --- | --- |
 | `packages/api` | The contract: Effect `HttpApi` + `Schema`. Single source of truth for routes and types. Generates `openapi.json`. |
-| `apps/home` | Quai Home: runs next to the services with their keys, links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents. |
-| `apps/cloud` | Quai Cloud, Effect on Node: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, serves the console. Keeps nothing: the home's data lives in Quai Home. |
-| `apps/console` | React + Vite web console, with a typed client derived from `packages/api`. |
+| `apps/home` | Quai Home: runs next to the services with their keys (environment, or the console's Services page in `/data`), links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents, serves the console behind `QUAI_HOME_PASSWORD` and relays its `/console-api` requests to the Cloud. |
+| `apps/cloud` | Quai Cloud, Effect on Node: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, answers the console's routes Quai Home relays (never on its public port). No interface, keeps nothing: the home's data lives in Quai Home. |
+| `apps/console` | React + Vite web console, served by Quai Home, with typed clients derived from `packages/api` (`QuaiApi` relayed to the Cloud, `HomeConsoleApi` Quai Home's own). |
 | `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json`. |
 | `Dockerfile` | The two server deliverables, one build: `--target home` and `--target cloud` (default). |
 
@@ -17,6 +17,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 
 - Quai ships **two generic Docker images**, `quai-home` and `quai` (the Cloud). No code, type or route may assume Umbrel or any other host.
 - Quai Cloud stores nothing about a home: no database, nothing on disk. A home's data lives in Quai Home, behind the home store.
+- The services' keys never reach the Cloud, not even through a page it serves: they are set in Quai Home's console (`ServiceSettings`) or its environment ([ADR 1](docs/adr/0001-console-served-by-quai-home.md)).
 - The contract (`packages/api`) only talks about Quai: *arr services, activities, devices. Never the host.
 - All configuration comes from `QUAI_*` environment variables and the `/data` volume.
 - The Umbrel packaging lives in `mathieuletyrant/umbrel-community-app-store` (`mathieu-quai`), not here.
@@ -53,8 +54,9 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 `apps/console/src` (React 19, Tailwind v4). A page reads as a short list of sections; the look lives in `ui/`.
 
-- **The app to live with Quai, the console to set it up.** The console only has setup pages (Settings, Flows, Alerts, iPhones) and the Journal, to see what Quai did. What's used day to day (requests, fixes, today's releases, the library) lives in the iOS app only: no console page, no `/console-api` route for it.
-- `ui/` is the single source of the look, one file per job (buttons, layout, feedback, forms, menus, nav, log, status, table, icons), re-exported by `ui/index.ts`: import `from "../ui"`. A page that needs a new look adds or extends a `ui/` component; delete what nothing imports.
+- **Served by Quai Home** ([ADR 1](docs/adr/0001-console-served-by-quai-home.md)). `callHome` reaches Quai Home's own routes (`/home-api`: sign-in, the home, the services); `call` reaches the Cloud's (`/console-api`, `/api/health`), which Quai Home relays over the link. A new Cloud route needs nothing in Quai Home; a Cloud route that must never be relayed stays out of `HomeProtocol.isConsolePath`.
+- **The app to live with Quai, the console to set it up.** The console only has setup pages (Settings, Services, Flows, Alerts, iPhones) and the Journal, to see what Quai did. What's used day to day (requests, fixes, today's releases, the library) lives in the iOS app only: no console page, no `/console-api` route for it.
+- `ui/` is the single source of the look, one file per job (buttons, layout, feedback, forms, menus, nav, log, status, table, checklist, icons), re-exported by `ui/index.ts`: import `from "../ui"`. A page that needs a new look adds or extends a `ui/` component; delete what nothing imports.
 - Loading, offline, failed and ready go through one primitive: read with `useLoad` (`load.ts`), show with `<Async state loading offline failed>{(data) => …}</Async>`, report with `<ErrorCallout unlessOffline>`. Data-specific states (empty, not configured) are early returns in the component that gets the data. No ternary chains for states.
 - Rows and items are named components with explicit props (`DeviceName`, `StepNode`).
 - Theme tokens only: colours, the type scale (`text-caption`, `text-body`, `text-subhead`…), tracking, radii and shadows are `@theme` tokens in `styles.css`. No arbitrary `[#hex]`, `text-[Npx]` or `rounded-[Npx]`; add a token instead. Arbitrary values are kept for one-off layout calcs (`grid-cols-[minmax(0,1fr)_300px]`, `h-[calc(100vh-4rem)]`). In JS styles use `var(--color-…)`; hex only for data (a flow's colour) or a library that takes hex.
@@ -81,7 +83,8 @@ pnpm check        # tsc in every package
 pnpm test         # vitest in every package
 pnpm gen:openapi  # regenerate packages/api/openapi.json
 pnpm dev:cloud    # Quai Cloud on :8787
-pnpm dev:console  # console on :5173 (proxies /api to :8787)
+pnpm dev:home     # Quai Home on :8788 (QUAI_CLOUD_URL=ws://localhost:8787/home QUAI_HOME_PASSWORD=…)
+pnpm dev:console  # console on :5173 (proxies /api, /console-api and /home-api to Quai Home on :8788)
 ```
 
 iOS (macOS): `cd apps/ios && xcodegen generate && open Quai.xcodeproj`.

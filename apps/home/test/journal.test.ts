@@ -141,7 +141,7 @@ describe("home journal lines", () => {
         let up = false
         const http = fakeHttp(() => up ? { json: {} } : { unreachable: true as const }, [])
         const layer = Calls.layer.pipe(
-          Layer.provide(ServiceAuth.layer),
+          Layer.provide(ServiceAuth.fromConfig),
           Layer.provideMerge(Layer.effect(Journal, Journal.make(join(dir, "journal")))),
           Layer.provide([configLayer(), http])
         )

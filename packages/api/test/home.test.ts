@@ -190,3 +190,15 @@ describe("allowlist: Cleanuparr", () => {
     for (const id of ["12345", "radarr", hash.slice(1), `${hash}0`, "SABnzbd_nzo_", 42]) expect(HomeProtocol.isDownloadId(id)).toBe(false)
   })
 })
+
+describe("console relay", () => {
+  it("relays the console's routes and the Cloud's health, nothing else", () => {
+    expect(HomeProtocol.isConsolePath("/console-api/devices")).toBe(true)
+    expect(HomeProtocol.isConsolePath("/console-api/journal?limit=5")).toBe(true)
+    expect(HomeProtocol.isConsolePath("/api/health")).toBe(true)
+    expect(HomeProtocol.isConsolePath("/api/activities")).toBe(false)
+    expect(HomeProtocol.isConsolePath("/console-api")).toBe(false)
+    expect(HomeProtocol.isConsolePath("/console-api/../api/activities")).toBe(false)
+    expect(HomeProtocol.isConsolePath("/home")).toBe(false)
+  })
+})

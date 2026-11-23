@@ -19,3 +19,8 @@ export class StoreError extends Data.TaggedError("StoreError")<{
   readonly message: string
   readonly cause?: unknown
 }> {}
+
+/** The console's request can't reach Quai Cloud: no `QUAI_CLOUD_URL`, not linked, or no answer in time. */
+export class CloudUnreachable extends Data.TaggedError("CloudUnreachable")<{
+  readonly message: string
+}> {}

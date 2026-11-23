@@ -1,6 +1,6 @@
 import { HomeProtocol, journalId } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Layer, Option, Queue } from "effect"
+import { Effect, Fiber, Layer, Option, Queue } from "effect"
 import { Socket } from "effect/socket"
 import { TestClock } from "effect/testing"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
@@ -9,7 +9,9 @@ import { Calls } from "../src/Calls.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { Journal } from "../src/Journal.ts"
+import { CloudSeen } from "../src/CloudSeen.ts"
 import { Link } from "../src/Link.ts"
+import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
 import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
 
@@ -58,8 +60,14 @@ const home = Layer.effect(HomeKey, Effect.flatMap(tempDir, (dir) => HomeKey.make
   Layer.merge(journalLayer)
 )
 
+/** What the Services page saves and the Cloud last linked to, in a temporary directory. */
+const saved = Layer.mergeAll(
+  Layer.effect(ServiceSettings, Effect.flatMap(tempDir, (dir) => ServiceSettings.make(join(dir, "services.json")))),
+  Layer.effect(CloudSeen, Effect.flatMap(tempDir, (dir) => CloudSeen.make(join(dir, "cloud.json"), "ws://cloud/home")))
+).pipe(Layer.provide([configLayer({ sonarr: null }), NodeFileSystem.layer]))
+
 const withLink = <A, E>(
-  test: (fake: Effect.Success<typeof fakeSocket>) => Effect.Effect<A, E, Link | HomeKey | Journal>
+  test: (fake: Effect.Success<typeof fakeSocket>) => Effect.Effect<A, E, Link | HomeKey | Journal | ServiceSettings>
 ) =>
   Effect.gen(function*() {
     const fake = yield* fakeSocket
@@ -70,7 +78,8 @@ const withLink = <A, E>(
           Watches.layer.pipe(Layer.provideMerge(echoCalls)),
           Layer.succeed(Socket.Socket, fake.socket)
         ]),
-        Layer.provideMerge(home)
+        Layer.provideMerge(home),
+        Layer.provideMerge(saved)
       ))
     )
   })
@@ -269,5 +278,47 @@ describe("link", () => {
         expect(yield* nothingSent(second)).toBe(true)
         yield* cloud(second, watches)
         expect(yield* Queue.take(second.sent)).toEqual(snapshot)
+      })))
+
+  it.effect("relays a console request to the Cloud and its answer back", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const connection = yield* linked(connections)
+        const answer = yield* Effect.forkChild(link.console({ method: "GET", path: "/console-api/devices" }))
+        yield* settle
+        const request = yield* Queue.take(connection.sent)
+        expect(request).toEqual({ _tag: "ConsoleRequest", id: request.id, method: "GET", path: "/console-api/devices" })
+        yield* cloud(connection, { _tag: "ConsoleResponse", id: request.id, status: 200, body: "[]" })
+        expect(yield* Fiber.join(answer)).toEqual({ status: 200, body: "[]" })
+      })))
+
+  it.effect("a console request fails while the Cloud hasn't welcomed this home, and when the link drops", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const connection = yield* Queue.take(connections)
+        yield* settle
+        expect((yield* Effect.flip(link.console({ method: "GET", path: "/api/health" })))._tag).toBe("CloudUnreachable")
+        yield* Queue.take(connection.sent)
+        yield* cloud(connection, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
+        yield* settle
+        const answer = yield* Effect.forkChild(link.console({ method: "GET", path: "/api/health" }))
+        yield* settle
+        yield* Queue.offer(connection.incoming, close)
+        expect((yield* Effect.flip(Fiber.join(answer)))._tag).toBe("CloudUnreachable")
+      })))
+
+  it.effect("tells the Cloud which services it reaches when one is set from the console", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const connection = yield* linked(connections)
+        const settings = yield* ServiceSettings
+        yield* settings.save("sonarr", { url: "http://sonarr:8989", secret: "k" })
+        yield* settle
+        expect(yield* Queue.take(connection.sent)).toEqual({
+          _tag: "ServicesChanged",
+          services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"]
+        })
       })))
 })

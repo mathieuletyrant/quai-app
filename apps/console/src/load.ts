@@ -1,5 +1,5 @@
 import { type DependencyList, useCallback, useEffect, useRef, useState } from "react"
-import { isHomeOffline } from "./client.ts"
+import { isCloudOffline } from "./client.ts"
 
 /**
  * What a page read: the last data it got (null until the first answer) and why the last read
@@ -22,7 +22,7 @@ export const viewOf = <A>({ data, error }: Loaded<A>): View<A> =>
     ? { _tag: "Ready", data }
     : error === null
     ? { _tag: "Loading" }
-    : isHomeOffline(error)
+    : isCloudOffline(error)
     ? { _tag: "Offline" }
     : { _tag: "Failed", error }
 

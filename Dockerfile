@@ -1,6 +1,6 @@
 # Two generic images from one build, no host assumed:
-#   --target home   Quai Home: next to the services, keeps the home's data in /data
-#   --target cloud  Quai Cloud + the console: keeps nothing on disk (the default target)
+#   --target home   Quai Home + the console: next to the services, keeps the home's data in /data
+#   --target cloud  Quai Cloud: keeps nothing on disk (the default target)
 # The build stage runs on the builder's own platform: its output is plain JavaScript, so only the
 # small final stage is made per architecture, without emulating the whole build.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS build
@@ -26,8 +26,10 @@ ARG QUAI_VERSION=dev
 ENV NODE_ENV=production \
     QUAI_VERSION=$QUAI_VERSION \
     QUAI_HOME_PORT=8788 \
-    QUAI_DATA_DIR=/data
+    QUAI_DATA_DIR=/data \
+    QUAI_CONSOLE_DIR=/app/console
 COPY --from=build /repo/apps/home/dist/main.js ./main.js
+COPY --from=build /repo/apps/console/dist ./console
 RUN mkdir -p /data && chown node:node /data
 VOLUME /data
 EXPOSE 8788
@@ -40,10 +42,8 @@ WORKDIR /app
 ARG QUAI_VERSION=dev
 ENV NODE_ENV=production \
     QUAI_VERSION=$QUAI_VERSION \
-    QUAI_PORT=8787 \
-    QUAI_CONSOLE_DIR=/app/console
+    QUAI_PORT=8787
 COPY --from=build /repo/apps/cloud/dist/main.js ./main.js
-COPY --from=build /repo/apps/console/dist ./console
 EXPOSE 8787
 HEALTHCHECK CMD wget -qO- http://localhost:8787/api/health || exit 1
 USER node

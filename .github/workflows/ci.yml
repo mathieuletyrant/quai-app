@@ -64,7 +64,9 @@ jobs:
           filters: |
             ios:
               - 'apps/ios/**'
-              - 'packages/api/**'
+              # The app's client is generated from openapi.json, kept up to date by the contract test:
+              # the protocol to Quai Home and the console's own API don't reach it.
+              - 'packages/api/openapi.json'
               - 'apps/cloud/test/preview.ts'
               - 'apps/cloud/test/fixtures/**'
               - '.github/scripts/ios-screenshots.sh'

@@ -1,10 +1,11 @@
-import type { DeviceId } from "@quai/api"
+import type { DeviceId, HomeOverview } from "@quai/api"
 import { DateTime } from "effect"
 import QRCode from "qrcode"
 import { type ReactNode, useEffect, useState } from "react"
-import { call, isHomeOffline, useHome } from "../client.ts"
+import { call, isCloudOffline, useLink } from "../client.ts"
 import { duration } from "../format.ts"
 import { useLoad } from "../load.ts"
+import { CloudChanged, loadOverview } from "./setup.tsx"
 import {
   Async,
   Badge,
@@ -13,7 +14,7 @@ import {
   DataTable,
   EmptyState,
   ErrorCallout,
-  HomeOfflineState,
+  CloudOfflineState,
   Icon,
   IconButton,
   Mono,
@@ -50,6 +51,9 @@ const lastSeen = (date: DateTime.Utc | undefined) => {
   return minutes < 1 ? "Just now" : `${duration(minutes)} ago`
 }
 
+/** The Cloud's address from Quai Home, for the QR code: Quai Cloud adds its public one. */
+const cloudUrlsOf = (overview: HomeOverview | null) => overview?.cloud.url === undefined ? [] : [overview.cloud.url]
+
 /** "4:05": seconds as minutes and seconds. */
 const countdown = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
 
@@ -59,8 +63,11 @@ const subtitle = (devices: ReadonlyArray<Device> | null, offline: boolean) => {
   return `${devices.length} paired · ${devices.filter((d) => d.canStartActivities).length} allow Live Activities`
 }
 
-/** Creates a pairing code and shows it as a QR code until it's used or expires. */
-function usePairing(onPaired: () => void) {
+/**
+ * Creates a pairing code and shows it as a QR code until it's used or expires. `cloudUrls`: where
+ * the app reaches Quai Cloud, as Quai Home links to it (the console itself is Quai Home's).
+ */
+function usePairing(onPaired: () => void, cloudUrls: ReadonlyArray<string>) {
   const [pairing, setPairing] = useState<Pairing | null>(null)
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState<unknown>(null)
@@ -70,7 +77,7 @@ function usePairing(onPaired: () => void) {
     setError(null)
     setStarting(true)
     try {
-      const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: [window.location.origin] } }))
+      const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: cloudUrls } }))
       const qrSvg = await QRCode.toString(result.link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: qrColors })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
       setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link: result.link, accessHeaderNames: result.accessHeaderNames })
@@ -207,9 +214,10 @@ function DeviceTable({ devices, onRemove, emptyAction }: { devices: ReadonlyArra
 }
 
 export function IphonesPage() {
-  const { epoch } = useHome()
+  const { epoch } = useLink()
   const devices = useLoad(() => call((c) => c.console.devices()), [epoch])
-  const { pairing, left, error: pairingError, starting, start, stop } = usePairing(devices.refresh)
+  const overview = useLoad(loadOverview, [epoch])
+  const { pairing, left, error: pairingError, starting, start, stop } = usePairing(devices.refresh, cloudUrlsOf(overview.data))
 
   const remove = async (device: Device) => {
     if (!window.confirm(`Remove ${device.name}? It stops receiving Live Activities until paired again.`)) return
@@ -222,7 +230,7 @@ export function IphonesPage() {
   }
 
   const errors = [devices.error, pairingError]
-  const offline = errors.some(isHomeOffline)
+  const offline = errors.some(isCloudOffline)
   const count = devices.data?.length ?? 0
   const pairButton = <Button icon="qr" disabled={starting || offline} onClick={start}>{starting ? "Creating a code…" : "Pair an iPhone"}</Button>
   const table = (rows: ReadonlyArray<Device> | null) => <DeviceTable devices={rows} onRemove={remove} emptyAction={!pairing && pairButton} />
@@ -234,15 +242,16 @@ export function IphonesPage() {
       </PageBar>
 
       <PageBody>
-        <ErrorCallout unlessOffline error={errors.find((e) => e !== null && !isHomeOffline(e)) ?? null} title="Something went wrong" />
+        <ErrorCallout unlessOffline error={errors.find((e) => e !== null && !isCloudOffline(e)) ?? null} title="Something went wrong" />
+        {overview.data && <CloudChanged cloud={overview.data.cloud} onDone={overview.refresh} />}
         {pairing && <PairingPanel pairing={pairing} left={left} onNew={start} onDone={stop} />}
 
         <Panel flush title="Paired iPhones" description="Each one receives every enabled flow, unless it turns a flow off in the app.">
           <div className="border-t border-line">
             <Async
-              state={{ data: devices.data, error: errors.find(isHomeOffline) ?? devices.error }}
+              state={{ data: devices.data, error: errors.find(isCloudOffline) ?? devices.error }}
               loading={table(null)}
-              offline={<HomeOfflineState what="Paired iPhones" />}
+              offline={<CloudOfflineState what="Paired iPhones" />}
             >
               {table}
             </Async>

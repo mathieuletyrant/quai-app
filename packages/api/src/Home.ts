@@ -12,7 +12,7 @@ import { JournalEntry, JournalQuery } from "./Journal.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 6
+export const protocolVersion = 7
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -23,7 +23,9 @@ export const protocolVersion = 6
  * the Home checks against what the service holds (`AllowRule.against`); an older Home doesn't list
  * Cleanuparr, so nothing asks it for them. Protocol 6 added Prowlarr and the *arr health checks
  * (`/api/v3/health`), for the alerts: an older Home refuses the health watch, so that alert stays
- * quiet, and doesn't list Prowlarr.
+ * quiet, and doesn't list Prowlarr. Protocol 7 added the console relay (`ConsoleRequest`, answered
+ * `ConsoleResponse`) and `ServicesChanged`: the console is served by Quai Home, and an older Home
+ * sends neither, so its console is the one the Cloud no longer serves.
  */
 export const minProtocolVersion = 1
 
@@ -32,6 +34,9 @@ export const journalProtocolVersion = 4
 
 /** The first protocol whose Home allows the *arr health checks and Prowlarr. */
 export const arrHealthProtocolVersion = 6
+
+/** The first protocol whose Home serves the console and relays its requests. */
+export const consoleProtocolVersion = 7
 
 /** The services a Home can reach. */
 export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"])
@@ -125,6 +130,25 @@ export const JournalNoted = Schema.TaggedStruct("JournalNoted", {
   entries: Schema.Array(JournalEntry)
 })
 
+/**
+ * A request of the console, which Quai Home serves: the Cloud answers it with `ConsoleResponse`, as
+ * its own `/console-api` route would. Only `isConsolePath` paths: the Cloud refuses any other.
+ */
+export const ConsoleRequest = Schema.TaggedStruct("ConsoleRequest", {
+  id: Schema.String,
+  method: Schema.Literals(["GET", "POST", "PUT", "DELETE"]),
+  /** Path and query: `/console-api/journal?limit=50`. */
+  path: Schema.String,
+  /** JSON, as the console sent it. */
+  body: Schema.optionalKey(Schema.String)
+})
+export type ConsoleRequest = typeof ConsoleRequest.Type
+
+/** The services Quai Home reaches changed (set or removed from the console's Services page). */
+export const ServicesChanged = Schema.TaggedStruct("ServicesChanged", {
+  services: Schema.Array(HomeService)
+})
+
 export const HomeMessage = Schema.Union([
   Hello,
   Proof,
@@ -136,7 +160,9 @@ export const HomeMessage = Schema.Union([
   StoreDone,
   Pong,
   JournalPage,
-  JournalNoted
+  JournalNoted,
+  ConsoleRequest,
+  ServicesChanged
 ])
 export type HomeMessage = typeof HomeMessage.Type
 
@@ -233,6 +259,20 @@ export const Ping = Schema.TaggedStruct("Ping", {
   at: Schema.Number
 })
 
+/** The answer to a `ConsoleRequest`: the status and JSON body the route answered. */
+export const ConsoleResponse = Schema.TaggedStruct("ConsoleResponse", {
+  id: Schema.String,
+  status: Schema.Number,
+  body: Schema.String
+})
+export type ConsoleResponse = typeof ConsoleResponse.Type
+
+/** What the console asks the Cloud for, through Quai Home: its `/console-api` routes and its health. */
+export const isConsolePath = (path: string) => {
+  const route = path.split("?")[0]!
+  return !route.includes("..") && (route.startsWith("/console-api/") || route === "/api/health")
+}
+
 export const CloudMessage = Schema.Union([
   Challenge,
   Welcome,
@@ -244,7 +284,8 @@ export const CloudMessage = Schema.Union([
   StoreDelete,
   JournalAppend,
   JournalRead,
-  Ping
+  Ping,
+  ConsoleResponse
 ])
 export type CloudMessage = typeof CloudMessage.Type
 

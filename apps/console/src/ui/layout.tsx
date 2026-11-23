@@ -124,3 +124,15 @@ export function InspectorSection({ title, actions, children }: { title: ReactNod
     </section>
   )
 }
+
+/** A page with nothing but one card in the middle: the sign-in, and the locked console. */
+export function CenteredCard({ title, children }: { title: ReactNode; children: ReactNode }) {
+  return (
+    <main className="grid min-h-screen place-items-center px-4 py-10">
+      <section className="flex w-full max-w-sm flex-col gap-5 rounded-panel border border-line bg-panel p-6 shadow-sm">
+        <h1 className="text-heading font-semibold tracking-heading">{title}</h1>
+        {children}
+      </section>
+    </main>
+  )
+}

@@ -9,6 +9,9 @@ const key = Redacted.make("masked")
 /** Every service configured, with fake hosts. */
 export const testConfig = {
   cloudUrl: "ws://cloud/home",
+  cloudAppUrl: null,
+  password: null,
+  consoleDir: null,
   port: 8788,
   dataDir: "/nonexistent",
   internalUrl: "http://quai-home:8788",
@@ -20,6 +23,7 @@ export const testConfig = {
   seerr: { url: "http://seerr:5055", apiKey: key },
   cleanuparr: { url: "http://cleanuparr:11011", apiKey: key },
   prowlarr: { url: "http://prowlarr:9696", apiKey: key },
+  suggestedUrls: {},
   webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"] }
 } satisfies HomeConfig["Service"]
 

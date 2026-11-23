@@ -1,6 +1,6 @@
 import { type JournalEntry, type JournalPage as Page, type JournalSource, journalSources } from "@quai/api"
 import { useEffect, useRef, useState } from "react"
-import { call, useHome } from "../../client.ts"
+import { call, useLink } from "../../client.ts"
 import { useLoad } from "../../load.ts"
 import {
   Async,
@@ -104,7 +104,7 @@ function useScrolledAway() {
 
 /** The journal: what Quai did, newest on top, live, filtered by source, level, title and words. */
 export function JournalPage() {
-  const { epoch } = useHome()
+  const { epoch } = useLink()
   const [filters, setFilters] = useState<JournalFilters>(noFilters)
   const [search, setSearch] = useState("")
   const settledSearch = useSettled(search, 300)

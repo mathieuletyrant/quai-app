@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { ConfigProvider, Effect, Layer } from "effect"
-import { HomeConfig } from "../src/Config.ts"
+import { cloudAppUrl, HomeConfig } from "../src/Config.ts"
 
 const configFrom = (env: Record<string, string>) =>
   Effect.service(HomeConfig).pipe(
@@ -25,5 +25,19 @@ describe("HomeConfig", () => {
     Effect.gen(function*() {
       expect((yield* configFrom({})).webUrls).toEqual({})
       expect((yield* configFrom({ QUAI_RADARR_WEB_URL: "", QUAI_SONARR_PUBLIC_URL: "  " })).webUrls).toEqual({})
+    }))
+
+  it.effect("where the iPhone reaches the Cloud: QUAI_CLOUD_APP_URL when the link's address is one only Quai Home reaches", () =>
+    Effect.gen(function*() {
+      expect(cloudAppUrl(yield* configFrom({ QUAI_CLOUD_URL: "wss://cloud.example.com/home" }))).toBe("https://cloud.example.com")
+      expect(cloudAppUrl(yield* configFrom({ QUAI_CLOUD_URL: "ws://quai:8787/home", QUAI_CLOUD_APP_URL: "http://umbrel.local:3078/" }))).toBe("http://umbrel.local:3078")
+      expect(cloudAppUrl(yield* configFrom({ QUAI_CLOUD_URL: "" }))).toBeNull()
+    }))
+
+  it.effect("an address without its key is only a suggestion for the Services page", () =>
+    Effect.gen(function*() {
+      const config = yield* configFrom({ QUAI_RADARR_URL: "http://radarr_server_1:7878/", QUAI_SONARR_URL: "http://sonarr_server_1:8989", QUAI_SONARR_API_KEY: "k" })
+      expect(config.radarr).toBeNull()
+      expect(config.suggestedUrls).toEqual({ radarr: "http://radarr_server_1:7878" })
     }))
 })

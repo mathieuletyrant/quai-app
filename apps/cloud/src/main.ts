@@ -1,6 +1,6 @@
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
-import { Config, Effect, Layer, Option } from "effect"
-import { HttpRouter, HttpStaticServer } from "effect/http"
+import { Config, Effect, Layer } from "effect"
+import { HttpRouter } from "effect/http"
 import { createServer } from "node:http"
 import { ApiLive } from "./Api.ts"
 import { Alerts } from "./alerts/Alerts.ts"
@@ -9,6 +9,7 @@ import { Fixes } from "./fixes/Fixes.ts"
 import { Activities } from "./flows/Activities.ts"
 import { FlowStore } from "./flows/FlowStore.ts"
 import { TestRunner } from "./flows/TestRunner.ts"
+import { ConsoleOnlyThroughHome, ConsoleRelayLive } from "./home/ConsoleRelay.ts"
 import { Devices } from "./home/Devices.ts"
 import { HomeLink, HomeRoute } from "./home/HomeLink.ts"
 import { HomeReads } from "./home/HomeReads.ts"
@@ -33,17 +34,6 @@ const HttpLive = Layer.unwrap(
   })
 )
 
-// The built console is served when QUAI_CONSOLE_DIR is set (it is in the image).
-const ConsoleLive = Layer.unwrap(
-  Effect.gen(function*() {
-    const root = yield* Config.option(Config.String("QUAI_CONSOLE_DIR"))
-    return Option.match(root, {
-      onNone: () => Layer.empty,
-      onSome: (root) => HttpStaticServer.layer({ root, spa: true })
-    })
-  })
-)
-
 const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
   Layer.provideMerge(Journal.layer),
@@ -58,7 +48,8 @@ const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
   Layer.provideMerge(Home)
 )
 
-HttpRouter.serve(Layer.mergeAll(ApiLive, HomeRoute, ConsoleLive)).pipe(
+// The console is Quai Home's: it relays its requests over the link, and /console-api answers only those.
+HttpRouter.serve(Layer.mergeAll(ApiLive, HomeRoute, ConsoleRelayLive, ConsoleOnlyThroughHome)).pipe(
   Layer.provide(Engine),
   Layer.provide(ServerInfo.layer),
   Layer.provide(HttpLive),

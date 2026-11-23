@@ -1,7 +1,7 @@
 # Quai Cloud behind a reverse proxy
 
-At home the app talks to Quai Cloud on the local address the console was opened with
-(`http://umbrel.local:3078`, say). Away from home it needs a public address: put Quai Cloud behind
+At home the app talks to Quai Cloud on the address Quai Home links to (its `QUAI_CLOUD_URL`,
+`http://umbrel.local:8787`, say). Away from home it needs a public address: put Quai Cloud behind
 a reverse proxy, and tell Quai about it with two variables.
 
 | Env | |
@@ -18,13 +18,14 @@ works (Cloudflare Access service tokens, Pangolin, Authentik or Authelia header 
 It depends on what the proxy checks.
 
 - **The proxy guards every path** (Cloudflare Access, Authentik, Pangolin…): expose the whole of
-  Quai Cloud. The app gets in with its access headers, and you can open the console from outside
-  by signing in to the proxy (Google login, say). `/home` being reachable is harmless: nothing gets
-  past the proxy without a login or the headers, and Quai Home connects on the home network anyway.
+  Quai Cloud. The app gets in with its access headers. `/home` being reachable is harmless: nothing
+  gets past the proxy without a login or the headers, and Quai Home connects on the home network
+  anyway. The console isn't there: it is Quai Home's, and Quai Cloud refuses `/console-api` on its
+  port.
 - **The proxy checks nothing** (a plain tunnel or port forward): expose **only `/api/*`**. It is
   what the app calls, and every route of it but `/api/health` and the pairing needs the device
-  token. Keep `/console-api/*`, the console and `/home` on the home network: they have no login of
-  their own and rely on the host's (Umbrel's at home), and whoever reaches them can pair an iPhone.
+  token. Keep `/home` on the home network. `/console-api/*` answers nothing on Quai Cloud's port:
+  the console is served by Quai Home, behind its own password, and relayed over the link.
 
 ## `QUAI_HOME_ID`
 
@@ -74,8 +75,7 @@ logged nor shown: the console's Settings page and pairing panel list the header 
    Quai. Copy its Client ID and Client Secret (the secret is shown once).
 2. **Access → Applications**: add a self-hosted application for `quai.example.com` (every path)
    with two policies: an **Allow** policy for you (your email, signed in with Google or any login
-   method) to open the console, and a **Service Auth** policy whose rule includes that service
-   token, for the app.
+   method), and a **Service Auth** policy whose rule includes that service token, for the app.
 3. In the tunnel (**Networks → Tunnels → Public hostnames**), route `quai.example.com` to Quai
    Cloud (`http://<host>:8787`, the container's port, not one that goes through the host's own
    login).
