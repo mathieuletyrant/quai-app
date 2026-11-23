@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.2](https://github.com/mathieuletyrant/quai-app/compare/v0.18.1...v0.18.2) (2026-11-23)
+
+
+### 🐛 Fixes
+
+* send a Live Activity's Start again when Apple doesn't answer, and don't reuse an idle connection ([#67](https://github.com/mathieuletyrant/quai-app/issues/67)) ([9165bdb](https://github.com/mathieuletyrant/quai-app/commit/9165bdb84caff08cde733ae5a236e2efd55b41b7))
+
 ## [0.18.1](https://github.com/mathieuletyrant/quai-app/compare/v0.18.0...v0.18.1) (2026-11-23)
 
 
