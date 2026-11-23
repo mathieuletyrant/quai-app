@@ -104,7 +104,7 @@ describe("push to APNs", () => {
       }).pipe(Effect.provide(onHome(apns)))
     }).pipe(Effect.scoped))
 
-  it.effect("gives up on a push APNs never answers after 10 s, and reconnects for the next one", () =>
+  it.effect("tries a push APNs never answers once more on a new connection, then gives up and reconnects for the next one", () =>
     Effect.gen(function*() {
       const dev = yield* fakeApns
       const apns = yield* Apns.make(
@@ -114,13 +114,34 @@ describe("push to APNs", () => {
       const push = (deviceToken: string) => apns.send({ environment: "development", deviceToken, body: {}, priority: 10 })
       const stuck = yield* Effect.forkChild(push("silent-token"))
       yield* untilReal(() => dev.hits.length === 1)
-      yield* TestClock.adjust("9 seconds")
+      yield* TestClock.adjust("10 seconds")
+      // The first connection is dropped and the push sent again on a second one.
+      yield* untilReal(() => dev.hits.length === 2)
+      expect(dev.connections()).toBe(2)
       expect(stuck.pollUnsafe()).toBeUndefined()
-      yield* TestClock.adjust("1 second")
+      yield* TestClock.adjust("10 seconds")
       const error = yield* Effect.flip(Fiber.join(stuck))
       expect(error.reason).toBe("no answer within 10 s")
       yield* push("live-token")
-      expect(dev.hits).toHaveLength(2)
+      expect(dev.hits).toHaveLength(3)
+      expect(dev.connections()).toBe(3)
+    }).pipe(Effect.scoped))
+
+  it.effect("opens a new connection for a push after 5 idle minutes, and reuses a busy one", () =>
+    Effect.gen(function*() {
+      const dev = yield* fakeApns
+      const apns = yield* Apns.make(
+        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
+        { development: dev.url, production: dev.url }
+      )
+      const push = apns.send({ environment: "development", deviceToken: "live-token", body: {}, priority: 10 })
+      yield* push
+      yield* TestClock.adjust("4 minutes")
+      yield* push
+      expect(dev.connections()).toBe(1)
+      yield* TestClock.adjust("5 minutes")
+      yield* push
+      expect(dev.hits).toHaveLength(3)
       expect(dev.connections()).toBe(2)
     }).pipe(Effect.scoped))
 })
