@@ -3,7 +3,7 @@ import { Effect, Layer, Option, Redacted } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse, HttpStaticServer } from "effect/http"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
 import { CloudSeen } from "./CloudSeen.ts"
-import { cloudHttpUrl, HomeConfig } from "./Config.ts"
+import { cloudAppUrl, HomeConfig } from "./Config.ts"
 import { ConsoleAuth, sessionMs } from "./ConsoleAuth.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { Link } from "./Link.ts"
@@ -55,6 +55,7 @@ const HomeHandlers = HttpApiBuilder.group(HomeConsoleApi, "home", (handlers) =>
     const key = yield* HomeKey
     const link = yield* Link
     const cloudSeen = yield* CloudSeen
+    const appUrl = cloudAppUrl(config)
     return handlers
       .handle("overview", () =>
         Effect.gen(function*() {
@@ -65,7 +66,7 @@ const HomeHandlers = HttpApiBuilder.group(HomeConsoleApi, "home", (handlers) =>
             cloud: {
               configured: config.cloudUrl !== null,
               linked: yield* link.linked,
-              ...(config.cloudUrl === null ? {} : { url: cloudHttpUrl(config.cloudUrl) }),
+              ...(appUrl === null ? {} : { url: appUrl }),
               ...Option.match(previous, { onNone: () => ({}), onSome: (previousUrl) => ({ previousUrl }) })
             }
           } satisfies HomeOverview

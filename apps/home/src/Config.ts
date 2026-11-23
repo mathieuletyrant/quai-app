@@ -20,6 +20,11 @@ export interface QBittorrentEndpoint {
 export class HomeConfig extends Context.Service<HomeConfig, {
   /** The cloud's endpoint for homes, `ws://` or `wss://`. Unset, Quai Home runs without a Cloud. */
   readonly cloudUrl: string | null
+  /**
+   * Where the iPhone app reaches the Cloud at home, for the pairing QR code, when `cloudUrl` is an
+   * address only Quai Home reaches (a container name). Unset, `cloudUrl` in http(s).
+   */
+  readonly cloudAppUrl: string | null
   /** The console's password. Unset, the console stays locked and says to set it. */
   readonly password: Redacted.Redacted<string> | null
   /** The built console Quai Home serves (set in the image). */
@@ -73,6 +78,7 @@ export class HomeConfig extends Context.Service<HomeConfig, {
       const password = yield* secret("QUAI_HOME_PASSWORD")
       return {
         cloudUrl: Option.getOrNull(nonEmpty(yield* Config.option(Config.schema(Schema.String.check(Schema.isPattern(/^\s*(wss?:\/\/.*)?$/)), "QUAI_CLOUD_URL")))),
+        cloudAppUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CLOUD_APP_URL")), trimSlash)),
         password: Option.getOrNull(Option.filter(password, (p) => Redacted.value(p) !== "")),
         consoleDir: Option.getOrNull(nonEmpty(yield* opt("QUAI_CONSOLE_DIR"))),
         port: yield* Config.Port("QUAI_HOME_PORT").pipe(Config.withDefault(8788)),
@@ -107,8 +113,12 @@ export type Endpoints = Pick<HomeConfig["Service"], HomeProtocol.HomeService>
 export const configuredServices = (endpoints: Endpoints): ReadonlyArray<HomeProtocol.HomeService> =>
   allServices.filter((service) => endpoints[service] !== null)
 
-/** The Cloud's own address, as the iPhone app reaches it: `QUAI_CLOUD_URL` in http(s), without `/home`. */
+/** The Cloud's own address from its link address: `QUAI_CLOUD_URL` in http(s), without `/home`. */
 export const cloudHttpUrl = (cloudUrl: string) =>
   cloudUrl.trim().replace(/^ws/, "http").replace(/\/home\/?$/, "").replace(/\/+$/, "")
 
 const trimSlash = (url: string) => url.replace(/\/+$/, "")
+
+/** Where the iPhone app reaches the Cloud at home: `QUAI_CLOUD_APP_URL`, else the link's address in http(s). */
+export const cloudAppUrl = (config: Pick<HomeConfig["Service"], "cloudUrl" | "cloudAppUrl">): string | null =>
+  config.cloudAppUrl ?? (config.cloudUrl === null ? null : cloudHttpUrl(config.cloudUrl))

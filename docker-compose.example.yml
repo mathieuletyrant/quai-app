@@ -13,6 +13,8 @@ services:
     restart: unless-stopped
     environment:
       QUAI_CLOUD_URL: ws://quai:8787/home
+      # Where the iPhone reaches Quai Cloud at home: "quai" is a name only Quai Home resolves.
+      QUAI_CLOUD_APP_URL: http://<this host>:8787
       QUAI_HOME_PASSWORD: change-me
     ports:
       - "8788:8788"

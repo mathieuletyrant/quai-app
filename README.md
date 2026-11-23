@@ -95,6 +95,7 @@ services:
     ports: ["8788:8788"]
     environment:
       QUAI_CLOUD_URL: ws://cloud:8787/home
+      QUAI_CLOUD_APP_URL: http://<server>:8787
       QUAI_HOME_PASSWORD: change-me
       QUAI_INTERNAL_URL: http://home:8788
     volumes: ["./data:/data"]
@@ -116,6 +117,7 @@ your own account.
 | Env | |
 |---|---|
 | `QUAI_CLOUD_URL` | The Cloud's WebSocket, e.g. `ws://cloud:8787/home`. Without it Quai Home runs alone, and its console says what to set |
+| `QUAI_CLOUD_APP_URL` | Where the iPhone reaches Quai Cloud at home, for the pairing QR code, when `QUAI_CLOUD_URL` is an address only Home reaches (`http://server:8787`). Default: `QUAI_CLOUD_URL` in http(s) |
 | `QUAI_HOME_PASSWORD` | The console's password. Without it the console stays locked |
 | `QUAI_HOME_PORT` | The console, the webhooks and `/health` (default `8788`) |
 | `QUAI_INTERNAL_URL` | How Radarr and Sonarr reach Home, for the webhooks it sets up |

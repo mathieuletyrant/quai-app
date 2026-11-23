@@ -9,6 +9,7 @@ const key = Redacted.make("masked")
 /** Every service configured, with fake hosts. */
 export const testConfig = {
   cloudUrl: "ws://cloud/home",
+  cloudAppUrl: null,
   password: null,
   consoleDir: null,
   port: 8788,
