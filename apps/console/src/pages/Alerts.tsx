@@ -7,7 +7,7 @@ import {
   cx,
   ErrorCallout,
   errorText,
-  HomeOfflineState,
+  CloudOfflineState,
   Icon,
   type IconName,
   Input,
@@ -221,7 +221,7 @@ export function AlertsPage() {
           <Async
             state={settings}
             loading={<LoadingList />}
-            offline={<HomeOfflineState what="the alerts" />}
+            offline={<CloudOfflineState what="Alert settings" />}
             failed={(error) => <ErrorCallout error={error} />}
           >
             {(data) => <AlertList settings={data} onSave={save} />}

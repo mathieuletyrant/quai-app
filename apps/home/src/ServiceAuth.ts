@@ -1,8 +1,9 @@
 import type { HomeProtocol } from "@quai/api"
 import { Context, Effect, Layer, Redacted, Ref, Semaphore } from "effect"
 import { HttpClient, HttpClientRequest, type HttpClientResponse } from "effect/http"
-import { HomeConfig, configuredServices, type QBittorrentEndpoint } from "./Config.ts"
+import { configuredServices, type QBittorrentEndpoint } from "./Config.ts"
 import { ServiceError } from "./Errors.ts"
+import { ServiceSettings } from "./ServiceSettings.ts"
 
 type HomeService = HomeProtocol.HomeService
 
@@ -24,11 +25,11 @@ export const sessionCookie = (header: string | ReadonlyArray<string> | undefined
  * names a service and a path.
  */
 export class ServiceAuth extends Context.Service<ServiceAuth, {
-  /** The services with a URL (and key where needed). */
-  readonly configured: ReadonlyArray<HomeService>
+  /** The services with a URL (and key where needed), now. */
+  readonly configured: Effect.Effect<ReadonlyArray<HomeService>>
   /**
    * Sends `request`, whose URL is a path on the service (query included), with the service's
-   * credentials. qBittorrent: a 403 logs in (one login at a time) and retries once.
+   * credentials as they are now. qBittorrent: a 403 logs in (one login at a time) and retries once.
    */
   readonly execute: (
     service: HomeService,
@@ -38,9 +39,20 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
   static readonly layer = Layer.effect(
     ServiceAuth,
     Effect.gen(function*() {
-      const config = yield* HomeConfig
+      const settings = yield* ServiceSettings
       const client = yield* HttpClient.HttpClient
-      const qbittorrent = config.qbittorrent === null ? null : yield* qbittorrentSession(client, config.qbittorrent)
+      // qBittorrent's session, for the address and login it was opened with: a new one from the
+      // Services page opens a new session.
+      const qbSession = yield* Ref.make<{ readonly login: string; readonly send: QbSend } | null>(null)
+      const qbittorrentFor = (endpoint: QBittorrentEndpoint) =>
+        Effect.gen(function*() {
+          const login = JSON.stringify([endpoint.url, endpoint.username, endpoint.password === null ? null : Redacted.value(endpoint.password)])
+          const open = yield* Ref.get(qbSession)
+          if (open !== null && open.login === login) return open.send
+          const send = yield* qbittorrentSession(client, endpoint)
+          yield* Ref.set(qbSession, { login, send })
+          return send
+        })
 
       const send = (service: HomeService, request: HttpClientRequest.HttpClientRequest) =>
         client.execute(request).pipe(
@@ -48,44 +60,52 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
         )
 
       return {
-        configured: configuredServices(config),
-        execute: (service, request) => {
-          switch (service) {
-            case "radarr":
-            case "sonarr":
-            case "jellyfin":
-            case "reclaimerr":
-            case "seerr":
-            case "cleanuparr":
-            case "prowlarr": {
-              const endpoint = config[service]
-              if (endpoint === null) return Effect.fail(new ServiceError({ service, message: "not configured" }))
-              const key = Redacted.value(endpoint.apiKey)
-              return send(service, request.pipe(
-                HttpClientRequest.prependUrl(endpoint.url),
-                service === "jellyfin"
-                  ? HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${key}"`)
-                  : service === "reclaimerr"
-                  ? HttpClientRequest.bearerToken(key)
-                  : HttpClientRequest.setHeader("X-Api-Key", key)
-              ))
+        configured: Effect.map(settings.current, configuredServices),
+        execute: (service, request) =>
+          Effect.flatMap(settings.current, (endpoints) => {
+            switch (service) {
+              case "radarr":
+              case "sonarr":
+              case "jellyfin":
+              case "reclaimerr":
+              case "seerr":
+              case "cleanuparr":
+              case "prowlarr": {
+                const endpoint = endpoints[service]
+                if (endpoint === null) return Effect.fail(new ServiceError({ service, message: "not configured" }))
+                const key = Redacted.value(endpoint.apiKey)
+                return send(service, request.pipe(
+                  HttpClientRequest.prependUrl(endpoint.url),
+                  service === "jellyfin"
+                    ? HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${key}"`)
+                    : service === "reclaimerr"
+                    ? HttpClientRequest.bearerToken(key)
+                    : HttpClientRequest.setHeader("X-Api-Key", key)
+                ))
+              }
+              case "qbittorrent": {
+                const endpoint = endpoints.qbittorrent
+                return endpoint === null
+                  ? Effect.fail(new ServiceError({ service, message: "not configured" }))
+                  : Effect.flatMap(qbittorrentFor(endpoint), (session) => session(request))
+              }
             }
-            case "qbittorrent":
-              return qbittorrent === null
-                ? Effect.fail(new ServiceError({ service, message: "not configured" }))
-                : qbittorrent(request)
-          }
-        }
+          })
       }
     })
   )
+
+  /** On the environment's services only: for tests. */
+  static readonly fromConfig = ServiceAuth.layer.pipe(Layer.provide(ServiceSettings.fromConfig))
 }
+
+type QbSend = (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<HttpClientResponse.HttpClientResponse, ServiceError>
 
 /**
  * qBittorrent's cookie session: logs in when a call gets 403, then retries it once. qBittorrent
  * bans an address after a few failed logins in a row, so logins go one at a time (calls that got
- * a 403 meanwhile reuse the new cookie), and a wrong username or password stops them until Quai
- * Home restarts, which is when its settings can change.
+ * a 403 meanwhile reuse the new cookie), and a wrong username or password stops them until the
+ * login changes (a new one from the Services page opens a new session) or Quai Home restarts.
  */
 const qbittorrentSession = (client: HttpClient.HttpClient, config: QBittorrentEndpoint) =>
   Effect.gen(function*() {
@@ -113,7 +133,7 @@ const qbittorrentSession = (client: HttpClient.HttpClient, config: QBittorrentEn
         if (body.trim() === "Fails.") {
           const refused = error("wrong username or password")
           yield* Ref.set(wrongCredentials, refused)
-          yield* Effect.logWarning("qBittorrent: wrong username or password, no more logins until Quai Home restarts")
+          yield* Effect.logWarning("qBittorrent: wrong username or password, no more logins until the login changes")
           return yield* Effect.fail(refused)
         }
         return yield* Effect.fail(error(`login refused (HTTP ${response.status})`))

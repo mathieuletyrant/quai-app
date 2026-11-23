@@ -13,6 +13,7 @@
     "check": "pnpm -r check",
     "test": "pnpm -r test",
     "dev:cloud": "pnpm --filter @quai/cloud dev",
+    "dev:home": "pnpm --filter @quai/home dev",
     "dev:console": "pnpm --filter @quai/console dev",
     "gen:openapi": "pnpm --filter @quai/api gen:openapi"
   }

@@ -1,7 +1,7 @@
 import type { DeviceId, Flow } from "@quai/api"
 import { type ReactNode, useCallback, useEffect, useState } from "react"
-import { call, useHome } from "../../client.ts"
-import { Async, ErrorCallout, errorText, HomeOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui"
+import { call, useLink } from "../../client.ts"
+import { Async, ErrorCallout, errorText, CloudOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui"
 import { type Catalogs, clone, type Draft, sameFlow, slug } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
 import { FlowSwitcher } from "./FlowSwitcher.tsx"
@@ -18,7 +18,7 @@ export function FlowsPage() {
   const [notice, setNotice] = useState<Notice | null>(null)
   /** Why the flows couldn't be read, while none is open. */
   const [failure, setFailure] = useState<unknown>(null)
-  const { epoch } = useHome()
+  const { epoch } = useLink()
   const clearNotice = useCallback(() => setNotice(null), [])
 
   const isNew = draft !== null && original === null
@@ -130,7 +130,7 @@ export function FlowsPage() {
       <Async
         state={{ data: draft, error: failure }}
         loading={<EditorSkeleton />}
-        offline={<Unreadable><Panel><HomeOfflineState what="Flows" /></Panel></Unreadable>}
+        offline={<Unreadable><Panel><CloudOfflineState what="Flows" /></Panel></Unreadable>}
         failed={(error) => <Unreadable><ErrorCallout error={error} title="The flows couldn't be read" /></Unreadable>}
       >
         {editor}

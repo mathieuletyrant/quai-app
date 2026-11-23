@@ -14,9 +14,13 @@ import { type Integration, Integrations, isAlertState, type Signal, type Watcher
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
 export const heartbeat = "5 seconds"
 
+/** "Radarr, Sonarr", or "no service". */
+const servicesText = (services: LinkedHome["services"]) =>
+  services.length === 0 ? "no service" : services.map((s) => journalSourceNames[s]).join(", ")
+
 /** What the journal says when Quai Home links. */
 const linkedNote = (home: LinkedHome) => {
-  const services = home.services.length === 0 ? "no service" : home.services.map((s) => journalSourceNames[s]).join(", ")
+  const services = servicesText(home.services)
   return home.protocol < HomeProtocol.journalProtocolVersion
     ? { level: "warn" as const, text: `Quai Home linked (${services}); it is too old to keep the journal: update it to keep the history` }
     : { level: "info" as const, text: `Quai Home linked (${services})` }
@@ -156,6 +160,14 @@ export class Hub extends Context.Service<Hub, {
           sent = null
           const { level, text } = linkedNote(event.home)
           return Effect.andThen(journal.log({ level, source: "home", kind: "home.linked", text }), sync)
+        }
+        case "Services": {
+          // Quai Home reaches other services now: the watches follow.
+          sent = null
+          return Effect.andThen(
+            journal.log({ level: "info", source: "home", kind: "home.services", text: `Quai Home's services changed: ${servicesText(event.home.services)}` }),
+            sync
+          )
         }
         case "Gone":
           sent = null

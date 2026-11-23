@@ -52,6 +52,8 @@ export interface LinkedHome {
 /** What Quai Home tells, in the order it told it. */
 export type HomeEvent =
   | { readonly _tag: "Ready"; readonly home: LinkedHome }
+  /** The services Quai Home reaches changed (set from its console), on the same connection. */
+  | { readonly _tag: "Services"; readonly home: LinkedHome }
   | { readonly _tag: "Gone"; readonly homeId: string }
   | { readonly _tag: "Snapshot"; readonly watchId: string; readonly status: number; readonly body: string }
   | { readonly _tag: "WatchFailed"; readonly watchId: string; readonly reason: string }
@@ -65,6 +67,10 @@ export interface HomeDocument {
 }
 
 export type CallRequest = Omit<HomeProtocol.Call, "_tag" | "id">
+
+/** A console request Quai Home relays, and what answers it: the Cloud's own routes. */
+export type ConsoleRequest = Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">
+export type ConsoleHandler = (request: ConsoleRequest) => Effect.Effect<{ readonly status: number; readonly body: string }>
 
 /**
  * The home's documents (paired iPhones, flows, activities), as Quai Home keeps them. Quai Cloud
@@ -112,7 +118,7 @@ const makeDocuments = (
 /** One live connection from a Quai Home, past its handshake. */
 interface Connection {
   readonly homeId: string
-  readonly services: ReadonlyArray<HomeService>
+  services: ReadonlyArray<HomeService>
   readonly protocol: number
   readonly webUrls: HomeProtocol.WebUrls
   readonly send: (message: CloudMessage) => Effect.Effect<void>
@@ -167,6 +173,8 @@ export class HomeLink extends Context.Service<HomeLink, {
   readonly nextEvent: Effect.Effect<HomeEvent>
   /** Serves one connection from Quai Home, until it closes. */
   readonly serve: (socket: Socket.Socket) => Effect.Effect<void>
+  /** Answers the console requests Quai Home relays (its console is served there). Until set, 503. */
+  readonly answerConsole: (handler: ConsoleHandler) => Effect.Effect<void>
 }>()("quai/HomeLink") {
   /**
    * `QUAI_HOME_ID`, when set, is the only home served: any other is refused at the handshake, so a
@@ -182,6 +190,16 @@ export class HomeLink extends Context.Service<HomeLink, {
     const connections = new Map<string, Connection>()
     const events = yield* Queue.unbounded<HomeEvent>()
     const requestCount = yield* Ref.make(0)
+    const consoleHandler = yield* Ref.make<ConsoleHandler | null>(null)
+
+    /** A relayed console request: only the console's paths, and only once something answers them. */
+    const answerConsole = (request: ConsoleRequest) =>
+      Effect.gen(function*() {
+        if (!HomeProtocol.isConsolePath(request.path)) return { status: 404, body: "" }
+        const handler = yield* Ref.get(consoleHandler)
+        if (handler === null) return { status: 503, body: JSON.stringify({ _tag: "HomeOffline", message: "Quai Cloud is starting" }) }
+        return yield* handler(request)
+      })
 
     const ready = (): Connection | null => {
       for (const connection of connections.values()) if (connection.documents !== null) return connection
@@ -359,6 +377,17 @@ export class HomeLink extends Context.Service<HomeLink, {
               return yield* Queue.offer(inbox, { _tag: "Webhook", service: message.service, receivedAt: message.receivedAt, body: message.body })
             case "JournalNoted":
               return yield* Queue.offer(inbox, { _tag: "Journal", entries: message.entries })
+            case "ConsoleRequest": {
+              const { id, _tag, ...request } = message
+              return yield* Effect.forkScoped(Effect.flatMap(answerConsole(request), (answer) =>
+                send(HomeProtocol.ConsoleResponse.make({ id, status: answer.status, body: answer.body }))))
+            }
+            case "ServicesChanged":
+              connection.services = message.services
+              return yield* Queue.offer(inbox, {
+                _tag: "Services",
+                home: { homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls }
+              })
             case "Pong":
             case "Hello":
             case "Proof":
@@ -419,7 +448,8 @@ export class HomeLink extends Context.Service<HomeLink, {
         }),
       documents,
       nextEvent: Queue.take(events),
-      serve
+      serve,
+      answerConsole: (handler) => Ref.set(consoleHandler, handler)
     } satisfies HomeLink["Service"]
   })
 

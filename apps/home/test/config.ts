@@ -9,6 +9,8 @@ const key = Redacted.make("masked")
 /** Every service configured, with fake hosts. */
 export const testConfig = {
   cloudUrl: "ws://cloud/home",
+  password: null,
+  consoleDir: null,
   port: 8788,
   dataDir: "/nonexistent",
   internalUrl: "http://quai-home:8788",

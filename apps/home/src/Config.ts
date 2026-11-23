@@ -1,4 +1,4 @@
-import type { HomeProtocol } from "@quai/api"
+import { HomeProtocol } from "@quai/api"
 import { Config, Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 
 export interface ServiceEndpoint {
@@ -13,12 +13,17 @@ export interface QBittorrentEndpoint {
 }
 
 /**
- * Everything Quai Home needs, from `QUAI_*` environment variables. A service left unset (no URL,
- * or no key where it needs one) is not configured: Quai Home tells the cloud it can't reach it.
+ * Everything Quai Home reads from `QUAI_*` environment variables. A service set here (URL, and key
+ * where it needs one) wins over the console's Services page (`ServiceSettings`); one left unset can
+ * be set there.
  */
 export class HomeConfig extends Context.Service<HomeConfig, {
-  /** The cloud's endpoint for homes, `ws://` or `wss://`. */
-  readonly cloudUrl: string
+  /** The cloud's endpoint for homes, `ws://` or `wss://`. Unset, Quai Home runs without a Cloud. */
+  readonly cloudUrl: string | null
+  /** The console's password. Unset, the console stays locked and says to set it. */
+  readonly password: Redacted.Redacted<string> | null
+  /** The built console Quai Home serves (set in the image). */
+  readonly consoleDir: string | null
   /** Port of the local webhook receiver and `/health`. */
   readonly port: number
   /** Where the home key and the home's documents live. */
@@ -64,8 +69,12 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         )
       const radarrWebUrls = yield* webUrlsOf("RADARR")
       const sonarrWebUrls = yield* webUrlsOf("SONARR")
+      const nonEmpty = (value: Option.Option<string>) => Option.filter(Option.map(value, (v) => v.trim()), (v) => v !== "")
+      const password = yield* secret("QUAI_HOME_PASSWORD")
       return {
-        cloudUrl: yield* Config.schema(Schema.String.check(Schema.isPattern(/^wss?:\/\//)), "QUAI_CLOUD_URL"),
+        cloudUrl: Option.getOrNull(nonEmpty(yield* Config.option(Config.schema(Schema.String.check(Schema.isPattern(/^\s*(wss?:\/\/.*)?$/)), "QUAI_CLOUD_URL")))),
+        password: Option.getOrNull(Option.filter(password, (p) => Redacted.value(p) !== "")),
+        consoleDir: Option.getOrNull(nonEmpty(yield* opt("QUAI_CONSOLE_DIR"))),
         port: yield* Config.Port("QUAI_HOME_PORT").pipe(Config.withDefault(8788)),
         dataDir: yield* Config.String("QUAI_DATA_DIR").pipe(Config.withDefault("./data")),
         internalUrl: Option.match(internalUrl, { onNone: () => null, onSome: trimSlash }),
@@ -88,8 +97,18 @@ export class HomeConfig extends Context.Service<HomeConfig, {
   )
 }
 
+/** Every service, in the order the protocol lists them. */
+export const allServices = HomeProtocol.HomeService.literals
+
+/** The services set by the environment or the Services page, as `ServiceSettings` holds them. */
+export type Endpoints = Pick<HomeConfig["Service"], HomeProtocol.HomeService>
+
 /** The services this home can reach, in the order the protocol lists them. */
-export const configuredServices = (config: HomeConfig["Service"]): ReadonlyArray<HomeProtocol.HomeService> =>
-  (["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"] as const).filter((service) => config[service] !== null)
+export const configuredServices = (endpoints: Endpoints): ReadonlyArray<HomeProtocol.HomeService> =>
+  allServices.filter((service) => endpoints[service] !== null)
+
+/** The Cloud's own address, as the iPhone app reaches it: `QUAI_CLOUD_URL` in http(s), without `/home`. */
+export const cloudHttpUrl = (cloudUrl: string) =>
+  cloudUrl.trim().replace(/^ws/, "http").replace(/\/home\/?$/, "").replace(/\/+$/, "")
 
 const trimSlash = (url: string) => url.replace(/\/+$/, "")

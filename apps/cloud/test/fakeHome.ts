@@ -121,6 +121,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
     /** Its journal, like its disk: it outlives connections. */
     const journal: Array<JournalEntry> = []
     const calls: Array<Call> = []
+    const consoleAnswers = new Map<string, HomeProtocol.ConsoleResponse>()
+    let consoleCount = 0
     const received: Array<HomeProtocol.CloudMessage> = []
     const state = {
       watches: [] as ReadonlyArray<HomeProtocol.Watch>,
@@ -204,6 +206,9 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           return null
         case "JournalRead":
           return HomeProtocol.JournalPage.make({ id: message.id, ...journalPage(journal, message.query) })
+        case "ConsoleResponse":
+          consoleAnswers.set(message.id, message)
+          return null
       }
     }
 
@@ -288,7 +293,20 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         ),
       /** Quai Home's poll of a watch failed. */
       failWatch: (watchId: string, reason = "unreachable") => Effect.andThen(send(HomeProtocol.Failed.make({ id: watchId, reason })), settle),
-      watch: (id: string) => state.watches.find((w) => w.id === id)
+      watch: (id: string) => state.watches.find((w) => w.id === id),
+      /** Relays a request of the console Quai Home serves, and returns the Cloud's answer. */
+      console: (request: Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">) =>
+        Effect.gen(function*() {
+          const id = `c${++consoleCount}`
+          yield* send(HomeProtocol.ConsoleRequest.make({ ...request, id }))
+          for (let i = 0; i < 20 && !consoleAnswers.has(id); i++) yield* settle
+          const answer = consoleAnswers.get(id)
+          if (answer === undefined) return yield* Effect.die(`the Cloud didn't answer ${request.method} ${request.path}`)
+          return { status: answer.status, json: answer.body === "" ? undefined : JSON.parse(answer.body) as unknown }
+        }),
+      /** A service was set or removed from Quai Home's console. */
+      servicesChanged: (services: ReadonlyArray<HomeProtocol.HomeService>) =>
+        Effect.andThen(send(HomeProtocol.ServicesChanged.make({ services })), settle)
     }
   })
 

@@ -5,11 +5,27 @@ The words Quai's code, docs and reviews use for its moving parts. One name per t
 **Quai Home** (`apps/home`). The server that runs at home, next to the services, with their URLs
 and keys. It opens one WebSocket to Quai Cloud, runs the calls and watches the Cloud asks for
 within the allowlist, forwards webhooks, and keeps the home's documents (paired iPhones, flows,
-activities) on its `/data` volume.
+activities) on its `/data` volume. It serves the console.
 
-**Quai Cloud** (`apps/cloud`). The server the app and the console talk to. It runs the flows,
-pushes to APNs and serves the console, from what Quai Home reads and sends. It keeps nothing: no
-database, nothing on disk; the home's documents are in memory while the home is linked.
+**Quai Cloud** (`apps/cloud`). The server the app talks to, and the console through Quai Home. It
+runs the flows and pushes to APNs, from what Quai Home reads and sends. It serves no interface and
+keeps nothing: no database, nothing on disk; the home's documents are in memory while the home is
+linked.
+
+**Console** (`apps/console`). The web pages to set Quai up, served by Quai Home behind its
+password (`QUAI_HOME_PASSWORD`, a 30-day session cookie). Its own routes are Quai Home's
+(`/home-api`, `HomeConsoleApi`); the rest (`/console-api`) are Quai Cloud's, relayed.
+
+**Console relay** (`ConsoleRequest`, `ConsoleResponse`). Quai Home passes the console's
+`/console-api` requests to Quai Cloud over the home link, and the Cloud answers them with its own
+routes. The Cloud's public port refuses `/console-api`: only what Quai Home relays gets an answer.
+See [ADR 1](docs/adr/0001-console-served-by-quai-home.md).
+
+**Service settings** (`ServiceSettings`). Each service's address and key, as Quai Home uses them:
+from an environment variable (`QUAI_RADARR_URL`…), which wins, or from the console's **Services
+page**, saved in `/data/services.json`. A change applies at once and Quai Home tells the Cloud which
+services it reaches (`ServicesChanged`), never their keys. A key is write-only: the console shows
+that one is set, never its value.
 
 **Home link** (`HomeLink`). The WebSocket between the two, its handshake, and the messages on it
 (`packages/api/src/Home.ts`, `HomeProtocol`). Features don't call through it themselves: their
@@ -34,8 +50,9 @@ Quai Home that enforces it too (`apps/cloud/test/fakeHome.ts`), so a path it ref
 (Cleanuparr's queue cleaner settings): Quai Home reads the document first and sends the write only
 if the rule's check of the two passes, so the Cloud changes the one field it may change.
 
-**Offline** (`HomeOffline`, 503). No Quai Home is linked, or it dropped during the request. Nothing
-can be read: the whole answer fails, it is never a partial one.
+**Offline** (`HomeOffline`, 503). Quai Home and Quai Cloud aren't linked (no `QUAI_CLOUD_URL`, the
+Cloud down, or the link dropped during the request). Nothing can be read: the whole answer fails,
+it is never a partial one. The console says "Quai Cloud isn't reachable".
 
 **Unavailable** (`unavailable: [...]`, a 200). Quai Home is linked, reaches the service, but the
 service didn't answer as expected this time (timeout, refused call, non-2xx, unreadable body). The

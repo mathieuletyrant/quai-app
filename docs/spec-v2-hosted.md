@@ -25,9 +25,10 @@ Split Quai in two:
 ┌──────────────────────────────┐   outbound   ┌────────────────────────────────────┐
 │ Home                        │  WebSocket   │ integrations: what an event means  │  HTTPS  ┌──────────┐
 │ - holds the *arr keys        │ ───────────▶ │ flow engine, flows, preferences    │ ◀─────▶ │ Quai app │
-│ - forwards webhooks          │              │ console (web)                      │         └──────────┘
+│ - forwards webhooks          │              │ the console's routes (relayed)     │         └──────────┘
 │ - runs allowlisted calls     │ ◀─────────── │ APNs (Quai's key)                  │ ──push──▶
-│   to Radarr, Sonarr, …       │   requests   │ accounts, homes                    │
+│   to Radarr, Sonarr, …       │   requests   │ homes                              │
+│ - serves the console         │              │                                    │
 └──────────────────────────────┘              └────────────────────────────────────┘
 ```
 
@@ -39,12 +40,13 @@ and nothing about Live Activities. It:
 3. runs the HTTP calls the Cloud asks for, within an allowlist of endpoints per service
    (`GET /api/v2/torrents/info`, `POST /Sessions/{id}/Playing/PlayPause`, …), and returns the response.
 
-Everything that can change often (reading a payload, polling, flows, the engine, pushes, the
-console) lives in the Cloud. The Home changes only when a new service, or a new allowlisted
+Everything that can change often (reading a payload, polling, flows, the engine, pushes, what the
+console reads and does) lives in the Cloud. The console's pages are served by the Home, which
+relays their requests to the Cloud ([ADR 1](adr/0001-console-served-by-quai-home.md)). The Home changes only when a new service, or a new allowlisted
 endpoint, comes in. The protocol is versioned, and the Cloud adapts to the Home's version.
 
 **The Cloud** is today's server, made multi-home: integrations, engine, flows, targeting, APNs with
-Quai's own key, the console, and the API the app uses. Each home is a tenant.
+Quai's own key, the console's routes, and the API the app uses. Each home is a tenant.
 
 **The app** talks only to the Cloud: one fixed URL, signed in, reachable everywhere. Pairing
 becomes linking a home to an account.
@@ -53,9 +55,12 @@ becomes linking a home to an account.
 
 - **Quai Home** runs at home, next to the services. It holds their keys, sets up their webhooks,
   polls what the Cloud asks it to watch, and forwards what comes in. It knows nothing about Live
-  Activities.
-- **Quai Cloud** is the brain: integrations (what an event means), flows, the engine, the console,
-  pushes, accounts and the app's API. We host it; it's open source like the Home.
+  Activities. It serves the console, behind its own password (`QUAI_HOME_PASSWORD`): the
+  services' addresses and keys are set there, and stay at home; the rest of the console's
+  requests are relayed to the Cloud over the link.
+- **Quai Cloud** is the brain: integrations (what an event means), flows, the engine, the console's
+  routes, pushes and the app's API. It serves no interface. We host it; it's open source like the
+  Home.
 
 ### Polling at home, meaning in the Cloud
 
@@ -115,7 +120,12 @@ that self-hosts the Cloud.
 
 ## Security and privacy
 
-- **The *arr keys never leave home.** The Home holds them; the Cloud only asks for calls.
+- **The *arr keys never leave home.** The Home holds them (environment variables, or its console's
+  Services page, saved in `/data/services.json`); the Cloud only learns which services the home
+  reaches, and asks for calls. The keys are typed into a page the Home serves, never one the Cloud
+  serves.
+- **The console is the Home's.** It asks for `QUAI_HOME_PASSWORD`; the Cloud answers the
+  console's routes (`/console-api`) only when the Home relays them, never on its public port.
 - **The allowlist is in the Home.** A compromised cloud can't delete a library or read config
   endpoints (but Cleanuparr's queue cleaner settings and rules: strike limits and schedule, no
   secret): the Home refuses anything outside it. Writes are limited to the actions the catalog
@@ -135,7 +145,8 @@ that self-hosts the Cloud.
   what Cleanuparr removed, read from its events every 5 minutes. The Requests tile and flow add Seerr's pending requests (titles, posters, who asked);
   Today's releases, the day's calendar of Sonarr and Radarr. The iPhones' time zone is kept at
   home, on their device documents.
-- **Home ↔ cloud:** TLS, one token per Home, issued at linking, revocable from the console.
+- **Home ↔ cloud:** TLS; the Home proves its home key (Ed25519) by signing the Cloud's challenge
+  on each connection. Its home id is the key's fingerprint: nothing to store or issue.
 - **App ↔ Cloud:** the device token the Home issued at pairing, checked against the Home.
 
 ## Linking a home
@@ -144,9 +155,12 @@ that self-hosts the Cloud.
 2. On first start the Home creates its home key pair in `/data`. Its home id is the public key's
    fingerprint: the Cloud recognizes a home by proof of the private key (a signed challenge), so it
    needs nothing stored to tell homes apart or to stop one impersonating another.
-3. The Home's tile opens the console on the Cloud with a short-lived link the Home signs.
-4. In the console, "Pair an iPhone" shows a QR code as in v1; the app scans it, gets its device
-   token from the Home and talks to the Cloud from then on, from anywhere.
+3. The Home's tile opens the console, served by the Home: sign in with `QUAI_HOME_PASSWORD`, set
+   the services, then pair an iPhone. `QUAI_CLOUD_URL` names the Cloud; without it the Home runs
+   alone and the console says what to set.
+4. In the console, "Pair an iPhone" shows a QR code as in v1, carrying the Cloud's address; the
+   app scans it, gets its device token from the Home and talks to the Cloud from then on, from
+   anywhere. A Home pointed at another Cloud asks for the iPhones to be paired again.
 
 Several iPhones (Julie's) pair the same way, each with its own preferences.
 
@@ -158,9 +172,9 @@ Several iPhones (Julie's) pair the same way, each with its own preferences.
 | `packages/api` | adds the Home ↔ cloud protocol (Effect `Schema` messages) next to the HTTP contract |
 | `src/integrations/*` | move to the Cloud; their HTTP calls go through the Home instead of `fetch` |
 | SQLite on `/data` | cloud database (Postgres, or SQLite per home); the Home keeps only its token |
-| console served by the server | served by the Cloud, signed in |
+| console served by the server | served by Quai Home, signed in with its password; its requests relayed to the Cloud |
 | iOS: pairing by QR + LAN URL | sign in, cloud URL; the rest of the app unchanged |
-| Umbrel app `mathieu-quai` | becomes the Home: smaller image, same settings, plus the link code |
+| Umbrel app `mathieu-quai` | becomes the Home and its console: `QUAI_HOME_PASSWORD`, the keys set in the console |
 
 What carries over unchanged: the catalog, flows, engine, targeting, Live Activity payloads, the
 iOS widget, the console UI, and the tests around them.
@@ -187,3 +201,18 @@ v1 keeps working for me until step 4 ships; then the Umbrel app switches to the 
 | How dumb the Home is | Allowlisted proxy | The Home almost never changes; every fix and flow ships from the Cloud |
 | Self-hosted all-in-one | Home + Cloud in one compose, pushes through our gateway | Same code as hosted, no second mode to maintain |
 | Polling | In the Home, driven by the Cloud's watches | Polling stays on the LAN; what it means stays in the Cloud |
+| Where the console lives | Served by the Home, its requests relayed to the Cloud ([ADR 1](adr/0001-console-served-by-quai-home.md)) | One interface; the keys are typed into a page the Cloud never serves |
+| Setting the services | The console's Services page, in the Home's `/data`; environment variables still win | Not everyone runs Docker by hand; the keys still never leave home |
+
+## Later: a paid hosted Cloud
+
+The Cloud we host may be paid. Not designed yet; what is decided keeps it possible:
+
+- **The Cloud stores nothing.** A paid Cloud checks a license signed by Quai (home id, expiry),
+  sent by the Home in `Hello` and verified with Quai's public key: no database, no call out. What
+  knows the subscriptions is a separate billing service, not the Cloud.
+- **One `quai` image.** The license check is a variable set on our Cloud only; a self-hosted Cloud
+  doesn't set it and stays complete and free.
+- **`Welcome` carries what the Cloud requires,** so the Home's console can show "Subscribe" only
+  where it applies. Buying from the console (a web page, not the app) keeps App Store purchase
+  rules out of it; in-app purchase can come later as a second source of licenses.

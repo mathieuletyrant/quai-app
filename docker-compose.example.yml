@@ -1,8 +1,20 @@
-# Quai Cloud: the API, the console and the pushes. It keeps nothing on disk; Quai Home
-# (apps/home) connects to it at ws://<this host>:8787/home and brings the home's data.
+# Quai, all self-hosted. Quai Cloud keeps nothing on disk: Quai Home connects to it at
+# ws://<its host>:8787/home and brings the home's data. The console is Quai Home's, on :8788:
+# sign in with QUAI_HOME_PASSWORD, then set the services' addresses and keys there.
 services:
   quai:
     image: ghcr.io/mathieuletyrant/quai:latest
     restart: unless-stopped
     ports:
       - "8787:8787"
+
+  quai-home:
+    image: ghcr.io/mathieuletyrant/quai-home:latest
+    restart: unless-stopped
+    environment:
+      QUAI_CLOUD_URL: ws://quai:8787/home
+      QUAI_HOME_PASSWORD: change-me
+    ports:
+      - "8788:8788"
+    volumes:
+      - ./quai-home:/data

@@ -1,12 +1,14 @@
 import { HomeProtocol } from "@quai/api"
-import { Clock, Context, Effect, Layer, Queue, Ref, Schema, Semaphore } from "effect"
+import { Clock, Context, Deferred, Effect, Layer, PubSub, Queue, Ref, Schema, Semaphore } from "effect"
 import { Socket } from "effect/socket"
 import { Calls } from "./Calls.ts"
-import { HomeConfig, configuredServices } from "./Config.ts"
-import type { StoreError } from "./Errors.ts"
+import { CloudSeen } from "./CloudSeen.ts"
+import { configuredServices, HomeConfig } from "./Config.ts"
+import { CloudUnreachable, type StoreError } from "./Errors.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
 import { Journal } from "./Journal.ts"
+import { ServiceSettings } from "./ServiceSettings.ts"
 import { homeVersion } from "./Version.ts"
 import { Watches } from "./Watches.ts"
 
@@ -25,6 +27,16 @@ export const reconnectDelayMs = (failures: number) => Math.min(1_000 * 2 ** fail
 /** The cloud pings every 20 s: this long without one, the link is dead even if the socket isn't closed. */
 export const heartbeatTimeoutMs = 60_000
 
+/** How long the console waits for Quai Cloud to answer one of its requests. */
+export const consoleRequestTimeoutMs = 20_000
+
+/** What the console is told while there's no Cloud to relay to. */
+export const noCloudMessage = "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home"
+export const notLinkedMessage = "Quai Cloud isn't reachable"
+
+/** A console request, as Quai Home relays it. */
+export type ConsoleRequest = Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">
+
 /** How many calls run at once. */
 const callConcurrency = 8
 
@@ -41,11 +53,22 @@ export class Link extends Context.Service<Link, {
   readonly send: (message: HomeMessage) => Effect.Effect<void>
   /** Whether the cloud welcomed this connection. */
   readonly linked: Effect.Effect<boolean>
+  /** Relays one of the console's requests to the Cloud, and its answer back. */
+  readonly console: (request: ConsoleRequest) => Effect.Effect<{ readonly status: number; readonly body: string }, CloudUnreachable>
 }>()("quai-home/Link") {
+  /** No `QUAI_CLOUD_URL`: nothing to link to, every console request says so. */
+  static readonly unlinked = Layer.succeed(Link, {
+    send: (message) => Effect.logDebug(`no Quai Cloud: dropped ${message._tag}`),
+    linked: Effect.succeed(false),
+    console: () => Effect.fail(new CloudUnreachable({ message: noCloudMessage }))
+  })
+
   static readonly layer = Layer.effect(
     Link,
     Effect.gen(function*() {
       const config = yield* HomeConfig
+      const settings = yield* ServiceSettings
+      const cloudSeen = yield* CloudSeen
       const key = yield* HomeKey
       const calls = yield* Calls
       const watches = yield* Watches
@@ -55,14 +78,18 @@ export class Link extends Context.Service<Link, {
       const current = yield* Ref.make<((message: HomeMessage) => Effect.Effect<void>) | null>(null)
       const linked = yield* Ref.make(false)
       const failures = yield* Ref.make(0)
+      const consoleCount = yield* Ref.make(0)
+      /** The console's requests waiting for the Cloud's answer, on the current connection. */
+      const consolePending = new Map<string, Deferred.Deferred<HomeProtocol.ConsoleResponse, CloudUnreachable>>()
 
-      const hello = HomeProtocol.Hello.make({
-        protocol: HomeProtocol.protocolVersion,
-        homeVersion,
-        publicKey: key.publicKey,
-        services: configuredServices(config),
-        webUrls: config.webUrls
-      })
+      const hello = Effect.map(settings.current, (endpoints) =>
+        HomeProtocol.Hello.make({
+          protocol: HomeProtocol.protocolVersion,
+          homeVersion,
+          publicKey: key.publicKey,
+          services: configuredServices(endpoints),
+          webUrls: config.webUrls
+        }))
 
       const runStore = (request: StoreRequest): Effect.Effect<HomeMessage> => {
         const done = HomeProtocol.StoreDone.make({ id: request.id })
@@ -91,9 +118,24 @@ export class Link extends Context.Service<Link, {
         yield* Effect.forkScoped(Effect.forever(Effect.flatMap(Queue.take(storeQueue), (r) => Effect.flatMap(runStore(r), write))))
         const lastPing = yield* Ref.make(yield* Clock.currentTimeMillis)
 
-        yield* write(hello)
+        yield* write(yield* hello)
         yield* Ref.set(current, write)
-        yield* Effect.addFinalizer(() => Effect.andThen(Ref.set(current, null), Ref.set(linked, false)))
+        yield* Effect.addFinalizer(() =>
+          Effect.gen(function*() {
+            yield* Ref.set(current, null)
+            yield* Ref.set(linked, false)
+            for (const answer of consolePending.values()) {
+              yield* Deferred.fail(answer, new CloudUnreachable({ message: notLinkedMessage }))
+            }
+            consolePending.clear()
+          }))
+        // A service set or removed from the console: the Cloud hears which services this home reaches now.
+        const changes = yield* settings.changes
+        yield* Effect.forkScoped(Effect.forever(Effect.gen(function*() {
+          yield* PubSub.take(changes)
+          if (!(yield* Ref.get(linked))) return
+          yield* write(HomeProtocol.ServicesChanged.make({ services: configuredServices(yield* settings.current) }))
+        })))
 
         const read = Effect.gen(function*() {
           while (true) {
@@ -113,6 +155,8 @@ export class Link extends Context.Service<Link, {
                   yield* Effect.logInfo(`linked as home ${key.homeId}`)
                   yield* Ref.set(failures, 0)
                   yield* Ref.set(linked, true)
+                  // On disk, without holding up the link.
+                  yield* Effect.forkDetach(cloudSeen.linked)
                   yield* watcher.reset
                   // Quai Home's own journal lines, for the Cloud's live view: they're kept here already.
                   yield* Effect.forkScoped(Effect.forever(Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))))
@@ -138,6 +182,14 @@ export class Link extends Context.Service<Link, {
                 case "JournalAppend":
                   yield* journal.append(message.entries)
                   break
+                case "ConsoleResponse": {
+                  const answer = consolePending.get(message.id)
+                  if (answer !== undefined) {
+                    consolePending.delete(message.id)
+                    yield* Deferred.succeed(answer, message)
+                  }
+                  break
+                }
                 case "JournalRead": {
                   const page = yield* journal.read(message.query)
                   yield* write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
@@ -182,6 +234,23 @@ export class Link extends Context.Service<Link, {
 
       return {
         linked: Ref.get(linked),
+        console: (request) =>
+          Effect.gen(function*() {
+            const write = yield* Ref.get(current)
+            if (write === null || !(yield* Ref.get(linked))) return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
+            const id = `c${yield* Ref.updateAndGet(consoleCount, (n) => n + 1)}`
+            const answer = yield* Deferred.make<HomeProtocol.ConsoleResponse, CloudUnreachable>()
+            consolePending.set(id, answer)
+            yield* write(HomeProtocol.ConsoleRequest.make({ ...request, id }))
+            const response = yield* Deferred.await(answer).pipe(
+              Effect.timeoutOrElse({
+                duration: consoleRequestTimeoutMs,
+                orElse: () => Effect.fail(new CloudUnreachable({ message: "Quai Cloud didn't answer in time" }))
+              }),
+              Effect.ensuring(Effect.sync(() => consolePending.delete(id)))
+            )
+            return { status: response.status, body: response.body }
+          }),
         send: (message) =>
           Effect.flatMap(Ref.get(current), (write) =>
             write === null ? Effect.logDebug(`not linked: dropped ${message._tag}`) : write(message))

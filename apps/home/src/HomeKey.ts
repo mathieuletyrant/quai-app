@@ -18,6 +18,8 @@ export class HomeKey extends Context.Service<HomeKey, {
   readonly sign: (nonce: string) => string
   /** The secret webhooks carry in their URL: stable across restarts, since the URL lives in Radarr and Sonarr. */
   readonly webhookToken: string
+  /** Signs the console's session cookies: stable across restarts, so a restart doesn't sign the console out. */
+  readonly consoleSecret: Buffer
 }>()("quai-home/HomeKey") {
   /** Reads the key at `path` (PEM), or creates it there (mode 0600). */
   static readonly make = (path: string) =>
@@ -63,6 +65,7 @@ const fromPrivateKey = (privateKey: KeyObject): HomeKey["Service"] => {
     publicKey,
     homeId: HomeId.homeId(publicKey),
     sign: (nonce) => sign(null, Buffer.from(HomeProtocol.challengePayload(nonce)), privateKey).toString("base64"),
-    webhookToken: createHmac("sha256", raw).update("webhooks").digest("hex").slice(0, 32)
+    webhookToken: createHmac("sha256", raw).update("webhooks").digest("hex").slice(0, 32),
+    consoleSecret: createHmac("sha256", raw).update("console").digest()
   }
 }

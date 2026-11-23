@@ -16,10 +16,11 @@ import { fakeHttp, type Seen } from "./fakeHttp.ts"
 const sent: Array<HomeProtocol.HomeMessage> = []
 const fakeLink = Layer.succeed(Link, {
   send: (message) => Effect.sync(() => void sent.push(message)),
-  linked: Effect.succeed(true)
+  linked: Effect.succeed(true),
+  console: () => Effect.die(new Error("not in this test"))
 })
 
-const homeKey = Layer.succeed(HomeKey, { publicKey: "pk", homeId: "0123456789abcdef0123456789abcdef", sign: () => "sig", webhookToken: "s3cret" })
+const homeKey = Layer.succeed(HomeKey, { publicKey: "pk", homeId: "0123456789abcdef0123456789abcdef", sign: () => "sig", webhookToken: "s3cret", consoleSecret: Buffer.from("console") })
 
 const server = HttpRouter.serve(WebhooksLive).pipe(
   Layer.provideMerge(NodeHttpServer.layerTest),
@@ -76,7 +77,7 @@ describe("webhook setup", () => {
       const body = JSON.parse(seen[1]!.body!)
       expect(body).toMatchObject({ name: "Quai", implementation: "Webhook", onGrab: true, onDownload: true, onMovieAdded: true })
       expect(body.fields).toContainEqual({ name: "url", value: url })
-    }).pipe(Effect.provide(ServiceAuth.layer.pipe(Layer.provide([configLayer(), http]))))
+    }).pipe(Effect.provide(ServiceAuth.fromConfig.pipe(Layer.provide([configLayer(), http]))))
   })
 })
 
@@ -87,7 +88,7 @@ describe("Seerr webhook setup", () => {
     const seen: Array<Seen> = []
     const http = fakeHttp((r) => r.method === "GET" ? { json: current } : { json: {} }, seen)
     return Effect.map(
-      ensureSeerrWebhook(url, token).pipe(Effect.provide(ServiceAuth.layer.pipe(Layer.provide([configLayer(), http])))),
+      ensureSeerrWebhook(url, token).pipe(Effect.provide(ServiceAuth.fromConfig.pipe(Layer.provide([configLayer(), http])))),
       (result) => ({ result, seen })
     )
   }
@@ -130,7 +131,7 @@ describe("Seerr webhook setup", () => {
   it.effect("a Seerr that refuses is a ServiceError, logged and skipped at start", () =>
     Effect.gen(function*() {
       const http = fakeHttp(() => ({ status: 401, json: { message: "Unauthorized" } }))
-      const error = yield* Effect.flip(ensureSeerrWebhook(url, token).pipe(Effect.provide(ServiceAuth.layer.pipe(Layer.provide([configLayer(), http])))))
+      const error = yield* Effect.flip(ensureSeerrWebhook(url, token).pipe(Effect.provide(ServiceAuth.fromConfig.pipe(Layer.provide([configLayer(), http])))))
       expect(error).toMatchObject({ _tag: "ServiceError", service: "seerr", message: "could not set up the webhook: HTTP 401" })
     }))
 })
