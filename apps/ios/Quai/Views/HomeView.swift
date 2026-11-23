@@ -67,44 +67,30 @@ struct HomeView: View {
             && today.requested.isEmpty
     }
 
+    /// The first reads haven't answered yet (a failed one counts as answered): the Home shows the
+    /// tiles' shapes instead of "All quiet" and tiles popping in one by one.
+    private var isLoading: Bool {
+        (connection.fixes == nil && connection.fixesError == nil)
+            || (connection.requests == nil && connection.requestsError == nil)
+            || (connection.releases == nil && connection.releasesError == nil)
+    }
+
     var body: some View {
         NavigationStack {
             Screen {
                 TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay)
             } content: {
-                if let error = connection.lastError {
-                    MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
+                VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
+                    if isLoading {
+                        HomeSkeleton(showsStorage: connection.library == nil)
+                            .transition(.opacity)
+                    } else {
+                        tiles
+                            .transition(.opacity)
+                    }
                 }
-                if !fixes.isEmpty {
-                    NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
-                        .buttonStyle(.plain)
-                }
-                if !requests.isEmpty {
-                    NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
-                        .buttonStyle(.plain)
-                }
-                if !releases.isEmpty {
-                    NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
-                        .buttonStyle(.plain)
-                }
-                if !today.requested.isEmpty {
-                    openActivity { OnTheirWayTile(activities: today.requested) }
-                }
-                if !alerts.isEmpty {
-                    AlertsTile(alerts: alerts)
-                }
-                if isQuiet && connection.lastError == nil {
-                    MessageTile(
-                        title: "All quiet",
-                        message: "Nothing to fix, approve or wait for right now.",
-                        systemImage: "moon.stars.fill",
-                        color: Palette.accent
-                    )
-                }
-                if let disk = connection.library?.disk {
-                    Button { tab = .library } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
-                        .buttonStyle(.plain)
-                }
+                .animation(.smooth(duration: 0.35), value: isLoading)
+                .animation(.smooth(duration: 0.35), value: connection.library == nil)
             }
             .refreshable {
                 await connection.refresh()
@@ -133,11 +119,66 @@ struct HomeView: View {
         }
     }
 
+    /// The tiles once the first reads have answered: each one only when it has something to show.
+    @ViewBuilder private var tiles: some View {
+        if let error = connection.lastError {
+            MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
+        }
+        if !fixes.isEmpty {
+            NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
+                .buttonStyle(.plain)
+        }
+        if !requests.isEmpty {
+            NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
+                .buttonStyle(.plain)
+        }
+        if !releases.isEmpty {
+            NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
+                .buttonStyle(.plain)
+        }
+        if !today.requested.isEmpty {
+            openActivity { OnTheirWayTile(activities: today.requested) }
+        }
+        if !alerts.isEmpty {
+            AlertsTile(alerts: alerts)
+        }
+        if isQuiet && connection.lastError == nil {
+            MessageTile(
+                title: "All quiet",
+                message: "Nothing to fix, approve or wait for right now.",
+                systemImage: "moon.stars.fill",
+                color: Palette.accent
+            )
+        }
+        if let disk = connection.library?.disk {
+            Button { tab = .library } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
+                .buttonStyle(.plain)
+        }
+    }
+
     /// A tile that opens the Activity tab.
     private func openActivity<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         let tile = content()
         return Button { tab = .activity } label: { tile }
             .buttonStyle(.plain)
+    }
+}
+
+/// The Home while its first reads are on their way: the shapes of the usual tiles, then the disk.
+private struct HomeSkeleton: View {
+    let showsStorage: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
+            SkeletonTile(rows: 3)
+            SkeletonTile(rows: 2)
+            SkeletonTile(rows: 2, showsValue: false)
+            if showsStorage {
+                SkeletonStorageTile()
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("Loading")
     }
 }
 
