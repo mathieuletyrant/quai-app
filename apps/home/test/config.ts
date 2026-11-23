@@ -23,6 +23,7 @@ export const testConfig = {
   seerr: { url: "http://seerr:5055", apiKey: key },
   cleanuparr: { url: "http://cleanuparr:11011", apiKey: key },
   prowlarr: { url: "http://prowlarr:9696", apiKey: key },
+  suggestedUrls: {},
   webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"] }
 } satisfies HomeConfig["Service"]
 

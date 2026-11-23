@@ -131,7 +131,10 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
           }
         }
         const own = all[service]
-        if (own === undefined) return { service, source: "none", hasSecret: false }
+        if (own === undefined) {
+          const suggestedUrl = config.suggestedUrls[service]
+          return { service, source: "none", hasSecret: false, ...(suggestedUrl === undefined ? {} : { suggestedUrl }) }
+        }
         return {
           service,
           source: "saved",

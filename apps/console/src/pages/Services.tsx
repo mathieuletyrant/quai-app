@@ -55,7 +55,7 @@ function ServiceAddress({ setup }: { setup: ServiceSetup }): ReactNode {
 }
 
 function ServiceForm({ setup, onSaved, onRemove }: { setup: ServiceSetup; onSaved: (check: ServiceCheck) => void; onRemove: () => void }) {
-  const [url, setUrl] = useState(setup.url ?? "")
+  const [url, setUrl] = useState(setup.url ?? setup.suggestedUrl ?? "")
   const [secret, setSecret] = useState("")
   const [username, setUsername] = useState(setup.username ?? "")
   const [saving, setSaving] = useState(false)

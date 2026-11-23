@@ -28,6 +28,7 @@ const consoleServer = (options: {
   const config = configLayer({
     radarr: null,
     sonarr: null,
+    suggestedUrls: { sonarr: "http://sonarr_server_1:8989" },
     password: options.password === undefined ? null : Redacted.make(options.password)
   })
   const link = Layer.succeed(Link, {
@@ -184,7 +185,7 @@ describe("services page", () => {
       const list = (yield* request("GET", "/home-api/services", { cookie })).json as ReadonlyArray<{ service: string; source: string }>
       expect(JSON.stringify(list)).not.toContain("good")
       expect(list.find((s) => s.service === "radarr")?.source).toBe("saved")
-      expect(list.find((s) => s.service === "sonarr")?.source).toBe("none")
+      expect(list.find((s) => s.service === "sonarr")).toEqual({ service: "sonarr", source: "none", hasSecret: false, suggestedUrl: "http://sonarr_server_1:8989" })
       expect(list.find((s) => s.service === "jellyfin")?.source).toBe("environment")
 
       expect((yield* request("PUT", "/home-api/services/jellyfin", { cookie, body: { url: "http://j:8096", secret: "k" } })).status).toBe(409)

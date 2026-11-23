@@ -99,7 +99,9 @@ export const ServiceSetup = Schema.Struct({
   /** qBittorrent's user name. */
   username: Schema.optionalKey(Schema.String),
   /** Whether a key (qBittorrent: a password) is set. */
-  hasSecret: Schema.Boolean
+  hasSecret: Schema.Boolean,
+  /** For a service not set yet: the address Quai Home's environment gives it, to fill in the form. */
+  suggestedUrl: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "ServiceSetup" })
 export type ServiceSetup = typeof ServiceSetup.Type
 

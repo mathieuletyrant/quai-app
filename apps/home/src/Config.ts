@@ -49,6 +49,11 @@ export class HomeConfig extends Context.Service<HomeConfig, {
   readonly prowlarr: ServiceEndpoint | null
   /** Where an iPhone opens Radarr and Sonarr: at home, then from outside. Sent in Hello. */
   readonly webUrls: HomeProtocol.WebUrls
+  /**
+   * A service's address set without its key (`QUAI_RADARR_URL` alone): not configured, but what the
+   * console's Services page fills in, so only the key is pasted.
+   */
+  readonly suggestedUrls: Partial<Record<HomeProtocol.HomeService, string>>
 }>()("quai-home/HomeConfig") {
   static readonly layer = Layer.effect(
     HomeConfig,
@@ -63,6 +68,14 @@ export class HomeConfig extends Context.Service<HomeConfig, {
             ? { url: trimSlash(url.value), apiKey: apiKey.value }
             : null
         })
+      const keyed = ["radarr", "sonarr", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"] as const
+      const suggestedUrls: Partial<Record<HomeProtocol.HomeService, string>> = {}
+      for (const service of keyed) {
+        const prefix = service.toUpperCase()
+        const url = yield* opt(`QUAI_${prefix}_URL`)
+        const apiKey = yield* opt(`QUAI_${prefix}_API_KEY`)
+        if (Option.isSome(url) && url.value.trim() !== "" && Option.isNone(apiKey)) suggestedUrls[service] = trimSlash(url.value.trim())
+      }
       const qbUrl = yield* opt("QUAI_QBITTORRENT_URL")
       const qbUser = yield* opt("QUAI_QBITTORRENT_USERNAME")
       const qbPassword = yield* secret("QUAI_QBITTORRENT_PASSWORD")
@@ -94,6 +107,7 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         qbittorrent: Option.isSome(qbUrl)
           ? { url: trimSlash(qbUrl.value), username: Option.getOrNull(qbUser), password: Option.getOrNull(qbPassword) }
           : null,
+        suggestedUrls,
         webUrls: {
           ...(radarrWebUrls.length === 0 ? {} : { radarr: radarrWebUrls }),
           ...(sonarrWebUrls.length === 0 ? {} : { sonarr: sonarrWebUrls })
