@@ -60,7 +60,7 @@ struct LibraryView: View {
     @State private var selected: LibraryItem?
     @State private var loading = false
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 3)
+    private let columns = [GridItem(.adaptive(minimum: Metrics.minPosterWidth), spacing: 10, alignment: .top)]
 
     private var inScope: [LibraryItem] { (connection.library?.items ?? []).filter(scope.includes) }
     private var shown: [LibraryItem] { inScope.filter(filter.includes) }

@@ -19,6 +19,10 @@ enum Metrics {
     static let tileRadius: CGFloat = 26
     static let cardRadius: CGFloat = 22
     static let tileSpacing: CGFloat = 12
+    /// The narrowest a Home tile gets: one column on an iPhone, two on the iPhone Duo's inner display.
+    static let minTileWidth: CGFloat = 300
+    /// The narrowest a Library poster gets: three across on an iPhone, more on wider displays.
+    static let minPosterWidth: CGFloat = 104
     /// Room under the scroll content for the floating tab bar.
     static let tabBarClearance: CGFloat = 24
 }
