@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quai — your media stack, live on your Lock Screen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Quai puts your Radarr, Sonarr and Jellyfin on your iPhone's Lock Screen: every movie and episode, from request to ready to watch, live.">
+<meta name="theme-color" content="#0B0B0E">
+<meta name="color-scheme" content="dark">
+<meta property="og:title" content="Quai — your media stack, live on your Lock Screen">
+<meta property="og:description" content="Quai puts your Radarr, Sonarr and Jellyfin on your iPhone's Lock Screen: every movie and episode, from request to ready to watch, live.">
+<meta property="og:type" content="website">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+<script src="main.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div style="min-height: 100vh; background: #0B0B0E; color: #F5F5F7; font-family: Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden;">
+
+<header style="position: sticky; top: 0; z-index: 10; background: rgba(11,11,14,0.78); backdrop-filter: blur(20px); border-bottom: 1px solid #1F1F25;">
+<div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px;">
+<a href="./" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #F5F5F7;">
+<span style="width: 34px; height: 34px; border-radius: 9px; background: #6FD3C2; display: grid; place-items: center;">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#04201B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15h18M6 15V9h12v6M9 9V5h6v4M4 19c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5"/></svg>
+</span>
+<span style="font-size: 19px; font-weight: 700; letter-spacing: -0.2px;">Quai</span>
+</a>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; gap: 4px 22px; margin-left: auto; align-items: center; font-size: 15px; font-weight: 500;">
+<a href="#activities" style="color: #C7C7CC; text-decoration: none;">Live Activities</a>
+<a href="#how" style="color: #C7C7CC; text-decoration: none;">How it works</a>
+<a href="#setup" style="color: #C7C7CC; text-decoration: none;">Setup</a>
+<a href="support.html" style="color: #C7C7CC; text-decoration: none;">Support</a>
+<a href="https://github.com/mathieuletyrant/quai-app" style="color: #C7C7CC; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg>GitHub</a>
+<a href="#join" style="text-decoration: none; background: #6FD3C2; color: #0B0B0E; font-weight: 700; padding: 10px 16px; border-radius: 12px; min-height: 44px; box-sizing: border-box; display: inline-flex; align-items: center;">Join the beta</a>
+</nav>
+</div>
+</header>
+<main id="main">
+
+<section style="position: relative; overflow: hidden; border-bottom: 1px solid #1F1F25;">
+<div aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.13) 1px, transparent 1.4px); background-size: 24px 24px; -webkit-mask-image: radial-gradient(ellipse 80% 70% at 65% 45%, #000 30%, transparent 80%); mask-image: radial-gradient(ellipse 80% 70% at 65% 45%, #000 30%, transparent 80%);"></div>
+<div aria-hidden="true" style="position: absolute; width: 760px; height: 760px; right: -80px; top: -60px; background: radial-gradient(closest-side, rgba(255,194,48,0.16), rgba(255,194,48,0) 70%);"></div>
+<div aria-hidden="true" style="position: absolute; width: 640px; height: 640px; left: -220px; bottom: -320px; background: radial-gradient(closest-side, rgba(111,211,194,0.12), rgba(111,211,194,0) 70%);"></div>
+
+<div style="position: relative; max-width: 1200px; margin: 0 auto; padding: 88px 24px 96px; display: flex; flex-wrap: wrap; align-items: center; gap: 56px;">
+<div style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 26px;">
+<a href="#join" style="position: relative; overflow: hidden; align-self: flex-start; text-decoration: none; font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6FD3C2; border: 1px solid rgba(111,211,194,0.35); background: rgba(111,211,194,0.08); padding: 7px 14px 7px 12px; border-radius: 999px; display: inline-flex; align-items: center; gap: 10px;"><span aria-hidden="true" class="q-sheen" style="position: absolute; top: 0; bottom: 0; left: 0; width: 40%; background: linear-gradient(90deg, rgba(111,211,194,0), rgba(111,211,194,0.22), rgba(111,211,194,0));"></span><span aria-hidden="true" style="position: relative; width: 8px; height: 8px; display: inline-block;"><span class="q-ping" style="position: absolute; inset: 0; border-radius: 4px; background: #6FD3C2;"></span><span style="position: absolute; inset: 0; border-radius: 4px; background: #6FD3C2;"></span></span><span style="position: relative;">Beta on TestFlight</span><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position: relative;"><path d="M9 6l6 6-6 6"></path></svg></a>
+<h1 style="margin: 0; font-size: clamp(44px, 6.6vw, 80px); line-height: 0.98; font-weight: 900; letter-spacing: -2.4px;">From request<br>to <span style="color: #FFC230;">ready to watch</span>,<br>live on your iPhone.</h1>
+<p style="margin: 0; font-size: 19px; line-height: 1.55; color: #A1A1A6; max-width: 520px;">Quai watches your Radarr, Sonarr and Jellyfin, and puts every movie and episode on your Lock Screen as it moves. When something breaks, you know first.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px;">
+<a href="https://testflight.apple.com/join/YOUR-CODE" style="text-decoration: none; background: #6FD3C2; color: #0B0B0E; font-weight: 700; font-size: 16px; padding: 0 24px; height: 54px; border-radius: 15px; display: inline-flex; align-items: center; gap: 10px;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"></path></svg>Join the TestFlight beta</a>
+<a href="https://github.com/mathieuletyrant/quai-app" style="text-decoration: none; background: rgba(30,30,36,0.8); border: 1px solid #2E2E35; color: #F5F5F7; font-weight: 600; font-size: 16px; padding: 0 22px; height: 54px; border-radius: 15px; display: inline-flex; align-items: center; gap: 8px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M18 7l5 5-5 5"></path></svg>View on GitHub</a>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: #8E8E93;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Self-hosted</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>No account</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Your data stays home</span>
+</div>
+</div>
+
+<div style="flex: 0 1 460px; position: relative; display: flex; justify-content: center; margin: 0 auto; min-height: 680px; align-items: center;">
+<div class="q-float" aria-hidden="true" style="position: absolute; left: -24px; top: 236px; z-index: 2; background: rgba(20,20,24,0.92); border: 1px solid #2A2A31; border-radius: 12px; padding: 9px 12px; display: flex; align-items: center; gap: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #D1D1D6; box-shadow: 0 12px 30px rgba(0,0,0,0.4);"><span style="color: #8E8E93;">21:38</span><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Radarr · release grabbed</div>
+<div class="q-float" aria-hidden="true" style="position: absolute; right: -24px; top: 300px; z-index: 2; background: rgba(20,20,24,0.92); border: 1px solid #2A2A31; border-radius: 12px; padding: 9px 12px; display: flex; align-items: center; gap: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #D1D1D6; box-shadow: 0 12px 30px rgba(0,0,0,0.4);"><span style="color: #8E8E93;">21:41</span><span style="width: 6px; height: 6px; border-radius: 3px; background: #FFC230;"></span>qBittorrent · 11 MB/s</div>
+<div class="q-float" aria-hidden="true" style="position: absolute; left: 6px; top: 364px; z-index: 2; background: rgba(20,20,24,0.92); border: 1px solid #2A2A31; border-radius: 12px; padding: 9px 12px; display: flex; align-items: center; gap: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #D1D1D6; box-shadow: 0 12px 30px rgba(0,0,0,0.4);"><span style="color: #8E8E93;">21:42</span><span style="width: 6px; height: 6px; border-radius: 3px; background: #6FD3C2;"></span>Quai · pushed to 2 iPhones</div>
+
+<div role="img" aria-label="iPhone Lock Screen with a Quai Live Activity following Dune: Part Two from downloading to ready to watch" style="position: relative; z-index: 1; width: 320px; height: 660px; border-radius: 54px; background: #050507; border: 1px solid #34343C; padding: 10px; box-sizing: border-box; box-shadow: 0 40px 90px rgba(0,0,0,0.6), 0 0 0 6px #121216;">
+<div style="height: 100%; border-radius: 45px; background: linear-gradient(180deg, #3A3020 0%, #1A1712 38%, #0E0E10 100%); position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; padding: 14px 12px; box-sizing: border-box; gap: 8px;">
+<div style="width: 178px; height: 36px; border-radius: 18px; background: #000; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; box-sizing: border-box;">
+<q-if data-if="isReady" hidden>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>
+<span style="font-size: 12px; font-weight: 800; color: #30D158;">Ready</span>
+</q-if>
+<q-if data-if="notReady">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg>
+<span style="font-size: 13px; font-weight: 800; color: #FFC230; font-variant-numeric: tabular-nums;"><q-t data-text="pctText">63%</q-t></span>
+</q-if>
+</div>
+<span style="font-size: 15px; font-weight: 600; color: rgba(245,245,247,0.8); margin-top: 10px;">Tuesday 24 November</span>
+<span style="font-size: 84px; font-weight: 700; line-height: 0.92; letter-spacing: -2px; color: rgba(245,245,247,0.96);">21:42</span>
+<div style="flex: 1;"></div>
+<div style="width: 100%; border-radius: 26px; background: rgba(14,14,17,0.94); padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 11px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="width: 40px; height: 40px; border-radius: 11px; background: #1E1E24; border: 1px solid #2E2E35; display: grid; place-items: center; flex-shrink: 0;">
+<q-if data-if="isDl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></q-if>
+<q-if data-if="isImp" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10M8 9l4 4 4-4M4 14v5h16v-5"></path></svg></q-if>
+<q-if data-if="isReady" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></q-if>
+</span>
+<div style="min-width: 0; flex: 1;">
+<div style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dune: Part Two</div>
+<div style="font-size: 12px; color: #A1A1A6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><q-t data-text="sub">≈ 4 min left · 11 MB/s</q-t></div>
+</div>
+<q-if data-if="notReady"><span style="font-size: 24px; font-weight: 800; color: #FFC230; font-variant-numeric: tabular-nums;"><q-t data-text="pctText">63%</q-t></span></q-if>
+<q-if data-if="isReady" hidden><span style="font-size: 13px; font-weight: 700; color: #0B0B0E; background: #30D158; border-radius: 999px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 5px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="#0B0B0E" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Play</span></q-if>
+</div>
+<div style="height: 6px; border-radius: 3px; background: #2E2E35; overflow: hidden;"><div data-bar style="width: 63%; height: 100%; background: #FFC230; border-radius: 3px; transition: width .3s linear, background-color .4s;"></div></div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
+<div data-step="0" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #FFC230; transition: background-color .4s;"></div><span style="font-size: 10px; color: #A1A1A6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Search</span></div>
+<div data-step="1" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #FFC230; transition: background-color .4s;"></div><span style="font-size: 10px; color: #F5F5F7; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Download</span></div>
+<div data-step="2" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #3A3A42; transition: background-color .4s;"></div><span style="font-size: 10px; color: #A1A1A6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Import</span></div>
+<div data-step="3" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #3A3A42; transition: background-color .4s;"></div><span style="font-size: 10px; color: #A1A1A6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Ready</span></div>
+</div>
+</div>
+<div style="width: 100%; border-radius: 26px; background: rgba(14,14,17,0.94); padding: 14px 15px; box-sizing: border-box; display: flex; align-items: center; gap: 10px;">
+<span style="width: 40px; height: 40px; border-radius: 11px; background: rgba(181,126,220,0.18); display: grid; place-items: center; flex-shrink: 0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#B57EDC" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></span>
+<div style="min-width: 0; flex: 1;">
+<div style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">The Rings of Power</div>
+<div style="font-size: 12px; color: #A1A1A6;">S03E04 · ends 22:14</div>
+</div>
+<span style="font-size: 15px; font-weight: 800; color: #B57EDC; font-variant-numeric: tabular-nums;">32:10</span>
+</div>
+<div style="width: 120px; height: 5px; border-radius: 3px; background: rgba(245,245,247,0.6); margin-top: 6px;"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-label="Works with" style="background: #0E0E12; border-bottom: 1px solid #1F1F25;">
+<div style="max-width: 1200px; margin: 0 auto; padding: 44px 24px; display: flex; flex-direction: column; align-items: center; gap: 20px;">
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #8E8E93;">Plugs into the stack you already run</span>
+<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;">
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #FFC230; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">R</span>Radarr</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #4FC3F7; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">S</span>Sonarr</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #FF8A3D; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">P</span>Prowlarr</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #5B8DEF; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">Q</span>qBittorrent</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #B57EDC; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">S</span>Seerr</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #8F7BFF; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">J</span>Jellyfin</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #30D158; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">C</span>Cleanuparr</span>
+<span style="display: inline-flex; align-items: center; gap: 9px; padding: 7px 14px 7px 7px; border-radius: 999px; background: #141418; border: 1px solid #26262C; font-size: 15px; font-weight: 600; color: #E5E5EA;"><span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 13px; background: #FF6B5B; color: #0B0B0E; font-weight: 800; font-size: 13px; display: grid; place-items: center;">R</span>Reclaimerr</span>
+</div>
+</div>
+</section>
+
+<section id="activities" style="max-width: 1200px; margin: 0 auto; padding: 112px 24px 56px; display: flex; flex-direction: column; gap: 44px;">
+<div style="display: flex; flex-direction: column; gap: 14px; max-width: 720px;">
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6FD3C2;">Live Activities</span>
+<h2 data-reveal style="margin: 0; font-size: clamp(32px, 4.4vw, 52px); line-height: 1.04; font-weight: 800; letter-spacing: -1.2px;">Your stack works in silence.<br><span style="color: #8E8E93;">Quai makes it talk.</span></h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.55; color: #A1A1A6;">Started by your server, not by you. On the Lock Screen and in the Dynamic Island, even with the app closed.</p>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px;">
+
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column;">
+<div style="padding: 28px 22px; background: radial-gradient(circle at 50% 0%, rgba(255,194,48,0.16), rgba(255,194,48,0) 70%); border-bottom: 1px solid #222228;">
+<div style="background: #0E0E11; border: 1px solid #2A2A31; border-radius: 20px; padding: 12px; display: flex; flex-direction: column; gap: 9px;">
+<div style="display: flex; align-items: center; gap: 9px;"><span style="width: 32px; height: 32px; border-radius: 9px; background: #1E1E24; display: grid; place-items: center; flex-shrink: 0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span><div style="flex: 1; min-width: 0;"><div style="font-size: 13px; font-weight: 700;">Severance</div><div style="font-size: 11px; color: #A1A1A6;">S02E07 · 3 MB/s</div></div><span style="font-size: 17px; font-weight: 800; color: #FFC230;">41%</span></div>
+<div style="height: 5px; border-radius: 3px; background: #2E2E35;"><div style="width: 41%; height: 100%; border-radius: 3px; background: #FFC230;"></div></div>
+</div>
+</div>
+<div style="padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 8px;">
+<h3 style="margin: 0; font-size: 20px; font-weight: 700;">Download</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">From the moment a title is added: searching, downloading with speed and time left, importing, ready to watch.</p>
+</div>
+</div>
+
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column;">
+<div style="padding: 28px 22px; background: radial-gradient(circle at 50% 0%, rgba(181,126,220,0.18), rgba(181,126,220,0) 70%); border-bottom: 1px solid #222228;">
+<div style="background: #0E0E11; border: 1px solid #2A2A31; border-radius: 20px; padding: 12px; display: flex; flex-direction: column; gap: 9px;">
+<div style="display: flex; align-items: center; gap: 9px;"><span style="width: 32px; height: 32px; border-radius: 9px; background: rgba(181,126,220,0.18); display: grid; place-items: center; flex-shrink: 0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#B57EDC" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></span><div style="flex: 1; min-width: 0;"><div style="font-size: 13px; font-weight: 700;">The Rings of Power</div><div style="font-size: 11px; color: #A1A1A6;">Apple TV · ends 22:14</div></div><span style="font-size: 15px; font-weight: 800; color: #B57EDC; font-variant-numeric: tabular-nums;">32:10</span></div>
+<div style="height: 5px; border-radius: 3px; background: #2E2E35;"><div style="width: 58%; height: 100%; border-radius: 3px; background: #B57EDC;"></div></div>
+</div>
+</div>
+<div style="padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 8px;">
+<h3 style="margin: 0; font-size: 20px; font-weight: 700;">Jellyfin playback</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">What’s playing on the TV, time left and when it ends, with play and pause right from the Lock Screen.</p>
+</div>
+</div>
+
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 26px; overflow: hidden; display: flex; flex-direction: column;">
+<div style="padding: 28px 22px; background: radial-gradient(circle at 50% 0%, rgba(79,195,247,0.16), rgba(79,195,247,0) 70%); border-bottom: 1px solid #222228;">
+<div style="background: #0E0E11; border: 1px solid #2A2A31; border-radius: 20px; padding: 12px; display: grid; grid-template-columns: 42px minmax(0, 1fr) 18px; gap: 7px 9px; align-items: center; font-size: 12px;">
+<span style="color: #A1A1A6; font-variant-numeric: tabular-nums;">06:00</span><span style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">12 12 12 · S01E03</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Here"><path d="M5 12l5 5 9-10"></path></svg>
+<span style="color: #A1A1A6; font-variant-numeric: tabular-nums;">18:00</span><span style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Percy Jackson · S03E02</span><span style="font-size: 11px; font-weight: 700; color: #4FC3F7;">2h</span>
+</div>
+</div>
+<div style="padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 8px;">
+<h3 style="margin: 0; font-size: 20px; font-weight: 700;">Today’s releases</h3>
+<p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">Tonight’s episodes with their air time, ticked off as they arrive. Over at midnight, or as soon as everything is here.</p>
+</div>
+</div>
+
+</div>
+</section>
+
+<section style="max-width: 1200px; margin: 0 auto; padding: 56px 24px 96px; display: flex; flex-wrap: wrap; gap: 48px; align-items: center;">
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #FFC230;">Flows</span>
+<h2 data-reveal style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.08; font-weight: 800; letter-spacing: -0.8px;">Every Live Activity is a flow you can shape.</h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.6; color: #A1A1A6;">Pick the steps, what moves a title from one to the next, and what each step shows. The console previews the Lock Screen as you edit; Test sends it to your iPhone.</p>
+</div>
+<div aria-label="Download flow in the Quai console" style="flex: 1 1 480px; min-width: 0; border: 1px solid #24242A; border-radius: 26px; padding: 28px; background-color: #0E0E12; background-image: radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1.4px); background-size: 20px 20px; display: flex; flex-direction: column; align-items: center;">
+<div style="width: 100%; max-width: 460px; background: #141418; border: 1px solid #26262C; border-radius: 16px; padding: 16px; box-sizing: border-box; display: flex; gap: 14px; align-items: center;">
+<span style="width: 40px; height: 40px; border-radius: 10px; border: 1.5px solid #FFC230; display: grid; place-items: center; flex-shrink: 0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span>
+<div><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #8E8E93;">FOLLOWS</div><div style="font-size: 16px; font-weight: 700;">Downloads</div><div style="font-size: 13px; color: #A1A1A6;">Movies and series</div></div>
+</div>
+<div style="width: 1px; height: 14px; background: #34343C;"></div>
+<span style="font-size: 13px; color: #A1A1A6; background: #111115; border: 1px solid #2E2E35; border-radius: 999px; padding: 5px 10px; display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">When <strong style="color: #F5F5F7; font-weight: 600;">release grabbed</strong><span style="background: #222228; border-radius: 6px; padding: 2px 6px; color: #F5F5F7;">Radarr</span><span style="background: #222228; border-radius: 6px; padding: 2px 6px; color: #F5F5F7;">Sonarr</span></span>
+<div style="width: 1px; height: 14px; background: #34343C;"></div>
+<div style="width: 100%; max-width: 460px; background: #17171C; border: 1.5px solid #6FD3C2; box-shadow: 0 0 0 4px rgba(111,211,194,0.1); border-radius: 16px; padding: 16px; box-sizing: border-box; display: flex; gap: 14px; align-items: center;">
+<span style="width: 40px; height: 40px; border-radius: 10px; background: #FFC230; display: grid; place-items: center; flex-shrink: 0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span>
+<div style="display: flex; flex-direction: column; gap: 6px;"><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #8E8E93;">STEP 2</div><div style="font-size: 16px; font-weight: 700;">Downloading</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: #D1D1D6;"><span style="border: 1px solid #34343C; border-radius: 6px; padding: 2px 7px;">Progress</span><span style="border: 1px solid #34343C; border-radius: 6px; padding: 2px 7px;">Speed</span><span style="border: 1px solid #34343C; border-radius: 6px; padding: 2px 7px;">Time left</span></div></div>
+</div>
+<div style="width: 1px; height: 14px; background: #34343C;"></div>
+<span style="font-size: 13px; color: #A1A1A6; background: #111115; border: 1px solid #2E2E35; border-radius: 999px; padding: 5px 10px; display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center;">When <strong style="color: #F5F5F7; font-weight: 600;">available in Jellyfin</strong><span style="background: #222228; border-radius: 6px; padding: 2px 6px; color: #F5F5F7;">Jellyfin</span></span>
+<div style="width: 1px; height: 14px; background: #34343C;"></div>
+<div style="width: 100%; max-width: 460px; background: #141418; border: 1px solid #26262C; border-radius: 16px; padding: 16px; box-sizing: border-box; display: flex; gap: 14px; align-items: center;">
+<span style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255,194,48,0.12); display: grid; place-items: center; flex-shrink: 0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+<div><div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #8E8E93;">STEP 4</div><div style="font-size: 16px; font-weight: 700;">Ready to watch</div><div style="font-size: 13px; color: #A1A1A6;">Stays 15 min, with a Play button</div></div>
+</div>
+</div>
+</section>
+
+<section id="alerts" style="max-width: 1200px; margin: 0 auto; padding: 0 24px 112px; display: flex; flex-direction: row-reverse; flex-wrap: wrap; gap: 48px; align-items: center;">
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #FF8A3D;">Alerts</span>
+<h2 data-reveal style="margin: 0; font-size: clamp(28px, 3.4vw, 40px); line-height: 1.08; font-weight: 800; letter-spacing: -0.8px;">Know when it breaks, and when it’s fixed.</h2>
+<p style="margin: 0; font-size: 17px; line-height: 1.6; color: #A1A1A6;">A service down, a disk filling up, an indexer failing, a deletion coming. One notification when it starts, one when it’s over.</p>
+<div style="margin-top: 12px; padding-top: 22px; border-top: 1px solid #222228; display: flex; flex-direction: column; gap: 14px;">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #8E8E93;">AND IN THE APP</span>
+<ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 14px;">
+<li style="display: flex; gap: 12px; align-items: flex-start;"><span style="width: 32px; height: 32px; border-radius: 9px; background: #17171C; border: 1px solid #26262C; display: grid; place-items: center; flex-shrink: 0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="4"></circle><path d="M2 21c0-4 3-6 7-6s7 2 7 6M17 11l2 2 4-4"></path></svg></span><div><div style="font-size: 15px; font-weight: 700;">Requests</div><div style="font-size: 14px; color: #A1A1A6; line-height: 1.5;">Approve or decline what the household asks for in Seerr.</div></div></li>
+<li style="display: flex; gap: 12px; align-items: flex-start;"><span style="width: 32px; height: 32px; border-radius: 9px; background: #17171C; border: 1px solid #26262C; display: grid; place-items: center; flex-shrink: 0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF8A3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"></path></svg></span><div><div style="font-size: 15px; font-weight: 700;">To fix</div><div style="font-size: 14px; color: #A1A1A6; line-height: 1.5;">No release for days, stalled downloads. Snooze until a release is grabbed.</div></div></li>
+<li style="display: flex; gap: 12px; align-items: flex-start;"><span style="width: 32px; height: 32px; border-radius: 9px; background: #17171C; border: 1px solid #26262C; display: grid; place-items: center; flex-shrink: 0;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4FC3F7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg></span><div><div style="font-size: 15px; font-weight: 700;">Out today</div><div style="font-size: 14px; color: #A1A1A6; line-height: 1.5;">Today’s episodes and which ones are already here.</div></div></li>
+</ul>
+</div>
+</div>
+<div aria-label="Quai notifications on an iPhone" style="flex: 1 1 480px; min-width: 0; position: relative; overflow: hidden; border: 1px solid #24242A; border-radius: 26px; padding: 36px 28px; background-color: #0E0E12; background-image: radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1.4px); background-size: 20px 20px; display: flex; flex-direction: column; gap: 12px;">
+<div aria-hidden="true" style="position: absolute; width: 520px; height: 520px; left: -160px; top: -200px; background: radial-gradient(closest-side, rgba(255,107,91,0.14), rgba(255,107,91,0) 70%);"></div>
+<div style="position: relative; display: flex; flex-direction: column; gap: 12px;">
+<div style="width: calc(100% - 0px); max-width: 440px; margin-left: 0px; box-sizing: border-box; background: rgba(38,38,44,0.88); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 16px 40px rgba(0,0,0,0.45); opacity: 1;">
+<span style="width: 38px; height: 38px; border-radius: 10px; background: #6FD3C2; display: grid; place-items: center; flex-shrink: 0;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15h18l-2.5 4.5h-13z"></path><path d="M7 15v-4h10v4"></path><path d="M12 11V5l4 2.5"></path></svg></span>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 4px; background: #30D158; flex-shrink: 0;"></span><span style="font-size: 15px; font-weight: 700;">Prowlarr is back</span><span style="margin-left: auto; font-size: 12px; color: #8E8E93;">now</span></div>
+<div style="font-size: 14px; line-height: 1.45; color: #C7C7CC; margin-top: 2px;">Indexers answer again. 2 searches resumed.</div>
+</div>
+</div>
+<div style="width: calc(100% - 28px); max-width: 440px; margin-left: 28px; box-sizing: border-box; background: rgba(38,38,44,0.88); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 16px 40px rgba(0,0,0,0.45); opacity: 1;">
+<span style="width: 38px; height: 38px; border-radius: 10px; background: #6FD3C2; display: grid; place-items: center; flex-shrink: 0;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15h18l-2.5 4.5h-13z"></path><path d="M7 15v-4h10v4"></path><path d="M12 11V5l4 2.5"></path></svg></span>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 4px; background: #FF6B5B; flex-shrink: 0;"></span><span style="font-size: 15px; font-weight: 700;">Prowlarr is down</span><span style="margin-left: auto; font-size: 12px; color: #8E8E93;">21:12</span></div>
+<div style="font-size: 14px; line-height: 1.45; color: #C7C7CC; margin-top: 2px;">All indexers unavailable for 5 minutes.</div>
+</div>
+</div>
+<div style="width: calc(100% - 56px); max-width: 440px; margin-left: 56px; box-sizing: border-box; background: rgba(38,38,44,0.88); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 16px 40px rgba(0,0,0,0.45); opacity: 0.85;">
+<span style="width: 38px; height: 38px; border-radius: 10px; background: #6FD3C2; display: grid; place-items: center; flex-shrink: 0;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15h18l-2.5 4.5h-13z"></path><path d="M7 15v-4h10v4"></path><path d="M12 11V5l4 2.5"></path></svg></span>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 4px; background: #FF8A3D; flex-shrink: 0;"></span><span style="font-size: 15px; font-weight: 700;">Low disk space</span><span style="margin-left: auto; font-size: 12px; color: #8E8E93;">18:02</span></div>
+<div style="font-size: 14px; line-height: 1.45; color: #C7C7CC; margin-top: 2px;">8% free on the media disk.</div>
+</div>
+</div>
+<div style="width: calc(100% - 84px); max-width: 440px; margin-left: 84px; box-sizing: border-box; background: rgba(38,38,44,0.88); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.07); border-radius: 22px; padding: 14px; display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 16px 40px rgba(0,0,0,0.45); opacity: 0.7;">
+<span style="width: 38px; height: 38px; border-radius: 10px; background: #6FD3C2; display: grid; place-items: center; flex-shrink: 0;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15h18l-2.5 4.5h-13z"></path><path d="M7 15v-4h10v4"></path><path d="M12 11V5l4 2.5"></path></svg></span>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 4px; background: #B57EDC; flex-shrink: 0;"></span><span style="font-size: 15px; font-weight: 700;">Planned deletion</span><span style="margin-left: auto; font-size: 12px; color: #8E8E93;">09:00</span></div>
+<div style="font-size: 14px; line-height: 1.45; color: #C7C7CC; margin-top: 2px;">Reclaimerr will remove a title in 3 days. Keep it?</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section id="how" style="position: relative; overflow: hidden; background: #0E0E12; border-top: 1px solid #1F1F25; border-bottom: 1px solid #1F1F25;">
+<div aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1.4px); background-size: 24px 24px;"></div>
+<div style="position: relative; max-width: 1200px; margin: 0 auto; padding: 112px 24px; display: flex; flex-direction: column; gap: 40px;">
+<div style="display: flex; flex-direction: column; gap: 14px; max-width: 760px;">
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6FD3C2;">How it works</span>
+<h2 data-reveal style="margin: 0; font-size: clamp(32px, 4.4vw, 52px); line-height: 1.04; font-weight: 800; letter-spacing: -1.2px;">Your data stays home.<br><span style="color: #8E8E93;">Only the update travels.</span></h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #A1A1A6;">Quai Home runs on your server, next to your media apps, and keeps everything: addresses, API keys, the journal. Apple only delivers Live Activity updates signed with the app’s push key, so a small relay, Quai Cloud, signs and sends them. Use ours, or run your own.</p>
+</div>
+
+<div role="group" aria-label="Who runs Quai Cloud" style="align-self: flex-start; display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #141418; border: 1px solid #2A2A31; border-radius: 14px;">
+<button type="button" class="q-pick" data-mode="ours" aria-pressed="true" style="border: 0; cursor: pointer; font: 600 15px Inter, sans-serif; padding: 0 18px; height: 44px; border-radius: 10px; ">With our Quai Cloud</button>
+<button type="button" class="q-pick" data-mode="self" aria-pressed="false" style="border: 0; cursor: pointer; font: 600 15px Inter, sans-serif; padding: 0 18px; height: 44px; border-radius: 10px; ">Fully self-hosted</button>
+</div>
+
+<q-if data-if="ours">
+<div class="q-flow" style="display: grid; grid-template-columns: minmax(0, 1.35fr) 200px minmax(0, 1fr) 80px minmax(0, 1fr); align-items: stretch; margin-top: 8px;">
+<div style="min-width: 0; border: 1.5px dashed rgba(111,211,194,0.5); border-radius: 26px; padding: 24px; background: rgba(111,211,194,0.04); display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #6FD3C2;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"></path></svg>YOUR SERVER</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; font-weight: 600; color: #D1D1D6;"><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Radarr</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Sonarr</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">qBittorrent</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Jellyfin</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Seerr</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Prowlarr</span></div>
+<div style="display: flex; align-items: center; gap: 8px; color: #8E8E93; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v16M6 14l6 6 6-6"></path></svg>webhooks, on the internal network</div>
+<div style="background: #141418; border: 1px solid #2E2E35; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; gap: 10px;"><span style="width: 38px; height: 38px; border-radius: 11px; background: #6FD3C2; display: grid; place-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"></path></svg></span><div><div style="font-size: 16px; font-weight: 700;">Quai Home</div><div style="font-size: 13px; color: #A1A1A6;">One Docker container</div></div></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: #D1D1D6;"><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Addresses</span><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>API keys</span><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Library</span><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Journal</span></div>
+</div>
+
+</div>
+<div class="q-conn" aria-hidden="true" style="display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 12px; padding: 0 14px;">
+<div style="background: #111115; border: 1px solid rgba(255,194,48,0.35); border-radius: 12px; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.6; color: #D1D1D6; display: flex; flex-direction: column; gap: 2px;"><span style="font-family: Inter, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #FFC230;">ONLY THIS LEAVES</span><span>“Dune: Part Two”</span><span style="color: #8E8E93;">Downloading · <span style="color: #FFC230;">63%</span></span></div>
+<div class="q-conn-line" style="display: flex; align-items: center; color: #FFC230;"><span style="width: 7px; height: 7px; border-radius: 4px; background: currentColor; flex-shrink: 0;"></span><div style="flex: 1; border-top: 2px dashed currentColor; opacity: 0.6;"></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-left: -4px;"><path d="M9 6l6 6-6 6"></path></svg></div>
+</div>
+<div style="min-width: 0; position: relative; overflow: hidden; background: #141418; border: 1px solid #2E2E35; border-radius: 26px; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+<div aria-hidden="true" style="position: absolute; width: 260px; height: 260px; left: 50%; top: -130px; margin-left: -130px; background: radial-gradient(closest-side, rgba(111,211,194,0.18), rgba(111,211,194,0) 70%);"></div>
+<div style="position: relative;"><div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #A1A1A6;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h11a4 4 0 0 0 .5-8A6 6 0 0 0 7 9a4.5 4.5 0 0 0 0 9z"></path></svg>QUAI CLOUD · RUN BY US</div></div>
+<div style="position: relative; display: flex; justify-content: center; padding: 6px 0;"><span style="width: 68px; height: 68px; border-radius: 34px; background: #1A1A20; border: 1px solid rgba(111,211,194,0.45); box-shadow: 0 0 0 8px rgba(111,211,194,0.06); display: grid; place-items: center;"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h11a4 4 0 0 0 .5-8A6 6 0 0 0 7 9a4.5 4.5 0 0 0 0 9z"></path></svg></span></div>
+<div style="position: relative; display: flex; flex-direction: column; gap: 10px; font-size: 14px; color: #D1D1D6;">
+<div style="display: flex; align-items: center; gap: 10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3"></path></svg>Signs it with the app’s push key</div>
+<div style="display: flex; align-items: center; gap: 10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"></path></svg>Hands it to Apple</div>
+<div style="display: flex; align-items: center; gap: 10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"></path></svg>Forgets it once sent</div>
+</div>
+<span style="position: relative; margin-top: auto; align-self: flex-start; font-size: 12px; font-weight: 700; color: #6FD3C2; background: rgba(111,211,194,0.1); border-radius: 999px; padding: 5px 11px;">Stores nothing about you</span>
+</div>
+<div class="q-conn" aria-hidden="true" style="display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 12px; padding: 0 14px;">
+
+<div class="q-conn-line" style="display: flex; align-items: center; color: #6B6B72;"><span style="width: 7px; height: 7px; border-radius: 4px; background: currentColor; flex-shrink: 0;"></span><div style="flex: 1; border-top: 2px dashed currentColor; opacity: 0.6;"></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-left: -4px;"><path d="M9 6l6 6-6 6"></path></svg></div>
+</div>
+<div style="min-width: 0; background: #141418; border: 1px solid #2E2E35; border-radius: 26px; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #A1A1A6;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"></rect><path d="M11 18h2"></path></svg>YOUR IPHONE</div>
+<div role="img" aria-label="Live Activity on the Lock Screen: Dune: Part Two, downloading, 63 percent" style="flex: 1; border-radius: 20px; padding: 14px; background: linear-gradient(180deg, #3A3020 0%, #1A1712 100%); border: 1px solid #3A3328; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; min-height: 150px;">
+<span style="align-self: center; font-size: 40px; font-weight: 700; letter-spacing: -1px; color: rgba(245,245,247,0.9); line-height: 1;">21:42</span>
+<div style="background: rgba(14,14,17,0.94); border-radius: 16px; padding: 11px; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; gap: 9px;"><span style="width: 30px; height: 30px; border-radius: 9px; background: #1E1E24; display: grid; place-items: center; flex-shrink: 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span><div style="flex: 1; min-width: 0;"><div style="font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dune: Part Two</div><div style="font-size: 11px; color: #A1A1A6;">≈ 4 min left</div></div><span style="font-size: 17px; font-weight: 800; color: #FFC230;">63%</span></div>
+<div style="height: 5px; border-radius: 3px; background: #2E2E35;"><div style="width: 63%; height: 100%; border-radius: 3px; background: #FFC230;"></div></div>
+</div>
+</div>
+<span style="font-size: 13px; color: #8E8E93;">Delivered by Apple, even with the app closed.</span>
+</div>
+</div>
+</q-if>
+<q-if data-if="selfHosted" hidden>
+<div class="q-flow" style="display: grid; grid-template-columns: minmax(0, 1.6fr) 220px minmax(0, 1fr); align-items: stretch; margin-top: 8px;">
+<div style="min-width: 0; border: 1.5px dashed rgba(111,211,194,0.5); border-radius: 26px; padding: 24px; background: rgba(111,211,194,0.04); display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #6FD3C2;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"></path></svg>YOUR SERVER</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; font-weight: 600; color: #D1D1D6;"><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Radarr</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Sonarr</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">qBittorrent</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Jellyfin</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Seerr</span><span style="background: #1A1A20; border: 1px solid #2A2A31; border-radius: 8px; padding: 5px 9px;">Prowlarr</span></div>
+<div style="display: flex; align-items: center; gap: 8px; color: #8E8E93; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 4v16M6 14l6 6 6-6"></path></svg>webhooks, on the internal network</div>
+<div style="background: #141418; border: 1px solid #2E2E35; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: center; gap: 10px;"><span style="width: 38px; height: 38px; border-radius: 11px; background: #6FD3C2; display: grid; place-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"></path></svg></span><div><div style="font-size: 16px; font-weight: 700;">Quai Home</div><div style="font-size: 13px; color: #A1A1A6;">One Docker container</div></div></div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: #D1D1D6;"><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Addresses</span><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>API keys</span><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Library</span><span style="display: inline-flex; align-items: center; gap: 5px; background: #1E1E24; border-radius: 7px; padding: 4px 8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Journal</span></div>
+</div>
+<div style="background: #141418; border: 1px solid #2E2E35; border-radius: 18px; padding: 16px; display: flex; align-items: center; gap: 10px;"><span style="width: 38px; height: 38px; border-radius: 11px; background: #1E1E24; display: grid; place-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5F5F7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h11a4 4 0 0 0 .5-8A6 6 0 0 0 7 9a4.5 4.5 0 0 0 0 9z"></path></svg></span><div><div style="font-size: 16px; font-weight: 700;">Your Quai Cloud</div><div style="font-size: 13px; color: #A1A1A6;">Signs with your own Apple push key</div></div></div>
+</div>
+<div class="q-conn" aria-hidden="true" style="display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 12px; padding: 0 14px;">
+<div style="background: #111115; border: 1px solid rgba(255,194,48,0.35); border-radius: 12px; padding: 10px 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; line-height: 1.6; color: #D1D1D6; display: flex; flex-direction: column; gap: 2px;"><span style="font-family: Inter, sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px; color: #FFC230;">ONLY THIS LEAVES</span><span>“Dune: Part Two”</span><span style="color: #8E8E93;">Downloading · <span style="color: #FFC230;">63%</span></span></div>
+<div class="q-conn-line" style="display: flex; align-items: center; color: #FFC230;"><span style="width: 7px; height: 7px; border-radius: 4px; background: currentColor; flex-shrink: 0;"></span><div style="flex: 1; border-top: 2px dashed currentColor; opacity: 0.6;"></div><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-left: -4px;"><path d="M9 6l6 6-6 6"></path></svg></div>
+</div>
+<div style="min-width: 0; background: #141418; border: 1px solid #2E2E35; border-radius: 26px; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 1px; color: #A1A1A6;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"></rect><path d="M11 18h2"></path></svg>YOUR IPHONE</div>
+<div role="img" aria-label="Live Activity on the Lock Screen: Dune: Part Two, downloading, 63 percent" style="flex: 1; border-radius: 20px; padding: 14px; background: linear-gradient(180deg, #3A3020 0%, #1A1712 100%); border: 1px solid #3A3328; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; min-height: 150px;">
+<span style="align-self: center; font-size: 40px; font-weight: 700; letter-spacing: -1px; color: rgba(245,245,247,0.9); line-height: 1;">21:42</span>
+<div style="background: rgba(14,14,17,0.94); border-radius: 16px; padding: 11px; display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; align-items: center; gap: 9px;"><span style="width: 30px; height: 30px; border-radius: 9px; background: #1E1E24; display: grid; place-items: center; flex-shrink: 0;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span><div style="flex: 1; min-width: 0;"><div style="font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dune: Part Two</div><div style="font-size: 11px; color: #A1A1A6;">≈ 4 min left</div></div><span style="font-size: 17px; font-weight: 800; color: #FFC230;">63%</span></div>
+<div style="height: 5px; border-radius: 3px; background: #2E2E35;"><div style="width: 63%; height: 100%; border-radius: 3px; background: #FFC230;"></div></div>
+</div>
+</div>
+<span style="font-size: 13px; color: #8E8E93;">Delivered by Apple, even with the app closed.</span>
+</div>
+</div>
+</q-if>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+<q-if data-if="ours">
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 17px; font-weight: 700;">Why a cloud at all?</h3><p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">Apple only accepts Live Activity updates signed with the app’s push key. Ours does it for you: no Apple developer account needed.</p></div>
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 17px; font-weight: 700;">What does it see?</h3><p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">The update itself, like a title and its progress, just long enough to send it. Nothing about your server, nothing kept.</p></div>
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 17px; font-weight: 700;">No port to open</h3><p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">Quai Home calls out to Quai Cloud. Nothing from outside reaches your server.</p></div>
+</q-if>
+<q-if data-if="selfHosted" hidden>
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 17px; font-weight: 700;">Nothing goes through us</h3><p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">Both parts run on your hardware and your server talks to Apple directly.</p></div>
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 17px; font-weight: 700;">What you need</h3><p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">An Apple developer account, your own push key (.p8, key ID, team ID) and your own build of the app.</p></div>
+<div data-reveal style="background: #141418; border: 1px solid #24242A; border-radius: 20px; padding: 22px; display: flex; flex-direction: column; gap: 8px;"><h3 style="margin: 0; font-size: 17px; font-weight: 700;">One variable</h3><p style="margin: 0; font-size: 15px; line-height: 1.55; color: #A1A1A6;">Point Quai Home to it with <code style="font-size: 13px; color: #F5F5F7; background: #1E1E24; border-radius: 5px; padding: 1px 5px;">QUAI_CLOUD_URL</code>.</p><a href="https://github.com/mathieuletyrant/quai-app" style="align-self: flex-start; font-size: 15px; font-weight: 600; text-decoration: none;">Self-hosting guide on GitHub ›</a></div>
+</q-if>
+</div>
+<a href="privacy.html" style="align-self: flex-start; font-size: 16px; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">Read the privacy policy ›</a>
+</div>
+</section>
+
+<section id="setup" style="max-width: 1200px; margin: 0 auto; padding: 112px 24px; display: flex; flex-direction: column; gap: 48px;">
+<div style="display: flex; flex-direction: column; gap: 14px; max-width: 720px;">
+<span style="font-size: 13px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6FD3C2;">Setup</span>
+<h2 data-reveal style="margin: 0; font-size: clamp(32px, 4.4vw, 52px); line-height: 1.04; font-weight: 800; letter-spacing: -1.2px;">Up and running in four steps.</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.55; color: #A1A1A6;">No account to create, no port to open.</p>
+</div>
+
+<ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column;">
+
+<li style="display: flex; gap: 22px;">
+<div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">1</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
+<div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Run Quai Home</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">One Docker container on your server, next to your media apps. Your data lives in its volume.</p><a href="https://github.com/mathieuletyrant/quai-app" style="align-self: flex-start; margin-top: 6px; font-size: 15px; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg>Install guide on GitHub ›</a></div>
+<div style="flex: 1 1 440px; min-width: 0; background: #0E0E12; border: 1px solid #26262C; border-radius: 18px; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222228; background: #141418;"><span style="width: 10px; height: 10px; border-radius: 5px; background: #3A3A42;"></span><span style="width: 10px; height: 10px; border-radius: 5px; background: #3A3A42;"></span><span style="width: 10px; height: 10px; border-radius: 5px; background: #3A3A42;"></span><span style="margin-left: 8px; font-size: 12px; color: #8E8E93; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">compose.yaml</span></div>
+<pre style="margin: 0; padding: 16px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.7; color: #D1D1D6; overflow-x: auto;"><span style="color: #6FD3C2;">services</span>:
+  <span style="color: #6FD3C2;">quai-home</span>:
+    image: ghcr.io/mathieuletyrant/quai-home:latest
+    restart: unless-stopped
+    ports: ["8788:8788"]
+    environment:
+      QUAI_HOME_PASSWORD: change-me
+    volumes:
+      - ./quai-home:/data</pre>
+<div style="padding: 12px 18px; border-top: 1px solid #222228; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #D1D1D6;"><span style="color: #8E8E93;">$</span> docker compose up -d</div>
+</div>
+</div>
+</li>
+
+<li style="display: flex; gap: 22px;">
+<div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">2</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
+<div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Connect your services</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">Open the console. Add each app’s address and API key; Quai sets its own webhooks in Radarr and Sonarr.</p></div>
+<div style="flex: 1 1 440px; min-width: 0; background: #141418; border: 1px solid #26262C; border-radius: 18px; overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Radarr</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://radarr:7878</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Sonarr</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://sonarr:8989</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">qBittorrent</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://qbittorrent:8080</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Jellyfin</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://jellyfin:8096</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+</div>
+</div>
+</li>
+
+<li style="display: flex; gap: 22px;">
+<div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">3</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
+<div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Link a Quai Cloud</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">Ours, with nothing to set up. Or yours, with <code style="font-size: 14px; color: #F5F5F7; background: #1E1E24; border-radius: 5px; padding: 1px 5px;">QUAI_CLOUD_URL</code>.</p></div>
+<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+<div style="background: #141418; border: 1.5px solid #6FD3C2; border-radius: 16px; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;"><span style="width: 20px; height: 20px; border-radius: 10px; border: 2px solid #6FD3C2; display: grid; place-items: center; box-sizing: border-box;"><span style="width: 10px; height: 10px; border-radius: 5px; background: #6FD3C2;"></span></span><div style="flex: 1 1 160px;"><div style="font-size: 15px; font-weight: 700;">Our Quai Cloud</div><div style="font-size: 13px; color: #A1A1A6;">Nothing to set up</div></div><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="background: #141418; border: 1px solid #26262C; border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; gap: 12px;"><span style="width: 20px; height: 20px; border-radius: 10px; border: 2px solid #4A4A52; box-sizing: border-box; flex-shrink: 0;"></span><div style="flex: 1;"><div style="font-size: 15px; font-weight: 700;">Your own Quai Cloud</div><div style="font-size: 13px; color: #A1A1A6;">Your Apple push key, your build of the app</div></div></div>
+</div>
+</div>
+</li>
+
+<li style="display: flex; gap: 22px;">
+<div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">4</span></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Pair your iPhone</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">Install the beta from TestFlight, then scan the QR code from the console. It carries your public address too, so the app works away from home.</p>
+<a href="https://testflight.apple.com/join/YOUR-CODE" style="align-self: flex-start; margin-top: 6px; text-decoration: none; background: #6FD3C2; color: #0B0B0E; font-weight: 700; font-size: 15px; padding: 0 18px; height: 46px; border-radius: 12px; display: inline-flex; align-items: center;">Get the beta</a></div>
+<div style="flex: 1 1 440px; min-width: 0; background: #141418; border: 1px solid #26262C; border-radius: 18px; padding: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px;">
+<div style="background: #F5F5F7; border-radius: 14px; padding: 10px; line-height: 0;"><svg width="105" height="105" viewBox="0 0 105 105" aria-hidden="true"><path d="M0 0h5v5h-5zM0 5h5v5h-5zM0 10h5v5h-5zM0 15h5v5h-5zM0 20h5v5h-5zM0 25h5v5h-5zM0 30h5v5h-5zM0 40h5v5h-5zM0 45h5v5h-5zM0 55h5v5h-5zM0 70h5v5h-5zM0 75h5v5h-5zM0 80h5v5h-5zM0 85h5v5h-5zM0 90h5v5h-5zM0 95h5v5h-5zM0 100h5v5h-5zM5 0h5v5h-5zM5 30h5v5h-5zM5 40h5v5h-5zM5 45h5v5h-5zM5 55h5v5h-5zM5 60h5v5h-5zM5 70h5v5h-5zM5 100h5v5h-5zM10 0h5v5h-5zM10 10h5v5h-5zM10 15h5v5h-5zM10 20h5v5h-5zM10 30h5v5h-5zM10 40h5v5h-5zM10 45h5v5h-5zM10 50h5v5h-5zM10 60h5v5h-5zM10 70h5v5h-5zM10 80h5v5h-5zM10 85h5v5h-5zM10 90h5v5h-5zM10 100h5v5h-5zM15 0h5v5h-5zM15 10h5v5h-5zM15 15h5v5h-5zM15 20h5v5h-5zM15 30h5v5h-5zM15 40h5v5h-5zM15 60h5v5h-5zM15 70h5v5h-5zM15 80h5v5h-5zM15 85h5v5h-5zM15 90h5v5h-5zM15 100h5v5h-5zM20 0h5v5h-5zM20 10h5v5h-5zM20 15h5v5h-5zM20 20h5v5h-5zM20 30h5v5h-5zM20 45h5v5h-5zM20 55h5v5h-5zM20 60h5v5h-5zM20 70h5v5h-5zM20 80h5v5h-5zM20 85h5v5h-5zM20 90h5v5h-5zM20 100h5v5h-5zM25 0h5v5h-5zM25 30h5v5h-5zM25 40h5v5h-5zM25 45h5v5h-5zM25 55h5v5h-5zM25 70h5v5h-5zM25 100h5v5h-5zM30 0h5v5h-5zM30 5h5v5h-5zM30 10h5v5h-5zM30 15h5v5h-5zM30 20h5v5h-5zM30 25h5v5h-5zM30 30h5v5h-5zM30 45h5v5h-5zM30 55h5v5h-5zM30 60h5v5h-5zM30 70h5v5h-5zM30 75h5v5h-5zM30 80h5v5h-5zM30 85h5v5h-5zM30 90h5v5h-5zM30 95h5v5h-5zM30 100h5v5h-5zM35 40h5v5h-5zM35 50h5v5h-5zM35 55h5v5h-5zM40 0h5v5h-5zM40 5h5v5h-5zM40 20h5v5h-5zM40 45h5v5h-5zM40 55h5v5h-5zM40 60h5v5h-5zM40 70h5v5h-5zM40 80h5v5h-5zM45 0h5v5h-5zM45 20h5v5h-5zM45 35h5v5h-5zM45 45h5v5h-5zM45 70h5v5h-5zM45 75h5v5h-5zM45 85h5v5h-5zM45 90h5v5h-5zM45 95h5v5h-5zM45 100h5v5h-5zM50 0h5v5h-5zM50 10h5v5h-5zM50 15h5v5h-5zM50 20h5v5h-5zM50 30h5v5h-5zM50 35h5v5h-5zM50 60h5v5h-5zM50 65h5v5h-5zM50 70h5v5h-5zM50 85h5v5h-5zM50 90h5v5h-5zM50 95h5v5h-5zM50 100h5v5h-5zM55 10h5v5h-5zM55 15h5v5h-5zM55 20h5v5h-5zM55 25h5v5h-5zM55 60h5v5h-5zM55 85h5v5h-5zM55 90h5v5h-5zM55 95h5v5h-5zM60 0h5v5h-5zM60 5h5v5h-5zM60 10h5v5h-5zM60 15h5v5h-5zM60 20h5v5h-5zM60 25h5v5h-5zM60 30h5v5h-5zM60 35h5v5h-5zM60 40h5v5h-5zM60 45h5v5h-5zM60 50h5v5h-5zM60 65h5v5h-5zM60 70h5v5h-5zM60 75h5v5h-5zM60 80h5v5h-5zM60 85h5v5h-5zM60 100h5v5h-5zM65 45h5v5h-5zM65 50h5v5h-5zM65 55h5v5h-5zM65 60h5v5h-5zM65 70h5v5h-5zM65 75h5v5h-5zM65 90h5v5h-5zM65 100h5v5h-5zM70 0h5v5h-5zM70 5h5v5h-5zM70 10h5v5h-5zM70 15h5v5h-5zM70 20h5v5h-5zM70 25h5v5h-5zM70 30h5v5h-5zM70 60h5v5h-5zM70 65h5v5h-5zM70 70h5v5h-5zM70 90h5v5h-5zM70 95h5v5h-5zM75 0h5v5h-5zM75 30h5v5h-5zM75 65h5v5h-5zM75 75h5v5h-5zM75 80h5v5h-5zM75 85h5v5h-5zM75 90h5v5h-5zM75 95h5v5h-5zM80 0h5v5h-5zM80 10h5v5h-5zM80 15h5v5h-5zM80 20h5v5h-5zM80 30h5v5h-5zM80 45h5v5h-5zM80 65h5v5h-5zM80 70h5v5h-5zM80 75h5v5h-5zM80 80h5v5h-5zM80 85h5v5h-5zM85 0h5v5h-5zM85 10h5v5h-5zM85 15h5v5h-5zM85 20h5v5h-5zM85 30h5v5h-5zM85 40h5v5h-5zM85 55h5v5h-5zM85 80h5v5h-5zM85 85h5v5h-5zM85 95h5v5h-5zM90 0h5v5h-5zM90 10h5v5h-5zM90 15h5v5h-5zM90 20h5v5h-5zM90 30h5v5h-5zM90 45h5v5h-5zM90 50h5v5h-5zM90 65h5v5h-5zM90 70h5v5h-5zM90 75h5v5h-5zM90 90h5v5h-5zM95 0h5v5h-5zM95 30h5v5h-5zM95 45h5v5h-5zM95 55h5v5h-5zM95 60h5v5h-5zM95 85h5v5h-5zM95 100h5v5h-5zM100 0h5v5h-5zM100 5h5v5h-5zM100 10h5v5h-5zM100 15h5v5h-5zM100 20h5v5h-5zM100 25h5v5h-5zM100 30h5v5h-5zM100 40h5v5h-5zM100 45h5v5h-5zM100 50h5v5h-5zM100 60h5v5h-5zM100 65h5v5h-5zM100 70h5v5h-5zM100 80h5v5h-5zM100 85h5v5h-5zM100 100h5v5h-5z" fill="#0B0B0E"></path></svg></div>
+<div style="flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 6px;"><div style="font-size: 15px; font-weight: 700;">Scan with the Quai app</div><div style="font-size: 13px; color: #A1A1A6; line-height: 1.5;">One code per iPhone, valid 10 minutes.</div><span style="align-self: flex-start; margin-top: 4px; font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>iPhone paired</span></div>
+</div>
+</div>
+</li>
+</ol>
+</section>
+
+
+
+<section id="join" style="max-width: 1200px; margin: 0 auto; padding: 112px 24px;">
+<div style="position: relative; overflow: hidden; background: #141418; border: 1px solid #2A2A31; border-radius: 32px; padding: clamp(32px, 6vw, 72px); display: flex; flex-wrap: wrap; gap: 40px; align-items: center;">
+<div aria-hidden="true" style="position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,0.09) 1px, transparent 1.4px); background-size: 22px 22px; -webkit-mask-image: radial-gradient(ellipse 70% 90% at 85% 50%, #000 20%, transparent 75%); mask-image: radial-gradient(ellipse 70% 90% at 85% 50%, #000 20%, transparent 75%);"></div>
+<div aria-hidden="true" style="position: absolute; width: 560px; height: 560px; right: -160px; top: -140px; background: radial-gradient(closest-side, rgba(111,211,194,0.16), rgba(111,211,194,0) 70%);"></div>
+<div style="position: relative; flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 18px;">
+<h2 data-reveal style="margin: 0; font-size: clamp(34px, 4.8vw, 56px); line-height: 1.02; font-weight: 900; letter-spacing: -1.4px;">Try Quai on your iPhone.</h2>
+<p style="margin: 0; font-size: 18px; line-height: 1.6; color: #A1A1A6;">The beta is free on TestFlight. Install TestFlight from the App Store, then open the invite on your iPhone.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 12px;">
+<a href="https://testflight.apple.com/join/YOUR-CODE" style="text-decoration: none; background: #6FD3C2; color: #0B0B0E; font-weight: 700; font-size: 16px; padding: 0 24px; height: 54px; border-radius: 15px; display: inline-flex; align-items: center; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"></path></svg>Join the TestFlight beta</a>
+<a href="support.html" style="text-decoration: none; background: #1E1E24; border: 1px solid #2E2E35; color: #F5F5F7; font-weight: 600; font-size: 16px; padding: 0 22px; height: 54px; border-radius: 15px; display: inline-flex; align-items: center;">Get help</a>
+</div>
+</div>
+<div style="position: relative; flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; border: 1px solid #2A2A31; border-radius: 18px; overflow: hidden; background: rgba(14,14,18,0.9);">
+<div style="padding: 14px 18px; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; color: #8E8E93; background: #18181D;">YOU’LL NEED</div>
+<div style="display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px;"><span style="color: #A1A1A6;">iPhone</span><span style="text-align: right;">iOS 26 or later</span></div>
+<div style="display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px;"><span style="color: #A1A1A6;">Server</span><span style="text-align: right;">Docker, for Quai Home</span></div>
+<div style="display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px;"><span style="color: #A1A1A6;">Services</span><span style="text-align: right;">Radarr or Sonarr, at least</span></div>
+<div style="display: flex; justify-content: space-between; gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px;"><span style="color: #A1A1A6;">Away from home</span><span style="text-align: right;">Cloudflare Tunnel, optional</span></div>
+</div>
+</div>
+</section>
+
+<section style="max-width: 860px; margin: 0 auto; padding: 0 24px 112px; display: flex; flex-direction: column; gap: 24px;">
+<h2 data-reveal style="margin: 0; font-size: clamp(26px, 3vw, 34px); font-weight: 800; letter-spacing: -0.5px;">Questions</h2>
+<div style="display: flex; flex-direction: column; border-top: 1px solid #222228;">
+<details style="border-bottom: 1px solid #222228; padding: 18px 0;"><summary style="font-size: 17px; font-weight: 600;">Is Quai a Jellyfin or Seerr client?</summary><p style="margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: #A1A1A6;">No. Keep watching in Jellyfin and requesting in Seerr. Quai follows what happens in between, and tells you.</p></details>
+<details style="border-bottom: 1px solid #222228; padding: 18px 0;"><summary style="font-size: 17px; font-weight: 600;">Why do I need Quai Cloud if Quai Home is on my server?</summary><p style="margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: #A1A1A6;">Apple only delivers Live Activity updates signed with the app’s push key. Quai Home keeps your data; Quai Cloud only signs and sends the update. Use ours, or run your own with your Apple developer account.</p></details>
+<details style="border-bottom: 1px solid #222228; padding: 18px 0;"><summary style="font-size: 17px; font-weight: 600;">Does it work when the app is closed?</summary><p style="margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: #A1A1A6;">Yes. Live Activities are started and updated by push, so you never need to open the app.</p></details>
+<details style="border-bottom: 1px solid #222228; padding: 18px 0;"><summary style="font-size: 17px; font-weight: 600;">Can the whole household use it?</summary><p style="margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: #A1A1A6;">Yes. Pair each iPhone with its own QR code; each one chooses which Live Activities and alerts it gets.</p></details>
+<details style="border-bottom: 1px solid #222228; padding: 18px 0;"><summary style="font-size: 17px; font-weight: 600;">Plex, Emby, Android?</summary><p style="margin: 10px 0 0; font-size: 15px; line-height: 1.6; color: #A1A1A6;">Not for now. Quai is built for Jellyfin and iPhone.</p></details>
+</div>
+</section>
+
+</main>
+<footer style="border-top: 1px solid #1F1F25; background: #0B0B0E;">
+<div style="max-width: 1200px; margin: 0 auto; padding: 36px 24px 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
+<div style="display: flex; flex-direction: column; gap: 8px; flex: 1 1 320px;">
+<div style="display: flex; align-items: center; gap: 10px;"><span style="width: 28px; height: 28px; border-radius: 8px; background: #6FD3C2; display: grid; place-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B0B0E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 15h18l-2.5 4.5h-13z"></path><path d="M7 15v-4h10v4"></path><path d="M12 11V5l4 2.5"></path></svg></span><span style="font-weight: 700;">Quai</span></div>
+<p style="margin: 0; font-size: 13px; line-height: 1.6; color: #8E8E93;">© 2026 Mathieu Le Tyrant. Quai is an independent app, not affiliated with Radarr, Sonarr, Jellyfin or Seerr. iPhone and TestFlight are trademarks of Apple Inc.</p>
+</div>
+<nav aria-label="Footer" style="display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 14px; font-weight: 500;">
+<a href="privacy.html" style="color: #C7C7CC; text-decoration: none;">Privacy policy</a>
+<a href="support.html" style="color: #C7C7CC; text-decoration: none;">Support</a>
+<a href="mailto:[SUPPORT EMAIL]" style="color: #C7C7CC; text-decoration: none;">Contact</a>
+<a href="https://github.com/mathieuletyrant/quai-app" style="color: #C7C7CC; text-decoration: none;">GitHub</a>
+</nav>
+</div>
+</footer>
+
+</div>
+</body>
+</html>
