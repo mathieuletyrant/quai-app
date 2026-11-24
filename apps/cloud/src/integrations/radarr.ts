@@ -139,6 +139,7 @@ export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string>
     kind: "movie",
     title: movie.title,
     ...(year === undefined ? {} : { year }),
+    tmdbId: movie.tmdbId,
     ...(posterUrl === undefined ? {} : { posterUrl }),
     status: movieStatus(movie),
     ...(addedAt === undefined ? {} : { addedAt }),

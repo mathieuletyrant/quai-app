@@ -43,6 +43,7 @@ describe("library adapters", () => {
           kind: "movie",
           title: "Dune: Part Two",
           year: 2024,
+          tmdbId: 693134,
           posterUrl: "https://image.tmdb.org/t/p/original/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
           status: "available",
           addedAt: 1717357267,
@@ -54,22 +55,23 @@ describe("library adapters", () => {
           kind: "movie",
           title: "Runner",
           year: 2026,
+          tmdbId: 1084199,
           posterUrl: "https://image.tmdb.org/t/p/original/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg",
           status: "wanted",
           addedAt: 1795035524,
           sizeBytes: 0,
           overview: "A young runner chases one last race across the desert."
         },
-        { id: "movie:51", kind: "movie", title: "Nero", year: 2027, status: "notAvailable", addedAt: 1794298323, sizeBytes: 0 }
+        { id: "movie:51", kind: "movie", title: "Nero", year: 2027, tmdbId: 1311031, status: "notAvailable", addedAt: 1794298323, sizeBytes: 0 }
       ])
     }))
 
   it.effect("reads Sonarr's series: available once every expected episode has a file", () =>
     Effect.gen(function*() {
       const series = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series.json"))
-      expect(series.map((one) => librarySeries(one)).map((s) => [s.title, s.status, s.episodes, s.posterUrl])).toEqual([
-        ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg"],
-        ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg"]
+      expect(series.map((one) => librarySeries(one)).map((s) => [s.title, s.status, s.episodes, s.posterUrl, s.tmdbId])).toEqual([
+        ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg", 95396],
+        ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg", 136315]
       ])
       // Nothing on disk and nothing aired that Sonarr monitors: not available yet, coming episode or not.
       const empty = { episodeFileCount: 0, episodeCount: 0, sizeOnDisk: 0 }

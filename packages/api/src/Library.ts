@@ -35,6 +35,8 @@ export const LibraryItem = Schema.Struct({
   kind: LibraryKind,
   title: Schema.String,
   year: Schema.optionalKey(Schema.Int),
+  /** The title's TMDB id, when Radarr or Sonarr knows it: how a search result finds it in the library. */
+  tmdbId: Schema.optionalKey(Schema.Int),
   /** The poster's public URL (TMDB, TheTVDB), as Radarr or Sonarr list it. Never a URL that needs a key. */
   posterUrl: Schema.optionalKey(Schema.String),
   status: LibraryStatus,
