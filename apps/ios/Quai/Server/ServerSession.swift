@@ -102,7 +102,7 @@ struct ServerSession: Sendable, Equatable {
 
     /// The console address to open: the first one that answers (the local one, at home), else the
     /// last one (the public one, behind the user's own proxy and its sign-in).
-    static func consoleToOpen(_ urls: [URL], answers: (URL) async -> Bool) async -> URL? {
+    static func consoleToOpen(_ urls: [URL], answers: @Sendable (URL) async -> Bool) async -> URL? {
         for url in urls.dropLast() where await answers(url) { return url }
         return urls.last
     }
