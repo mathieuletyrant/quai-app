@@ -14,6 +14,7 @@
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css">
+<link rel="alternate" type="text/plain" href="llms.txt" title="Quai, in plain text for LLMs">
 <script src="main.js" defer></script>
 </head>
 <body>
@@ -402,6 +403,7 @@
     restart: unless-stopped
     ports: ["8788:8788"]
     environment:
+      QUAI_CLOUD_URL: wss://cloud.quai.stream/home
       QUAI_HOME_PASSWORD: change-me
     volumes:
       - ./quai-home:/data</pre>

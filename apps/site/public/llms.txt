@@ -1,0 +1,212 @@
+# Quai
+
+> Quai puts a self-hosted media stack (Seerr, Radarr, Sonarr, Prowlarr, qBittorrent, Jellyfin, Cleanuparr, Reclaimerr) on the iPhone's Lock Screen. Live Activities follow each movie or episode from the request to "ready to watch", and what plays on Jellyfin. Notifications say when something breaks and when it's fixed. It has two parts: Quai Home, which runs on your server and keeps your keys and data, and Quai Cloud, which sends the pushes through Apple. Use our hosted Quai Cloud (free during the beta) or run your own. Open source (Apache-2.0). The iPhone app is in beta on TestFlight, iPhone only, iOS 26 or later.
+
+- Website: https://quai.stream
+- iPhone app (TestFlight public beta): https://testflight.apple.com/join/RpYX68mQ
+- Source code: https://github.com/mathieuletyrant/quai-app
+- Support: https://quai.stream/support, support@quai.stream
+- Privacy policy: https://quai.stream/privacy
+- Bugs and ideas: https://github.com/mathieuletyrant/quai-app/issues
+
+## What Quai does
+
+- **Download Live Activity**: from the moment a title is added, on the Lock Screen and in the Dynamic Island: searching, downloading (percent, speed, time left, from qBittorrent), importing, ready to watch.
+- **Request Live Activity**: a Seerr request waiting for approval, with Approve and Decline buttons on the Lock Screen.
+- **Playback Live Activity**: what plays on Jellyfin, time left, Play/Pause from the Lock Screen.
+- **Today Live Activity**: today's episodes and movies with their air time, ticked off as they arrive.
+- **Alerts**: one notification when a problem starts and one when it's over: a service that stops answering, the media disk running low, a health problem Radarr, Sonarr or Prowlarr report, a deletion Reclaimerr plans.
+- **The app**: Home (what to fix, requests waiting, today's releases, alerts, disk space), Library (movies and series with posters, what's missing), To fix (blocked imports, titles with no release, deletions coming, downloads Cleanuparr is about to remove).
+- **The web console** (served by Quai Home): set the services, shape each Live Activity as a flow (its steps and what each shows, with a preview and a Test button), set the alerts, pair and remove iPhones, read the Journal of what Quai did.
+
+Live Activities run even with the app closed: they are started and updated by pushes from Quai Cloud.
+
+## How it works
+
+```
+ your server                                   anywhere
++-------------------------------+         +-----------------+          +--------+
+| Seerr · Radarr · Sonarr       |         |                 |  Apple   |        |
+| Prowlarr · qBittorrent        | ------> |   Quai Cloud    | -------> | iPhone |
+| Jellyfin · Cleanuparr         | <------ | (stores nothing)| <------- |        |
+| Reclaimerr      ^             |         |                 |   app    |        |
+|                 |             |         +-----------------+          +--------+
+|             Quai Home         |
+|      (your keys, your data)   |
++-------------------------------+
+```
+
+- **Quai Home** runs next to your services. It holds their addresses and API keys, the paired iPhones, the flows, the alert settings and a 7-day journal, in its `/data` volume. It sets up the Radarr, Sonarr and Seerr webhooks itself, polls only what's needed, and only makes calls on a fixed allowlist. It connects *out* to Quai Cloud over a WebSocket: no port to open for the Cloud.
+- **Quai Cloud** runs the flows and sends the pushes to Apple Push Notification service. It stores nothing: no database, nothing on disk. When Quai Home connects, the Cloud loads what it needs from it. It never receives your services' addresses or API keys.
+- **The iPhone app** pairs with your Quai Home by scanning a QR code shown in the console. There is no account. The app talks to Quai Cloud, which relays to your Quai Home.
+
+## Choose your setup
+
+| | Hosted Quai Cloud | Fully self-hosted |
+|---|---|---|
+| You run | Quai Home | Quai Home and Quai Cloud |
+| Works with the TestFlight app | Yes, with Live Activities and notifications | Pairing works, but no Live Activities or notifications: see below |
+| Apple developer account | Not needed | Needed: your own push key and your own build of the app |
+| Away from home | Works out of the box | Needs a public address for your Quai Cloud |
+| Cost | Free during the beta | Your server |
+
+Why a self-hosted Cloud needs its own app build: Apple only accepts pushes signed with the push key of the app's own developer account. The hosted Cloud holds Quai's key, so it can push to the TestFlight app. A Cloud of your own must use your key, which only works with the app built and signed under your own Apple developer account.
+
+## Setup 1: Quai Home with the hosted Quai Cloud (recommended)
+
+Requirements: a server that runs Docker (or Umbrel), your media apps on it, an iPhone with iOS 26.
+
+1. Run Quai Home:
+
+   ```yaml
+   services:
+     quai-home:
+       image: ghcr.io/mathieuletyrant/quai-home:latest
+       restart: unless-stopped
+       ports: ["8788:8788"]
+       environment:
+         QUAI_CLOUD_URL: wss://cloud.quai.stream/home
+         QUAI_HOME_PASSWORD: change-me
+         QUAI_INTERNAL_URL: http://<server-address>:8788
+       volumes:
+         - ./quai-home:/data
+   ```
+
+   ```sh
+   docker compose up -d
+   ```
+
+   - `QUAI_CLOUD_URL` links Quai Home to the hosted Quai Cloud.
+   - `QUAI_HOME_PASSWORD` protects the console. Without it, the console stays locked.
+   - `QUAI_INTERNAL_URL` is how Radarr, Sonarr and Seerr reach Quai Home, for the webhooks it sets up in them. Use an address they can reach: the server's LAN address, or the container's name if they share a Docker network (`http://quai-home:8788`).
+
+2. Open the console at `http://<server-address>:8788` and sign in with `QUAI_HOME_PASSWORD`.
+3. **Settings**: Quai Cloud shows "Connected".
+4. **Services**: for each service you use, enter its address as Quai Home reaches it and its API key. Each key is checked as you save it, and each service should read "Connected".
+5. Install the app from TestFlight: https://testflight.apple.com/join/RpYX68mQ
+6. **iPhones → Pair an iPhone** in the console shows a QR code. Scan it with the iPhone's Camera app: it opens Quai and pairs. Allow Live Activities and notifications when asked.
+7. **Flows**: check that the Live Activities you want are enabled, and use a flow's **Test** button to send one to your iPhone.
+
+Away from home there is nothing more to do: the app reaches the hosted Quai Cloud at `https://cloud.quai.stream`, which relays to your Quai Home over its link.
+
+## Setup 2: Umbrel
+
+1. In umbrelOS, App Store → Community App Stores, add `https://github.com/mathieuletyrant/umbrel-community-app-store`, then install **Quai**.
+2. In the app's settings in umbrelOS, set **QUAI_CLOUD_URL** to `wss://cloud.quai.stream/home` for the hosted Quai Cloud. The default, `ws://mathieu-quai_cloud_1:8787/home`, is the Quai Cloud bundled in the app, which needs your own Apple push key and app build (see Setup 3).
+3. Open Quai and sign in with the default password umbrelOS shows for the app.
+4. **Services**: the Umbrel addresses of Radarr, Sonarr, Jellyfin, Seerr, Prowlarr, Cleanuparr and Reclaimerr are already filled in. Paste each API key. For qBittorrent, use `http://qbittorrent_server_1:8080`, or `http://mathieu-qbittorrent-vpn_gluetun_1:8080` for qBittorrent VPN, with its password.
+5. **iPhones → Pair an iPhone**, and scan the QR code.
+
+## Setup 3: fully self-hosted (Quai Home and your own Quai Cloud)
+
+For developers with an Apple developer account. You build the iPhone app yourself, with your own bundle id and push key.
+
+1. In your Apple developer account, create a push key (Keys → Apple Push Notifications service) and note its Key ID and your Team ID.
+2. Build the app from `apps/ios` in the repository with your own team and bundle id (`pnpm gen:client && cd apps/ios && xcodegen generate`, then open `Quai.xcodeproj`).
+3. Run both images:
+
+   ```yaml
+   services:
+     cloud:
+       image: ghcr.io/mathieuletyrant/quai:latest
+       restart: unless-stopped
+       ports: ["8787:8787"]
+       environment:
+         QUAI_APNS_KEY_FILE: /keys/AuthKey.p8
+         QUAI_APNS_KEY_ID: ABCDE12345
+         QUAI_APNS_TEAM_ID: FGHIJ67890
+         QUAI_APNS_TOPIC: com.example.quai
+       volumes: ["./keys:/keys:ro"]
+     home:
+       image: ghcr.io/mathieuletyrant/quai-home:latest
+       restart: unless-stopped
+       ports: ["8788:8788"]
+       environment:
+         QUAI_CLOUD_URL: ws://cloud:8787/home
+         QUAI_CLOUD_APP_URL: http://<server-address>:8787
+         QUAI_HOME_PASSWORD: change-me
+         QUAI_INTERNAL_URL: http://home:8788
+       volumes: ["./data:/data"]
+   ```
+
+   `QUAI_CLOUD_APP_URL` is where the iPhone reaches your Quai Cloud at home. It goes into the pairing QR code, because `ws://cloud:8787` only works inside Docker.
+
+4. Follow steps 2 to 7 of Setup 1, with your own build of the app.
+5. To use the app away from home, put Quai Cloud behind a reverse proxy and set `QUAI_PUBLIC_URL` (and `QUAI_PUBLIC_HEADERS` if the proxy requires headers, such as a Cloudflare Access service token). Both go into the pairing QR code. Details: https://github.com/mathieuletyrant/quai-app/blob/main/docs/proxy.md
+6. If `/home` can be reached from outside your network, set `QUAI_HOME_ID` to your home's id (the 32 hex characters Quai Home logs as `linked as home …`), so no other Quai Home can use your Cloud and push key.
+
+## Reaching the console away from home
+
+The console is served by Quai Home (port 8788), behind `QUAI_HOME_PASSWORD`. It is not on Quai Cloud, hosted or not. To open it from outside, put Quai Home behind your own reverse proxy or tunnel (Cloudflare Tunnel with Access, Tailscale, Pangolin…). `QUAI_PUBLIC_URL` is unrelated: it is the address of a self-hosted Quai Cloud for the app. The app's "Open the console" opens the address the console was opened with when the iPhone was paired.
+
+## Configuration reference
+
+### Quai Home
+
+| Variable | Meaning |
+|---|---|
+| `QUAI_CLOUD_URL` | The Quai Cloud's WebSocket: `wss://cloud.quai.stream/home` for the hosted one, `ws://cloud:8787/home` for your own. Without it, Quai Home runs alone and its console says what to set. |
+| `QUAI_CLOUD_APP_URL` | Where the iPhone reaches Quai Cloud at home, for the pairing QR code, when `QUAI_CLOUD_URL` is an address only Quai Home reaches. Default: `QUAI_CLOUD_URL` in http(s), without `/home`. |
+| `QUAI_HOME_PASSWORD` | The console's password. Without it, the console stays locked. |
+| `QUAI_HOME_PORT` | The console, the webhooks and `/health`. Default `8788`. |
+| `QUAI_INTERNAL_URL` | How Radarr, Sonarr and Seerr reach Quai Home, for the webhooks it sets up. |
+| `QUAI_DATA_DIR` | Where Quai Home keeps its data. `/data` in the image. |
+| `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (key in Settings → General). |
+| `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | Sonarr (key in Settings → General). |
+| `QUAI_RADARR_WEB_URL`, `QUAI_RADARR_PUBLIC_URL` | Optional: where the iPhone opens Radarr, at home and from outside ("Open in Radarr"). |
+| `QUAI_SONARR_WEB_URL`, `QUAI_SONARR_PUBLIC_URL` | The same for Sonarr. |
+| `QUAI_JELLYFIN_URL`, `QUAI_JELLYFIN_API_KEY` | Jellyfin (Dashboard → API Keys). |
+| `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | qBittorrent Web UI. |
+| `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General). |
+| `QUAI_PROWLARR_URL`, `QUAI_PROWLARR_API_KEY` | Prowlarr (Settings → General), for the alerts. |
+| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations, scopes `candidates:manage` and `system:read`). |
+| `QUAI_CLEANUPARR_URL`, `QUAI_CLEANUPARR_API_KEY` | Cleanuparr (Settings → Account). |
+
+Every service can be set in the console's **Services** page instead of the environment. A variable set in the environment wins and shows as "Env" there. A service set in neither place is skipped.
+
+### Quai Cloud (self-hosted only)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `QUAI_PORT` | `8787` | The app's API (`/api`) and Quai Home's WebSocket (`/home`). |
+| `QUAI_APNS_KEY_FILE` or `QUAI_APNS_KEY` | | Your Apple push key: a path to the `.p8` file, or its text. |
+| `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | | The key's id and your team id. |
+| `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | Your app's bundle id. |
+| `QUAI_PUBLIC_URL` | | The Cloud's address from outside, added to the pairing QR code. |
+| `QUAI_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app: `Name: value` pairs separated by `;`. |
+| `QUAI_TZ` | `UTC` | Time zone for "today", until an iPhone reports its own. |
+| `QUAI_HOME_ID` | | The only Quai Homes served, comma-separated; any other is refused. |
+| `QUAI_MAX_HOMES` | | How many Quai Homes may be linked at once. |
+
+### Images
+
+- Quai Home: `ghcr.io/mathieuletyrant/quai-home` (tags `latest`, `X.Y`, `X.Y.Z`), linux/amd64 and linux/arm64.
+- Quai Cloud: `ghcr.io/mathieuletyrant/quai` (same tags).
+- Update Quai Home and a self-hosted Quai Cloud together: they speak a versioned protocol. The hosted Cloud follows each release.
+
+## Troubleshooting
+
+- **No Live Activity shows up**: check iPhone Settings → Quai → Live Activities, that the flow is enabled in the console under Flows, and that Quai Cloud reads "Connected" in the console. Then use the flow's Test button. With a self-hosted Cloud, check that the Apple push key reads "Ready" in Settings.
+- **The app doesn't connect away from home**: with the hosted Cloud, check that Quai Home is linked (console → Settings). With your own Cloud, set `QUAI_PUBLIC_URL` (and `QUAI_PUBLIC_HEADERS`) and pair the iPhone again.
+- **A service isn't connected**: check its address (as Quai Home reaches it, inside Docker) and its API key under Services. A service marked "Env" is set in Quai Home's environment, which wins over the page.
+- **Seerr requests arrive late**: if Seerr's webhook already posts somewhere else, Quai leaves it and checks requests regularly instead. The Journal says so.
+- **A Live Activity updates slowly**: iOS limits how often Live Activities refresh, more so in Low Power Mode. Quai sends an update at each step and regularly during a download.
+- **No alerts**: check iPhone Settings → Notifications → Quai, the mute options in the app's Settings, and the alert's switch in the console under Alerts.
+- **"Open the console" is missing in the app**: pair the iPhone again from the console; the code then carries the console's address.
+- **Remove Quai**: remove each iPhone under iPhones, then uninstall Quai Home (it removes its webhooks from your services), and delete the app.
+
+When reporting a bug, include the app's build number (TestFlight), Quai Home's version (bottom of the console), whether the Cloud is hosted or self-hosted, what you did and what you expected, and the Journal lines from around that time.
+
+## Privacy
+
+- Your services' addresses, API keys, library and journal stay in Quai Home, on your server. Quai Home never sends addresses or keys to any Quai Cloud.
+- The hosted Quai Cloud receives only the content of each update (a title, an episode, a step, a percentage, the name of a service that is down) and the iPhones' Apple push tokens. It forwards updates to Apple and keeps nothing on disk. Push tokens are held in memory while your Quai Home is connected. It runs on Cloudflare, in the European Union.
+- No account, no analytics, no ads, no tracking, no third-party SDK in the app.
+- Full policy: https://quai.stream/privacy
+
+## Limits of the beta
+
+- iPhone only, iOS 26 or later. No iPad, Mac or Android app.
+- Playback works with Jellyfin; Plex and Emby are not supported.
+- TestFlight builds expire after 90 days; new ones install on their own.
+- The hosted Quai Cloud is free during the beta.
