@@ -1,0 +1,55 @@
+# The hosted Quai Cloud on Cloudflare (deploy/cloudflare-cloud): deployed by each release, checked
+# on pull requests that touch it. The APNs key comes from the repository's secrets.
+name: cloud
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version shown by Quai Cloud
+        type: string
+        required: true
+  pull_request:
+    paths: ["deploy/cloudflare-cloud/**", ".github/workflows/cloud.yml"]
+
+concurrency:
+  group: cloud-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/cloudflare-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+      - run: pnpm run test
+      - if: github.event_name == 'pull_request'
+        run: pnpm exec wrangler deploy --dry-run --containers-rollout=none
+      - if: github.event_name != 'pull_request'
+        name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          QUAI_APNS_KEY: ${{ secrets.QUAI_APNS_KEY }}
+          QUAI_APNS_KEY_ID: ${{ secrets.QUAI_APNS_KEY_ID }}
+          QUAI_APNS_TEAM_ID: ${{ secrets.QUAI_APNS_TEAM_ID }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          secrets="$RUNNER_TEMP/quai-cloud-secrets.json"
+          jq -n '{QUAI_APNS_KEY: env.QUAI_APNS_KEY, QUAI_APNS_KEY_ID: env.QUAI_APNS_KEY_ID, QUAI_APNS_TEAM_ID: env.QUAI_APNS_TEAM_ID}
+            | with_entries(select(.value != null and .value != ""))' > "$secrets"
+          pnpm exec wrangler deploy --var "QUAI_VERSION:$VERSION" --secrets-file "$secrets"
+          rm "$secrets"

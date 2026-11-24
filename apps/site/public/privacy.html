@@ -100,7 +100,7 @@
 <li>the content of each update: for example a title, an episode number, the current step, a progress percentage, or the name of a service that is down;</li>
 <li>the Apple push tokens of your paired iPhones, so it can address them.</li>
 </ul>
-<p style="margin: 0;">It forwards updates to Apple Push Notification service and does not keep their content once sent. It keeps push tokens only while the iPhone is paired [CONFIRM: storage and duration]. It never receives your service addresses, API keys, library or journal. If you run Quai Cloud yourself, none of this reaches us.</p>
+<p style="margin: 0;">It forwards updates to Apple Push Notification service and does not keep their content once sent. It holds push tokens in memory only, while your Quai Home is connected, and writes nothing to disk: they are stored in your Quai Home. It never receives your service addresses, API keys, library or journal. If you run Quai Cloud yourself, none of this reaches us.</p>
 </section>
 
 <section id="app" style="display: flex; flex-direction: column; gap: 10px;">
@@ -118,7 +118,7 @@
 
 <section id="sharing" style="display: flex; flex-direction: column; gap: 10px;">
 <h2 data-reveal style="margin: 0; font-size: 24px; font-weight: 700; color: #F5F5F7; letter-spacing: -0.3px;">Sharing</h2>
-<p style="margin: 0;">We don’t sell or rent any data, and we don’t share it with anyone except the providers needed to run our Quai Cloud: Apple, to deliver pushes, and [HOSTING PROVIDER], which hosts our Quai Cloud in [REGION].</p>
+<p style="margin: 0;">We don’t sell or rent any data, and we don’t share it with anyone except the providers needed to run our Quai Cloud: Apple, to deliver pushes, and Cloudflare, which runs our Quai Cloud in the European Union.</p>
 </section>
 
 <section id="delete" style="display: flex; flex-direction: column; gap: 10px;">

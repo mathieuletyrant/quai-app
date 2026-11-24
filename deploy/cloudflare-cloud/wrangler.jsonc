@@ -1,0 +1,29 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "quai-cloud",
+  "account_id": "8edebadfefbc90337426af94551173ec",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-24",
+  "routes": [{ "pattern": "cloud.quai.stream", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "QuaiCloud",
+      "image": "../../Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "lite",
+      "max_instances": 1,
+      "constraints": { "jurisdiction": "eu" }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "QUAI_CLOUD", "class_name": "QuaiCloud" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuaiCloud"] }],
+  "vars": {
+    "QUAI_PUBLIC_URL": "https://cloud.quai.stream",
+    "QUAI_MAX_HOMES": "25"
+  }
+}

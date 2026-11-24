@@ -12,6 +12,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 | `apps/console` | React + Vite web console, served by Quai Home, with typed clients derived from `packages/api` (`QuaiApi` relayed to the Cloud, `HomeConsoleApi` Quai Home's own). |
 | `apps/site` | The public website (landing, privacy policy, support): static HTML in `public/`, no build. The `site` workflow deploys it on each push to `main` as a Worker with static assets (`wrangler.jsonc`, custom domain `quai.stream`, `_headers` for its headers); it needs the `CLOUDFLARE_API_TOKEN` secret. Fonts are self-hosted: the page loads nothing from another site. `pnpm --filter @quai/site dev` serves it on :8790. |
 | `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json` into `Quai/Generated`, not committed: the CI's `ios-client` job makes it, `pnpm gen:client` locally. |
+| `deploy/cloudflare-cloud` | The hosted Quai Cloud: a Worker on `cloud.quai.stream` sends every request to one Cloudflare Container running the `cloud` target of the `Dockerfile` (EU only, `lite`). Host-specific code lives here, never in `apps/`. The `cloud` workflow deploys it at each release, with the APNs key from the repository's secrets. |
 | `Dockerfile` | The two server deliverables, one build: `--target home` and `--target cloud` (default). |
 
 ## Host-agnostic
@@ -21,6 +22,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 - The services' keys never reach the Cloud, not even through a page it serves: they are set in Quai Home's console (`ServiceSettings`) or its environment ([ADR 1](docs/adr/0001-console-served-by-quai-home.md)).
 - The contract (`packages/api`) only talks about Quai: *arr services, activities, devices. Never the host.
 - All configuration comes from `QUAI_*` environment variables and the `/data` volume.
+- Our own hosting of Quai Cloud lives in `deploy/` (Cloudflare), outside the generic images.
 - The Umbrel packaging lives in `mathieuletyrant/umbrel-community-app-store` (`mathieu-quai`), not here.
 
 ## Language

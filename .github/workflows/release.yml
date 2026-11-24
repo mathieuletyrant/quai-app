@@ -74,6 +74,15 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.target }}
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
 
+  # The hosted Quai Cloud follows the releases.
+  cloud:
+    needs: release
+    if: needs.release.outputs.created == 'true'
+    uses: ./.github/workflows/cloud.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+    secrets: inherit
+
   # Each release also goes to TestFlight (skipped until the App Store Connect secrets exist).
   testflight:
     needs: release
