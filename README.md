@@ -157,6 +157,7 @@ pnpm install
 pnpm dev:cloud     # Quai Cloud on :8787
 QUAI_CLOUD_URL=ws://localhost:8787/home QUAI_HOME_PASSWORD=dev pnpm dev:home   # Quai Home on :8788
 pnpm dev:console   # console on :5173, through Quai Home
+pnpm --filter @quai/site dev   # the website on :8790
 pnpm check && pnpm test
 ```
 
@@ -166,6 +167,7 @@ pnpm check && pnpm test
 | `apps/home` | Quai Home |
 | `apps/cloud` | Quai Cloud (Effect on Node) |
 | `apps/console` | Web console (React, Vite), served by Quai Home |
+| `apps/site` | The website: landing, privacy policy, support (static HTML) |
 | `apps/ios` | iPhone app and Live Activities (SwiftUI, XcodeGen) |
 
 iOS: `cd apps/ios && xcodegen generate && open Quai.xcodeproj`.

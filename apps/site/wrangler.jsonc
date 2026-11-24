@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "quai-site",
+  "account_id": "8edebadfefbc90337426af94551173ec",
+  "compatibility_date": "2026-11-24",
+  "assets": {
+    "directory": "./public",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [{ "pattern": "quai.stream", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false
+}
