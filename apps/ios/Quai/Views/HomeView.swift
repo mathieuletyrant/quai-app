@@ -237,7 +237,7 @@ struct LibraryHighlights {
 }
 
 /// A square: the three latest posters fanned out, the newest title and how many came this week.
-private struct RecentlyAddedTile: View {
+struct RecentlyAddedTile: View {
     let highlights: LibraryHighlights
 
     var body: some View {
@@ -293,7 +293,7 @@ private struct PosterFan: View {
 }
 
 /// A square: how many titles Radarr and Sonarr are still looking for, in large.
-private struct WantedTile: View {
+struct WantedTile: View {
     let count: Int
 
     private var color: Color { count == 0 ? Palette.ok : Palette.wantedText }

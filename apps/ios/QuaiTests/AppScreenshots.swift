@@ -36,6 +36,40 @@ struct AppScreenshots {
         Self.screenshot(window, "01-home")
     }
 
+    /// The Home's tiles under the fold: the square Library tiles over the disk.
+    @Test func homeLibraryTiles() async throws {
+        let connection = try await Self.pairedConnection()
+        await connection.loadLibrary()
+        let library = try #require(connection.library, "The preview's library didn't load")
+        let highlights = LibraryHighlights(library.items)
+        let oldest = Array(library.items.filter { $0.addedAt != nil }.sorted { ($0.addedAt ?? 0) < ($1.addedAt ?? 0) }.prefix(1))
+        let window = try Self.show(
+            Screen {
+                TabHeader(eyebrow: "Home", title: "Library tiles")
+            } content: {
+                VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
+                    TileRow {
+                        RecentlyAddedTile(highlights: highlights)
+                        WantedTile(count: highlights.wanted)
+                    }
+                    // A quiet week, nothing missing: one poster, its caption, the tick.
+                    TileRow {
+                        RecentlyAddedTile(highlights: LibraryHighlights(oldest))
+                        WantedTile(count: 0)
+                    }
+                    if let disk = library.disk {
+                        StorageTile(reading: DiskReading(disk))
+                    }
+                }
+            }
+            .tint(.quaiAccent)
+            .preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle(3)
+        Self.screenshot(window, "01-home-library-tiles")
+    }
+
     @Test func releases() async throws {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(
@@ -46,6 +80,24 @@ struct AppScreenshots {
         try await Self.until("today's releases and the library") { connection.releases != nil && connection.library != nil }
         try await Self.settle()
         Self.screenshot(window, "01-home-releases")
+
+        // A release opened: its title's detail, as from the Library.
+        let opened = try #require(
+            connection.releases?.items.lazy.compactMap { release in connection.library?.items.first { $0.id == release.libraryId } }.first,
+            "No release of the preview is in its library"
+        )
+        let detail = try Self.show(
+            NavigationStack { ReleasesView() }.sheet(isPresented: .constant(true)) {
+                TitleDetailView(item: opened)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .tint(.quaiAccent)
+            .preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle()
+        Self.screenshot(detail, "01-home-releases-title")
     }
 
     @Test func library() async throws {
@@ -68,6 +120,14 @@ struct AppScreenshots {
         )
         try await Self.settle()
         Self.screenshot(detail, "02-library-title")
+
+        // Where the Home's Wanted tile leads.
+        let wanted = try Self.show(
+            LibraryView(filter: .constant(.wanted)).tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle()
+        Self.screenshot(wanted, "02-library-wanted")
     }
 
     @Test func activity() async throws {
