@@ -34,6 +34,23 @@ enum ConnectionError: LocalizedError, Equatable {
     }
 }
 
+/// Where the link to the server stands.
+enum ServerStatus: Equatable {
+    /// Nothing has answered yet since launch or pairing.
+    case connecting
+    case connected
+    /// The last refresh failed: `Connection.lastError` says why.
+    case unreachable
+
+    var label: String {
+        switch self {
+        case .connecting: "Connecting"
+        case .connected: "Connected"
+        case .unreachable: "Not reachable"
+        }
+    }
+}
+
 /// The link between this iPhone and its Quai server: pairing, tokens, and the running activities.
 @MainActor @Observable
 final class Connection {
@@ -65,6 +82,8 @@ final class Connection {
     private var pendingPlayback = PendingPlayback()
     /// The search for an address that answers, while one runs.
     private var connecting: Task<(url: URL, client: Client), any Error>?
+    /// A failed refresh waiting to try again: still looking for the server.
+    private var retrying = false
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
@@ -73,6 +92,16 @@ final class Connection {
     @ObservationIgnored var readDelay: Duration?
 
     var isPaired: Bool { session != nil }
+    /// A refresh of the activities has reached the server since pairing or launch.
+    private var hasAnswered = false
+    /// Where the link to the server stands: what Settings says and the Home's title shows.
+    var status: ServerStatus {
+        if lastError != nil { return .unreachable }
+        if hasAnswered { return .connected }
+        return .connecting
+    }
+    /// Looking for an address that answers, or about to try again.
+    var isSearching: Bool { connecting != nil || retrying }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
     /// Quai Home's console addresses, as the pairing code gave them: Quai Cloud serves none.
@@ -145,6 +174,7 @@ final class Connection {
         session = nil
         connecting = nil
         serverURL = nil
+        hasAnswered = false
         activities = []
         flowSubjects = [:]
         library = nil
@@ -180,13 +210,35 @@ final class Connection {
     func refresh() async {
         guard session != nil else { return }
         do {
-            let client = try await requiredClient()
-            activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
-            lastError = nil
-            await learnSubjects()
+            try await readActivities()
         } catch {
-            lastError = error.quaiMessage
+            if error.isCancellation { return }
+            // Back in front, the network can take a moment to wake: one more try before saying so.
+            connecting = nil
+            retrying = true
+            defer { retrying = false }
+            try? await Task.sleep(for: .seconds(2))
+            if Task.isCancelled { return }
+            do {
+                try await readActivities()
+            } catch {
+                if !error.isCancellation { lastError = error.quaiMessage }
+            }
         }
+    }
+
+    private func readActivities() async throws {
+        let client = try await requiredClient()
+        activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        lastError = nil
+        hasAnswered = true
+        await learnSubjects()
+    }
+
+    /// The app is back in front: a search started before it was suspended has had its requests
+    /// frozen past their timeout, so the next call starts a new one.
+    func didBecomeActive() {
+        connecting = nil
     }
 
     /// A Live Activity button pressed in the app: it shows at once, then the server confirms.
@@ -454,7 +506,11 @@ final class Connection {
 
     private func send(_ call: (Client) async throws -> Void) async {
         guard let client = await authenticatedClient() else { return }
-        do { try await call(client) } catch { lastError = error.quaiMessage }
+        do {
+            try await call(client)
+        } catch {
+            if !error.isCancellation { lastError = error.quaiMessage }
+        }
     }
 
     /// `requiredClient`, for the calls that have nowhere to report a failure but `lastError`.

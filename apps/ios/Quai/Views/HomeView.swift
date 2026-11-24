@@ -54,6 +54,8 @@ struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
     @Binding var libraryFilter: LibraryFilter
+    /// The spinner beside the title: a search for the server that takes more than a moment.
+    @State private var showsSearching = false
 
     private var highlights: LibraryHighlights? { connection.library.map { LibraryHighlights($0.items) } }
     private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
@@ -62,6 +64,13 @@ struct HomeView: View {
     private var requests: [Components.Schemas.MediaRequest] { connection.requests?.items ?? [] }
     private var releases: [DayRelease] { connection.releases?.items ?? [] }
     private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
+
+    /// A spinner while a search for the server takes a while, a green dot once it answered.
+    private var serverMark: ServerMark? {
+        if showsSearching { return .searching }
+        if connection.status == .connected { return .connected }
+        return nil
+    }
 
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
@@ -80,7 +89,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay)
+                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay, mark: serverMark)
             } content: {
                 VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
                     if isLoading {
@@ -93,6 +102,15 @@ struct HomeView: View {
                 }
                 .animation(.smooth(duration: 0.35), value: isLoading)
                 .animation(.smooth(duration: 0.35), value: connection.library == nil)
+            }
+            // At home the server answers at once: the spinner only shows a search that takes a while.
+            .task(id: connection.isSearching) {
+                guard connection.isSearching else {
+                    showsSearching = false
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(600))
+                if !Task.isCancelled { showsSearching = true }
             }
             .refreshable {
                 await connection.refresh()

@@ -98,6 +98,14 @@ extension Error {
     /// What to show the user.
     var quaiMessage: String { quaiError.localizedDescription }
 
+    /// The call was cancelled (its screen closed, the app left the front), not refused: nothing to show.
+    var isCancellation: Bool {
+        let error = quaiError
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return false
+    }
+
     var isBlockedByProxy: Bool {
         if case .blockedByProxy? = quaiError as? ConnectionError { return true }
         return false
