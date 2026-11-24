@@ -27,12 +27,12 @@ describe("Seerr's search, read", () => {
     expect(results.map((r) => [r.kind, r.tmdbId, r.title, r.year, r.state])).toEqual([
       ["movie", 438631, "Dune", 2021, "available"],
       ["movie", 693134, "Dune: Part Two", 2024, "requested"],
-      ["series", 90228, "Dune: Prophecy", 2024, "none"],
-      ["movie", 841, "Dune", 1984, "none"],
-      ["movie", 1225914, "Dune: Part Three", undefined, "none"]
+      ["series", 90228, "Dune: Prophecy", 2024, "requestable"],
+      ["movie", 841, "Dune", 1984, "requestable"],
+      ["movie", 1225914, "Dune: Part Three", undefined, "requestable"]
     ])
     expect(results[0]!.posterUrl).toBe("https://image.tmdb.org/t/p/w342/d5NXSklXo0qyIYkgV94XAgMIckC.jpg")
-    expect(results[4]).toEqual({ kind: "movie", tmdbId: 1225914, title: "Dune: Part Three", state: "none" })
+    expect(results[4]).toEqual({ kind: "movie", tmdbId: 1225914, title: "Dune: Part Three", state: "requestable" })
   })
 
   it("encodes the query the way Seerr wants it, apostrophes and brackets included", () => {
@@ -44,7 +44,7 @@ describe("Seerr's search, read", () => {
     expect(seasonChoices(Schema.decodeUnknownSync(SeerrSeries)(fixture("seerr/tv.json")))).toEqual([
       { number: 1, episodes: 9, state: "available" },
       { number: 2, episodes: 10, state: "requested" },
-      { number: 3, episodes: 1, state: "none" }
+      { number: 3, episodes: 1, state: "requestable" }
     ])
   })
 })
@@ -82,7 +82,7 @@ describe("search and request routes", () => {
     Effect.gen(function*() {
       const { api } = yield* setUp({ services, answer: seerrAnswers() })
       const { seasons } = yield* api.seasons({ params: { tmdbId: "95396" } })
-      expect(seasons.map((s) => [s.number, s.state])).toEqual([[1, "available"], [2, "requested"], [3, "none"]])
+      expect(seasons.map((s) => [s.number, s.state])).toEqual([[1, "available"], [2, "requested"], [3, "requestable"]])
       expect((yield* Effect.flip(api.seasons({ params: { tmdbId: "dune" } })))._tag).toBe("NotFound")
     }).pipe(Effect.provide(TestApp)))
 

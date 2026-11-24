@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The tabs of the floating tab bar.
 enum AppTab: Hashable {
-    case home, library, activity, settings
+    case home, library, activity, settings, search
 }
 
 @main
@@ -10,15 +10,19 @@ struct QuaiApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var connection = Connection()
     @State private var pendingLink: PairingLink?
+    /// The search, opened from the Lock Screen widget or the control.
+    @State private var searchLink: SearchLink?
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            RootView(pendingLink: $pendingLink)
+            RootView(pendingLink: $pendingLink, searchLink: $searchLink)
                 .environment(connection)
-                // The Camera app opens the console's QR code as a quai://pair link.
+                // The Camera app opens the console's QR code as a quai://pair link; the Lock
+                // Screen's widget and control, quai://search.
                 .onOpenURL { url in
                     if let link = PairingLink(url) { pendingLink = link }
+                    if let link = SearchLink(url) { searchLink = link }
                 }
                 .task { await connection.watchPushToStartTokens() }
                 .task { await connection.watchActivities() }
@@ -56,13 +60,15 @@ struct QuaiApp: App {
 struct RootView: View {
     @Environment(Connection.self) private var connection
     @Binding var pendingLink: PairingLink?
+    @Binding var searchLink: SearchLink?
     @State private var tab: AppTab
     @State private var showsLive: Bool
     /// The Library's filter, also set by the Home's tiles that open it.
     @State private var libraryFilter = LibraryFilter.recent
 
-    init(pendingLink: Binding<PairingLink?>, tab: AppTab = .home, showsLive: Bool = false) {
+    init(pendingLink: Binding<PairingLink?>, searchLink: Binding<SearchLink?> = .constant(nil), tab: AppTab = .home, showsLive: Bool = false) {
         _pendingLink = pendingLink
+        _searchLink = searchLink
         _tab = State(initialValue: tab)
         _showsLive = State(initialValue: showsLive)
     }
@@ -75,9 +81,16 @@ struct RootView: View {
                     Tab("Library", systemImage: "film.stack", value: AppTab.library) { LibraryView(filter: $libraryFilter) }
                     Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityListView() }
                     Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
+                    Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) { SearchView(link: $searchLink) }
                 }
                 .modifier(LiveAccessory(live: LiveNow(Today(connection.activities, subjects: connection.flowSubjects))) { showsLive = true })
                 .sheet(isPresented: $showsLive) { LiveSheet() }
+                .onChange(of: searchLink, initial: true) { _, link in
+                    if link != nil {
+                        showsLive = false
+                        tab = .search
+                    }
+                }
             } else {
                 PairingView(link: $pendingLink)
             }

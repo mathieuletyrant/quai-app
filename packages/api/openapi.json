@@ -3376,7 +3376,7 @@
       "TitleState": {
         "type": "string",
         "enum": [
-          "none",
+          "requestable",
           "requested",
           "partial",
           "available"

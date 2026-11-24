@@ -58,12 +58,12 @@ export type SearchStatus = typeof SearchStatus.Type
 
 /**
  * Where a title stands in Seerr:
- * - `none`: nobody asked for it, it can be requested;
+ * - `requestable`: nobody asked for it;
  * - `requested`: asked for, waiting for approval or on its way;
  * - `partial`: a series with some seasons in the library: the others can still be requested;
  * - `available`: in the library.
  */
-export const TitleState = Schema.Literals(["none", "requested", "partial", "available"]).annotate({ identifier: "TitleState" })
+export const TitleState = Schema.Literals(["requestable", "requested", "partial", "available"]).annotate({ identifier: "TitleState" })
 export type TitleState = typeof TitleState.Type
 
 /** A movie or a series Seerr found. */
@@ -91,7 +91,7 @@ export type SearchResults = typeof SearchResults.Type
 export const SeasonChoice = Schema.Struct({
   number: Schema.Int,
   episodes: Schema.optionalKey(Schema.Int),
-  /** `none` can be requested; the others are already asked for or there. */
+  /** `requestable`, or already asked for or there. */
   state: TitleState
 }).annotate({ identifier: "SeasonChoice" })
 export type SeasonChoice = typeof SeasonChoice.Type

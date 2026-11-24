@@ -229,7 +229,7 @@ export const titleState = (status: number | undefined): TitleState => {
     case MediaStatus.available:
       return "available"
     default:
-      return "none"
+      return "requestable"
   }
 }
 
@@ -311,12 +311,12 @@ export const seasonChoices = (series: typeof SeerrSeries.Type): ReadonlyArray<Se
     .filter((season) => season.seasonNumber > 0)
     .sort((a, b) => a.seasonNumber - b.seasonNumber)
     .map((season) => {
-      const state = known.get(season.seasonNumber) ?? "none"
+      const state = known.get(season.seasonNumber) ?? "requestable"
       const episodes = season.episodeCount ?? undefined
       return {
         number: season.seasonNumber,
         ...(episodes === undefined ? {} : { episodes }),
-        state: state === "none" && asked.has(season.seasonNumber) ? "requested" : state
+        state: state === "requestable" && asked.has(season.seasonNumber) ? "requested" : state
       }
     })
 }

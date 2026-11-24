@@ -1,0 +1,31 @@
+{
+  "id": 90228,
+  "name": "Dune: Prophecy",
+  "firstAirDate": "2024-11-17",
+  "numberOfSeasons": 2,
+  "posterPath": "/A3aTsF6NqT6zsc4rVc1fuUUSnoV.jpg",
+  "seasons": [
+    {
+      "id": 398390,
+      "airDate": "2024-11-17",
+      "episodeCount": 6,
+      "name": "Season 1",
+      "overview": "",
+      "posterPath": "/A3aTsF6NqT6zsc4rVc1fuUUSnoV.jpg",
+      "seasonNumber": 1
+    },
+    {
+      "id": 452990,
+      "airDate": null,
+      "episodeCount": 6,
+      "name": "Season 2",
+      "overview": "",
+      "posterPath": null,
+      "seasonNumber": 2
+    }
+  ],
+  "externalIds": {
+    "tvdbId": 409413
+  },
+  "mediaInfo": null
+}

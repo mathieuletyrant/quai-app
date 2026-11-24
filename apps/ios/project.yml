@@ -50,7 +50,7 @@ targets:
         # Quai is dark only.
         UIUserInterfaceStyle: Dark
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationPortraitUpsideDown, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
-        # The console's QR code is a quai://pair link.
+        # The console's QR code is a quai://pair link; the Lock Screen's widget and control open quai://search.
         CFBundleURLTypes:
           - CFBundleURLName: com.mathieuletyrant.quai.pair
             CFBundleURLSchemes: [quai]
@@ -58,6 +58,9 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: Quai talks to your server on your home network.
+        # The search's dictation: a title said out loud, recognized on the iPhone when it can.
+        NSMicrophoneUsageDescription: Quai listens while you say the title to search for.
+        NSSpeechRecognitionUsageDescription: Quai turns the title you say into text to search Seerr.
         # No encryption beyond HTTPS: skips the export compliance question on each TestFlight build.
         ITSAppUsesNonExemptEncryption: false
     entitlements:

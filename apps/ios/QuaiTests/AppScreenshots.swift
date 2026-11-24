@@ -136,6 +136,48 @@ struct AppScreenshots {
         Self.screenshot(notifications, "05-settings-notifications")
     }
 
+    /// The search with "dune" typed: Seerr's results, each with where it stands.
+    @Test func search() async throws {
+        let connection = try await Self.pairedConnection()
+        let window = try Self.show(
+            SearchView(link: .constant(nil), query: "dune").tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        // The search waits for a pause in the typing, then asks Seerr, then the posters load.
+        try await Self.settle(5)
+        Self.screenshot(window, "07-search")
+
+        // A series' Request: its seasons, the first one checked.
+        let prophecy = SearchResult(
+            kind: .series,
+            tmdbId: 90228,
+            title: "Dune: Prophecy",
+            year: 2024,
+            posterUrl: "https://image.tmdb.org/t/p/w342/A3aTsF6NqT6zsc4rVc1fuUUSnoV.jpg",
+            overview: nil,
+            state: .requestable
+        )
+        let seasons = try Self.show(
+            SearchView(link: .constant(nil), query: "dune").sheet(isPresented: .constant(true)) {
+                SeasonPicker(result: prophecy) { _ in }
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .tint(.quaiAccent)
+            .preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle(5)
+        Self.screenshot(seasons, "07-search-seasons")
+
+        let requester = try Self.show(
+            NavigationStack { RequesterSettingsView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle()
+        Self.screenshot(requester, "07-search-requester")
+    }
+
     @Test func liveSheet() async throws {
         let connection = try await Self.pairedConnection()
         // The preview's download becomes an activity a few seconds after the start.

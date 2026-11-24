@@ -5,5 +5,7 @@ import WidgetKit
 struct QuaiWidgetsBundle: WidgetBundle {
     var body: some Widget {
         QuaiLiveActivity()
+        SearchWidget()
+        SearchControl()
     }
 }
