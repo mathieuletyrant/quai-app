@@ -68,6 +68,7 @@ export const dayReleases = (day: string, zone: string, inputs: DayInputs): Reado
     return [{
       id: `episode:${e.id}`,
       kind: "episode",
+      libraryId: `series:${e.seriesId}`,
       title: e.series?.title ?? "Unknown series",
       episode: episodeCode(e.seasonNumber, e.episodeNumber),
       ...(e.title === undefined || e.title === "" || e.title === "TBA" ? {} : { episodeTitle: e.title }),
@@ -83,6 +84,7 @@ export const dayReleases = (day: string, zone: string, inputs: DayInputs): Reado
     return [{
       id: `movie:${m.id}`,
       kind: "movie",
+      libraryId: `movie:${m.id}`,
       title: m.title,
       ...(posterUrl === undefined ? {} : { posterUrl }),
       status

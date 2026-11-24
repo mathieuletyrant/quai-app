@@ -3026,6 +3026,9 @@
               "movie"
             ]
           },
+          "libraryId": {
+            "type": "string"
+          },
           "title": {
             "type": "string"
           },
@@ -3048,6 +3051,7 @@
         "required": [
           "id",
           "kind",
+          "libraryId",
           "title",
           "status"
         ],

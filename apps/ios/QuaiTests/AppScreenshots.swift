@@ -36,6 +36,18 @@ struct AppScreenshots {
         Self.screenshot(window, "01-home")
     }
 
+    @Test func releases() async throws {
+        let connection = try await Self.pairedConnection()
+        let window = try Self.show(
+            NavigationStack { ReleasesView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        // The chevrons show once the Library is loaded: each release opens its title there.
+        try await Self.until("today's releases and the library") { connection.releases != nil && connection.library != nil }
+        try await Self.settle()
+        Self.screenshot(window, "01-home-releases")
+    }
+
     @Test func library() async throws {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .library), connection)
