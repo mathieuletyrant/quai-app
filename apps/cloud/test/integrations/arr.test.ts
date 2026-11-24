@@ -5,10 +5,10 @@ import { HomeReads } from "../../src/home/HomeReads.ts"
 import { Journal } from "../../src/journal/Journal.ts"
 import { decodeRadarrWebhook, radarr, radarrEvents } from "../../src/integrations/radarr.ts"
 import { decodeSonarrWebhook, episodeLabel, sonarr, sonarrEvents } from "../../src/integrations/sonarr.ts"
-import { makeFakeHome, type Recording, recordedHome } from "../fakeHome.ts"
+import { makeFakeHome, type Recording, recordedHome , testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
-const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(HomeLink.layer))
+const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(testLink))
 
 const radarrPayload = (name: string) => decodeRadarrWebhook(fixture(`radarr/${name}.json`))
 const sonarrPayload = (name: string) => decodeSonarrWebhook(fixture(`sonarr/${name}.json`))

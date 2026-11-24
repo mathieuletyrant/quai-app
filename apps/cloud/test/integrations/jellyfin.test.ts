@@ -7,7 +7,7 @@ import { Journal } from "../../src/journal/Journal.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
 import type { WatchContext } from "../../src/integrations/Integration.ts"
 import { jellyfin, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
-import { makeFakeHome, recordedHome } from "../fakeHome.ts"
+import { makeFakeHome, recordedHome , testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { download, playback } from "../flows/helpers.ts"
 
@@ -68,7 +68,7 @@ describe("Jellyfin sessions", () => {
   })
 })
 
-const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(HomeLink.layer))
+const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(testLink))
 
 describe("Jellyfin integration", () => {
   const withJellyfin = <A, E>(test: (integration: Effect.Success<typeof jellyfin>) => Effect.Effect<A, E, HomeLink>) =>

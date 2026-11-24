@@ -6,7 +6,9 @@ import { TestClock } from "effect/testing"
 import { HttpClientRequest } from "effect/http"
 import { Activities } from "../src/flows/Activities.ts"
 import { Devices } from "../src/home/Devices.ts"
+import * as DeviceToken from "../src/home/DeviceToken.ts"
 import { HomeLink } from "../src/home/HomeLink.ts"
+import { testHomeId } from "./fakeHome.ts"
 import { connectedHome, TestApp } from "./testApp.ts"
 
 /** The iPhone's side of DeviceAuth: send the token the pairing returned. */
@@ -27,8 +29,15 @@ describe("pairing", () => {
       expect(qr.code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/)
       expect(qr.link).toBe(`quai://pair?code=${qr.code}&url=http%3A%2F%2Fumbrel.local%3A3078`)
 
+      const store = yield* Devices
+      expect(yield* store.holdsPairingCode(` ${qr.code.toLowerCase()} `)).toBe(true)
+      expect(yield* store.holdsPairingCode("ABCDEFGH")).toBe(false)
       const paired = yield* api.devices.pair({ payload: { ...iphone, code: qr.code.toLowerCase() } })
-      expect(paired.token.length).toBeGreaterThan(30)
+      // The token names its home, so a Cloud of several homes finds it.
+      expect(DeviceToken.homeOf(paired.token)).toEqual(Option.some(testHomeId))
+      expect(yield* store.holdsToken(paired.token)).toBe(true)
+      expect(yield* store.holdsToken(`${testHomeId}.${"x".repeat(43)}`)).toBe(false)
+      expect(yield* store.holdsPairingCode(qr.code)).toBe(false)
 
       const again = yield* Effect.exit(api.devices.pair({ payload: { ...iphone, code: qr.code } }))
       expect(Exit.isFailure(again)).toBe(true)

@@ -145,7 +145,8 @@ A service set neither here nor in the console's Services page is skipped.
 | `QUAI_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
 | `QUAI_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
 | `QUAI_TZ` | `UTC` | Time zone for "today", until an iPhone reports its own |
-| `QUAI_HOME_ID` | | The only Quai Home served (the id it logs as `linked as home …`); any other is refused ([docs](docs/proxy.md#quai_home_id)) |
+| `QUAI_HOME_ID` | | The only Quai Homes served, comma-separated (the id each logs as `linked as home …`); any other is refused ([docs](docs/proxy.md#quai_home_id)) |
+| `QUAI_MAX_HOMES` | | How many Quai Homes may be linked at once; past it, a new one is refused |
 
 </details>
 

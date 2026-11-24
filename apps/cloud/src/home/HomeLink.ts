@@ -38,7 +38,7 @@ export class HomeError extends Data.TaggedError("HomeError")<{
 export const toOffline = (error: HomeError) =>
   new HomeOffline({ message: error.reason === "offline" ? offlineMessage : `Quai Home: ${error.message}` })
 
-/** The home Quai Cloud serves, once its documents are loaded. */
+/** A home Quai Cloud serves, once its documents are loaded. */
 export interface LinkedHome {
   readonly homeId: string
   /** The services this Quai Home reaches (from its Hello). */
@@ -78,6 +78,8 @@ export type ConsoleHandler = (request: ConsoleRequest) => Effect.Effect<{ readon
  * once Quai Home said it is on disk.
  */
 export class HomeDocuments extends Context.Service<HomeDocuments, {
+  /** Whose documents these are. */
+  readonly homeId: string
   readonly get: (key: string) => Effect.Effect<Option.Option<unknown>, HomeError>
   /** Every document whose key starts with `prefix`, sorted by key. */
   readonly list: (prefix: string) => Effect.Effect<ReadonlyArray<HomeDocument>, HomeError>
@@ -87,21 +89,27 @@ export class HomeDocuments extends Context.Service<HomeDocuments, {
   /** Always connected, kept in memory: for tests of what sits on top. */
   static readonly memory = Layer.sync(HomeDocuments, () => {
     const documents = new Map<string, unknown>()
-    return makeDocuments(Effect.succeed(documents), (key, value) =>
-      Effect.sync(() => {
-        if (value === undefined) documents.delete(key)
-        else documents.set(key, value)
-      }))
+    return {
+      homeId: memoryHomeId,
+      ...makeDocuments(Effect.succeed(documents), (key, value) =>
+        Effect.sync(() => {
+          if (value === undefined) documents.delete(key)
+          else documents.set(key, value)
+        }))
+    }
   })
 }
 
 /** A copy as it would come back from disk: what is cached is what a restarted Cloud would read. */
 const asStored = (value: unknown): unknown => JSON.parse(JSON.stringify(value) ?? "null")
 
+/** The home `HomeDocuments.memory` keeps documents for. */
+export const memoryHomeId = "0".repeat(32)
+
 const makeDocuments = (
   documents: Effect.Effect<Map<string, unknown>, HomeError>,
   write: (key: string, value: unknown | undefined) => Effect.Effect<void, HomeError>
-): HomeDocuments["Service"] => {
+): Omit<HomeDocuments["Service"], "homeId"> => {
   const checked = (key: string) =>
     HomeProtocol.isStoreKey(key) ? Effect.void : Effect.die(new Error(`invalid home document key: ${key}`))
   return {
@@ -117,7 +125,6 @@ const makeDocuments = (
 
 /** One live connection from a Quai Home, past its handshake. */
 interface Connection {
-  readonly homeId: string
   services: ReadonlyArray<HomeService>
   readonly protocol: number
   readonly webUrls: HomeProtocol.WebUrls
@@ -127,6 +134,13 @@ interface Connection {
   documents: Map<string, unknown> | null
   /** Completed to close this connection: another one of the same home replaced it. */
   readonly replaced: Deferred.Deferred<void>
+}
+
+/** One home as the links know it: its connection while there is one, its events, its console. */
+interface Slot {
+  connection: Connection | null
+  readonly events: Queue.Queue<HomeEvent>
+  consoleHandler: ConsoleHandler | null
 }
 
 type HandshakeOutcome =
@@ -145,14 +159,14 @@ export const verifyProof = (publicKey: string, nonce: string, signature: string)
 }
 
 /**
- * The link to Quai Home: the WebSocket it opens to `/home`, its handshake, the calls and store
- * operations Quai Cloud sends it, and what it sends on its own (snapshots, webhooks), as events.
- *
- * One home for now: while one is connected, another home is refused; the same home connecting
- * again replaces its old connection. Connections are kept by home id, ready for several homes.
+ * The link to one home's Quai Home: the calls and store operations Quai Cloud sends it, and what
+ * it sends on its own (snapshots, webhooks), as events. Every service of a home reads its own link
+ * (see `Homes`): it never sees another home.
  */
 export class HomeLink extends Context.Service<HomeLink, {
-  /** The connected home, once its documents are loaded. */
+  /** The home this link is to. */
+  readonly homeId: string
+  /** The home, once its documents are loaded; None while its Quai Home isn't connected. */
   readonly home: Effect.Effect<Option.Option<LinkedHome>>
   /**
    * One HTTP call to a service, through Quai Home's allowlist. `timeoutMs` for the slow ones (a
@@ -171,46 +185,82 @@ export class HomeLink extends Context.Service<HomeLink, {
   readonly documents: HomeDocuments["Service"]
   /** The next event from Quai Home. One reader: the Hub. */
   readonly nextEvent: Effect.Effect<HomeEvent>
-  /** Serves one connection from Quai Home, until it closes. */
-  readonly serve: (socket: Socket.Socket) => Effect.Effect<void>
   /** Answers the console requests Quai Home relays (its console is served there). Until set, 503. */
   readonly answerConsole: (handler: ConsoleHandler) => Effect.Effect<void>
 }>()("quai/HomeLink") {
+  /** A link to no home: always offline, never an event. What answers a request no home is found for. */
+  static readonly offline: HomeLink["Service"] = (() => {
+    const offline = Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
+    return {
+      homeId: "",
+      home: Effect.succeed(Option.none()),
+      call: () => offline,
+      setWatches: () => offline,
+      appendJournal: () => offline,
+      readJournal: () => offline,
+      documents: { homeId: "", ...makeDocuments(offline, () => offline) },
+      nextEvent: Effect.never,
+      answerConsole: () => Effect.void
+    }
+  })()
+
+  /** The home's documents. */
+  static readonly documents = Layer.effect(HomeDocuments, Effect.map(Effect.service(HomeLink), (link) => link.documents))
+}
+
+/**
+ * Every Quai Home's WebSocket to `/home`: the handshake, which proves the home's key and names the
+ * home, then one `HomeLink` per home. The same home connecting again replaces its old connection.
+ */
+export class HomeLinks extends Context.Service<HomeLinks, {
+  /** Serves one connection from a Quai Home, until it closes. */
+  readonly serve: (socket: Socket.Socket) => Effect.Effect<void>
+  /** The link to this home, connected or not (yet). */
+  readonly link: (homeId: string) => Effect.Effect<HomeLink["Service"]>
+  /** The next home whose documents were loaded: on each of its connections. */
+  readonly nextReady: Effect.Effect<string>
+  /** Forgets a home that isn't connected, with its events: false, and nothing changes, if it is. */
+  readonly forget: (homeId: string) => Effect.Effect<boolean>
+}>()("quai/HomeLinks") {
   /**
-   * `QUAI_HOME_ID`, when set, is the only home served: any other is refused at the handshake, so a
-   * foreign Quai Home can't take the slot while the real one is away. Quai Home logs its id
-   * (`linked as home …`).
+   * `QUAI_HOME_ID`, when set, lists the only homes served (comma-separated): any other is refused at
+   * the handshake. Quai Home logs its id (`linked as home …`). `QUAI_MAX_HOMES` caps how many are
+   * connected at once.
    */
   static readonly make = Effect.gen(function*() {
     const only = yield* Config.option(Config.String("QUAI_HOME_ID")).pipe(Effect.orDie)
-    const expectedHomeId = Option.map(only, (id) => id.trim().toLowerCase())
-    if (Option.isSome(expectedHomeId) && !/^[0-9a-f]{32}$/.test(expectedHomeId.value)) {
+    const expectedHomeIds = Option.map(only, (ids) => ids.split(",").map((id) => id.trim().toLowerCase()).filter((id) => id !== ""))
+    if (Option.isSome(expectedHomeIds) && (expectedHomeIds.value.length === 0 || expectedHomeIds.value.some((id) => !/^[0-9a-f]{32}$/.test(id)))) {
       return yield* Effect.die(new Error("QUAI_HOME_ID: a home id is 32 hex characters, as Quai Home logs it"))
     }
-    const connections = new Map<string, Connection>()
-    const events = yield* Queue.unbounded<HomeEvent>()
+    const maxHomes = yield* Config.option(Config.Int("QUAI_MAX_HOMES")).pipe(Effect.orDie)
+    if (Option.isSome(maxHomes) && maxHomes.value < 1) return yield* Effect.die(new Error("QUAI_MAX_HOMES: at least 1"))
+
+    const slots = new Map<string, Slot>()
+    const readyHomes = yield* Queue.unbounded<string>()
     const requestCount = yield* Ref.make(0)
-    const consoleHandler = yield* Ref.make<ConsoleHandler | null>(null)
+
+    const slotOf = (homeId: string): Effect.Effect<Slot> =>
+      Effect.suspend(() => {
+        const existing = slots.get(homeId)
+        if (existing !== undefined) return Effect.succeed(existing)
+        return Effect.map(Queue.unbounded<HomeEvent>(), (events) => {
+          const created: Slot = { connection: null, events, consoleHandler: null }
+          slots.set(homeId, created)
+          return created
+        })
+      })
+    const connectedCount = (except: string) =>
+      [...slots].filter(([id, slot]) => id !== except && slot.connection !== null).length
 
     /** A relayed console request: only the console's paths, and only once something answers them. */
-    const answerConsole = (request: ConsoleRequest) =>
+    const answerConsole = (slot: Slot, request: ConsoleRequest) =>
       Effect.gen(function*() {
         if (!HomeProtocol.isConsolePath(request.path)) return { status: 404, body: "" }
-        const handler = yield* Ref.get(consoleHandler)
+        const handler = slot.consoleHandler
         if (handler === null) return { status: 503, body: JSON.stringify({ _tag: "HomeOffline", message: "Quai Cloud is starting" }) }
         return yield* handler(request)
       })
-
-    const ready = (): Connection | null => {
-      for (const connection of connections.values()) if (connection.documents !== null) return connection
-      return null
-    }
-    const current = Effect.suspend(() => {
-      const connection = ready()
-      return connection === null
-        ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
-        : Effect.succeed(connection)
-    })
 
     const request = (connection: Connection, make: (id: string) => CloudMessage, timeoutMs: number = Timing.requestMs) =>
       Effect.gen(function*() {
@@ -230,20 +280,64 @@ export class HomeLink extends Context.Service<HomeLink, {
     const failedWith = (answer: Answer) =>
       answer._tag === "Failed" ? Effect.fail(new HomeError({ reason: "failed", message: answer.reason })) : Effect.succeed(answer)
 
-    const documents = makeDocuments(
-      Effect.map(current, (c) => c.documents!),
-      (key, value) =>
-        Effect.gen(function*() {
-          const connection = yield* current
-          const answer = yield* request(connection, (id) =>
-            value === undefined
-              ? HomeProtocol.StoreDelete.make({ id, key })
-              : HomeProtocol.StorePut.make({ id, key, value })).pipe(Effect.flatMap(failedWith))
-          if (answer._tag !== "StoreDone") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
-          if (value === undefined) connection.documents?.delete(key)
-          else connection.documents?.set(key, value)
-        })
-    )
+    const linkOf = (homeId: string): Effect.Effect<HomeLink["Service"]> => Effect.map(slotOf(homeId), (slot): HomeLink["Service"] => {
+      const ready = () => slot.connection !== null && slot.connection.documents !== null ? slot.connection : null
+      const current = Effect.suspend(() => {
+        const connection = ready()
+        return connection === null
+          ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
+          : Effect.succeed(connection)
+      })
+      const documents = makeDocuments(
+        Effect.map(current, (c) => c.documents!),
+        (key, value) =>
+          Effect.gen(function*() {
+            const connection = yield* current
+            const answer = yield* request(connection, (id) =>
+              value === undefined
+                ? HomeProtocol.StoreDelete.make({ id, key })
+                : HomeProtocol.StorePut.make({ id, key, value })).pipe(Effect.flatMap(failedWith))
+            if (answer._tag !== "StoreDone") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
+            if (value === undefined) connection.documents?.delete(key)
+            else connection.documents?.set(key, value)
+          })
+      )
+      return {
+        homeId,
+        home: Effect.sync(() => {
+          const connection = ready()
+          return connection === null
+            ? Option.none()
+            : Option.some({ homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls })
+        }),
+        call: (call, options) =>
+          Effect.gen(function*() {
+            const connection = yield* current
+            const answer = yield* request(connection, (id) => HomeProtocol.Call.make({ ...call, id }), options?.timeoutMs).pipe(Effect.flatMap(failedWith))
+            if (answer._tag !== "CallResponse") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
+            return { status: answer.status, body: answer.body }
+          }),
+        setWatches: (watches) => Effect.flatMap(current, (connection) => connection.send(HomeProtocol.SetWatches.make({ watches }))),
+        appendJournal: (entries) =>
+          Effect.flatMap(current, (connection) =>
+            connection.protocol < HomeProtocol.journalProtocolVersion
+              ? Effect.fail(new HomeError({ reason: "failed", message: "this Quai Home keeps no journal" }))
+              : connection.send(HomeProtocol.JournalAppend.make({ entries }))),
+        readJournal: (query) =>
+          Effect.gen(function*() {
+            const connection = yield* current
+            if (connection.protocol < HomeProtocol.journalProtocolVersion) {
+              return yield* Effect.fail(new HomeError({ reason: "failed", message: "this Quai Home keeps no journal" }))
+            }
+            const answer = yield* request(connection, (id) => HomeProtocol.JournalRead.make({ id, query })).pipe(Effect.flatMap(failedWith))
+            if (answer._tag !== "JournalPage") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
+            return { entries: answer.entries, more: answer.more }
+          }),
+        documents: { homeId, ...documents },
+        nextEvent: Queue.take(slot.events),
+        answerConsole: (handler) => Effect.sync(() => (slot.consoleHandler = handler))
+      }
+    })
 
     const serve = (socket: Socket.Socket) =>
       Effect.gen(function*() {
@@ -289,11 +383,11 @@ export class HomeLink extends Context.Service<HomeLink, {
             return { _tag: "Refused", reason: "the proof doesn't match the public key", retryAfterSeconds: 60 }
           }
           const homeId = HomeId.homeId(hello.value.publicKey)
-          if (Option.isSome(expectedHomeId) && homeId !== expectedHomeId.value) {
-            return { _tag: "Refused", reason: `this Cloud serves home ${expectedHomeId.value} only (QUAI_HOME_ID), not ${homeId}`, retryAfterSeconds: 3600 }
+          if (Option.isSome(expectedHomeIds) && !expectedHomeIds.value.includes(homeId)) {
+            return { _tag: "Refused", reason: `this Cloud serves ${expectedHomeIds.value.join(", ")} only (QUAI_HOME_ID), not ${homeId}`, retryAfterSeconds: 3600 }
           }
-          for (const other of connections.values()) {
-            if (other.homeId !== homeId) return { _tag: "Refused", reason: "this Cloud serves one home", retryAfterSeconds: 300 }
+          if (Option.isSome(maxHomes) && connectedCount(homeId) >= maxHomes.value) {
+            return { _tag: "Refused", reason: `this Cloud serves ${maxHomes.value} home${maxHomes.value === 1 ? "" : "s"} at most`, retryAfterSeconds: 300 }
           }
           return { _tag: "Accepted", homeId, services: hello.value.services, protocol, webUrls: hello.value.webUrls ?? {} }
         })
@@ -306,8 +400,9 @@ export class HomeLink extends Context.Service<HomeLink, {
         }
 
         const { homeId } = outcome
+        const slot = yield* slotOf(homeId)
+        const events = slot.events
         const connection: Connection = {
-          homeId,
           services: outcome.services,
           protocol: outcome.protocol,
           webUrls: outcome.webUrls,
@@ -316,18 +411,18 @@ export class HomeLink extends Context.Service<HomeLink, {
           documents: null,
           replaced: yield* Deferred.make<void>()
         }
-        const previous = connections.get(homeId)
-        if (previous !== undefined) yield* Deferred.succeed(previous.replaced, undefined)
-        connections.set(homeId, connection)
+        const previous = slot.connection
+        if (previous !== null) yield* Deferred.succeed(previous.replaced, undefined)
+        slot.connection = connection
         yield* Effect.addFinalizer(() =>
           Effect.gen(function*() {
             const wasReady = connection.documents !== null
-            if (connections.get(homeId) === connection) connections.delete(homeId)
+            if (slot.connection === connection) slot.connection = null
             connection.documents = null
             for (const answer of connection.pending.values()) {
               yield* Deferred.fail(answer, new HomeError({ reason: "offline", message: offlineMessage }))
             }
-            if (wasReady && !connections.has(homeId)) yield* Queue.offer(events, { _tag: "Gone", homeId })
+            if (wasReady && slot.connection === null) yield* Queue.offer(events, { _tag: "Gone", homeId })
             yield* Effect.logInfo(`home ${homeId} disconnected`)
           }))
 
@@ -336,13 +431,12 @@ export class HomeLink extends Context.Service<HomeLink, {
 
         // What Quai Home sends on its own waits for its documents, so nothing reads a home half loaded.
         const inbox = yield* Queue.unbounded<HomeEvent>()
-        const loaded = yield* Deferred.make<void>()
         yield* Effect.forkScoped(Effect.gen(function*() {
           const answer = yield* request(connection, (id) => HomeProtocol.StoreList.make({ id, prefix: "" })).pipe(Effect.flatMap(failedWith))
           if (answer._tag !== "StoreDocuments") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
           connection.documents = new Map(answer.documents.map((d) => [d.key, d.value]))
           yield* Queue.offer(events, { _tag: "Ready", home: { homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls } })
-          yield* Deferred.succeed(loaded, undefined)
+          yield* Queue.offer(readyHomes, homeId)
           yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))
         }).pipe(
           Effect.catchTag("HomeError", (error) =>
@@ -379,7 +473,7 @@ export class HomeLink extends Context.Service<HomeLink, {
               return yield* Queue.offer(inbox, { _tag: "Journal", entries: message.entries })
             case "ConsoleRequest": {
               const { id, _tag, ...request } = message
-              return yield* Effect.forkScoped(Effect.flatMap(answerConsole(request), (answer) =>
+              return yield* Effect.forkScoped(Effect.flatMap(answerConsole(slot, request), (answer) =>
                 send(HomeProtocol.ConsoleResponse.make({ id, status: answer.status, body: answer.body }))))
             }
             case "ServicesChanged":
@@ -417,56 +511,35 @@ export class HomeLink extends Context.Service<HomeLink, {
       )
 
     return {
-      home: Effect.sync(() => {
-        const connection = ready()
-        return connection === null
-          ? Option.none()
-          : Option.some({ homeId: connection.homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls })
-      }),
-      call: (call, options) =>
-        Effect.gen(function*() {
-          const connection = yield* current
-          const answer = yield* request(connection, (id) => HomeProtocol.Call.make({ ...call, id }), options?.timeoutMs).pipe(Effect.flatMap(failedWith))
-          if (answer._tag !== "CallResponse") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
-          return { status: answer.status, body: answer.body }
-        }),
-      setWatches: (watches) => Effect.flatMap(current, (connection) => connection.send(HomeProtocol.SetWatches.make({ watches }))),
-      appendJournal: (entries) =>
-        Effect.flatMap(current, (connection) =>
-          connection.protocol < HomeProtocol.journalProtocolVersion
-            ? Effect.fail(new HomeError({ reason: "failed", message: "this Quai Home keeps no journal" }))
-            : connection.send(HomeProtocol.JournalAppend.make({ entries }))),
-      readJournal: (query) =>
-        Effect.gen(function*() {
-          const connection = yield* current
-          if (connection.protocol < HomeProtocol.journalProtocolVersion) {
-            return yield* Effect.fail(new HomeError({ reason: "failed", message: "this Quai Home keeps no journal" }))
-          }
-          const answer = yield* request(connection, (id) => HomeProtocol.JournalRead.make({ id, query })).pipe(Effect.flatMap(failedWith))
-          if (answer._tag !== "JournalPage") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
-          return { entries: answer.entries, more: answer.more }
-        }),
-      documents,
-      nextEvent: Queue.take(events),
       serve,
-      answerConsole: (handler) => Ref.set(consoleHandler, handler)
-    } satisfies HomeLink["Service"]
+      link: linkOf,
+      nextReady: Queue.take(readyHomes),
+      forget: (homeId) =>
+        Effect.sync(() => {
+          const slot = slots.get(homeId)
+          if (slot === undefined) return true
+          if (slot.connection !== null) return false
+          slots.delete(homeId)
+          return true
+        })
+    } satisfies HomeLinks["Service"]
   })
 
-  static readonly layer = Layer.effect(HomeLink, HomeLink.make)
+  static readonly layer = Layer.effect(HomeLinks, HomeLinks.make)
 
-  /** The connected home's documents. */
-  static readonly documents = Layer.effect(HomeDocuments, Effect.map(Effect.service(HomeLink), (link) => link.documents))
+  /** One home's link, on links of their own: for tests and the preview, which serve that home only. */
+  static readonly linkOf = (homeId: string) =>
+    Layer.effect(HomeLink, Effect.flatMap(Effect.service(HomeLinks), (links) => links.link(homeId))).pipe(Layer.provideMerge(HomeLinks.layer))
 }
 
 /** `GET /home`: Quai Home's WebSocket. */
 export const HomeRoute = HttpRouter.use((router) =>
   Effect.gen(function*() {
-    const link = yield* HomeLink
+    const links = yield* HomeLinks
     yield* router.add("GET", "/home", Effect.gen(function*() {
       const request = yield* HttpServerRequest.HttpServerRequest
       const socket = yield* request.upgrade
-      yield* link.serve(socket)
+      yield* links.serve(socket)
       return HttpServerResponse.empty()
     }).pipe(Effect.catchTag("HttpServerError", () => Effect.succeed(HttpServerResponse.text("Quai Home connects here with a WebSocket.", { status: 426 })))))
   })
