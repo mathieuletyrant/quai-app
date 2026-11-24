@@ -143,8 +143,9 @@ struct AppScreenshots {
             SearchView(link: .constant(nil), query: "dune").tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
-        // The search waits for a pause in the typing, then asks Seerr, then the posters load.
-        try await Self.settle(5)
+        // The search waits for a pause in the typing, then asks Seerr (the first call also finds
+        // the server's address), then the posters load.
+        try await Self.settle(10)
         Self.screenshot(window, "07-search")
 
         // A series' Request: its seasons, the first one checked.
