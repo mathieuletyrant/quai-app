@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.3](https://github.com/mathieuletyrant/quai-app/compare/v0.27.2...v0.27.3) (2026-11-24)
+
+
+### 🐛 Fixes
+
+* **cloud:** find a title in Jellyfin by any id both know, TMDB, TVDB or IMDb ([#101](https://github.com/mathieuletyrant/quai-app/issues/101)) ([c47a808](https://github.com/mathieuletyrant/quai-app/commit/c47a8081913efd4325d3dd8619973f5007ab5289))
+
 ## [0.27.2](https://github.com/mathieuletyrant/quai-app/compare/v0.27.1...v0.27.2) (2026-11-24)
 
 
