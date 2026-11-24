@@ -87,7 +87,7 @@ struct QuaiLiveActivity: Widget {
                         } else {
                             ItemList(model: model, limit: 3)
                         }
-                        if model.attributes.steps.count > 1 && model.items.isEmpty { Stepper(model: model) }
+                        if model.attributes.showsSteps && model.items.isEmpty { Stepper(model: model) }
                         if !model.actions.isEmpty { ActionButtons(model: model) }
                     }
                     .padding(.horizontal, 4)
@@ -104,7 +104,8 @@ struct QuaiLiveActivity: Widget {
     }
 }
 
-/// Lock Screen banner, as in the mockups: glyph tile, title and status, headline value, bar, steps.
+/// Lock Screen banner, as in the mockups: glyph tile, title and status, headline value, bar, steps
+/// (unless its buttons say it), buttons.
 struct LockScreenBanner: View {
     let model: Model
 
@@ -124,7 +125,7 @@ struct LockScreenBanner: View {
             } else {
                 ItemList(model: model, limit: 4)
             }
-            if model.attributes.steps.count > 1 && model.items.isEmpty { Stepper(model: model) }
+            if model.attributes.showsSteps && model.items.isEmpty { Stepper(model: model) }
             if !model.actions.isEmpty { ActionButtons(model: model) }
         }
         .foregroundStyle(.white)

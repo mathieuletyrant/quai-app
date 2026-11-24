@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { InspectorSection, Segmented } from "../../ui"
-import { actionGlyph, type Draft, type DraftStep, endsAtLastStep } from "./draft.ts"
+import { actionGlyph, type Draft, type DraftStep, endsAtLastStep, showsSteps } from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 
 /** The tint of a finished activity, as the iPhone draws it. */
@@ -85,7 +85,7 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
               ))}
             </div>
           )}
-          {flow.steps.length > 1 && <StepTrack steps={flow.steps} current={step} tint={tint} />}
+          {showsSteps(flow) && <StepTrack steps={flow.steps} current={step} tint={tint} />}
         </div>
       </div>
 

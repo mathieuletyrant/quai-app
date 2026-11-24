@@ -55,6 +55,13 @@ export const actionLabels: Record<ActionType, string> = {
 /** Reaching the last step ends the activity, except in a one-step flow with an end event. */
 export const endsAtLastStep = (flow: Draft) => flow.endOn === undefined || flow.steps.length > 1
 
+/**
+ * Whether the Live Activity draws its row of steps, as the iPhone decides it: not for one step,
+ * nor for a flow with buttons (a request), whose buttons already say where it stands.
+ */
+export const showsSteps = (flow: Draft) =>
+  flow.steps.length > 1 && !flow.steps.some((s) => (s.actions ?? []).length > 0)
+
 /** An event's label without the services in brackets, which the console shows as badges. */
 export const eventName = (event: CatalogEvent) => event.label.replace(/ \(.*\)$/, "")
 
