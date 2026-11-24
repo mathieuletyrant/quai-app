@@ -6,7 +6,7 @@ import { HomeLink } from "../../src/home/HomeLink.ts"
 import { Journal } from "../../src/journal/Journal.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
 import type { WatchContext } from "../../src/integrations/Integration.ts"
-import { jellyfin, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
+import { jellyfin, matchItem, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
 import { makeFakeHome, recordedHome , testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { download, playback } from "../flows/helpers.ts"
@@ -35,6 +35,21 @@ const activity = (over: Partial<Activity>): Activity => ({
   pushedAt: 0,
   pushedFingerprint: null,
   ...over
+})
+
+describe("Jellyfin identity", () => {
+  const items = (...list: ReadonlyArray<{ Id: string; Name: string; ProviderIds: Record<string, string> }>) => ({ Items: list })
+  const ourHouse = { _tag: "Episodes" as const, tvdbId: 407046, title: "Our House (2022)", episodes: [] }
+
+  it("finds a title by its id only: another name, another language, a namesake", () => {
+    const latest = items(
+      { Id: "namesake", Name: "Our House (2022)", ProviderIds: { Tvdb: "1" } },
+      { Id: "ours", Name: "Notre maison", ProviderIds: { Tvdb: "407046", Tmdb: "157014" } }
+    )
+    expect(matchItem(latest, ourHouse)).toBe("ours")
+    expect(matchItem(items({ Id: "x", Name: "Our House (2022)", ProviderIds: {} }), ourHouse)).toBeNull()
+    expect(matchItem(items({ Id: "dune", Name: "Dune : Deuxième partie", ProviderIds: { tmdb: "693134" } }), { _tag: "Movie", tmdbId: 693134, title: "Dune: Part Two" })).toBe("dune")
+  })
 })
 
 describe("Jellyfin sessions", () => {
