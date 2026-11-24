@@ -90,6 +90,8 @@ Requirements: a server that runs Docker (or Umbrel), your media apps on it, an i
 
 Away from home there is nothing more to do: the app reaches the hosted Quai Cloud at `https://cloud.quai.stream`, which relays to your Quai Home over its link.
 
+To also open the console from outside, put Quai Home's port 8788 behind your own proxy or tunnel and add `QUAI_CONSOLE_PUBLIC_URL: https://quai.example.com` to its environment before pairing. The app's "Open the console" then opens the local console at home and this address when out. See "Reaching the console away from home" below.
+
 ## Setup 2: Umbrel
 
 1. In umbrelOS, App Store → Community App Stores, add `https://github.com/mathieuletyrant/umbrel-community-app-store`, then install **Quai**.
@@ -97,6 +99,7 @@ Away from home there is nothing more to do: the app reaches the hosted Quai Clou
 3. Open Quai and sign in with the default password umbrelOS shows for the app.
 4. **Services**: the Umbrel addresses of Radarr, Sonarr, Jellyfin, Seerr, Prowlarr, Cleanuparr and Reclaimerr are already filled in. Paste each API key. For qBittorrent, use `http://qbittorrent_server_1:8080`, or `http://mathieu-qbittorrent-vpn_gluetun_1:8080` for qBittorrent VPN, with its password.
 5. **iPhones → Pair an iPhone**, and scan the QR code.
+6. Optional: to open the console from outside, put the app behind your own proxy or tunnel (Cloudflare Tunnel with Access, Tailscale…) and set **QUAI_CONSOLE_PUBLIC_URL** in the app's settings to that address, then pair again. With the hosted Quai Cloud, the Quai Cloud settings of the app (`QUAI_CLOUD_PUBLIC_URL`, `QUAI_CLOUD_PUBLIC_HEADERS`, the Apple key) are not used.
 
 ## Setup 3: fully self-hosted (Quai Home and your own Quai Cloud)
 

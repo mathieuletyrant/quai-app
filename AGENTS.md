@@ -97,3 +97,5 @@ iOS (macOS): `pnpm gen:client && cd apps/ios && xcodegen generate && open Quai.x
 ## Before finishing a task
 
 `pnpm check && pnpm test` pass. If `packages/api` changed, `openapi.json` is regenerated and committed.
+
+`apps/site/public/llms.txt` is the full guide to Quai (what it does, the setups, every variable, troubleshooting). Any change to setup, configuration (a `QUAI_*` variable), the images, pairing, the hosted Cloud or what Quai does updates it in the same PR, with the README's settings table. A test fails when a variable Quai Home or Quai Cloud reads is missing from it.
