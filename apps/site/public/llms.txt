@@ -6,7 +6,7 @@
 - iPhone app (TestFlight public beta): https://testflight.apple.com/join/RpYX68mQ
 - Source code: https://github.com/mathieuletyrant/quai-app
 - Support: https://quai.stream/support, support@quai.stream
-- Community and help (Discord): https://discord.gg/Hu8fBdsRx
+- Community and help (Discord): https://discord.gg/ytrjjGXTKZ
 - Privacy policy: https://quai.stream/privacy
 - Bugs and ideas: https://github.com/mathieuletyrant/quai-app/issues
 
@@ -200,7 +200,7 @@ Every service can be set in the console's **Services** page instead of the envir
 - **"Open the console" is missing in the app, or doesn't work away from home**: set `QUAI_CONSOLE_PUBLIC_URL` on Quai Home to the console's address from outside, then pair the iPhone again from the console.
 - **Remove Quai**: remove each iPhone under iPhones, then uninstall Quai Home (it removes its webhooks from your services), and delete the app.
 
-Ask on the Discord (https://discord.gg/Hu8fBdsRx) or write to support@quai.stream. When reporting a bug, include the app's build number (TestFlight), Quai Home's version (bottom of the console), whether the Cloud is hosted or self-hosted, what you did and what you expected, and the Journal lines from around that time.
+Ask on the Discord (https://discord.gg/ytrjjGXTKZ) or write to support@quai.stream. When reporting a bug, include the app's build number (TestFlight), Quai Home's version (bottom of the console), whether the Cloud is hosted or self-hosted, what you did and what you expected, and the Journal lines from around that time.
 
 ## Privacy
 
