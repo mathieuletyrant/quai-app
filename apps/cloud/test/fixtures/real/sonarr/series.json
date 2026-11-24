@@ -1,0 +1,250 @@
+[
+  {
+    "title": "Our House (2022)",
+    "sortTitle": "our house 2022",
+    "status": "ended",
+    "ended": true,
+    "overview": "Fi Lawson arrives home one day to find a family of strangers moving into her house and her husband, Bram, has disappeared. As the nightmare takes grip, both Bram and Fi try to make sense of the events that led to a devastating crime and how they each are going to survive the chilling truth.",
+    "previousAiring": "2022-03-10T21:00:00Z",
+    "network": "ITV1",
+    "airTime": "21:00",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/233/poster.jpg?lastWrite=639310659720000000",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/407046/posters/623c946ae44e3.jpg"
+      }
+    ],
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "monitored": true,
+        "statistics": {
+          "previousAiring": "2022-03-10T21:00:00Z",
+          "episodeFileCount": 4,
+          "episodeCount": 4,
+          "totalEpisodeCount": 4,
+          "sizeOnDisk": 3069933130,
+          "releaseGroups": [],
+          "percentOfEpisodes": 100
+        }
+      }
+    ],
+    "year": 2022,
+    "path": "/downloads/shows/Our House (2022) [tvdbid-407046]",
+    "qualityProfileId": 9,
+    "monitored": true,
+    "monitorNewItems": "all",
+    "useSceneNumbering": false,
+    "runtime": 46,
+    "tvdbId": 407046,
+    "tvRageId": 0,
+    "tvMazeId": 56469,
+    "tmdbId": 0,
+    "firstAired": "2022-03-07T00:00:00Z",
+    "lastAired": "2022-03-10T00:00:00Z",
+    "seriesType": "standard",
+    "imdbId": "tt10098728",
+    "titleSlug": "our-house-2022",
+    "rootFolderPath": "/downloads/shows",
+    "tags": [],
+    "added": "2026-11-23T21:26:12Z",
+    "statistics": {
+      "seasonCount": 1,
+      "episodeFileCount": 4,
+      "episodeCount": 4,
+      "totalEpisodeCount": 4,
+      "sizeOnDisk": 3069933130,
+      "releaseGroups": [],
+      "percentOfEpisodes": 100
+    },
+    "languageProfileId": 1,
+    "id": 233
+  },
+  {
+    "title": "Harlan Coben's Lazarus",
+    "sortTitle": "harlan cobens lazarus",
+    "status": "ended",
+    "ended": true,
+    "overview": "Forensic psychiatrist Dr Joel ‘Laz’ Lazarus is forced to confront long-buried demons after his father Dr L dies in suspicious circumstances. At first assured his dad’s death is a suicide, Laz is soon sucked into a world of murderous conspiracy, and a race to find the killer, by strange visions of people he knows to be dead.",
+    "previousAiring": "2025-10-22T08:00:00Z",
+    "network": "Prime Video",
+    "airTime": "04:00",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/121/poster.jpg?lastWrite=638972382110000000",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/445873/posters/68d1f1b0df726.jpg"
+      }
+    ],
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "monitored": true,
+        "statistics": {
+          "previousAiring": "2025-10-22T08:00:00Z",
+          "episodeFileCount": 6,
+          "episodeCount": 6,
+          "totalEpisodeCount": 6,
+          "sizeOnDisk": 6657761743,
+          "releaseGroups": [
+            "FW"
+          ],
+          "percentOfEpisodes": 100
+        }
+      }
+    ],
+    "year": 2025,
+    "path": "/downloads/shows/Harlan Coben's Lazarus",
+    "qualityProfileId": 9,
+    "monitored": true,
+    "monitorNewItems": "all",
+    "useSceneNumbering": false,
+    "runtime": 50,
+    "tvdbId": 445873,
+    "tvRageId": 0,
+    "tvMazeId": 74545,
+    "tmdbId": 245827,
+    "firstAired": "2025-10-22T00:00:00Z",
+    "lastAired": "2025-10-22T00:00:00Z",
+    "seriesType": "standard",
+    "imdbId": "tt31186865",
+    "titleSlug": "harlan-cobens-lazarus",
+    "rootFolderPath": "/downloads/shows",
+    "tags": [],
+    "added": "2025-10-28T08:50:11Z",
+    "statistics": {
+      "seasonCount": 1,
+      "episodeFileCount": 6,
+      "episodeCount": 6,
+      "totalEpisodeCount": 6,
+      "sizeOnDisk": 6657761743,
+      "releaseGroups": [
+        "FW"
+      ],
+      "percentOfEpisodes": 100
+    },
+    "languageProfileId": 1,
+    "id": 121
+  },
+  {
+    "title": "Tracker (2024)",
+    "sortTitle": "tracker 2024",
+    "status": "continuing",
+    "ended": false,
+    "overview": "Lone-wolf survivalist Colter Shaw roams the country as a \"reward seeker,\" using his expert tracking skills to help private citizens and law enforcement solve all manner of mysteries while contending with his own fractured family.",
+    "nextAiring": "2026-11-30T02:00:00Z",
+    "previousAiring": "2026-11-23T02:00:00Z",
+    "network": "CBS",
+    "airTime": "21:00",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/105/poster.jpg?lastWrite=638966209140000000",
+        "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/428433/posters/68e92189e5c8f.jpg"
+      }
+    ],
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "monitored": false,
+        "statistics": {
+          "episodeFileCount": 0,
+          "episodeCount": 0,
+          "totalEpisodeCount": 13,
+          "sizeOnDisk": 0,
+          "releaseGroups": [],
+          "percentOfEpisodes": 0
+        }
+      },
+      {
+        "seasonNumber": 2,
+        "monitored": false,
+        "statistics": {
+          "episodeFileCount": 0,
+          "episodeCount": 0,
+          "totalEpisodeCount": 20,
+          "sizeOnDisk": 0,
+          "releaseGroups": [],
+          "percentOfEpisodes": 0
+        }
+      },
+      {
+        "seasonNumber": 3,
+        "monitored": false,
+        "statistics": {
+          "episodeFileCount": 0,
+          "episodeCount": 0,
+          "totalEpisodeCount": 22,
+          "sizeOnDisk": 0,
+          "releaseGroups": [],
+          "percentOfEpisodes": 0
+        }
+      },
+      {
+        "seasonNumber": 4,
+        "monitored": true,
+        "statistics": {
+          "nextAiring": "2026-11-30T02:00:00Z",
+          "previousAiring": "2026-11-23T02:00:00Z",
+          "episodeFileCount": 6,
+          "episodeCount": 7,
+          "totalEpisodeCount": 10,
+          "sizeOnDisk": 8684318228,
+          "releaseGroups": [
+            "cakes",
+            "SUPPLY",
+            "TVPASSION"
+          ],
+          "percentOfEpisodes": 85.71428571428571
+        }
+      }
+    ],
+    "year": 2024,
+    "path": "/downloads/shows/Tracker (2024)",
+    "qualityProfileId": 9,
+    "monitored": true,
+    "monitorNewItems": "all",
+    "useSceneNumbering": false,
+    "runtime": 42,
+    "tvdbId": 428433,
+    "tvRageId": 0,
+    "tvMazeId": 63192,
+    "tmdbId": 211288,
+    "firstAired": "2024-02-12T00:00:00Z",
+    "lastAired": "2027-01-17T00:00:00Z",
+    "seriesType": "standard",
+    "imdbId": "tt13875494",
+    "titleSlug": "tracker-2024",
+    "rootFolderPath": "/downloads/shows",
+    "tags": [],
+    "added": "2025-08-25T05:40:48Z",
+    "statistics": {
+      "seasonCount": 4,
+      "episodeFileCount": 6,
+      "episodeCount": 7,
+      "totalEpisodeCount": 65,
+      "sizeOnDisk": 8684318228,
+      "releaseGroups": [
+        "cakes",
+        "SUPPLY",
+        "TVPASSION"
+      ],
+      "percentOfEpisodes": 85.71428571428571
+    },
+    "languageProfileId": 1,
+    "id": 105
+  }
+]

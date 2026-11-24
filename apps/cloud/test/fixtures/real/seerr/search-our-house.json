@@ -1,0 +1,94 @@
+{
+  "page": 1,
+  "totalPages": 4,
+  "totalResults": 78,
+  "results": [
+    {
+      "id": 10625,
+      "firstAirDate": "1986-09-11",
+      "genreIds": [
+        18
+      ],
+      "mediaType": "tv",
+      "name": "Our House",
+      "originCountry": [
+        "US"
+      ],
+      "originalLanguage": "en",
+      "originalName": "Our House",
+      "overview": "",
+      "popularity": 7.2895,
+      "voteAverage": 6.3,
+      "voteCount": 12,
+      "backdropPath": "/onPGr1fEeO8BC8ksqR1xDZkiF5s.jpg",
+      "posterPath": "/oXPvK5il0cG6ofYdYfoJiKZKvxM.jpg"
+    },
+    {
+      "id": 29516,
+      "firstAirDate": "1960-09-11",
+      "genreIds": [],
+      "mediaType": "tv",
+      "name": "Our House",
+      "originCountry": [
+        "GB"
+      ],
+      "originalLanguage": "en",
+      "originalName": "Our House",
+      "overview": "",
+      "popularity": 3.2047,
+      "voteAverage": 8,
+      "voteCount": 2,
+      "backdropPath": "/t2bN3WXTVrgWL4kRsEQjIqt28Ed.jpg",
+      "posterPath": "/nM8kXsYaVOcrrRRxxvBPUj0R6VK.jpg"
+    },
+    {
+      "id": 157014,
+      "firstAirDate": "2022-03-07",
+      "genreIds": [
+        9648,
+        18
+      ],
+      "mediaType": "tv",
+      "name": "Notre maison",
+      "originCountry": [
+        "GB"
+      ],
+      "originalLanguage": "en",
+      "originalName": "Our House",
+      "overview": "En rentrant chez elle un jour, Fi Lawson découvre qu'une famille d'étrangers a pris possession des lieux. Le cauchemar commence alors pour Fi et Bram, son mari...",
+      "popularity": 2.5726,
+      "voteAverage": 6.4,
+      "voteCount": 31,
+      "backdropPath": "/7317cBiCmr3T8kMYm88JJS4vg64.jpg",
+      "posterPath": "/fV30NivnHLfrCBeiDwVnpWkP0ur.jpg",
+      "mediaInfo": {
+        "downloadStatus": [],
+        "downloadStatus4k": [],
+        "id": 205,
+        "mediaType": "tv",
+        "tmdbId": 157014,
+        "tvdbId": 407046,
+        "imdbId": null,
+        "status": 5,
+        "status4k": 1,
+        "createdAt": "2026-11-23T21:25:22.000Z",
+        "updatedAt": "2026-11-24T18:40:04.000Z",
+        "lastSeasonChange": "2026-11-24T18:40:04.416Z",
+        "mediaAddedAt": "2026-11-24T18:39:45.604Z",
+        "serviceId": 0,
+        "serviceId4k": null,
+        "externalServiceId": 233,
+        "externalServiceId4k": null,
+        "externalServiceSlug": "our-house-2022",
+        "externalServiceSlug4k": null,
+        "ratingKey": null,
+        "ratingKey4k": null,
+        "jellyfinMediaId": "1d44f2954a4209050a6e45617780e347",
+        "jellyfinMediaId4k": null,
+        "watchlists": [],
+        "mediaUrl": "https://jellyfin.example/web/index.html#!/details?id=1d44f2954a4209050a6e45617780e347&context=home&serverId=00000000000000000000000000000000",
+        "serviceUrl": "http://sonarr_server_1:8989/series/our-house-2022"
+      }
+    }
+  ]
+}

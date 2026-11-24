@@ -1,0 +1,25 @@
+{
+  "status": "ok",
+  "program": "Reclaimerr",
+  "version": "0.6.17",
+  "project_url": "https://github.com/jessielw/reclaimerr",
+  "api_version": "v1",
+  "server_time": "2026-11-24T20:52:56.015709Z",
+  "has_main_media_server": true,
+  "last_media_sync_at": "2026-11-24T03:00:12.918819",
+  "last_candidate_scan_at": "2026-11-24T10:00:08.238478",
+  "capabilities": [
+    "candidate-lifecycle",
+    "leaving-soon",
+    "event-feed",
+    "media-catalog",
+    "protections",
+    "task-observability",
+    "task-triggering",
+    "durable-webhooks",
+    "media-user-import",
+    "delete-requests",
+    "scheduled-deletions",
+    "movie-versions"
+  ]
+}

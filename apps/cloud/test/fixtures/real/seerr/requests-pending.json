@@ -1,0 +1,82 @@
+{
+  "pageInfo": {
+    "pages": 1,
+    "pageSize": 50,
+    "results": 1,
+    "page": 1
+  },
+  "results": [
+    {
+      "id": 37,
+      "status": 1,
+      "createdAt": "2026-11-24T15:24:01.000Z",
+      "updatedAt": "2026-11-24T15:24:01.000Z",
+      "type": "movie",
+      "is4k": false,
+      "serverId": null,
+      "profileId": null,
+      "rootFolder": null,
+      "languageProfileId": null,
+      "tags": null,
+      "isAutoRequest": false,
+      "ignoreQuota": false,
+      "media": {
+        "downloadStatus": [],
+        "downloadStatus4k": [],
+        "id": 201,
+        "mediaType": "movie",
+        "tmdbId": 1198994,
+        "tvdbId": null,
+        "imdbId": null,
+        "status": 2,
+        "status4k": 1,
+        "createdAt": "2026-11-21T22:49:32.000Z",
+        "updatedAt": "2026-11-24T15:24:01.000Z",
+        "lastSeasonChange": "2026-11-21T22:49:32.000Z",
+        "mediaAddedAt": "2026-11-21T22:49:32.000Z",
+        "serviceId": null,
+        "serviceId4k": null,
+        "externalServiceId": null,
+        "externalServiceId4k": null,
+        "externalServiceSlug": null,
+        "externalServiceSlug4k": null,
+        "ratingKey": null,
+        "ratingKey4k": null,
+        "jellyfinMediaId": null,
+        "jellyfinMediaId4k": null
+      },
+      "seasons": [],
+      "modifiedBy": null,
+      "requestedBy": {
+        "permissions": 32,
+        "warnings": [],
+        "id": 2,
+        "email": "admin@example.com",
+        "plexUsername": null,
+        "jellyfinUsername": null,
+        "username": "admin",
+        "recoveryLinkExpirationDate": null,
+        "userType": 2,
+        "plexId": null,
+        "jellyfinUserId": null,
+        "avatar": "/avatarproxy/0",
+        "avatarETag": null,
+        "avatarVersion": null,
+        "movieQuotaLimit": null,
+        "movieQuotaDays": null,
+        "tvQuotaLimit": null,
+        "tvQuotaDays": null,
+        "createdAt": "2026-11-24T15:03:09.000Z",
+        "updatedAt": "2026-11-24T15:03:09.000Z",
+        "requestCount": 1,
+        "displayName": "admin"
+      },
+      "seasonCount": 0,
+      "canRemove": false
+    }
+  ],
+  "serviceErrors": {
+    "radarr": [],
+    "sonarr": []
+  }
+}
