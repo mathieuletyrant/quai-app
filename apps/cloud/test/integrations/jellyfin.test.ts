@@ -6,7 +6,7 @@ import { HomeLink } from "../../src/home/HomeLink.ts"
 import { Journal } from "../../src/journal/Journal.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
 import type { WatchContext } from "../../src/integrations/Integration.ts"
-import { jellyfin, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
+import { jellyfin, matchItem, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
 import { makeFakeHome, recordedHome , testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { download, playback } from "../flows/helpers.ts"
@@ -35,6 +35,21 @@ const activity = (over: Partial<Activity>): Activity => ({
   pushedAt: 0,
   pushedFingerprint: null,
   ...over
+})
+
+describe("Jellyfin identity", () => {
+  const items = (...list: ReadonlyArray<{ Id: string; Name: string; ProviderIds: Record<string, string> }>) => ({ Items: list })
+  const ourHouse = { _tag: "Episodes" as const, tvdbId: 407046, title: "Our House (2022)", episodes: [] }
+
+  it("finds a title by its id only: another name, another language, a namesake", () => {
+    const latest = items(
+      { Id: "namesake", Name: "Our House (2022)", ProviderIds: { Tvdb: "1" } },
+      { Id: "ours", Name: "Notre maison", ProviderIds: { Tvdb: "407046", Tmdb: "157014" } }
+    )
+    expect(matchItem(latest, ourHouse)).toBe("ours")
+    expect(matchItem(items({ Id: "x", Name: "Our House (2022)", ProviderIds: {} }), ourHouse)).toBeNull()
+    expect(matchItem(items({ Id: "dune", Name: "Dune : Deuxième partie", ProviderIds: { tmdb: "693134" } }), { _tag: "Movie", tmdbId: 693134, title: "Dune: Part Two" })).toBe("dune")
+  })
 })
 
 describe("Jellyfin sessions", () => {
@@ -75,7 +90,7 @@ describe("Jellyfin integration", () => {
     Effect.flatMap(jellyfin, test).pipe(Effect.provide(link))
   const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC", alerts: defaultAlertSettings })
 
-  it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once found by its TMDB id", () =>
+  it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once among the latest by its TMDB id, whatever its name", () =>
     withJellyfin((integration) =>
       Effect.gen(function*() {
         const watcher = integration.watcher!
@@ -85,7 +100,7 @@ describe("Jellyfin integration", () => {
         expect(watch).toEqual({
           id: watchIds.find("movie:tmdb:1"),
           service: "jellyfin",
-          path: "/Items?Recursive=true&IncludeItemTypes=Movie&SearchTerm=Dune&Fields=ProviderIds",
+          path: "/Items?Recursive=true&IncludeItemTypes=Movie&SortBy=DateCreated&SortOrder=Descending&Limit=100&Fields=ProviderIds",
           everySeconds: 15
         })
         expect(yield* watcher.read({ watch: watch!, status: 200, body: JSON.stringify({ Items: [] }) }, ctx([download], [waiting]))).toEqual([])
@@ -104,7 +119,7 @@ describe("Jellyfin integration", () => {
           activity({ subjectKey: "series:tvdb:371980", title: "Severance", lookup: { _tag: "Episodes", tvdbId: 371980, title: "Severance", episodes } })
         const two = ctx([download], [severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }])])
         const [find] = watcher.watches(two)
-        expect(find?.path).toContain("IncludeItemTypes=Series")
+        expect(find?.path).toBe("/Items?Recursive=true&IncludeItemTypes=Series&SortBy=DateLastContentAdded&SortOrder=Descending&Limit=100&Fields=ProviderIds")
         expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/items-series.json")) }, two)).toEqual([])
         const [episodes] = watcher.watches(two)
         expect(episodes).toMatchObject({

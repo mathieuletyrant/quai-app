@@ -89,7 +89,7 @@ struct TodayTests {
         #expect(!today.isEmpty)
     }
 
-    @Test func theLiveBarShowsPlaybackFirstThenDownloads() throws {
+    @Test func theLiveBarShowsPlaybackFirstThenEverythingOnItsWay() throws {
         let today = try Today([
             activity("download", "Dune", progress: 0.2),
             activity("download", "Nero"),
@@ -97,14 +97,16 @@ struct TodayTests {
             activity("download", "Runner", progress: 0.6),
         ], subjects: ["download": .media, "playback": .playback])
         let live = LiveNow(today)
-        #expect(live.items.map(\.activity.attributes.title) == ["The Bear", "Runner", "Dune"])
+        #expect(live.items.map(\.activity.attributes.title) == ["The Bear", "Runner", "Dune", "Nero"])
         #expect(live.playing.map(\.attributes.title) == ["The Bear"])
-        #expect(live.downloading.map(\.attributes.title) == ["Runner", "Dune"])
-        #expect(LiveNow(try Today([activity("download", "Nero")], subjects: [:])).isEmpty)
+        #expect(live.media.map(\.attributes.title) == ["Runner", "Dune", "Nero"])
+        // Searching or importing, with no progress: still on its way, still in the bar.
+        #expect(!LiveNow(try Today([activity("download", "Nero")], subjects: [:])).isEmpty)
+        #expect(LiveNow(try Today([activity("download", "Severance", tone: "done")], subjects: [:])).isEmpty)
     }
 
     @Test func aDownloadWithoutSpeedShowsItsStep() throws {
-        let item = LiveItem.downloading(try activity("download", "Dune", progress: 0.2))
+        let item = LiveItem.media(try activity("download", "Dune", progress: 0.2))
         #expect(item.subtitle == "Searching")
     }
 

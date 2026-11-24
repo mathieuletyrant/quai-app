@@ -2,7 +2,7 @@ import type { DiskSpace, LibraryItem } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { movieKey } from "../flows/Events.ts"
-import { ArrImage, epochSeconds, knownYear, posterOf, queuePageSize } from "./arr.ts"
+import { ArrImage, epochSeconds, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
 import type { Integration } from "./Integration.ts"
 
@@ -42,6 +42,8 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
         : [{ type: "media.grabbed", subject, downloadId: payload.downloadId.toLowerCase() }]
     case "Download":
       return [{ type: "media.imported", subject }]
+    case "ManualInteractionRequired":
+      return [{ type: "media.importBlocked", subject, values: { detail: importBlockedDetail } }]
     default:
       return []
   }

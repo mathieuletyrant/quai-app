@@ -2,7 +2,7 @@ import type { LibraryItem } from "@quai/api"
 import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { seriesKey } from "../flows/Events.ts"
-import { ArrImage, epochSeconds, knownYear, posterOf, queuePageSize } from "./arr.ts"
+import { ArrImage, epochSeconds, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import type { Integration } from "./Integration.ts"
 
 const Series = Schema.Struct({
@@ -65,6 +65,8 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
       return [{ type: "media.grabbed", subject, downloadId: payload.downloadId.toLowerCase() }]
     case "Download":
       return [{ type: "media.imported", subject }]
+    case "ManualInteractionRequired":
+      return [{ type: "media.importBlocked", subject, values: { detail: importBlockedDetail } }]
     default:
       return []
   }

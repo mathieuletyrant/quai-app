@@ -13,6 +13,28 @@ export type MediaLookup =
     readonly episodes: ReadonlyArray<{ readonly season: number; readonly episode: number }>
   }
 
+const episodeKey = (e: { readonly season: number; readonly episode: number }) => `${e.season}:${e.episode}`
+
+/**
+ * What an activity follows after a new event about its subject. A season pack's imports arrive one
+ * webhook per episode: the episodes add up, never narrow to the last one imported. Any other
+ * lookup replaces the current one.
+ */
+export const widenLookup = (current: MediaLookup | null, incoming: MediaLookup | null): MediaLookup | null => {
+  if (incoming === null) return current
+  if (current?._tag !== "Episodes" || incoming._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return incoming
+  const known = new Set(current.episodes.map(episodeKey))
+  const added = incoming.episodes.filter((e) => !known.has(episodeKey(e)))
+  return added.length === 0 ? current : { ...current, episodes: [...current.episodes, ...added] }
+}
+
+/** The event is about part of what the activity follows (one episode of the pack): its title would narrow it. */
+export const narrowsLookup = (current: MediaLookup | null, incoming: MediaLookup | null): boolean => {
+  if (current?._tag !== "Episodes" || incoming?._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return false
+  const known = new Set(current.episodes.map(episodeKey))
+  return incoming.episodes.length < current.episodes.length && incoming.episodes.every((e) => known.has(episodeKey(e)))
+}
+
 /** What one activity follows. `key` is unique per subject: `movie:tmdb:1`, `playback:<session>:<item>`, `request:12`. */
 export type Subject =
   | {

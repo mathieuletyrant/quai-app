@@ -27,6 +27,8 @@ export const webhookBody = (service: "radarr" | "sonarr", url: string) => ({
   onGrab: true,
   onDownload: true,
   onUpgrade: true,
+  // An import that waits for someone: the activity says so.
+  onManualInteractionRequired: true,
   ...(service === "radarr" ? { onMovieAdded: true } : { onSeriesAdd: true }),
   tags: [],
   fields: [

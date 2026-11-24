@@ -5,6 +5,7 @@ import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
 import { emptyState, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
 import { settle } from "../fakeHome.ts"
+import type { Subject } from "../../src/flows/Events.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 
 const tags = (pushes: ReadonlyArray<Push>) => pushes.map((p) => `${p._tag}:${p.activity.stepIndex}`)
@@ -72,6 +73,64 @@ describe("download flow", () => {
       expect((yield* engine.snapshot).activities.size).toBe(1)
       // Available alone, for an unknown title, starts nothing.
       expect(yield* engine.handle(ev.available({ ...dune, key: "movie:tmdb:2" }))).toEqual([])
+    })))
+
+  it.effect("a season pack imported one episode at a time keeps its title and waits for every episode", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      const episodes = (...numbers: ReadonlyArray<number>) => numbers.map((episode) => ({ season: 1, episode }))
+      const pack = (title: string, ...numbers: ReadonlyArray<number>): Subject => ({
+        kind: "media",
+        key: "series:tvdb:407046:dl:abc",
+        title,
+        mediaType: "series",
+        lookup: { _tag: "Episodes", tvdbId: 407046, title: "Our House (2022)", episodes: episodes(...numbers) }
+      })
+      expect(tags(yield* engine.handle(ev.grabbed("abc", pack("Our House (2022) · S01", 1, 2, 3, 4))))).toEqual(["Start:1"])
+      const imported = yield* engine.handle(ev.imported(pack("Our House (2022) · S01E03", 3)))
+      expect(tags(imported)).toEqual(["Update:2"])
+      expect(imported[0]!.activity.title).toBe("Our House (2022) · S01")
+      yield* engine.handle(ev.imported(pack("Our House (2022) · S01E02", 2)))
+      const [activity] = (yield* engine.snapshot).activities.values()
+      expect(activity!.title).toBe("Our House (2022) · S01")
+      expect(activity!.lookup).toMatchObject({ episodes: episodes(1, 2, 3, 4) })
+    })))
+
+  it.effect("a later event about more episodes widens what the activity follows", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      const one = (episode: number): Subject => ({
+        kind: "media",
+        key: "series:tvdb:1:dl:abc",
+        title: `Show · S01E0${episode}`,
+        mediaType: "series",
+        lookup: { _tag: "Episodes", tvdbId: 1, title: "Show", episodes: [{ season: 1, episode }] }
+      })
+      yield* engine.handle(ev.imported(one(1)))
+      yield* engine.handle(ev.imported(one(2)))
+      const [activity] = (yield* engine.snapshot).activities.values()
+      expect(activity!.lookup).toMatchObject({ episodes: [{ season: 1, episode: 1 }, { season: 1, episode: 2 }] })
+    })))
+
+  it.effect("a blocked import turns the activity grey at once with its reason, until it's imported", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(ev.grabbed())
+      yield* engine.handle(ev.progress(1))
+      yield* TestClock.adjust("1 second")
+      const blocked = yield* engine.handle({ type: "media.importBlocked", subject: dune, values: { detail: "Import blocked · see To fix" } })
+      expect(tags(blocked)).toEqual(["Update:1"])
+      expect(blocked[0]!.activity.tone).toBe("stalled")
+      expect(blocked[0]!.activity.values.detail).toBe("Import blocked · see To fix")
+      // The finished torrent still reports: it stays grey.
+      yield* TestClock.adjust("10 seconds")
+      yield* engine.handle(ev.progress(1))
+      const [held] = (yield* engine.snapshot).activities.values()
+      expect(held!.tone).toBe("stalled")
+      const imported = yield* engine.handle(ev.imported())
+      expect(tags(imported)).toEqual(["Update:2"])
+      expect(imported[0]!.activity.tone).toBe("active")
+      expect(imported[0]!.activity.values.detail).toBeUndefined()
     })))
 
   it.effect("grey after 2 h without progress, back when it moves", () =>

@@ -92,6 +92,9 @@ export const grabLookbackMs = 30 * 24 * 3600_000
  * A finished download the *arr won't import on its own: blocked (a sample, not an upgrade, no
  * match), or waiting for a manual import with a warning ("name doesn't match any episode").
  */
+/** What a Live Activity says while Radarr or Sonarr waits for someone to import the download. */
+export const importBlockedDetail = "Import blocked · see To fix"
+
 export const isImportBlocked = (record: QueueRecord) => {
   const state = record.trackedDownloadState
   return state === "importBlocked" || state === "importFailed" ||

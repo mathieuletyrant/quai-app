@@ -1,5 +1,5 @@
 import { type Flow, type FlowStep, isDataEvent } from "@quai/api"
-import type { FlowEvent, MediaLookup, Subject, Values } from "./Events.ts"
+import { type FlowEvent, type MediaLookup, narrowsLookup, type Subject, type Values, widenLookup } from "./Events.ts"
 
 /** Timings from the spec (docs/flows.md, Limits). */
 export const Timing = {
@@ -130,15 +130,17 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       const { remainingSeconds: _, ...kept } = activity.values
       const values = { ...(event.type === "download.progress" ? kept : activity.values), ...event.values }
       const moved = (event.values?.progress ?? -1) > (activity.values.progress ?? -1)
+      // Radarr or Sonarr waits for someone to import it: grey, saying so, until the next step.
+      const blocked = event.type === "media.importBlocked"
       const next: Activity = {
         ...activity,
         values,
-        tone: moved && activity.tone === "stalled" ? "active" : activity.tone,
+        tone: blocked ? "stalled" : moved && activity.tone === "stalled" ? "active" : activity.tone,
         movedAt: moved ? now : activity.movedAt,
         lastEventAt: now
       }
       // A visible change of state goes at once: a download moving again, a pause or a resume.
-      const urgent = (activity.tone === "stalled" && next.tone === "active") ||
+      const urgent = (activity.tone === "stalled" && next.tone === "active") || (blocked && activity.tone !== "stalled") ||
         (event.values?.paused !== undefined && event.values.paused !== activity.values.paused)
       const throttled = activity.pushedAt !== null && now - activity.pushedAt < Timing.throttleMs
       if ((throttled && !urgent) || fingerprint(next) === activity.pushedFingerprint) {
@@ -201,18 +203,18 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
 
     const regrab = index === current.stepIndex && event.downloadId !== undefined && event.downloadId !== current.downloadId
     if (index < current.stepIndex || (index === current.stepIndex && !regrab)) {
-      put(activities, { ...current, lastEventAt: now })
+      put(activities, { ...current, lookup: widenLookup(current.lookup, lookupOf(subject)), lastEventAt: now })
       continue
     }
     const ends = endsAtStep(flow, index)
     const next: Activity = {
       ...current,
-      title: subject.title,
+      title: narrowsLookup(current.lookup, lookupOf(subject)) ? current.title : subject.title,
       stepIndex: index,
       tone: ends ? "done" : "active",
       values: event.values ?? {},
       downloadId: event.downloadId ?? current.downloadId,
-      lookup: lookupOf(subject) ?? current.lookup,
+      lookup: widenLookup(current.lookup, lookupOf(subject)),
       enteredAt: now,
       movedAt: now,
       lastEventAt: now,

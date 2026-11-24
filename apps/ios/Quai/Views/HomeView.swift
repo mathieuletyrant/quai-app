@@ -48,8 +48,9 @@ extension RunningActivity {
     var tint: Color { Palette.tint(tone: content.tone.rawValue, color: attributes.color) }
 }
 
-/// The Home tab: what needs you (to fix, to approve), what comes out today, what's on its way,
-/// the alerts and the disk. What plays and downloads is in the live bar, over the tabs.
+/// The Home tab: what needs you (to fix, to approve), what comes out today, the alerts and the
+/// disk. What plays and what's on its way (searched, downloading, importing) is in the live bar,
+/// over the tabs.
 struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
@@ -75,7 +76,6 @@ struct HomeView: View {
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
         fixes.isEmpty && requests.isEmpty && releases.isEmpty && alerts.isEmpty
-            && today.requested.isEmpty
     }
 
     /// The first reads haven't answered yet (a failed one counts as answered): the Home shows the
@@ -156,9 +156,6 @@ struct HomeView: View {
             NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
                 .buttonStyle(.plain)
         }
-        if !today.requested.isEmpty {
-            openActivity { OnTheirWayTile(activities: today.requested) }
-        }
         if !alerts.isEmpty {
             AlertsTile(alerts: alerts)
         }
@@ -189,13 +186,6 @@ struct HomeView: View {
             libraryFilter = filter
             tab = .library
         } label: { tile }
-            .buttonStyle(.plain)
-    }
-
-    /// A tile that opens the Activity tab.
-    private func openActivity<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        let tile = content()
-        return Button { tab = .activity } label: { tile }
             .buttonStyle(.plain)
     }
 }
@@ -554,31 +544,6 @@ private struct FixesTile: View {
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens the To fix list")
-    }
-}
-
-private struct OnTheirWayTile: View {
-    let activities: [RunningActivity]
-
-    var body: some View {
-        Tile {
-            TileLabel(title: activities.count == 1 ? "On its way" : "On their way", systemImage: "person.fill", color: Palette.requests)
-            ForEach(activities.prefix(3), id: \.attributes.key) { activity in
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(activity.attributes.title)
-                        .font(QuaiFont.headline)
-                        .foregroundStyle(Palette.primaryText)
-                        .lineLimit(1)
-                    Spacer(minLength: 8)
-                    Text(activity.stepLabel.lowercased())
-                        .font(QuaiFont.eyebrow)
-                        .foregroundStyle(activity.content.tone == .stalled ? Palette.stalled : Palette.requests)
-                }
-            }
-            if activities.count > 3 {
-                Text("and \(activities.count - 3) more").font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
-            }
-        }
     }
 }
 
