@@ -167,7 +167,8 @@ struct ReleasesView: View {
                 let item = libraryItem(release)
                 Button { selected = item } label: { ReleaseRow(release: release, opens: item != nil) }
                     .buttonStyle(.plain)
-                    .disabled(item == nil)
+                    // Not `.disabled`: it would dim a release that only has no title to open.
+                    .allowsHitTesting(item != nil)
                     .accessibilityHint(item == nil ? "" : "Opens it in the Library")
             }
         }

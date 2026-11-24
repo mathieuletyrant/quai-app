@@ -281,7 +281,8 @@ private struct PosterFan: View {
     var body: some View {
         ZStack {
             ForEach(layers) { layer in
-                Poster(url: PosterSize.small.url(layer.item.posterUrl), title: layer.item.title, cornerRadius: 8)
+                // Only the front poster falls back to its title: behind, it would peek out cut.
+                Poster(url: PosterSize.small.url(layer.item.posterUrl), title: layer.angle == 0 ? layer.item.title : "", cornerRadius: 8)
                     .frame(width: 48)
                     .shadow(color: .black.opacity(0.45), radius: 6, y: 3)
                     .rotationEffect(.degrees(layer.angle))

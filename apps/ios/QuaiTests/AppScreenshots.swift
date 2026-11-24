@@ -96,7 +96,8 @@ struct AppScreenshots {
             .preferredColorScheme(.dark),
             connection
         )
-        try await Self.settle()
+        // The sheet slides up while the screen under it loads: longer than the usual settle.
+        try await Self.settle(4)
         Self.screenshot(detail, "01-home-releases-title")
     }
 
