@@ -80,7 +80,8 @@ q-if[hidden] { display: none; }
 .q-home-bar { width: 128px; height: 5px; border-radius: 3px; background: rgba(245,245,247,.85); margin-top: 16px; }
 
 .q-logos li { display: inline-flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: #D1D1D6; }
-.q-logos img { width: 26px; height: 26px; object-fit: contain; }
+.q-logos img { box-sizing: border-box; width: 40px; height: 40px; padding: 9px; border-radius: 50%; object-fit: contain;
+  background: radial-gradient(circle at 50% 30%, #1F1F25, #141418); border: 1px solid #2A2A31; box-shadow: inset 0 1px 0 rgba(255,255,255,.05); }
 
 /* Illustrations: what matters is drawn, the rest is a quiet placeholder. */
 .q-skel { display: block; border-radius: 5px; background: #26262C; }
