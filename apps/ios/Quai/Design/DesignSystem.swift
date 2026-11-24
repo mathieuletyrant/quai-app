@@ -62,7 +62,7 @@ struct ScreenHeader<Trailing: View>: View {
     var subtitle: String?
     @ViewBuilder var trailing: Trailing
     /// Beside the title: a spinner while the app looks for the server, a green dot once it answered.
-    var status: ServerStatus?
+    var mark: ServerMark?
 
     var body: some View {
         HStack(alignment: .bottom) {
@@ -79,12 +79,12 @@ struct ScreenHeader<Trailing: View>: View {
                         .tracking(-0.5)
                         .foregroundStyle(Palette.primaryText)
                         .accessibilityAddTraits(.isHeader)
-                    if let status {
-                        ServerStatusMark(status: status)
+                    if let mark {
+                        ServerMarkView(mark: mark)
                             .transition(.opacity)
                     }
                 }
-                .animation(.smooth(duration: 0.25), value: status)
+                .animation(.smooth(duration: 0.25), value: mark)
                 if let subtitle {
                     Text(subtitle)
                         .font(QuaiFont.subheadline)
@@ -111,24 +111,24 @@ extension ScreenHeader where Trailing == EmptyView {
 struct TabHeader: View {
     let eyebrow: String
     let title: String
-    var status: ServerStatus?
+    var mark: ServerMark?
 
     var body: some View {
-        ScreenHeader(eyebrow: eyebrow.isEmpty ? " " : eyebrow.uppercased(), title: title, subtitle: nil, trailing: { EmptyView() }, status: status)
+        ScreenHeader(eyebrow: eyebrow.isEmpty ? " " : eyebrow.uppercased(), title: title, subtitle: nil, trailing: { EmptyView() }, mark: mark)
     }
 }
 
-/// Where the link to the server stands, as the Home's title shows it.
-enum ServerStatus: Equatable {
+/// What a title shows of the link to the server.
+enum ServerMark: Equatable {
     case searching, connected
 }
 
 /// A spinner while the server is sought, a green dot once it answered.
-struct ServerStatusMark: View {
-    let status: ServerStatus
+struct ServerMarkView: View {
+    let mark: ServerMark
 
     var body: some View {
-        switch status {
+        switch mark {
         case .searching:
             ProgressView()
                 .tint(Palette.secondaryText)
@@ -137,7 +137,7 @@ struct ServerStatusMark: View {
             Circle()
                 .fill(Palette.ok)
                 .frame(width: 10, height: 10)
-                .accessibilityLabel("Connected")
+                .accessibilityLabel(ServerStatus.connected.label)
         }
     }
 }

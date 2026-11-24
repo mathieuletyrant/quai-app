@@ -14,6 +14,14 @@ struct SettingsView: View {
         return url.port.map { "\(host):\($0)" } ?? host
     }
 
+    private var statusColor: Color {
+        switch connection.status {
+        case .connecting: Palette.secondaryText
+        case .connected: Palette.ok
+        case .unreachable: Palette.toFix
+        }
+    }
+
     /// The header names, never their values: "CF-Access-Client-Id, CF-Access-Client-Secret".
     private var headerSummary: String {
         let names = connection.accessHeaders.map(\.name)
@@ -23,7 +31,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                TabHeader(eyebrow: connection.lastError == nil ? "Connected · \(host)" : "Not reachable · \(host)", title: "Settings")
+                TabHeader(eyebrow: "\(connection.status.label) · \(host)", title: "Settings")
             } content: {
                 VStack(alignment: .leading, spacing: 18) {
                     GroupedSection {
@@ -38,9 +46,9 @@ struct SettingsView: View {
                                 Text(host).font(QuaiFont.caption).foregroundStyle(Palette.secondaryText).lineLimit(1)
                             }
                             Spacer(minLength: 8)
-                            Text(connection.lastError == nil ? "connected" : "not reachable")
+                            Text(connection.status.label.lowercased())
                                 .font(QuaiFont.subheadline)
-                                .foregroundStyle(connection.lastError == nil ? Palette.ok : Palette.toFix)
+                                .foregroundStyle(statusColor)
                         }
                         .padding(.horizontal, 14)
                         .frame(minHeight: 64)

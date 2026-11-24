@@ -34,6 +34,23 @@ enum ConnectionError: LocalizedError, Equatable {
     }
 }
 
+/// Where the link to the server stands.
+enum ServerStatus: Equatable {
+    /// Nothing has answered yet since launch or pairing.
+    case connecting
+    case connected
+    /// The last refresh failed: `Connection.lastError` says why.
+    case unreachable
+
+    var label: String {
+        switch self {
+        case .connecting: "Connecting"
+        case .connected: "Connected"
+        case .unreachable: "Not reachable"
+        }
+    }
+}
+
 /// The link between this iPhone and its Quai server: pairing, tokens, and the running activities.
 @MainActor @Observable
 final class Connection {
@@ -75,8 +92,14 @@ final class Connection {
     @ObservationIgnored var readDelay: Duration?
 
     var isPaired: Bool { session != nil }
-    /// The last refresh of the activities reached the server.
-    private(set) var isConnected = false
+    /// A refresh of the activities has reached the server since pairing or launch.
+    private var hasAnswered = false
+    /// Where the link to the server stands: what Settings says and the Home's title shows.
+    var status: ServerStatus {
+        if lastError != nil { return .unreachable }
+        if hasAnswered { return .connected }
+        return .connecting
+    }
     /// Looking for an address that answers, or about to try again.
     var isSearching: Bool { connecting != nil || retrying }
     /// Every address this iPhone may reach the server at, the local one first.
@@ -151,7 +174,7 @@ final class Connection {
         session = nil
         connecting = nil
         serverURL = nil
-        isConnected = false
+        hasAnswered = false
         activities = []
         flowSubjects = [:]
         library = nil
@@ -199,10 +222,7 @@ final class Connection {
             do {
                 try await readActivities()
             } catch {
-                if !error.isCancellation {
-                    lastError = error.quaiMessage
-                    isConnected = false
-                }
+                if !error.isCancellation { lastError = error.quaiMessage }
             }
         }
     }
@@ -211,7 +231,7 @@ final class Connection {
         let client = try await requiredClient()
         activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
         lastError = nil
-        isConnected = true
+        hasAnswered = true
         await learnSubjects()
     }
 
