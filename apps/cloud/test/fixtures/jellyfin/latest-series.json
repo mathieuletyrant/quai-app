@@ -1,0 +1,268 @@
+{
+  "Items": [
+    {
+      "Name": "Notre maison",
+      "Id": "1d44f2954a4209050a6e45617780e347",
+      "ProviderIds": {
+        "Imdb": "tt10098728",
+        "Tmdb": "157014",
+        "Tvdb": "407046"
+      }
+    },
+    {
+      "Name": "Phony",
+      "Id": "7a8bd266a75ea06738750bc02d4af653",
+      "ProviderIds": {
+        "Imdb": "tt21952924",
+        "Tmdb": "275139",
+        "Tvdb": "455844"
+      }
+    },
+    {
+      "Name": "Outlander: Blood of My Blood",
+      "Id": "0dd06d0e81804c86a1537651a0dad36c",
+      "ProviderIds": {
+        "Imdb": "tt18332852",
+        "Tmdb": "207484",
+        "Tvdb": "429964"
+      }
+    },
+    {
+      "Name": "Percy Jackson et les Olympiens",
+      "Id": "da1683ed72d692b8310446e96c4e1da7",
+      "ProviderIds": {
+        "Imdb": "tt12324366",
+        "Tmdb": "103540",
+        "Tvdb": "415151"
+      }
+    },
+    {
+      "Name": "The Altruists",
+      "Id": "97c9536461ed499410b9130568485fb4",
+      "ProviderIds": {
+        "Imdb": "tt36786185",
+        "Tmdb": "308007",
+        "Tvdb": "464202"
+      }
+    },
+    {
+      "Name": "12 12 12",
+      "Id": "ff0db90b2fc29bcb64bde73f153307f2",
+      "ProviderIds": {
+        "Imdb": "tt32375763",
+        "Tmdb": "254630",
+        "Tvdb": "450094"
+      }
+    },
+    {
+      "Name": "Le Seigneur des anneaux : Les Anneaux de pouvoir",
+      "Id": "e70051f06999c9067e18f113313a94b4",
+      "ProviderIds": {
+        "Imdb": "tt7631058",
+        "Tmdb": "84773",
+        "Tvdb": "367506"
+      }
+    },
+    {
+      "Name": "Tracker",
+      "Id": "58eca0af30c25ee9d97e7778df39b0d2",
+      "ProviderIds": {
+        "Imdb": "tt13875494",
+        "Tmdb": "211288",
+        "Tvdb": "428433"
+      }
+    },
+    {
+      "Name": "VisionQuest",
+      "Id": "76bb73c5a9619b2a264f62c40c3b0d68",
+      "ProviderIds": {
+        "Imdb": "tt23112594",
+        "Tmdb": "213375",
+        "Tvdb": "426606"
+      }
+    },
+    {
+      "Name": "Campus Drivers",
+      "Id": "96ba6815bc359e4c6a5e1fb4115711be",
+      "ProviderIds": {
+        "Imdb": "tt39943756",
+        "Tmdb": "303044",
+        "Tvdb": "468646"
+      }
+    },
+    {
+      "Name": "Black Doves",
+      "Id": "1533edbc06745e25447433af02cfc7b4",
+      "ProviderIds": {
+        "Imdb": "tt27995113",
+        "Tmdb": "225385",
+        "Tvdb": "441315"
+      }
+    },
+    {
+      "Name": "Vampire Diaries",
+      "Id": "6ce8a1a04b53d4e52f94596861f08335",
+      "ProviderIds": {
+        "Imdb": "tt1405406",
+        "Tmdb": "18165",
+        "TvRage": "21766",
+        "Tvdb": "95491"
+      }
+    },
+    {
+      "Name": "Médecin malgré tout",
+      "Id": "9b0e8725dc030331730da4931b4e8770",
+      "ProviderIds": {
+        "Imdb": "tt36885662",
+        "Tmdb": "291084",
+        "Tvdb": "463505"
+      }
+    },
+    {
+      "Name": "Histoires fantastiques",
+      "Id": "49711b74e42334379e7f8c9b5ef376d3",
+      "ProviderIds": {
+        "Imdb": "tt5165368",
+        "Tmdb": "98178",
+        "Tvdb": "368120"
+      }
+    },
+    {
+      "Name": "Le piège",
+      "Id": "9adf9f2c2564927d763c424fa98c889d",
+      "ProviderIds": {
+        "Imdb": "tt36470958",
+        "Tmdb": "283371",
+        "Tvdb": "459583"
+      }
+    },
+    {
+      "Name": "Nobody Wants This",
+      "Id": "af5165dd96ee2cd26c6f5869266b411a",
+      "ProviderIds": {
+        "Imdb": "tt26933824",
+        "Tmdb": "250923",
+        "Tvdb": "450093"
+      }
+    },
+    {
+      "Name": "Prime Target",
+      "Id": "fc7f1d7619352bb1f45ac06ce03c0ea5",
+      "ProviderIds": {
+        "Imdb": "tt31186958",
+        "Tmdb": "246381",
+        "Tvdb": "446144"
+      }
+    },
+    {
+      "Name": "Cyberpunk: Edgerunners",
+      "Id": "516bb1034e376db24a805bf15098fbaf",
+      "ProviderIds": {
+        "Imdb": "tt12590266",
+        "Tmdb": "105248",
+        "Tvdb": "384541"
+      }
+    },
+    {
+      "Name": "The Old Man",
+      "Id": "6eea9277eecbb308b958422f4d00875c",
+      "ProviderIds": {
+        "Imdb": "tt5645432",
+        "Tmdb": "111800",
+        "Tvdb": "367392"
+      }
+    },
+    {
+      "Name": "The Beast in Me",
+      "Id": "88a3f89e1a84d0c6220eabfc1e370a56",
+      "ProviderIds": {
+        "Imdb": "tt31974367",
+        "Tmdb": "250504",
+        "Tvdb": "448245"
+      }
+    },
+    {
+      "Name": "Euphoria",
+      "Id": "26400161ec13c4e3c27a208032dc456e",
+      "ProviderIds": {
+        "Imdb": "tt8772296",
+        "Tmdb": "85552",
+        "Tvdb": "360261"
+      }
+    },
+    {
+      "Name": "Extrapolations",
+      "Id": "9009a4dfe20cd27e5b68a840efbae29b",
+      "ProviderIds": {
+        "Imdb": "tt13821126",
+        "Tmdb": "138169",
+        "Tvdb": "393148"
+      }
+    },
+    {
+      "Name": "Waverly Place : Les nouveaux sorciers",
+      "Id": "a6c2b5a18d3e4b96595beba4c07bd531",
+      "ProviderIds": {
+        "Imdb": "tt31867798",
+        "Tmdb": "245026",
+        "Tvdb": "447975"
+      }
+    },
+    {
+      "Name": "The Gentlemen",
+      "Id": "dcfc25bfa2d2976b081f3963722f1b97",
+      "ProviderIds": {
+        "Imdb": "tt13210838",
+        "Tmdb": "236235",
+        "Tvdb": "426845"
+      }
+    },
+    {
+      "Name": "MobLand",
+      "Id": "38455ce19ad85f5b2b107b86e4f57fb8",
+      "ProviderIds": {
+        "Imdb": "tt31510819",
+        "Tmdb": "247718",
+        "Tvdb": "446831"
+      }
+    },
+    {
+      "Name": "Sterling Point",
+      "Id": "08d0d9586da28f41041c02e305724a6f",
+      "ProviderIds": {
+        "Imdb": "tt35618070",
+        "Tmdb": "283297",
+        "Tvdb": "459552"
+      }
+    },
+    {
+      "Name": "Harlan Coben's Lazarus",
+      "Id": "641e48f5f68ec8b3f24c724755c1009c",
+      "ProviderIds": {
+        "Imdb": "tt31186865",
+        "Tmdb": "245827",
+        "Tvdb": "445873"
+      }
+    },
+    {
+      "Name": "Lanterns",
+      "Id": "d23628348489601d19d485b63d0b232f",
+      "ProviderIds": {
+        "Imdb": "tt26545992",
+        "Tmdb": "95350",
+        "Tvdb": "376098"
+      }
+    },
+    {
+      "Name": "Neagley",
+      "Id": "5bca32032007cbcb1af45ab24407d65f",
+      "ProviderIds": {
+        "Imdb": "tt33539520",
+        "Tmdb": "273207",
+        "Tvdb": "455064"
+      }
+    }
+  ],
+  "TotalRecordCount": 29,
+  "StartIndex": 0
+}

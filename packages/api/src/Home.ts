@@ -472,6 +472,8 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
   jellyfin: [
     { method: "GET", path: /^\/System\/Info\/Public$/ },
     { method: "GET", path: /^\/Items$/ },
+    // Whose library to list: without a user, Jellyfin lists only part of it.
+    { method: "GET", path: /^\/Users$/ },
     { method: "GET", path: /^\/Sessions$/ },
     // The remote commands take no meaningful body: whatever comes is passed on.
     { method: "POST", path: /^\/Sessions\/[\w-]+\/Playing\/(PlayPause|Stop)$/, body: isAny }

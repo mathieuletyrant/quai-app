@@ -6,7 +6,7 @@ import { HomeLink } from "../../src/home/HomeLink.ts"
 import { Journal } from "../../src/journal/Journal.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
 import type { WatchContext } from "../../src/integrations/Integration.ts"
-import { jellyfin, matchItem, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
+import { jellyfin, libraryUser, matchItem, playbackEvents, playingFrom, sessionOf, watchIds } from "../../src/integrations/jellyfin.ts"
 import { makeFakeHome, recordedHome , testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { download, playback } from "../flows/helpers.ts"
@@ -99,46 +99,74 @@ describe("Jellyfin integration", () => {
     Effect.flatMap(jellyfin, test).pipe(Effect.provide(link))
   const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC", alerts: defaultAlertSettings })
 
-  it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once among the latest by its TMDB id, whatever its name", () =>
+  // Recorded from a real Jellyfin 12.4: users anonymized, the rest as it answered.
+  const users = JSON.stringify(fixture("jellyfin/users.json"))
+  const admin = "5f2b9c1e8a7d4f3b9e6c0a1d2b3c4e5f"
+  const knowUsers = (watcher: NonNullable<Effect.Success<typeof jellyfin>["watcher"]>, context: WatchContext) =>
+    Effect.gen(function*() {
+      const [usersWatch, before] = watcher.watches(context)
+      expect(usersWatch).toEqual({ id: watchIds.users, service: "jellyfin", path: "/Users", everySeconds: 3600 })
+      // Until the users are read (a Quai Home too old to read them), the library is listed without one.
+      expect(before?.path).not.toContain("userId")
+      expect(yield* watcher.read({ watch: usersWatch!, status: 200, body: users }, context)).toEqual([])
+    })
+
+  it("lists the library as an administrator: Jellyfin leaves recent titles out without a user", () => {
+    expect(libraryUser(fixture("jellyfin/users.json") as never)).toBe(admin)
+    expect(libraryUser([{ Id: "off", Policy: { IsAdministrator: true, IsDisabled: true } }, { Id: "viewer" }])).toBe("viewer")
+    expect(libraryUser([])).toBeNull()
+    const ourHouse = { _tag: "Episodes" as const, tvdbId: 407046, tmdbId: 157014, title: "Our House (2022)", episodes: [] }
+    // The same Jellyfin, the same minute: 22 series without a user, 29 as the administrator.
+    expect(matchItem(fixture("jellyfin/latest-series-no-user.json") as never, ourHouse)).toBeNull()
+    expect(matchItem(fixture("jellyfin/latest-series.json") as never, ourHouse)).toBe("1d44f2954a4209050a6e45617780e347")
+  })
+
+  it.effect("availability of a movie: the users first, then the latest movies as the administrator, matched by id", () =>
     withJellyfin((integration) =>
       Effect.gen(function*() {
         const watcher = integration.watcher!
-        const waiting = activity({ lookup: { _tag: "Movie", tmdbId: 693134, title: "Dune" } })
+        // "Sœurs de sort" in Jellyfin, whatever Radarr calls it.
+        const waiting = activity({ lookup: { _tag: "Movie", tmdbId: 1595124, title: "Sisters of Fate" } })
         expect(watcher.watches(ctx([download], [activity({})]))).toEqual([])
-        const [watch] = watcher.watches(ctx([download], [waiting]))
+        yield* knowUsers(watcher, ctx([download], [waiting]))
+        const [, watch] = watcher.watches(ctx([download], [waiting]))
         expect(watch).toEqual({
           id: watchIds.find("movie:tmdb:1"),
           service: "jellyfin",
-          path: "/Items?Recursive=true&IncludeItemTypes=Movie&SortBy=DateCreated&SortOrder=Descending&Limit=100&Fields=ProviderIds",
+          path: `/Items?userId=${admin}&Recursive=true&IncludeItemTypes=Movie&SortBy=DateCreated&SortOrder=Descending&Limit=100&Fields=ProviderIds`,
           everySeconds: 15
         })
         expect(yield* watcher.read({ watch: watch!, status: 200, body: JSON.stringify({ Items: [] }) }, ctx([download], [waiting]))).toEqual([])
-        const other = activity({ lookup: { _tag: "Movie", tmdbId: 1, title: "Dune" } })
-        const body = JSON.stringify(fixture("jellyfin/items-movie.json"))
+        const body = JSON.stringify(fixture("jellyfin/latest-movies.json"))
+        const other = activity({ lookup: { _tag: "Movie", tmdbId: 1, title: "Sisters of Fate" } })
         expect(yield* watcher.read({ watch: watch!, status: 200, body }, ctx([download], [other]))).toEqual([])
         const events = yield* watcher.read({ watch: watch!, status: 200, body }, ctx([download], [waiting]))
         expect(events.map((e) => [e.type, e.subject?.key])).toEqual([["media.available", "movie:tmdb:1"]])
       })))
 
-  it.effect("availability of episodes: the series by its TVDB id, then its episodes, counted once they have a file", () =>
+  it.effect("availability of episodes: the series among the latest by id, then its episodes, counted once they have a file", () =>
     withJellyfin((integration) =>
       Effect.gen(function*() {
         const watcher = integration.watcher!
-        const severance = (episodes: Array<{ season: number; episode: number }>) =>
-          activity({ subjectKey: "series:tvdb:371980", title: "Severance", lookup: { _tag: "Episodes", tvdbId: 371980, title: "Severance", episodes } })
-        const two = ctx([download], [severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }])])
-        const [find] = watcher.watches(two)
-        expect(find?.path).toBe("/Items?Recursive=true&IncludeItemTypes=Series&SortBy=DateLastContentAdded&SortOrder=Descending&Limit=100&Fields=ProviderIds")
-        expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/items-series.json")) }, two)).toEqual([])
-        const [episodes] = watcher.watches(two)
+        const ourHouse = (episodes: Array<{ season: number; episode: number }>) =>
+          activity({ subjectKey: "series:tvdb:407046", title: "Our House (2022) · S01", lookup: { _tag: "Episodes", tvdbId: 407046, title: "Our House (2022)", episodes } })
+        const pack = ctx([download], [ourHouse([1, 2, 3, 4].map((episode) => ({ season: 1, episode })))])
+        yield* knowUsers(watcher, pack)
+        const [, find] = watcher.watches(pack)
+        expect(find?.path).toBe(`/Items?userId=${admin}&Recursive=true&IncludeItemTypes=Series&SortBy=DateLastContentAdded&SortOrder=Descending&Limit=100&Fields=ProviderIds`)
+        // Without a user, Jellyfin's answer has no "Notre maison": nothing found.
+        expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/latest-series-no-user.json")) }, pack)).toEqual([])
+        expect(watcher.watches(pack).map((w) => w.id)).toEqual([watchIds.users, watchIds.find("series:tvdb:407046")])
+        expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/latest-series.json")) }, pack)).toEqual([])
+        const [, episodes] = watcher.watches(pack)
         expect(episodes).toMatchObject({
-          id: watchIds.episodes("series:tvdb:371980"),
-          path: "/Items?ParentId=5e7e7a1c2b3d4f5061728394a5b6c7d8&IncludeItemTypes=Episode&Recursive=true&Fields=LocationType"
+          id: watchIds.episodes("series:tvdb:407046"),
+          path: `/Items?userId=${admin}&ParentId=1d44f2954a4209050a6e45617780e347&IncludeItemTypes=Episode&Recursive=true&Fields=LocationType`
         })
-        const body = JSON.stringify(fixture("jellyfin/episodes.json"))
-        expect((yield* watcher.read({ watch: episodes!, status: 200, body }, two)).map((e) => e.type)).toEqual(["media.available"])
-        const third = ctx([download], [severance([{ season: 2, episode: 3 }])])
-        expect(yield* watcher.read({ watch: episodes!, status: 200, body }, third)).toEqual([])
+        const body = JSON.stringify(fixture("jellyfin/episodes-notre-maison.json"))
+        expect((yield* watcher.read({ watch: episodes!, status: 200, body }, pack)).map((e) => e.type)).toEqual(["media.available"])
+        const later = ctx([download], [ourHouse([{ season: 1, episode: 5 }])])
+        expect(yield* watcher.read({ watch: episodes!, status: 200, body }, later)).toEqual([])
       })))
 
   it.effect("playback: sessions watched only with a playback flow on; started, then position, then stopped", () =>

@@ -18,6 +18,24 @@ const Episode = Schema.Struct({
 })
 export const EpisodesResult = Schema.Struct({ Items: Schema.Array(Episode) })
 
+const User = Schema.Struct({
+  Id: Schema.String,
+  Policy: Schema.optional(Schema.Struct({
+    IsAdministrator: Schema.optional(Schema.Boolean),
+    IsDisabled: Schema.optional(Schema.Boolean)
+  }))
+})
+export const Users = Schema.Array(User)
+
+/**
+ * Whose library Quai lists: an administrator's, who sees every library. Without a user, Jellyfin
+ * lists only part of it, and leaves out titles just added.
+ */
+export const libraryUser = (users: typeof Users.Type): string | null => {
+  const enabled = users.filter((u) => u.Policy?.IsDisabled !== true)
+  return (enabled.find((u) => u.Policy?.IsAdministrator === true) ?? enabled[0])?.Id ?? null
+}
+
 const Session = Schema.Struct({
   Id: Schema.String,
   DeviceName: Schema.optional(Schema.String),
@@ -136,6 +154,7 @@ export const hasEpisodes = (result: typeof EpisodesResult.Type, lookup: Extract<
 
 export const watchIds = {
   sessions: "jellyfin:sessions",
+  users: "jellyfin:users",
   find: (subjectKey: string) => `jellyfin:find:${subjectKey}`,
   episodes: (subjectKey: string) => `jellyfin:episodes:${subjectKey}`
 }
@@ -153,7 +172,8 @@ const awaitingAvailability = (context: WatchContext): ReadonlyArray<Activity> =>
  * House", and a library in another language names it otherwise). Jellyfin can't filter on an id's
  * value, and a series' date is that of its last episode added.
  */
-export const latestItemsParams = (lookup: MediaLookup): Record<string, string> => ({
+export const latestItemsParams = (lookup: MediaLookup, userId: string | null): Record<string, string> => ({
+  ...(userId === null ? {} : { userId }),
   Recursive: "true",
   IncludeItemTypes: lookup._tag === "Movie" ? "Movie" : "Series",
   SortBy: lookup._tag === "Movie" ? "DateCreated" : "DateLastContentAdded",
@@ -176,6 +196,8 @@ export const jellyfin = Effect.gen(function*() {
   let playing = new Map<string, Playing>()
   // Series found, by subject: their episodes are read next.
   const series = new Map<string, string>()
+  // Whose library is listed, once Jellyfin's users are read.
+  let userId: string | null = null
 
   const command = (name: PlaybackCommand): ActionHandler => (activity) => {
     const session = sessionOf(activity.subjectKey)
@@ -206,7 +228,11 @@ export const jellyfin = Effect.gen(function*() {
         const keys = new Set(awaiting.map((a) => a.subjectKey))
         for (const key of series.keys()) if (!keys.has(key)) series.delete(key)
         const seen = new Set<string>()
-        const watches = awaiting.flatMap((activity) => {
+        // The users, to list the library as one of them (`libraryUser`). Until they're read (or
+        // with a Quai Home too old to read them), the library is listed without a user.
+        const users = awaiting.length === 0 ? [] : [{ id: watchIds.users, service: "jellyfin" as const, path: "/Users", everySeconds: 3600 }]
+        const user = userId
+        const watches = [...users, ...awaiting.flatMap((activity) => {
           if (seen.has(activity.subjectKey)) return []
           seen.add(activity.subjectKey)
           const lookup = activity.lookup!
@@ -215,17 +241,17 @@ export const jellyfin = Effect.gen(function*() {
             return [{
               id: watchIds.episodes(activity.subjectKey),
               service: "jellyfin" as const,
-              path: query("/Items", { ParentId: found, IncludeItemTypes: "Episode", Recursive: "true", Fields: "LocationType" }),
+              path: query("/Items", { ...(user === null ? {} : { userId: user }), ParentId: found, IncludeItemTypes: "Episode", Recursive: "true", Fields: "LocationType" }),
               everySeconds: 15
             }]
           }
           return [{
             id: watchIds.find(activity.subjectKey),
             service: "jellyfin" as const,
-            path: query("/Items", latestItemsParams(lookup)),
+            path: query("/Items", latestItemsParams(lookup, user)),
             everySeconds: 15
           }]
-        })
+        })]
         if (anyEnabledFlow(context, "playback")) {
           watches.push({ id: watchIds.sessions, service: "jellyfin", path: query("/Sessions", { ActiveWithinSeconds: "120" }), everySeconds: 15 })
         } else {
@@ -243,6 +269,13 @@ export const jellyfin = Effect.gen(function*() {
             const events = playbackEvents(playing, now, yield* Clock.currentTimeMillis)
             playing = new Map(now.map((p) => [p.key, p]))
             return events
+          }
+          if (watch.id === watchIds.users) {
+            const users = readJson(Users, body)
+            if (Option.isNone(users)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the users"), [])
+            userId = libraryUser(users.value)
+            if (userId === null) yield* Effect.logWarning("Jellyfin: no enabled user to list the library as")
+            return []
           }
           const activity = awaitingAvailability(context).find((a) =>
             watch.id === watchIds.find(a.subjectKey) || watch.id === watchIds.episodes(a.subjectKey))
