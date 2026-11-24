@@ -77,9 +77,13 @@ for a new service or a new allowlisted endpoint.
 
 The Home and the Cloud are two images; a compose file runs both on one machine for those who
 want everything at home. It's the same code, not a second mode. Apple only accepts pushes to the
-App Store app signed with Quai's key, so a self-hosted Cloud sends its pushes through a small push
-gateway we host, which sees only the notification itself; or it brings its own APNs key and its
-own build of the app.
+App Store app signed with Quai's key, which only the hosted Cloud holds: a self-hosted Cloud brings
+its own APNs key and its own build of the app. Without them, the App Store app can still pair with
+it and act, but gets no pushes and no Live Activities.
+
+A push gateway we host (it would sign a self-hosted Cloud's pushes with Quai's key) is left for
+later: it would give away for free what the hosted Cloud sells, and it would need registration,
+rate limits and abuse handling around Quai's key. Decided with the paid hosted Cloud.
 
 ## Open source
 
@@ -199,7 +203,7 @@ v1 keeps working for me until step 4 ships; then the Umbrel app switches to the 
 | Accounts | None: iPhones pair with the Home; the Cloud checks tokens against it | The Cloud stores nothing about anyone |
 | Storage | All state in the Home's `/data`; the Cloud is memory-only | "We keep nothing" must be true, and checkable in the code |
 | How dumb the Home is | Allowlisted proxy | The Home almost never changes; every fix and flow ships from the Cloud |
-| Self-hosted all-in-one | Home + Cloud in one compose, pushes through our gateway | Same code as hosted, no second mode to maintain |
+| Self-hosted all-in-one | Home + Cloud in one compose, with your own APNs key and build of the app | Same code as hosted, no second mode to maintain; pushes to the App Store app are what the hosted Cloud offers |
 | Polling | In the Home, driven by the Cloud's watches | Polling stays on the LAN; what it means stays in the Cloud |
 | Where the console lives | Served by the Home, its requests relayed to the Cloud ([ADR 1](adr/0001-console-served-by-quai-home.md)) | One interface; the keys are typed into a page the Cloud never serves |
 | Setting the services | The console's Services page, in the Home's `/data`; environment variables still win | Not everyone runs Docker by hand; the keys still never leave home |
@@ -216,3 +220,5 @@ The Cloud we host may be paid. Not designed yet; what is decided keeps it possib
 - **`Welcome` carries what the Cloud requires,** so the Home's console can show "Subscribe" only
   where it applies. Buying from the console (a web page, not the app) keeps App Store purchase
   rules out of it; in-app purchase can come later as a second source of licenses.
+- **A push gateway for self-hosted Clouds** (pushes to the App Store app, signed with Quai's key)
+  would be part of the offer if it ever exists, not free: it is the hosted Cloud's main value.
