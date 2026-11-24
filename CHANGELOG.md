@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.4](https://github.com/mathieuletyrant/quai-app/compare/v0.27.3...v0.27.4) (2026-11-24)
+
+
+### 🐛 Fixes
+
+* list Jellyfin's library as an administrator to find new titles ([#103](https://github.com/mathieuletyrant/quai-app/issues/103)) ([8a37812](https://github.com/mathieuletyrant/quai-app/commit/8a3781246d0e5b813b9d826000564dff13f87067))
+
 ## [0.27.3](https://github.com/mathieuletyrant/quai-app/compare/v0.27.2...v0.27.3) (2026-11-24)
 
 
