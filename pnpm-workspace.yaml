@@ -4,6 +4,7 @@ packages:
   - apps/cloud
   - apps/console
   - apps/site
+  - deploy/cloudflare-cloud
 
 # Effect 4 is pinned everywhere: its HTTP, HttpApi and SQL modules are marked unstable.
 catalog:

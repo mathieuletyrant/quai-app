@@ -201,7 +201,7 @@ v1 keeps working for me until step 4 ships; then the Umbrel app switches to the 
 
 | Question | Decision | Why |
 | --- | --- | --- |
-| Hosting of the Cloud | A small Node server (VPS or Fly.io) | Runs today's Effect code almost as is; cheap; Cloudflare would mean rewriting for its runtime |
+| Hosting of the Cloud | The generic `cloud` image in one Cloudflare Container, in the EU, behind a Worker on `cloud.quai.stream` (`deploy/cloudflare-cloud`), deployed by each release | Runs today's Effect code as is (a Worker alone can't: no HTTP/2 to APNs); no server to look after; about $7 a month |
 | Accounts | None: iPhones pair with the Home; the Cloud checks tokens against it | The Cloud stores nothing about anyone |
 | Storage | All state in the Home's `/data`; the Cloud is memory-only | "We keep nothing" must be true, and checkable in the code |
 | How dumb the Home is | Allowlisted proxy | The Home almost never changes; every fix and flow ships from the Cloud |
