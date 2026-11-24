@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.25.0](https://github.com/mathieuletyrant/quai-app/compare/v0.24.0...v0.25.0) (2026-11-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* QUAI_CONSOLE_PUBLIC_URL for "Open the console", and Cloud-only names for the Cloud's public address ([#86](https://github.com/mathieuletyrant/quai-app/issues/86))
+
+### ✨ Features
+
+* QUAI_CONSOLE_PUBLIC_URL for "Open the console", and Cloud-only names for the Cloud's public address ([#86](https://github.com/mathieuletyrant/quai-app/issues/86)) ([ab3b118](https://github.com/mathieuletyrant/quai-app/commit/ab3b11884cd30a0dcdf3c59f1ab1bc088fd1c726))
+
 ## [0.24.0](https://github.com/mathieuletyrant/quai-app/compare/v0.23.0...v0.24.0) (2026-11-24)
 
 
