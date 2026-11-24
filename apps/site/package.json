@@ -7,11 +7,14 @@
   "scripts": {
     "dev": "node scripts/serve.ts",
     "check": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "wrangler deploy",
+    "deploy:check": "wrangler deploy --dry-run"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "wrangler": "4.165.0"
   }
 }
