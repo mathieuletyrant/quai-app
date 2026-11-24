@@ -61,6 +61,8 @@ struct ScreenHeader<Trailing: View>: View {
     var title: String
     var subtitle: String?
     @ViewBuilder var trailing: Trailing
+    /// A small spinner beside the title, while the app looks for the server.
+    var busy = false
 
     var body: some View {
         HStack(alignment: .bottom) {
@@ -71,11 +73,20 @@ struct ScreenHeader<Trailing: View>: View {
                         .foregroundStyle(Palette.secondaryText)
                         .lineLimit(1)
                 }
-                Text(title)
-                    .font(QuaiFont.largeTitle)
-                    .tracking(-0.5)
-                    .foregroundStyle(Palette.primaryText)
-                    .accessibilityAddTraits(.isHeader)
+                HStack(spacing: 12) {
+                    Text(title)
+                        .font(QuaiFont.largeTitle)
+                        .tracking(-0.5)
+                        .foregroundStyle(Palette.primaryText)
+                        .accessibilityAddTraits(.isHeader)
+                    if busy {
+                        ProgressView()
+                            .tint(Palette.secondaryText)
+                            .accessibilityLabel("Reaching the server")
+                            .transition(.opacity)
+                    }
+                }
+                .animation(.smooth(duration: 0.25), value: busy)
                 if let subtitle {
                     Text(subtitle)
                         .font(QuaiFont.subheadline)
@@ -102,9 +113,10 @@ extension ScreenHeader where Trailing == EmptyView {
 struct TabHeader: View {
     let eyebrow: String
     let title: String
+    var busy = false
 
     var body: some View {
-        ScreenHeader(eyebrow: eyebrow.isEmpty ? " " : eyebrow.uppercased(), title: title)
+        ScreenHeader(eyebrow: eyebrow.isEmpty ? " " : eyebrow.uppercased(), title: title, subtitle: nil, trailing: { EmptyView() }, busy: busy)
     }
 }
 

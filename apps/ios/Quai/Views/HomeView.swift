@@ -54,6 +54,8 @@ struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
     @Binding var libraryFilter: LibraryFilter
+    /// The spinner beside the title: a search for the server that takes more than a moment.
+    @State private var showsSearching = false
 
     private var highlights: LibraryHighlights? { connection.library.map { LibraryHighlights($0.items) } }
     private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
@@ -80,7 +82,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay)
+                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay, busy: showsSearching)
             } content: {
                 VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
                     if isLoading {
@@ -93,6 +95,15 @@ struct HomeView: View {
                 }
                 .animation(.smooth(duration: 0.35), value: isLoading)
                 .animation(.smooth(duration: 0.35), value: connection.library == nil)
+            }
+            // At home the server answers at once: the spinner only shows a search that takes a while.
+            .task(id: connection.isSearching) {
+                guard connection.isSearching else {
+                    showsSearching = false
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(600))
+                if !Task.isCancelled { showsSearching = true }
             }
             .refreshable {
                 await connection.refresh()

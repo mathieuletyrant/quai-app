@@ -65,6 +65,8 @@ final class Connection {
     private var pendingPlayback = PendingPlayback()
     /// The search for an address that answers, while one runs.
     private var connecting: Task<(url: URL, client: Client), any Error>?
+    /// A failed refresh waiting to try again: still looking for the server.
+    private var retrying = false
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
@@ -73,6 +75,8 @@ final class Connection {
     @ObservationIgnored var readDelay: Duration?
 
     var isPaired: Bool { session != nil }
+    /// Looking for an address that answers, or about to try again.
+    var isSearching: Bool { connecting != nil || retrying }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
     /// Quai Home's console addresses, as the pairing code gave them: Quai Cloud serves none.
@@ -185,6 +189,8 @@ final class Connection {
             if error.isCancellation { return }
             // Back in front, the network can take a moment to wake: one more try before saying so.
             connecting = nil
+            retrying = true
+            defer { retrying = false }
             try? await Task.sleep(for: .seconds(2))
             if Task.isCancelled { return }
             do {
