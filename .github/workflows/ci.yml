@@ -244,6 +244,32 @@ jobs:
           -destination "'id=${{ steps.simulator.outputs.udid }}'"
           -resultBundlePath ../../tests.xcresult
           | xcbeautify --renderer github-actions
+      # The same tests and screenshots on the iPhone Duo, when this runner has its simulator: its
+      # inner display is much wider than any other iPhone's. Its screenshots join the others as duo-*.
+      - name: Tests and screenshots on the iPhone Duo
+        if: steps.simulator.outcome == 'success'
+        working-directory: apps/ios
+        run: |
+          echo "iPhone device types on this runner:"
+          xcrun simctl list devicetypes | grep -i iphone || true
+          type=$(xcrun simctl list devicetypes -j | jq -r '[.devicetypes[] | select(.name | test("Duo"; "i"))] | last | .identifier // empty')
+          if [ -z "$type" ]; then
+            echo "No iPhone Duo simulator on this runner: not tested on it." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          runtime=$(xcrun simctl list runtimes available -j | jq -r '[.runtimes[] | select(.platform == "iOS")] | last | .identifier')
+          udid=$(xcrun simctl create "Quai CI Duo" "$type" "$runtime")
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          export TEST_RUNNER_QUAI_PREVIEW_URL=http://127.0.0.1:8787
+          export TEST_RUNNER_QUAI_SCREENSHOTS_DIR="$GITHUB_WORKSPACE/screenshots-duo"
+          set -o pipefail
+          eval xcodebuild test-without-building $XCODE_FLAGS -destination "'id=$udid'" | xcbeautify --renderer github-actions
+          mkdir -p "$GITHUB_WORKSPACE/screenshots"
+          for png in "$GITHUB_WORKSPACE"/screenshots-duo/*.png; do
+            [ -e "$png" ] && cp "$png" "$GITHUB_WORKSPACE/screenshots/duo-$(basename "$png")"
+          done
+          echo "Tested on $(xcrun simctl list devices -j | jq -r --arg u "$udid" '[.devices[] | .[] | select(.udid == $u)][0].name')." >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
