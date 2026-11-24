@@ -8,6 +8,7 @@ const paths = {
   plus: "M12 5v14M5 12h14",
   check: "M5 12.5l4.5 4.5L19 7.5",
   x: "M6 6l12 12M18 6L6 18",
+  signOut: "M13.5 4.5H5.5v15h8M10 12h10M16.5 8.5L20 12l-3.5 3.5",
   chevronDown: "M6.5 9.5L12 15l5.5-5.5",
   arrowUp: "M12 19V5M6 11l6-6 6 6",
   arrowDown: "M12 5v14M6 13l6 6 6-6",

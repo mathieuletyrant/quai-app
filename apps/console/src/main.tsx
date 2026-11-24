@@ -84,16 +84,6 @@ function Connection({ overview }: { overview: HomeOverview | null }) {
   )
 }
 
-/** The console's rule, under its pages: the day-to-day is in the app. */
-function AppNote() {
-  return (
-    <p className="flex gap-2 px-2 text-caption text-muted">
-      <Icon name="phone" size={14} className="mt-0.5 shrink-0 text-faint" />
-      <span>Requests, fixes and today's releases are in the Quai app.</span>
-    </p>
-  )
-}
-
 function Wordmark() {
   return <span className="text-brand font-bold tracking-title">Quai</span>
 }
@@ -157,7 +147,6 @@ function App() {
   const nav = (onNavigate?: () => void) => <NavList label="Console" items={navItems} current={page} onNavigate={onNavigate} />
   const footer = (
     <div className="flex flex-col gap-3">
-      <AppNote />
       <Connection overview={overview.data} />
       <SignOut />
     </div>
@@ -185,7 +174,7 @@ function App() {
 /** Ends this browser's session. */
 function SignOut() {
   const signOut = () => void callHome((c) => c.session.signOut()).finally(refreshSession)
-  return <Button variant="ghost" size="sm" icon="x" onClick={signOut}>Sign out</Button>
+  return <Button variant="secondary" icon="signOut" className="w-full" onClick={signOut}>Sign out</Button>
 }
 
 /** The console once signed in; Quai Home's password first. */
