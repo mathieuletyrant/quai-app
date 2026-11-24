@@ -45,18 +45,18 @@
 
 <div style="position: relative; max-width: 1200px; margin: 0 auto; padding: 96px 24px 104px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 64px;">
 <div style="flex: 1 1 520px; max-width: 640px; min-width: 0; display: flex; flex-direction: column; gap: 28px;">
-<h1 class="q-title" style="margin: 0; font-size: clamp(40px, 4.6vw, 58px); line-height: 1.04; font-weight: 700; letter-spacing: -0.035em; text-wrap: balance;"><span style="display: block;">From request to ready,</span><span style="display: block; color: #8E8E93;">on your Lock Screen.</span></h1>
+<h1 class="q-title" style="margin: 0; font-size: clamp(40px, 4.6vw, 58px); line-height: 1.04; font-weight: 700; letter-spacing: -0.035em; text-wrap: balance;"><span style="display: block;">From request to <span style="color: #FFC230;">ready</span>,</span><span style="display: block; color: #8E8E93;">on your Lock Screen.</span></h1>
 <p style="margin: 0; font-size: 19px; line-height: 1.6; color: #A1A1A6;">Quai follows every movie and episode your Radarr, Sonarr and Jellyfin handle, and shows it live on your iPhone, even with the app closed. When something breaks, you know first.</p>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;">
 <a href="https://testflight.apple.com/join/YOUR-CODE" style="text-decoration: none; background: #6FD3C2; color: #0B0B0E; font-weight: 700; font-size: 16px; padding: 0 24px; height: 52px; border-radius: 14px; display: inline-flex; align-items: center; gap: 10px;">Join the beta on TestFlight</a>
 <a href="https://github.com/mathieuletyrant/quai-app" style="text-decoration: none; color: #F5F5F7; font-weight: 600; font-size: 16px; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;">Read the code <span aria-hidden="true">›</span></a>
 </div>
 <p style="margin: 0; font-size: 14px; color: #8E8E93;">Free while in beta. iPhone with iOS 26.</p>
-<ul class="q-points" style="margin: 12px 0 0; padding: 28px 0 0; list-style: none; border-top: 1px solid #222228; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;">
-<li style="display: flex; flex-direction: column; gap: 6px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"></path></svg><strong style="font-size: 15px; font-weight: 650; margin-top: 6px;">On your own server</strong><span style="font-size: 14px; line-height: 1.5; color: #8E8E93;">Quai Home runs next to your apps, in one Docker container.</span></li>
-<li style="display: flex; flex-direction: column; gap: 6px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg><strong style="font-size: 15px; font-weight: 650; margin-top: 6px;">Your keys stay home</strong><span style="font-size: 14px; line-height: 1.5; color: #8E8E93;">API keys, library and journal never leave it.</span></li>
-<li style="display: flex; flex-direction: column; gap: 6px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2"></path></svg><strong style="font-size: 15px; font-weight: 650; margin-top: 6px;">No account</strong><span style="font-size: 14px; line-height: 1.5; color: #8E8E93;">Scan a QR code from the console, and you're in.</span></li>
-</ul>
+<div style="display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 15px; color: #8E8E93;">
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Self-hosted</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>No account</span>
+<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Your data stays home</span>
+</div>
 </div>
 
 <div class="q-device-wrap" style="flex: 0 0 auto; display: flex; justify-content: center; margin: 0 auto;">
@@ -65,32 +65,63 @@
 <div class="q-bezel">
 <div class="q-screen">
 <div class="q-status" aria-hidden="true"><span></span><span class="q-status-icons"><svg width="17" height="11" viewBox="0 0 17 11" fill="#F5F5F7"><rect x="0" y="7" width="3" height="4" rx="1"></rect><rect x="4.5" y="5" width="3" height="6" rx="1"></rect><rect x="9" y="2.5" width="3" height="8.5" rx="1"></rect><rect x="13.5" y="0" width="3" height="11" rx="1"></rect></svg><svg width="25" height="12" viewBox="0 0 25 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="#F5F5F7" stroke-opacity="0.4"></rect><rect x="2" y="2" width="15" height="8" rx="2" fill="#F5F5F7"></rect><path d="M23 4v4c.8-.3 1.3-1.1 1.3-2S23.8 4.3 23 4z" fill="#F5F5F7" fill-opacity="0.4"></path></svg></span></div>
-<div class="q-island" aria-hidden="true">
-<q-if data-if="isReady" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg><span style="font-size: 12px; font-weight: 700; color: #30D158;">Ready</span></q-if>
-<q-if data-if="notReady"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v14M6 12l6 6 6-6"></path></svg><span style="font-size: 12px; font-weight: 700; color: #FFC230; font-variant-numeric: tabular-nums;"><q-t data-text="pctText">63%</q-t></span></q-if>
+<div class="q-island" data-island="dl" aria-hidden="true">
+<span class="q-island-side" data-show="request" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8F7BFF" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"></circle><path d="M3 20c.8-3.5 3.6-5.5 7-5.5M16 15l2.5 2.5L23 13"></path></svg></span>
+<span class="q-island-side" data-show="search" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.8" stroke-linecap="round"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg></span>
+<span class="q-island-side" data-show="dl"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span>
+<span class="q-island-side" data-show="ready" hidden><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span>
+<span class="q-island-side" data-show="play" hidden><svg width="12" height="12" viewBox="0 0 24 24" fill="#B57EDC"><path d="M7 4l13 8-13 8z"></path></svg></span>
+<span class="q-island-text" data-text="island" style="color: #FFC230;">63%</span>
 </div>
 <div class="q-lock-time" aria-hidden="true"><span class="q-date">Tuesday 24 November</span><span class="q-clock">21:42</span></div>
 <div style="flex: 1;"></div>
-<div class="q-activity">
+<div class="q-slot">
+<div class="q-activity is-out" data-card="request">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="width: 38px; height: 38px; border-radius: 10px; background: rgba(143,123,255,0.18); display: grid; place-items: center; flex-shrink: 0;"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#8F7BFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="8" r="4"></circle><path d="M3 20c.8-3.5 3.6-5.5 7-5.5M16 15l2.5 2.5L23 13"></path></svg></span>
+<div style="min-width: 0; flex: 1;">
+<div style="font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dune: Part Two</div>
+<div style="font-size: 12px; color: #A1A1A6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Requested on Seerr · 2160p</div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+<span class="q-choice">Decline</span>
+<span class="q-choice q-approve">Approve</span>
+</div>
+</div>
+<div class="q-activity" data-card="dl">
 <div style="display: flex; align-items: center; gap: 10px;">
 <span style="width: 38px; height: 38px; border-radius: 10px; background: #2A2A30; display: grid; place-items: center; flex-shrink: 0;">
-<q-if data-if="isDl"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></q-if>
-<q-if data-if="isImp" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10M8 9l4 4 4-4M4 14v5h16v-5"></path></svg></q-if>
-<q-if data-if="isReady" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></q-if>
+<span data-show="search" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg></span>
+<span data-show="dl"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v14M6 12l6 6 6-6"></path></svg></span>
+<span data-show="import" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFC230" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10M8 9l4 4 4-4M4 14v5h16v-5"></path></svg></span>
+<span data-show="ready" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
 </span>
 <div style="min-width: 0; flex: 1;">
 <div style="font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dune: Part Two</div>
-<div style="font-size: 12px; color: #A1A1A6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><q-t data-text="sub">≈ 4 min left · 11 MB/s</q-t></div>
+<div style="font-size: 12px; color: #A1A1A6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" data-text="sub">≈ 4 min left · 11 MB/s</div>
 </div>
-<q-if data-if="notReady"><span style="font-size: 22px; font-weight: 700; color: #FFC230; font-variant-numeric: tabular-nums; letter-spacing: -0.5px;"><q-t data-text="pctText">63%</q-t></span></q-if>
-<q-if data-if="isReady" hidden><span style="font-size: 13px; font-weight: 700; color: #0B0B0E; background: #30D158; border-radius: 999px; padding: 7px 12px; display: inline-flex; align-items: center; gap: 5px;"><svg width="10" height="10" viewBox="0 0 24 24" fill="#0B0B0E" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Play</span></q-if>
+<span data-show="pct" style="font-size: 22px; font-weight: 700; color: #FFC230; font-variant-numeric: tabular-nums; letter-spacing: -0.5px;" data-text="pct">63%</span>
 </div>
-<div style="height: 5px; border-radius: 3px; background: rgba(255,255,255,0.14); overflow: hidden;"><div data-bar style="width: 63%; height: 100%; background: #FFC230; border-radius: 3px; transition: width .3s linear, background-color .4s;"></div></div>
+<div style="height: 5px; border-radius: 3px; background: rgba(255,255,255,0.14); overflow: hidden;"><div data-bar class="q-bar" style="width: 63%; height: 100%; background: #FFC230; border-radius: 3px;"></div></div>
 <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px;">
-<div data-step="0" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #FFC230; transition: background-color .4s;"></div><span style="font-size: 10px; color: #A1A1A6; font-weight: 500;">Search</span></div>
-<div data-step="1" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #FFC230; transition: background-color .4s;"></div><span style="font-size: 10px; color: #F5F5F7; font-weight: 700;">Download</span></div>
-<div data-step="2" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #3A3A42; transition: background-color .4s;"></div><span style="font-size: 10px; color: #A1A1A6; font-weight: 500;">Import</span></div>
-<div data-step="3" style="display: flex; flex-direction: column; gap: 5px; min-width: 0;"><div style="height: 3px; border-radius: 2px; background: #3A3A42; transition: background-color .4s;"></div><span style="font-size: 10px; color: #A1A1A6; font-weight: 500;">Ready</span></div>
+<div data-step="0" class="q-step"><i></i><span>Search</span></div>
+<div data-step="1" class="q-step is-active"><i></i><span>Download</span></div>
+<div data-step="2" class="q-step is-todo"><i></i><span>Import</span></div>
+<div data-step="3" class="q-step is-todo"><i></i><span>Ready</span></div>
+</div>
+</div>
+<div class="q-activity is-out" data-card="play">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="width: 38px; height: 38px; border-radius: 10px; background: rgba(181,126,220,0.2); display: grid; place-items: center; flex-shrink: 0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="#B57EDC" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg></span>
+<div style="min-width: 0; flex: 1;">
+<div style="font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Dune: Part Two</div>
+<div style="font-size: 12px; color: #A1A1A6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">On the living room TV</div>
+</div>
+<span style="width: 34px; height: 34px; border-radius: 50%; background: rgba(181,126,220,0.2); display: grid; place-items: center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="#B57EDC" aria-hidden="true"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg></span>
+</div>
+<div style="height: 5px; border-radius: 3px; background: rgba(255,255,255,0.14); overflow: hidden;"><div data-play-bar class="q-bar" style="width: 1%; height: 100%; background: #B57EDC; border-radius: 3px;"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 11px; color: #A1A1A6; font-variant-numeric: tabular-nums;"><span data-text="elapsed">0:00</span><span data-text="remaining">-2:46:12</span></div>
 </div>
 </div>
 <div class="q-lock-actions" aria-hidden="true">
@@ -106,14 +137,14 @@
 </section>
 
 <section aria-label="Works with" style="border-bottom: 1px solid #1F1F25;">
-<div style="max-width: 1200px; margin: 0 auto; padding: 40px 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px 40px;">
-<p style="margin: 0; font-size: 15px; color: #8E8E93;">Works with</p>
+<div style="max-width: 1200px; margin: 0 auto; padding: 44px 24px; display: flex; flex-direction: column; align-items: center; gap: 22px;">
+<p style="margin: 0; font-size: 15px; color: #8E8E93;">Plugs into the stack you already run</p>
 <ul class="q-logos" style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 16px 32px;">
+<li><img src="logos/seerr.svg" alt="" width="26" height="26">Seerr</li>
 <li><img src="logos/radarr.svg" alt="" width="26" height="26">Radarr</li>
 <li><img src="logos/sonarr.svg" alt="" width="26" height="26">Sonarr</li>
 <li><img src="logos/prowlarr.svg" alt="" width="26" height="26">Prowlarr</li>
 <li><img src="logos/qbittorrent.svg" alt="" width="26" height="26">qBittorrent</li>
-<li><img src="logos/seerr.svg" alt="" width="26" height="26">Seerr</li>
 <li><img src="logos/jellyfin.svg" alt="" width="26" height="26">Jellyfin</li>
 <li><img src="logos/cleanuparr.png" alt="" width="26" height="26">Cleanuparr</li>
 <li><img src="logos/reclaimerr.svg" alt="" width="26" height="26">Reclaimerr</li>
