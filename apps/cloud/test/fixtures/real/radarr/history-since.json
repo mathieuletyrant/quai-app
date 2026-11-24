@@ -1,0 +1,137 @@
+[
+  {
+    "movieId": 304,
+    "sourceTitle": "Le.Plus.Beau.Des.Combats.2000.MULTI.VFF.1080p.WEB.EAC3.5.1.H265-TyHD",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "webdl",
+        "resolution": 1080,
+        "modifier": "none"
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormatScore": 904400,
+    "qualityCutoffNotMet": false,
+    "date": "2026-11-22T10:59:31Z",
+    "downloadId": "D3904AE66EACDE68B39E194F85329CAF39B8D2E7",
+    "eventType": "grabbed",
+    "data": {
+      "indexer": "Tracker (Prowlarr)",
+      "releaseGroup": "TyHD",
+      "age": "242",
+      "ageHours": "5827.294294605945",
+      "ageMinutes": "349637.6576769667",
+      "publishedDate": "2026-03-24T15:41:52Z",
+      "downloadClient": "qBittorrent",
+      "downloadClientName": "qBittorrent VPN",
+      "size": "3439728799",
+      "guid": "https://tracker.example/torrents/1001",
+      "tmdbId": "10637",
+      "imdbId": "210945",
+      "protocol": "2",
+      "customFormatScore": "904400",
+      "movieMatchType": "Id",
+      "releaseSource": "Search",
+      "indexerFlags": "0",
+      "indexerId": "8",
+      "torrentInfoHash": "d3904ae66eacde68b39e194f85329caf39b8d2e7"
+    },
+    "id": 282
+  },
+  {
+    "movieId": 305,
+    "sourceTitle": "Clashing.Through.the.Snow.2026.MULTi.VF2.1080p.WEB.EAC3.5.1.H265-GL0P",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "webdl",
+        "resolution": 1080,
+        "modifier": "none"
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormatScore": 902500,
+    "qualityCutoffNotMet": false,
+    "date": "2026-11-23T08:22:01Z",
+    "downloadId": "A99E482D05D9FC9AA6E42A60C53F60015D82C3AA",
+    "eventType": "grabbed",
+    "data": {
+      "indexer": "Tracker (Prowlarr)",
+      "releaseGroup": "GL0P",
+      "age": "0",
+      "ageHours": "0.11029837980555555",
+      "ageMinutes": "6.617902938333334",
+      "publishedDate": "2026-11-23T08:15:24Z",
+      "downloadClient": "qBittorrent",
+      "downloadClientName": "qBittorrent VPN",
+      "size": "3123426681",
+      "guid": "https://tracker.example/torrents/1002",
+      "tmdbId": "1611767",
+      "imdbId": "0",
+      "protocol": "2",
+      "customFormatScore": "902500",
+      "movieMatchType": "Id",
+      "releaseSource": "Rss",
+      "indexerFlags": "0",
+      "indexerId": "12",
+      "torrentInfoHash": "A99E482D05D9FC9AA6E42A60C53F60015D82C3AA"
+    },
+    "id": 284
+  },
+  {
+    "movieId": 306,
+    "sourceTitle": "Artemis.To.The.Moon.And.Back.2026.DOC.MULTi.VFF.1080p.WEB.AAC2.0.x265-NYX",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "webdl",
+        "resolution": 1080,
+        "modifier": "none"
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormatScore": 902200,
+    "qualityCutoffNotMet": false,
+    "date": "2026-11-23T10:58:45Z",
+    "downloadId": "8D6CC0AF65E09338567A3CCA0D998BFD1974DF1E",
+    "eventType": "grabbed",
+    "data": {
+      "indexer": "Tracker (Prowlarr)",
+      "releaseGroup": "NYX",
+      "age": "0",
+      "ageHours": "16.50084640663889",
+      "ageMinutes": "990.0507845366667",
+      "publishedDate": "2026-11-22T18:28:42Z",
+      "downloadClient": "qBittorrent",
+      "downloadClientName": "qBittorrent VPN",
+      "size": "1180148980",
+      "guid": "https://tracker.example/torrents/1003",
+      "tmdbId": "1625086",
+      "imdbId": "0",
+      "protocol": "2",
+      "customFormatScore": "902200",
+      "movieMatchType": "Id",
+      "releaseSource": "Search",
+      "indexerFlags": "G_Freeleech",
+      "indexerId": "13",
+      "torrentInfoHash": "8d6cc0af65e09338567a3cca0d998bfd1974df1e"
+    },
+    "id": 286
+  }
+]

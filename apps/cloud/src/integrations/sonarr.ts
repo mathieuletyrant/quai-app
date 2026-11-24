@@ -145,6 +145,7 @@ export const librarySeries = (series: SonarrSeries, webBases: ReadonlyArray<stri
     title: series.title,
     ...(year === undefined ? {} : { year }),
     ...(series.tmdbId === undefined || series.tmdbId === 0 ? {} : { tmdbId: series.tmdbId }),
+    tvdbId: series.tvdbId,
     ...(posterUrl === undefined ? {} : { posterUrl }),
     status: seriesStatus(series, have, total),
     ...(addedAt === undefined ? {} : { addedAt }),

@@ -1,0 +1,72 @@
+{
+  "id": 1461490,
+  "adult": false,
+  "budget": 0,
+  "genres": [
+    {
+      "id": 18,
+      "name": "Drame"
+    },
+    {
+      "id": 36,
+      "name": "Histoire"
+    },
+    {
+      "id": 10749,
+      "name": "Romance"
+    }
+  ],
+  "originalLanguage": "en",
+  "originalTitle": "Hershey",
+  "popularity": 17.355,
+  "releaseDate": "2026-11-25",
+  "revenue": 0,
+  "status": "Released",
+  "title": "Hershey",
+  "video": false,
+  "voteAverage": 9.333,
+  "voteCount": 3,
+  "backdropPath": "/mFAalGTR6PBJPPNbjVklMJ6OhSB.jpg",
+  "homepage": "",
+  "imdbId": "tt17055444",
+  "overview": "Based on the life of Milton Hershey, founder of the iconic Hershey chocolate company. Milton's grit and determination to conquer the world of candy-making propel him from bankruptcy to monumental success, and the love of his life, Kitty, helps him build a legacy sweeter than any candy bar. But when Kitty falls ill, Milton’s wild optimism teeters on the edge of destruction, and she sparks an even bolder dream: to leave their fortune in the hands of America’s children in need.",
+  "posterPath": "/ojd8Gu2bPsOzdMz6Ip5AYDu4Vki.jpg",
+  "runtime": 110,
+  "tagline": "",
+  "externalIds": {
+    "facebookId": null,
+    "imdbId": "tt17055444",
+    "instagramId": null,
+    "twitterId": null
+  },
+  "mediaInfo": {
+    "downloadStatus": [],
+    "downloadStatus4k": [],
+    "id": 101,
+    "mediaType": "movie",
+    "tmdbId": 1461490,
+    "tvdbId": null,
+    "imdbId": null,
+    "status": 3,
+    "status4k": 1,
+    "createdAt": "2026-10-24T06:30:12.000Z",
+    "updatedAt": "2026-10-24T06:30:12.000Z",
+    "lastSeasonChange": "2026-10-24T06:30:12.000Z",
+    "mediaAddedAt": "2026-10-24T06:30:12.000Z",
+    "serviceId": 0,
+    "serviceId4k": null,
+    "externalServiceId": 228,
+    "externalServiceId4k": null,
+    "externalServiceSlug": "1461490",
+    "externalServiceSlug4k": null,
+    "ratingKey": null,
+    "ratingKey4k": null,
+    "jellyfinMediaId": null,
+    "jellyfinMediaId4k": null,
+    "requests": [],
+    "issues": [],
+    "seasons": [],
+    "serviceUrl": "http://radarr_server_1:7878/movie/1461490"
+  },
+  "onUserWatchlist": false
+}
