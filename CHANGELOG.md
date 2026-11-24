@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.1](https://github.com/mathieuletyrant/quai-app/compare/v0.25.0...v0.25.1) (2026-11-24)
+
+
+### 🐛 Fixes
+
+* iPhone-only iOS build, and the Discord's permanent invite ([#88](https://github.com/mathieuletyrant/quai-app/issues/88)) ([97bd6ad](https://github.com/mathieuletyrant/quai-app/commit/97bd6ad480c59d6d6d5a83807eff11608b10dfef))
+
 ## [0.25.0](https://github.com/mathieuletyrant/quai-app/compare/v0.24.0...v0.25.0) (2026-11-24)
 
 
