@@ -57,7 +57,7 @@ struct AppScreenshots {
 
         let item = try #require(connection.library?.items.first { $0.id == "movie:12" }, "Dune isn't in the preview's library")
         let detail = try Self.show(
-            LibraryView().sheet(isPresented: .constant(true)) {
+            LibraryView(filter: .constant(.recent)).sheet(isPresented: .constant(true)) {
                 TitleDetailView(item: item)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)

@@ -138,6 +138,29 @@ struct Tile<Content: View>: View {
     }
 }
 
+/// A square tile, half the Home's width: two of them side by side in a `TileRow`.
+struct SquareTile<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) { content }
+            .padding(16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .aspectRatio(1, contentMode: .fit)
+            .background(Palette.tile, in: RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
+    }
+}
+
+/// Square tiles side by side, sharing the width.
+struct TileRow<Content: View>: View {
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Metrics.tileSpacing) { content }
+    }
+}
+
 /// A tile's label: a colored symbol and a secondary title.
 struct TileLabel: View {
     var title: String

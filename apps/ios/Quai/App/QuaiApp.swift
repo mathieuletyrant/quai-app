@@ -57,6 +57,8 @@ struct RootView: View {
     @Binding var pendingLink: PairingLink?
     @State private var tab: AppTab
     @State private var showsLive: Bool
+    /// The Library's filter, also set by the Home's tiles that open it.
+    @State private var libraryFilter = LibraryFilter.recent
 
     init(pendingLink: Binding<PairingLink?>, tab: AppTab = .home, showsLive: Bool = false) {
         _pendingLink = pendingLink
@@ -68,8 +70,8 @@ struct RootView: View {
         Group {
             if connection.isPaired {
                 TabView(selection: $tab) {
-                    Tab("Home", systemImage: "house.fill", value: AppTab.home) { HomeView(tab: $tab) }
-                    Tab("Library", systemImage: "film.stack", value: AppTab.library) { LibraryView() }
+                    Tab("Home", systemImage: "house.fill", value: AppTab.home) { HomeView(tab: $tab, libraryFilter: $libraryFilter) }
+                    Tab("Library", systemImage: "film.stack", value: AppTab.library) { LibraryView(filter: $libraryFilter) }
                     Tab("Activity", systemImage: "waveform.path.ecg", value: AppTab.activity) { ActivityListView() }
                     Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
                 }
