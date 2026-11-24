@@ -58,7 +58,7 @@ const renderPhone = (t) => {
   if (scene.card === "request") {
     for (const el of island.querySelectorAll("[data-show]")) el.hidden = el.dataset.show !== "request";
     islandText.textContent = "Request";
-    islandText.style.color = "#8F7BFF";
+    islandText.style.color = "#8B8CF8";
     phone.querySelector(".q-approve").classList.toggle("is-pressed", Boolean(scene.approved));
     return;
   }
