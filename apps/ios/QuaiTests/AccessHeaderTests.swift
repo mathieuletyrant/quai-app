@@ -20,6 +20,16 @@ struct PairingLinkHeaderTests {
         #expect(link.accessHeaders.isEmpty)
     }
 
+    @Test func keepsTheConsoleAddress() throws {
+        let url = try #require(URL(string: "quai://pair?code=A&url=https%3A%2F%2Fcloud.quai.stream&console=http%3A%2F%2Fumbrel.local%3A3078"))
+        #expect(try #require(PairingLink(url)).consoleURL?.absoluteString == "http://umbrel.local:3078")
+    }
+
+    @Test func aLinkWithoutConsoleHasNone() throws {
+        #expect(try #require(PairingLink(try #require(URL(string: "quai://pair?code=A&url=https%3A%2F%2Fcloud.quai.stream")))).consoleURL == nil)
+        #expect(try #require(PairingLink(try #require(URL(string: "quai://pair?code=A&console=javascript%3Aalert(1)")))).consoleURL == nil)
+    }
+
     @Test func skipsAHeaderTheAppOwns() throws {
         let url = try #require(URL(string: "quai://pair?code=A&header=Authorization%3A%20x&header=X-Token%3A%20y"))
         let link = try #require(PairingLink(url))

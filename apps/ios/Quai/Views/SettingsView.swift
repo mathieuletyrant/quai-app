@@ -60,7 +60,7 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
 
-                    if let console = connection.serverURL {
+                    if let console = connection.consoleURL {
                         GroupedSection(footer: "Services, flows and iPhones are set up in Quai's console.") {
                             Link(destination: console) {
                                 ListRow(title: "Open the console", systemImage: "macwindow", iconColor: Palette.accent, chevron: true)
