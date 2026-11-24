@@ -1,7 +1,7 @@
 import { type ActionType, InvalidAction } from "@quai/api"
 import { Clock, Effect, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
-import type { FlowEvent, MediaLookup } from "../flows/Events.ts"
+import { type FlowEvent, lookupIds, type MediaLookup } from "../flows/Events.ts"
 import { HomeReads } from "../home/HomeReads.ts"
 import { actionCall, type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 
@@ -119,11 +119,14 @@ export const sessionOf = (subjectKey: string): string | null => {
 const providerId = (item: typeof Item.Type, provider: string) =>
   Object.entries(item.ProviderIds ?? {}).find(([k]) => k.toLowerCase() === provider)?.[1]
 
-/** The item of this title in a search result, by its TMDB (movie) or TVDB (series) id. */
-export const matchItem = (result: typeof ItemsResult.Type, lookup: MediaLookup): string | null =>
-  lookup._tag === "Movie"
-    ? result.Items.find((i) => providerId(i, "tmdb") === String(lookup.tmdbId))?.Id ?? null
-    : result.Items.find((i) => providerId(i, "tvdb") === String(lookup.tvdbId))?.Id ?? null
+/**
+ * The item of this title among Jellyfin's, by any id both know: TMDB or IMDb for a movie, TVDB,
+ * TMDB or IMDb for a series. Never its name.
+ */
+export const matchItem = (result: typeof ItemsResult.Type, lookup: MediaLookup): string | null => {
+  const ids = lookupIds(lookup)
+  return result.Items.find((item) => ids.some(([provider, id]) => providerId(item, provider) === id))?.Id ?? null
+}
 
 /** Whether every episode of the lookup has a file (Jellyfin also lists missing ones, as virtual). */
 export const hasEpisodes = (result: typeof EpisodesResult.Type, lookup: Extract<MediaLookup, { readonly _tag: "Episodes" }>) => {

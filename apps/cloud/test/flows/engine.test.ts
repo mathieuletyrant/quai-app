@@ -5,7 +5,7 @@ import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
 import { emptyState, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
 import { settle } from "../fakeHome.ts"
-import type { Subject } from "../../src/flows/Events.ts"
+import { type Subject, widenLookup } from "../../src/flows/Events.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 
 const tags = (pushes: ReadonlyArray<Push>) => pushes.map((p) => `${p._tag}:${p.activity.stepIndex}`)
@@ -95,6 +95,12 @@ describe("download flow", () => {
       expect(activity!.title).toBe("Our House (2022) · S01")
       expect(activity!.lookup).toMatchObject({ episodes: episodes(1, 2, 3, 4) })
     })))
+
+  it("a lookup keeps the ids it had and takes the ones a later event brings", () => {
+    const one = { _tag: "Episodes" as const, tvdbId: 1, title: "Show", episodes: [{ season: 1, episode: 1 }] }
+    expect(widenLookup(one, { ...one, tmdbId: 2, imdbId: "tt3" })).toEqual({ ...one, tmdbId: 2, imdbId: "tt3" })
+    expect(widenLookup({ ...one, tmdbId: 2 }, one)).toEqual({ ...one, tmdbId: 2 })
+  })
 
   it.effect("a later event about more episodes widens what the activity follows", () =>
     run(Effect.gen(function*() {

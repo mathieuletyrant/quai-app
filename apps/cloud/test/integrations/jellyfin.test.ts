@@ -50,6 +50,15 @@ describe("Jellyfin identity", () => {
     expect(matchItem(items({ Id: "x", Name: "Our House (2022)", ProviderIds: {} }), ourHouse)).toBeNull()
     expect(matchItem(items({ Id: "dune", Name: "Dune : Deuxième partie", ProviderIds: { tmdb: "693134" } }), { _tag: "Movie", tmdbId: 693134, title: "Dune: Part Two" })).toBe("dune")
   })
+
+  it("finds a series Jellyfin knows only by TMDB or IMDb (no TVDB without its plugin)", () => {
+    const withIds = { ...ourHouse, tmdbId: 157014, imdbId: "tt10098728" }
+    expect(matchItem(items({ Id: "tmdb", Name: "Our House", ProviderIds: { Tmdb: "157014" } }), withIds)).toBe("tmdb")
+    expect(matchItem(items({ Id: "imdb", Name: "Our House", ProviderIds: { Imdb: "tt10098728" } }), withIds)).toBe("imdb")
+    expect(matchItem(items({ Id: "tmdb", Name: "Our House", ProviderIds: { Tmdb: "157014" } }), ourHouse)).toBeNull()
+    // A movie and a series may share a TMDB number: each kind is read on its own list.
+    expect(matchItem(items({ Id: "other", Name: "Other", ProviderIds: { Tvdb: "157014" } }), withIds)).toBeNull()
+  })
 })
 
 describe("Jellyfin sessions", () => {
