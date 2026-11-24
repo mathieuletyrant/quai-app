@@ -51,5 +51,8 @@ jobs:
           secrets="$RUNNER_TEMP/quai-cloud-secrets.json"
           jq -n '{QUAI_APNS_KEY: env.QUAI_APNS_KEY, QUAI_APNS_KEY_ID: env.QUAI_APNS_KEY_ID, QUAI_APNS_TEAM_ID: env.QUAI_APNS_TEAM_ID}
             | with_entries(select(.value != null and .value != ""))' > "$secrets"
-          pnpm exec wrangler deploy --var "QUAI_VERSION:$VERSION" --secrets-file "$secrets"
+          # The version is built into the image: a container the rollout restarts shows its own.
+          jq --arg v "$VERSION" '.containers[0].image_vars = { QUAI_VERSION: $v }' wrangler.jsonc > "$RUNNER_TEMP/wrangler.json"
+          mv "$RUNNER_TEMP/wrangler.json" wrangler.jsonc
+          pnpm exec wrangler deploy --secrets-file "$secrets"
           rm "$secrets"

@@ -1,6 +1,5 @@
 /** What the Worker holds for Quai Cloud: its vars from wrangler.jsonc and its secrets. */
 export interface CloudSettings {
-  readonly QUAI_VERSION?: string
   readonly QUAI_CLOUD_PUBLIC_URL?: string
   readonly QUAI_MAX_HOMES?: string
   readonly QUAI_HOME_ID?: string
@@ -11,8 +10,11 @@ export interface CloudSettings {
   readonly QUAI_APNS_TEAM_ID?: string
 }
 
+/**
+ * Not `QUAI_VERSION`: the image carries its own (built with it), so a container a rollout restarts
+ * on the new image never shows the version the previous deployment started it with.
+ */
 const names = [
-  "QUAI_VERSION",
   "QUAI_CLOUD_PUBLIC_URL",
   "QUAI_MAX_HOMES",
   "QUAI_HOME_ID",

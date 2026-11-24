@@ -4,7 +4,6 @@ import { containerEnvironment } from "../src/environment.ts"
 describe("containerEnvironment", () => {
   it("passes Quai Cloud its settings and the port it listens on", () => {
     expect(containerEnvironment({
-      QUAI_VERSION: "0.23.0",
       QUAI_CLOUD_PUBLIC_URL: "https://cloud.quai.stream",
       QUAI_MAX_HOMES: "25",
       QUAI_APNS_KEY: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
@@ -12,7 +11,6 @@ describe("containerEnvironment", () => {
       QUAI_APNS_TEAM_ID: "FGHIJ67890",
     })).toEqual({
       QUAI_PORT: "8787",
-      QUAI_VERSION: "0.23.0",
       QUAI_CLOUD_PUBLIC_URL: "https://cloud.quai.stream",
       QUAI_MAX_HOMES: "25",
       QUAI_APNS_KEY: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
@@ -23,6 +21,10 @@ describe("containerEnvironment", () => {
 
   it("leaves out what is unset or blank, so Quai Cloud runs without pushes", () => {
     expect(containerEnvironment({ QUAI_APNS_KEY: "  ", QUAI_APNS_KEY_ID: "" })).toEqual({ QUAI_PORT: "8787" })
+  })
+
+  it("leaves the version to the image, built with it", () => {
+    expect(containerEnvironment({ QUAI_VERSION: "0.23.0" } as never)).not.toHaveProperty("QUAI_VERSION")
   })
 
   it("passes nothing that isn't a Quai Cloud setting", () => {
