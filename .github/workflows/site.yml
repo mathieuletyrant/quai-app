@@ -24,8 +24,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @quai/site test
-      - run: pnpm --filter @quai/site deploy:check
+      - run: pnpm --filter @quai/site run deploy:check
       - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        run: pnpm --filter @quai/site deploy
+        run: pnpm --filter @quai/site run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
