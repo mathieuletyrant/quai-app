@@ -1,4 +1,4 @@
-import type { CloudLink, ConnectionSettings, Health, PushSettings } from "@quai/api"
+import { type CloudLink, type ConnectionSettings, type Health, isHostedCloud, type PushSettings } from "@quai/api"
 import type { ReactNode } from "react"
 import { call, type LinkStatus, useLink } from "../client.ts"
 import { useLoad } from "../load.ts"
@@ -35,40 +35,75 @@ function LinkAdvice({ cloud, status }: { cloud: CloudLink; status: LinkStatus })
     return <Callout tone="warn" icon="unlink" title="No Quai Cloud yet">Set <Code>QUAI_CLOUD_URL</Code> on Quai Home to the Cloud's <Code>/home</Code> address (<Code>wss://…/home</Code>) and restart it. The services can be set meanwhile.</Callout>
   }
   if (status !== "offline") return null
+  if (isHostedCloud(cloud)) return <Callout icon="info">Quai Home will reconnect on its own. If it stays like this, check that your server can reach the internet.</Callout>
   return <Callout icon="info">Check that Quai Cloud is running at this address, and that Quai Home's <Code>QUAI_CLOUD_URL</Code> points at its <Code>/home</Code>.</Callout>
 }
 
-/** The Cloud's version and uptime, once it answered. */
-function CloudHealth({ health }: { health: Health | null }) {
+const pushOffline = "Without an Apple push key, your iPhones get no Live Activity and no alert."
+
+/** The hosted Cloud says nothing about its key, unless pushes can't go out. */
+function HostedPushWarning() {
+  const { epoch } = useLink()
+  const push = useLoad<PushSettings>(() => call((c) => c.push.pushSettings()), [epoch])
+  if (push.data === null || push.data.configured) return null
+  return <Callout tone="warn" icon="alert" title="Notifications are off on Quai's Cloud">{pushOffline} It's on our side: write to us.</Callout>
+}
+
+const hostedDescription = "Quai's own Cloud runs your flows and sends the Live Activities and alerts to your iPhones. Nothing to set up: it keeps nothing, and your services' keys stay here."
+
+/** Quai's hosted Cloud: is it linked, and which version. */
+function HostedCloud({ cloud, status, health }: { cloud: CloudLink; status: LinkStatus; health: Health | null }) {
   return (
-    <>
-      <Row label="Version">{health === null ? notSet : <Mono>{health.version}</Mono>}</Row>
-      <Row label="Running for">{health === null ? notSet : <span className="tabular-nums">{uptime(health.uptimeSeconds)}</span>}</Row>
-    </>
+    <div className="flex flex-col gap-4">
+      <Rows>
+        <Row label="Link">{linkStatus[status]}</Row>
+        <Row label="Version">{health === null ? notSet : <Mono>{health.version}</Mono>}</Row>
+      </Rows>
+      <LinkAdvice cloud={cloud} status={status} />
+      <HostedPushWarning />
+    </div>
   )
 }
 
-/** The Quai Cloud this home links to, and how the link is doing. */
+/** A Cloud of one's own: where it is, the link, its version and uptime. */
+function OwnCloud({ cloud, status, health }: { cloud: CloudLink; status: LinkStatus; health: Health | null }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Rows>
+        <Row label="Address">{cloud.url === undefined ? notSet : <Mono>{cloud.url}</Mono>}</Row>
+        <Row label="Link">{cloud.configured ? linkStatus[status] : <Status tone="warn">Not set</Status>}</Row>
+        <Row label="Version">{health === null ? notSet : <Mono>{health.version}</Mono>}</Row>
+        <Row label="Running for">{health === null ? notSet : <span className="tabular-nums">{uptime(health.uptimeSeconds)}</span>}</Row>
+      </Rows>
+      <LinkAdvice cloud={cloud} status={status} />
+    </div>
+  )
+}
+
+const ownDescription = <>Your own Quai Cloud runs the flows and sends the pushes. Quai Home reaches it at <Code>QUAI_CLOUD_URL</Code>.</>
+
+/** The Quai Cloud this home links to: Quai's, with nothing to show but the link, or one's own. */
 function CloudPanel() {
   const { status, epoch } = useLink()
   const overview = useLoad(loadOverview, [epoch])
   const health = useLoad<Health>(() => call((c) => c.system.health()), [epoch])
   return (
-    <Panel title="Quai Cloud" description={<>Runs the flows and pushes to Apple. Quai Home links to it with <Code>QUAI_CLOUD_URL</Code>.</>}>
-      <Async state={overview} loading={<LoadingRows labels={["Address", "Link", "Version", "Running for"]} />} failed={failed}>
-        {(o) => (
-          <div className="flex flex-col gap-4">
-            <Rows>
-              <Row label="Address">{o.cloud.url === undefined ? notSet : <Mono>{o.cloud.url}</Mono>}</Row>
-              <Row label="Link">{o.cloud.configured ? linkStatus[status] : <Status tone="warn">Not set</Status>}</Row>
-              <CloudHealth health={health.data} />
-            </Rows>
-            <LinkAdvice cloud={o.cloud} status={status} />
-            <CloudChanged cloud={o.cloud} onDone={overview.refresh} />
-          </div>
-        )}
-      </Async>
-    </Panel>
+    <Async state={overview} loading={<Panel title="Quai Cloud"><LoadingRows labels={["Link", "Version"]} /></Panel>} failed={failed}>
+      {(o) => {
+        const hosted = isHostedCloud(o.cloud)
+        return (
+          <>
+            <Panel title="Quai Cloud" description={hosted ? hostedDescription : ownDescription}>
+              <div className="flex flex-col gap-4">
+                {hosted ? <HostedCloud cloud={o.cloud} status={status} health={health.data} /> : <OwnCloud cloud={o.cloud} status={status} health={health.data} />}
+                <CloudChanged cloud={o.cloud} onDone={overview.refresh} />
+              </div>
+            </Panel>
+            {!hosted && o.cloud.configured && <OwnCloudSettingsPanel />}
+          </>
+        )
+      }}
+    </Async>
   )
 }
 
@@ -81,7 +116,7 @@ function AccessHeaders({ names }: { names: ReadonlyArray<string> }) {
 function PushRows({ push }: { push: PushSettings }) {
   return (
     <Rows>
-      <Row label="Push key">{push.configured ? <Status tone="ok">Configured</Status> : <Status tone="warn">Not configured</Status>}</Row>
+      <Row label="Apple push key">{push.configured ? <Status tone="ok">Ready</Status> : <Status tone="warn">Missing</Status>}</Row>
       <Row label="Key ID"><Mono>{push.keyId ?? "—"}</Mono></Row>
       <Row label="Team ID"><Mono>{push.teamId ?? "—"}</Mono></Row>
       <Row label="App"><Mono>{push.topic}</Mono></Row>
@@ -89,11 +124,13 @@ function PushRows({ push }: { push: PushSettings }) {
   )
 }
 
-function AccessRows({ access }: { access: ConnectionSettings }) {
+const sameAsHome = <span className="text-muted">Only at home</span>
+
+function AwayRows({ access }: { access: ConnectionSettings }) {
   return (
     <Rows>
-      <Row label="Public address">{access.publicUrl === undefined ? notSet : <Mono>{access.publicUrl}</Mono>}</Row>
-      <Row label="Access headers"><AccessHeaders names={access.accessHeaderNames} /></Row>
+      <Row label="Address in the QR code">{access.publicUrl === undefined ? sameAsHome : <Mono>{access.publicUrl}</Mono>}</Row>
+      <Row label="Headers for your proxy"><AccessHeaders names={access.accessHeaderNames} /></Row>
     </Rows>
   )
 }
@@ -101,27 +138,27 @@ function AccessRows({ access }: { access: ConnectionSettings }) {
 const loadCloudSettings = () =>
   Promise.all([call((c) => c.push.pushSettings()), call((c) => c.connection.connectionSettings())]).then(([push, access]) => ({ push, access }))
 
-const cloudSettingsOffline = <p className="text-body text-muted">Shown once Quai Home is connected to Quai Cloud.</p>
+const cloudSettingsOffline = <p className="text-body text-muted">Shown once Quai Home is connected to your Quai Cloud.</p>
 
-/** Quai Cloud's own settings: shown here, set with its environment variables. */
-function CloudSettingsPanel() {
+/** A Cloud of one's own: what's set on it, shown here, changed with its environment variables. */
+function OwnCloudSettingsPanel() {
   const { epoch } = useLink()
   const settings = useLoad(loadCloudSettings, [epoch])
   return (
-    <Panel title="Set on Quai Cloud" description="Its own environment variables: shown here, changed there.">
-      <Async state={settings} loading={<LoadingRows labels={["Push key", "Key ID", "Team ID", "App"]} />} offline={cloudSettingsOffline} failed={failed}>
+    <Panel title="Set on your Quai Cloud" description="Changed with its environment variables, on the machine that runs it.">
+      <Async state={settings} loading={<LoadingRows labels={["Apple push key", "Key ID", "Team ID", "App"]} />} offline={cloudSettingsOffline} failed={failed}>
         {({ push, access }) => (
           <div className="flex flex-col gap-5">
             <section className="flex flex-col gap-3">
-              <Eyebrow>Apple push</Eyebrow>
+              <Eyebrow>Notifications</Eyebrow>
               <PushRows push={push} />
-              <p className="text-caption text-faint"><Code>QUAI_APNS_KEY_FILE</Code> <Code>QUAI_APNS_KEY_ID</Code> <Code>QUAI_APNS_TEAM_ID</Code></p>
-              {!push.configured && <Callout tone="warn" icon="alert" title="Nothing is pushed">Without a key, iPhones get no Live Activity.</Callout>}
+              <p className="text-caption text-faint"><Code>QUAI_APNS_KEY_FILE</Code> (or <Code>QUAI_APNS_KEY</Code>), <Code>QUAI_APNS_KEY_ID</Code>, <Code>QUAI_APNS_TEAM_ID</Code></p>
+              {!push.configured && <Callout tone="warn" icon="alert" title="Nothing is pushed">{pushOffline}</Callout>}
             </section>
             <section className="flex flex-col gap-3 border-t border-line pt-5">
-              <Eyebrow>From outside</Eyebrow>
-              <AccessRows access={access} />
-              <p className="text-caption text-faint"><Code>QUAI_PUBLIC_URL</Code> <Code>QUAI_PUBLIC_HEADERS</Code>: both go into the pairing QR code.</p>
+              <Eyebrow>iPhones away from home</Eyebrow>
+              <AwayRows access={access} />
+              <p className="text-caption text-faint">Where your iPhones reach Quai Cloud when they're out, put in the pairing QR code: <Code>QUAI_PUBLIC_URL</Code>, and <Code>QUAI_PUBLIC_HEADERS</Code> if a proxy asks for them. It isn't the console's address.</p>
             </section>
           </div>
         )}
@@ -133,12 +170,11 @@ function CloudSettingsPanel() {
 export function SettingsPage() {
   return (
     <>
-      <PageBar title="Settings" subtitle="The Quai Cloud this home links to, and what's set on it." />
+      <PageBar title="Settings" subtitle="The Quai Cloud this home links to." />
       <PageBody>
         <SetupChecklist />
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <CloudPanel />
-          <CloudSettingsPanel />
         </div>
       </PageBody>
     </>
