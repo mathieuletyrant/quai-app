@@ -7,7 +7,7 @@ export interface AccessHeader {
   readonly value: Redacted.Redacted<string>
 }
 
-/** `QUAI_PUBLIC_HEADERS` can't be used: the message names the entry, never a value. */
+/** `QUAI_CLOUD_PUBLIC_HEADERS` can't be used: the message names the entry, never a value. */
 export class InvalidAccessHeaders extends Data.TaggedError("InvalidAccessHeaders")<{
   readonly message: string
 }> {}
@@ -42,12 +42,12 @@ const reserved = new Set([
 ])
 
 /**
- * Reads `QUAI_PUBLIC_HEADERS`: `Name: value` pairs separated by `;` or line breaks, e.g.
+ * Reads `QUAI_CLOUD_PUBLIC_HEADERS`: `Name: value` pairs separated by `;` or line breaks, e.g.
  * `CF-Access-Client-Id: abc.access; CF-Access-Client-Secret: def`. A value can't hold a `;`.
  */
 export const parseAccessHeaders = (text: string): Effect.Effect<ReadonlyArray<AccessHeader>, InvalidAccessHeaders> =>
   Effect.gen(function*() {
-    const fail = (message: string) => Effect.fail(new InvalidAccessHeaders({ message: `QUAI_PUBLIC_HEADERS: ${message}` }))
+    const fail = (message: string) => Effect.fail(new InvalidAccessHeaders({ message: `QUAI_CLOUD_PUBLIC_HEADERS: ${message}` }))
     const entries = text.split(/[;\r\n]/).map((entry) => entry.trim()).filter((entry) => entry !== "")
     const headers: Array<AccessHeader> = []
     const seen = new Set<string>()
@@ -67,8 +67,9 @@ export const parseAccessHeaders = (text: string): Effect.Effect<ReadonlyArray<Ac
   })
 
 /**
- * How the app reaches Quai Cloud from outside: `QUAI_PUBLIC_URL`, and the access headers a reverse
- * proxy in front of it requires (`QUAI_PUBLIC_HEADERS`). Both go into the pairing QR code.
+ * How the app reaches this Quai Cloud from outside: `QUAI_CLOUD_PUBLIC_URL`, and the access
+ * headers a reverse proxy in front of it requires (`QUAI_CLOUD_PUBLIC_HEADERS`). Both go into the
+ * pairing QR code. Quai Home's console has its own, `QUAI_CONSOLE_PUBLIC_URL`, set on Quai Home.
  */
 export class PublicAccess extends Context.Service<PublicAccess, {
   readonly url: Option.Option<string>
@@ -86,12 +87,12 @@ export class PublicAccess extends Context.Service<PublicAccess, {
     }
   })
 
-  /** From the environment. A malformed `QUAI_PUBLIC_HEADERS` stops the Cloud at startup. */
+  /** From the environment. Malformed access headers stop the Cloud at startup. */
   static readonly layer = Layer.effect(
     PublicAccess,
     Effect.gen(function*() {
-      const url = yield* Config.option(Config.String("QUAI_PUBLIC_URL"))
-      const text = yield* Config.option(Config.String("QUAI_PUBLIC_HEADERS"))
+      const url = yield* Config.option(Config.String("QUAI_CLOUD_PUBLIC_URL"))
+      const text = yield* Config.option(Config.String("QUAI_CLOUD_PUBLIC_HEADERS"))
       const headers = Option.isSome(text) ? yield* parseAccessHeaders(text.value) : []
       if (headers.length > 0) yield* Effect.logInfo(`Access headers for the pairing: ${headers.map((h) => h.name).join(", ")}`)
       return PublicAccess.make(url, headers)

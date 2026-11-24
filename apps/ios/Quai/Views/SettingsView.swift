@@ -3,6 +3,7 @@ import SwiftUI
 /// The Settings tab: this iPhone's Live Activities, the connection, disconnecting.
 struct SettingsView: View {
     @Environment(Connection.self) private var connection
+    @Environment(\.openURL) private var openURL
     @State private var confirmDisconnect = false
 
     private var host: String { connection.serverURL?.host() ?? connection.serverURL?.absoluteString ?? "—" }
@@ -60,9 +61,11 @@ struct SettingsView: View {
                         .buttonStyle(.plain)
                     }
 
-                    if let console = connection.consoleURL {
+                    if !connection.consoleURLs.isEmpty {
                         GroupedSection(footer: "Services, flows and iPhones are set up in Quai's console.") {
-                            Link(destination: console) {
+                            Button {
+                                Task { if let console = await connection.consoleToOpen() { openURL(console) } }
+                            } label: {
                                 ListRow(title: "Open the console", systemImage: "macwindow", iconColor: Palette.accent, chevron: true)
                             }
                             .buttonStyle(.plain)

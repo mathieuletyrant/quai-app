@@ -34,6 +34,13 @@ describe("HomeConfig", () => {
       expect(cloudAppUrl(yield* configFrom({ QUAI_CLOUD_URL: "" }))).toBeNull()
     }))
 
+  it.effect("where the console is reached from outside: QUAI_CONSOLE_PUBLIC_URL, if set", () =>
+    Effect.gen(function*() {
+      expect((yield* configFrom({ QUAI_CONSOLE_PUBLIC_URL: "https://quai.example.com/" })).consolePublicUrl).toBe("https://quai.example.com")
+      expect((yield* configFrom({ QUAI_CONSOLE_PUBLIC_URL: "  " })).consolePublicUrl).toBeNull()
+      expect((yield* configFrom({})).consolePublicUrl).toBeNull()
+    }))
+
   it.effect("an address without its key is only a suggestion for the Services page", () =>
     Effect.gen(function*() {
       const config = yield* configFrom({ QUAI_RADARR_URL: "http://radarr_server_1:7878/", QUAI_SONARR_URL: "http://sonarr_server_1:8989", QUAI_SONARR_API_KEY: "k" })

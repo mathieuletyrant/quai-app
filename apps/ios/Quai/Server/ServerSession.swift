@@ -11,21 +11,21 @@ struct ServerSession: Sendable, Equatable {
     /// What the proxy in front of the public address requires. Sent to every address: the local
     /// one ignores them, and it is trusted with the device token already, a bigger secret.
     var accessHeaders: [AccessHeader] = []
-    /// Quai Home's console, where the pairing code was shown. Unknown for iPhones paired before 0.24.
-    var consoleURL: URL?
+    /// Quai Home's console: where the pairing code was shown, then its public address.
+    var consoleURLs: [URL] = []
 
     private static let tokenAccount = "deviceToken"
     private static let accessHeadersAccount = "accessHeaders"
     private static let urlsKey = "serverURLs"
-    private static let consoleKey = "consoleURL"
+    private static let consoleKey = "consoleURLs"
 
     static func stored() -> ServerSession? {
         guard let token = Keychain.read(tokenAccount) else { return nil }
         let urls = (UserDefaults.standard.stringArray(forKey: urlsKey) ?? []).compactMap(URL.init(string:))
         let headers = Keychain.read(accessHeadersAccount)
             .flatMap { try? JSONDecoder().decode([AccessHeader].self, from: Data($0.utf8)) } ?? []
-        let console = UserDefaults.standard.string(forKey: consoleKey).flatMap(URL.init(string:))
-        return urls.isEmpty ? nil : ServerSession(token: token, urls: urls, accessHeaders: headers, consoleURL: console)
+        let console = (UserDefaults.standard.stringArray(forKey: consoleKey) ?? []).compactMap(URL.init(string:))
+        return urls.isEmpty ? nil : ServerSession(token: token, urls: urls, accessHeaders: headers, consoleURLs: console)
     }
 
     func save() {
@@ -36,7 +36,7 @@ struct ServerSession: Sendable, Equatable {
             Keychain.write(json, for: Self.accessHeadersAccount)
         }
         UserDefaults.standard.set(urls.map(\.absoluteString), forKey: Self.urlsKey)
-        UserDefaults.standard.set(consoleURL?.absoluteString, forKey: Self.consoleKey)
+        UserDefaults.standard.set(consoleURLs.map(\.absoluteString), forKey: Self.consoleKey)
     }
 
     static func clear() {
@@ -99,6 +99,24 @@ struct ServerSession: Sendable, Equatable {
     }
 
     enum Probe: Sendable { case reachable, blocked, unreachable }
+
+    /// The console address to open: the first one that answers (the local one, at home), else the
+    /// last one (the public one, behind the user's own proxy and its sign-in).
+    static func consoleToOpen(_ urls: [URL], answers: (URL) async -> Bool) async -> URL? {
+        for url in urls.dropLast() where await answers(url) { return url }
+        return urls.last
+    }
+
+    /// Whether anything answers at this address within 3 s. Any HTTP answer counts: a proxy's
+    /// sign-in page is the console's door too.
+    static func answers(_ url: URL) async -> Bool {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 3
+        var request = URLRequest(url: url)
+        request.httpMethod = "HEAD"
+        let response = try? await URLSession(configuration: configuration).data(for: request).1
+        return response is HTTPURLResponse
+    }
 
     /// 10 s: on mobile data, the first request through a tunnel (DNS, TLS, the proxy) can take
     /// more than a few seconds.

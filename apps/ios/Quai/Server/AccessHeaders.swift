@@ -3,7 +3,7 @@ import HTTPTypes
 import OpenAPIRuntime
 
 /// A header the reverse proxy in front of Quai Cloud requires (a Cloudflare Access service token,
-/// a Pangolin or Authelia header token…). Set on the Cloud with `QUAI_PUBLIC_HEADERS`, it comes
+/// a Pangolin or Authelia header token…). Set on the Cloud with `QUAI_CLOUD_PUBLIC_HEADERS`, it comes
 /// with the pairing link, or is typed in Settings → Connection. The value is a secret: it lives in
 /// the Keychain with the device token.
 struct AccessHeader: Codable, Hashable, Sendable {

@@ -13,7 +13,7 @@ const fromEnv = (env: Record<string, string>) =>
 const failure = (text: string) =>
   Effect.flip(parseAccessHeaders(text)).pipe(Effect.map((e) => e.message))
 
-describe("QUAI_PUBLIC_HEADERS", () => {
+describe("QUAI_CLOUD_PUBLIC_HEADERS", () => {
   it.effect("reads Name: value pairs separated by ; or line breaks", () =>
     Effect.gen(function*() {
       const headers = yield* parseAccessHeaders(`${cloudflare};\n X-Token :  a b  \n`)
@@ -27,15 +27,15 @@ describe("QUAI_PUBLIC_HEADERS", () => {
 
   it.effect("refuses what isn't a header, and the headers Quai or HTTP own", () =>
     Effect.gen(function*() {
-      expect(yield* failure("X-Token abc")).toBe(`QUAI_PUBLIC_HEADERS: entry 1 isn't "Name: value"`)
-      expect(yield* failure("X-Ok: 1; Bad Name: 1")).toBe("QUAI_PUBLIC_HEADERS: entry 2 has no valid header name")
-      expect(yield* failure(": 1")).toBe("QUAI_PUBLIC_HEADERS: entry 1 has no valid header name")
+      expect(yield* failure("X-Token abc")).toBe(`QUAI_CLOUD_PUBLIC_HEADERS: entry 1 isn't "Name: value"`)
+      expect(yield* failure("X-Ok: 1; Bad Name: 1")).toBe("QUAI_CLOUD_PUBLIC_HEADERS: entry 2 has no valid header name")
+      expect(yield* failure(": 1")).toBe("QUAI_CLOUD_PUBLIC_HEADERS: entry 1 has no valid header name")
       for (const name of ["Authorization", "host", "Content-Type", "Content-Length", "Cookie", "Connection", "Transfer-Encoding", "Upgrade"]) {
-        expect(yield* failure(`${name}: x`)).toBe(`QUAI_PUBLIC_HEADERS: ${name} can't be set: Quai or HTTP itself sets it`)
+        expect(yield* failure(`${name}: x`)).toBe(`QUAI_CLOUD_PUBLIC_HEADERS: ${name} can't be set: Quai or HTTP itself sets it`)
       }
-      expect(yield* failure("X-Token: a; x-token: b")).toBe("QUAI_PUBLIC_HEADERS: x-token is given twice")
-      expect(yield* failure("X-Token:")).toBe("QUAI_PUBLIC_HEADERS: X-Token has an empty value or one with characters a header can't carry")
-      expect(yield* failure("X-Token: café")).toBe("QUAI_PUBLIC_HEADERS: X-Token has an empty value or one with characters a header can't carry")
+      expect(yield* failure("X-Token: a; x-token: b")).toBe("QUAI_CLOUD_PUBLIC_HEADERS: x-token is given twice")
+      expect(yield* failure("X-Token:")).toBe("QUAI_CLOUD_PUBLIC_HEADERS: X-Token has an empty value or one with characters a header can't carry")
+      expect(yield* failure("X-Token: café")).toBe("QUAI_CLOUD_PUBLIC_HEADERS: X-Token has an empty value or one with characters a header can't carry")
     }))
 
   it.effect("never puts a value in an error", () =>
@@ -47,13 +47,13 @@ describe("QUAI_PUBLIC_HEADERS", () => {
   it.effect("a malformed value stops the Cloud at startup", () =>
     Effect.gen(function*() {
       const started = Effect.gen(function*() { return yield* PublicAccess })
-      const error = yield* Effect.flip(Effect.provide(started, fromEnv({ QUAI_PUBLIC_HEADERS: "Host: evil" })))
+      const error = yield* Effect.flip(Effect.provide(started, fromEnv({ QUAI_CLOUD_PUBLIC_HEADERS: "Host: evil" })))
       expect(error._tag).toBe("InvalidAccessHeaders")
     }))
 })
 
 describe("public access", () => {
-  const configured = testAppWith(fromEnv({ QUAI_PUBLIC_URL: "https://quai.example.com", QUAI_PUBLIC_HEADERS: cloudflare }))
+  const configured = testAppWith(fromEnv({ QUAI_CLOUD_PUBLIC_URL: "https://quai.example.com", QUAI_CLOUD_PUBLIC_HEADERS: cloudflare }))
 
   it.effect("the QR code carries the public address and the access headers; the console sees their names", () =>
     Effect.gen(function*() {

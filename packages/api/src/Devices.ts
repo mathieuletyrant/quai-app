@@ -167,7 +167,7 @@ export const PairingCode = Schema.Struct({
   /**
    * What the QR code holds, read by the app's scanner:
    * `quai://pair?code=…&url=…&url=…&header=Name%3A%20value&header=…`, every value
-   * percent-encoded. `header` carries the access headers (`QUAI_PUBLIC_HEADERS`), names and
+   * percent-encoded. `header` carries the access headers (`QUAI_CLOUD_PUBLIC_HEADERS`), names and
    * values: apps that predate them ignore it. The console adds `console=…`, its own address, for
    * the app's "Open the console": Quai Cloud serves none.
    */
@@ -199,8 +199,8 @@ export class ConsoleGroup extends HttpApiGroup.make("console")
   .prefix("/console-api") {}
 
 /**
- * How the app reaches Quai Cloud from outside: Quai Cloud's own configuration (`QUAI_PUBLIC_URL`,
- * `QUAI_PUBLIC_HEADERS`). The access headers are those a reverse proxy in front of the Cloud
+ * How the app reaches Quai Cloud from outside: Quai Cloud's own configuration (`QUAI_CLOUD_PUBLIC_URL`,
+ * `QUAI_CLOUD_PUBLIC_HEADERS`). The access headers are those a reverse proxy in front of the Cloud
  * requires (a Cloudflare Access service token, say): shown by name only.
  */
 export const ConnectionSettings = Schema.Struct({

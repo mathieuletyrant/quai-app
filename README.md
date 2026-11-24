@@ -121,6 +121,7 @@ your own account.
 | `QUAI_CLOUD_APP_URL` | Where the iPhone reaches Quai Cloud at home, for the pairing QR code, when `QUAI_CLOUD_URL` is an address only Home reaches (`http://server:8787`). Default: `QUAI_CLOUD_URL` in http(s) |
 | `QUAI_HOME_PASSWORD` | The console's password. Without it the console stays locked |
 | `QUAI_HOME_PORT` | The console, the webhooks and `/health` (default `8788`) |
+| `QUAI_CONSOLE_PUBLIC_URL` | The console's address from outside, behind your own proxy or tunnel. Added to the pairing QR code: the app's "Open the console" opens it when the console's address at home doesn't answer |
 | `QUAI_INTERNAL_URL` | How Radarr and Sonarr reach Home, for the webhooks it sets up |
 | `QUAI_DATA_DIR` | Where Home keeps its data (default `./data`, `/data` in the image) |
 | `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (Settings → General). Each service can be set in the console's Services page instead; a variable set here wins |
@@ -143,8 +144,8 @@ A service set neither here nor in the console's Services page is skipped.
 | `QUAI_PORT` | `8787` | The app's API and the `/home` WebSocket (the console is Quai Home's) |
 | `QUAI_APNS_KEY_FILE` (or `QUAI_APNS_KEY`), `QUAI_APNS_KEY_ID`, `QUAI_APNS_TEAM_ID` | | Apple push key (.p8) |
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The app's bundle id |
-| `QUAI_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
-| `QUAI_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
+| `QUAI_CLOUD_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
+| `QUAI_CLOUD_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
 | `QUAI_TZ` | `UTC` | Time zone for "today", until an iPhone reports its own |
 | `QUAI_HOME_ID` | | The only Quai Homes served, comma-separated (the id each logs as `linked as home …`); any other is refused ([docs](docs/proxy.md#quai_home_id)) |
 | `QUAI_MAX_HOMES` | | How many Quai Homes may be linked at once; past it, a new one is refused |

@@ -75,8 +75,13 @@ final class Connection {
     var isPaired: Bool { session != nil }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
-    /// Quai Home's console, as the pairing code gave it: Quai Cloud serves none.
-    var consoleURL: URL? { session?.consoleURL }
+    /// Quai Home's console addresses, as the pairing code gave them: Quai Cloud serves none.
+    var consoleURLs: [URL] { session?.consoleURLs ?? [] }
+
+    /// The console address that works from where the iPhone is now.
+    func consoleToOpen() async -> URL? {
+        await ServerSession.consoleToOpen(consoleURLs) { await ServerSession.answers($0) }
+    }
     /// Quai answers at its first address, the one at home (the pairing code lists it first). With
     /// a single address, the app can't tell: it counts as away.
     var isAtHome: Bool { ServerSession.isAtHome(serverURL, in: serverURLs) }
@@ -115,7 +120,7 @@ final class Connection {
             token: paired.token,
             urls: ServerSession.pairedURLs(link.serverURLs, answered: url),
             accessHeaders: link.accessHeaders,
-            consoleURL: link.consoleURL
+            consoleURLs: link.consoleURLs
         )
         session.save()
         self.session = session
