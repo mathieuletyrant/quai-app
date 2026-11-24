@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.1](https://github.com/mathieuletyrant/quai-app/compare/v0.27.0...v0.27.1) (2026-11-24)
+
+
+### 🐛 Fixes
+
+* **ios:** library posters, search loader and tapping a search result ([#97](https://github.com/mathieuletyrant/quai-app/issues/97)) ([3eec83f](https://github.com/mathieuletyrant/quai-app/commit/3eec83f0f3134857e8232c92753b1192d93ce615))
+
 ## [0.27.0](https://github.com/mathieuletyrant/quai-app/compare/v0.26.0...v0.27.0) (2026-11-24)
 
 
