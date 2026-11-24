@@ -394,10 +394,21 @@
 <li style="display: flex; gap: 22px;">
 <div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">1</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
 <div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
-<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Run Quai Home</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">One Docker container on your server, next to your media apps. Your data lives in its volume.</p><a href="https://github.com/mathieuletyrant/quai-app" style="align-self: flex-start; margin-top: 6px; font-size: 15px; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg>Install guide on GitHub ›</a></div>
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Choose your Quai Cloud</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">It sends the Live Activities through Apple. Ours needs nothing from you. Yours needs your own Apple push key and your own build of the app.</p></div>
+<div role="group" aria-label="Which Quai Cloud" style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
+<button type="button" class="q-cloud-pick" data-cloud="ours" aria-pressed="true"><span class="q-radio" aria-hidden="true"><span></span></span><span style="flex: 1 1 160px;"><span style="display: block; font-size: 15px; font-weight: 700;">Our Quai Cloud</span><span style="display: block; font-size: 13px; color: #A1A1A6;">Nothing to set up, works away from home</span></span><span style="font-size: 12px; font-weight: 600; color: #6FD3C2; background: rgba(111,211,194,0.12); border-radius: 7px; padding: 4px 9px;">Free during the beta</span></button>
+<button type="button" class="q-cloud-pick" data-cloud="own" aria-pressed="false"><span class="q-radio" aria-hidden="true"><span></span></span><span style="flex: 1 1 160px;"><span style="display: block; font-size: 15px; font-weight: 700;">Your own Quai Cloud</span><span style="display: block; font-size: 13px; color: #A1A1A6;">Your Apple push key, your build of the app</span></span></button>
+</div>
+</div>
+</li>
+
+<li style="display: flex; gap: 22px;">
+<div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">2</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
+<div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Run Quai Home</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;"><span data-compose-text="ours">One Docker container on your server, next to your media apps, linked to our Quai Cloud. Your data lives in its volume.</span><span data-compose-text="own" hidden>Quai Home and your Quai Cloud, side by side on your server. Your data lives in Quai Home’s volume.</span></p><a href="llms.txt" style="align-self: flex-start; margin-top: 6px; font-size: 15px; font-weight: 600; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5"></path></svg>Full install guide ›</a></div>
 <div style="flex: 1 1 440px; min-width: 0; background: #0E0E12; border: 1px solid #26262C; border-radius: 18px; overflow: hidden;">
 <div style="display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #222228; background: #141418;"><span style="width: 10px; height: 10px; border-radius: 5px; background: #3A3A42;"></span><span style="width: 10px; height: 10px; border-radius: 5px; background: #3A3A42;"></span><span style="width: 10px; height: 10px; border-radius: 5px; background: #3A3A42;"></span><span style="margin-left: 8px; font-size: 12px; color: #8E8E93; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">compose.yaml</span></div>
-<pre style="margin: 0; padding: 16px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.7; color: #D1D1D6; overflow-x: auto;"><span style="color: #6FD3C2;">services</span>:
+<pre data-compose="ours" style="margin: 0; padding: 16px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.7; color: #D1D1D6; overflow-x: auto;"><span style="color: #6FD3C2;">services</span>:
   <span style="color: #6FD3C2;">quai-home</span>:
     image: ghcr.io/mathieuletyrant/quai-home:latest
     restart: unless-stopped
@@ -407,20 +418,29 @@
       QUAI_HOME_PASSWORD: change-me
     volumes:
       - ./quai-home:/data</pre>
+<pre data-compose="own" hidden style="margin: 0; padding: 16px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.7; color: #D1D1D6; overflow-x: auto;"><span style="color: #6FD3C2;">services</span>:
+  <span style="color: #6FD3C2;">quai-cloud</span>:
+    image: ghcr.io/mathieuletyrant/quai:latest
+    restart: unless-stopped
+    ports: ["8787:8787"]
+    environment:
+      QUAI_APNS_KEY_FILE: /keys/AuthKey.p8
+      QUAI_APNS_KEY_ID: ABCDE12345
+      QUAI_APNS_TEAM_ID: FGHIJ67890
+      QUAI_APNS_TOPIC: com.example.quai
+    volumes:
+      - ./keys:/keys:ro
+  <span style="color: #6FD3C2;">quai-home</span>:
+    image: ghcr.io/mathieuletyrant/quai-home:latest
+    restart: unless-stopped
+    ports: ["8788:8788"]
+    environment:
+      QUAI_CLOUD_URL: ws://quai-cloud:8787/home
+      QUAI_CLOUD_APP_URL: http://&lt;server&gt;:8787
+      QUAI_HOME_PASSWORD: change-me
+    volumes:
+      - ./quai-home:/data</pre>
 <div style="padding: 12px 18px; border-top: 1px solid #222228; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #D1D1D6;"><span style="color: #8E8E93;">$</span> docker compose up -d</div>
-</div>
-</div>
-</li>
-
-<li style="display: flex; gap: 22px;">
-<div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">2</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
-<div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
-<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Connect your services</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">Open the console. Add each app’s address and API key; Quai sets its own webhooks in Radarr and Sonarr.</p></div>
-<div style="flex: 1 1 440px; min-width: 0; background: #141418; border: 1px solid #26262C; border-radius: 18px; overflow: hidden;">
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Radarr</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://radarr:7878</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Sonarr</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://sonarr:8989</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">qBittorrent</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://qbittorrent:8080</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Jellyfin</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://jellyfin:8096</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
 </div>
 </div>
 </li>
@@ -428,10 +448,12 @@
 <li style="display: flex; gap: 22px;">
 <div aria-hidden="true" style="display: flex; flex-direction: column; align-items: center; flex-shrink: 0;"><span style="width: 44px; height: 44px; border-radius: 22px; background: #6FD3C2; color: #0B0B0E; font-weight: 800; font-size: 17px; display: grid; place-items: center;">3</span><div style="flex: 1; width: 0; border-left: 2px dashed #2E2E35; margin: 8px 0;"></div></div>
 <div style="flex: 1; min-width: 0; padding-bottom: 48px; display: flex; flex-wrap: wrap; gap: 20px 40px; align-items: flex-start;">
-<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Link a Quai Cloud</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">Ours, with nothing to set up. Or yours, with <code style="font-size: 14px; color: #F5F5F7; background: #1E1E24; border-radius: 5px; padding: 1px 5px;">QUAI_CLOUD_URL</code>.</p></div>
-<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 10px;">
-<div style="background: #141418; border: 1.5px solid #6FD3C2; border-radius: 16px; padding: 14px 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;"><span style="width: 20px; height: 20px; border-radius: 10px; border: 2px solid #6FD3C2; display: grid; place-items: center; box-sizing: border-box;"><span style="width: 10px; height: 10px; border-radius: 5px; background: #6FD3C2;"></span></span><div style="flex: 1 1 160px;"><div style="font-size: 15px; font-weight: 700;">Our Quai Cloud</div><div style="font-size: 13px; color: #A1A1A6;">Nothing to set up</div></div><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
-<div style="background: #141418; border: 1px solid #26262C; border-radius: 16px; padding: 14px 18px; display: flex; align-items: center; gap: 12px;"><span style="width: 20px; height: 20px; border-radius: 10px; border: 2px solid #4A4A52; box-sizing: border-box; flex-shrink: 0;"></span><div style="flex: 1;"><div style="font-size: 15px; font-weight: 700;">Your own Quai Cloud</div><div style="font-size: 13px; color: #A1A1A6;">Your Apple push key, your build of the app</div></div></div>
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding-top: 8px;"><h3 style="margin: 0; font-size: 22px; font-weight: 700;">Connect your services</h3><p style="margin: 0; font-size: 16px; line-height: 1.6; color: #A1A1A6;">Open the console. Add each app’s address and API key; Quai sets its own webhooks in Radarr and Sonarr.</p></div>
+<div style="flex: 1 1 440px; min-width: 0; background: #141418; border: 1px solid #26262C; border-radius: 18px; overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Radarr</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://radarr:7878</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Sonarr</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://sonarr:8989</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px; border-bottom: 1px solid #222228;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">qBittorrent</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://qbittorrent:8080</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 18px;"><div style="flex: 1 1 110px; font-size: 15px; font-weight: 700;">Jellyfin</div><code style="flex: 1 1 170px; font-size: 12px; color: #D1D1D6;">http://jellyfin:8096</code><span style="font-size: 12px; font-weight: 600; color: #30D158; background: rgba(48,209,88,0.12); border-radius: 7px; padding: 4px 9px; display: inline-flex; align-items: center; gap: 6px;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #30D158;"></span>Connected</span></div>
 </div>
 </div>
 </li>

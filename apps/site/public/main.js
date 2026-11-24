@@ -142,6 +142,18 @@ for (const button of picks) {
   });
 }
 
+// Our Quai Cloud or one's own: the setup's compose.yaml and its sentence follow the choice.
+const cloudPicks = document.querySelectorAll(".q-cloud-pick");
+for (const button of cloudPicks) {
+  button.addEventListener("click", () => {
+    const choice = button.dataset.cloud;
+    for (const b of cloudPicks) b.setAttribute("aria-pressed", String(b === button));
+    for (const el of document.querySelectorAll("[data-compose], [data-compose-text]")) {
+      el.hidden = (el.dataset.compose ?? el.dataset.composeText) !== choice;
+    }
+  });
+}
+
 // Reveal on scroll, staggered among siblings.
 const revealed = document.querySelectorAll("[data-reveal]");
 if (reduceMotion || !("IntersectionObserver" in window)) {
