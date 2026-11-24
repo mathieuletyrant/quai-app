@@ -195,3 +195,20 @@ describe("a flow edited under a running activity", () => {
     expect(state.activities.size).toBe(0)
   })
 })
+
+describe("a flow disabled under a running activity", () => {
+  const disabled: Flow = { ...download, enabled: false }
+  const onGrabbed = onEvent(emptyState, [download], ev.grabbed(), 0).state
+
+  it("a tick ends it and forgets it", () => {
+    const { pushes, state } = onTick(onGrabbed, [disabled], 1_000)
+    expect(tags(pushes)).toEqual(["End:1"])
+    expect(state.activities.size).toBe(0)
+  })
+
+  it("a data event ends it instead of updating it", () => {
+    const { pushes, state } = onEvent(onGrabbed, [disabled], ev.progress(0.5), 1_000)
+    expect(tags(pushes)).toEqual(["End:1"])
+    expect(state.activities.size).toBe(0)
+  })
+})
