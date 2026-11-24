@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/mathieuletyrant/quai-app/compare/v0.21.0...v0.22.0) (2026-11-24)
+
+
+### ✨ Features
+
+* **cloud:** serve many homes from one Quai Cloud ([#77](https://github.com/mathieuletyrant/quai-app/issues/77)) ([902c82e](https://github.com/mathieuletyrant/quai-app/commit/902c82e62e72be730a691b660cf8562e8d5392bf))
+
 ## [0.21.0](https://github.com/mathieuletyrant/quai-app/compare/v0.20.0...v0.21.0) (2026-11-23)
 
 
