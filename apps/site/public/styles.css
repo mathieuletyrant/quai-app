@@ -94,14 +94,15 @@ q-if[hidden] { display: none; }
 /* Illustrations: what matters is drawn, the rest is a quiet placeholder. */
 .q-skel { display: block; border-radius: 5px; background: #26262C; }
 
-/* The app's screens, drawn: a smaller iPhone, the app's dark screen, its tiles. */
-.q-app-phones { display: flex; justify-content: center; gap: 28px; }
-.q-iphone.q-iphone-app { width: 264px; height: 552px; border-radius: 50px; flex-shrink: 0; }
-.q-iphone-app .q-bezel { border-radius: 47px; padding: 8px; }
-.q-iphone-app .q-screen { border-radius: 39px; background: #0B0B0F; align-items: stretch; padding: 0 12px 8px; }
-.q-iphone-app .q-island { width: 96px; height: 28px; top: 10px; }
-.q-iphone-app .q-status { padding: 14px 16px 0; height: 38px; font-size: 13px; }
-.q-app-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 7px; padding-top: 8px; overflow: hidden; }
+/* The app's screens, drawn over the Lock Screen when "App" is picked: the app's dark screen, its tiles. */
+.q-app-layer { position: absolute; inset: 0; z-index: 2; background: #0B0B0F; display: flex; flex-direction: column; padding: 0 14px 12px; box-sizing: border-box; }
+.q-app-layer[hidden] { display: none; }
+.q-app-dots { display: flex; justify-content: center; gap: 4px; padding-top: 8px; }
+.q-app-dots button { width: 24px; height: 24px; border: 0; padding: 0; background: transparent; cursor: pointer; display: grid; place-items: center; }
+.q-app-dots button::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #4A4A52; transition: background-color .2s, width .2s; }
+.q-app-dots button[aria-pressed="true"]::before { width: 18px; border-radius: 4px; background: #6FD3C2; }
+.q-app-screen { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 9px; padding-top: 10px; overflow: hidden; }
+.q-app-screen[hidden] { display: none; }
 .q-app-eyebrow { font-size: 10px; font-weight: 600; color: #A1A1A6; letter-spacing: .02em; text-transform: uppercase; }
 .q-app-title { font-size: 25px; font-weight: 800; letter-spacing: -.5px; line-height: 1.05; margin-bottom: 4px; }
 .q-app-tile { background: #1A1A20; border-radius: 20px; padding: 11px; display: flex; flex-direction: column; gap: 8px; }
@@ -136,12 +137,6 @@ q-if[hidden] { display: none; }
 .q-app-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; font-weight: 700; padding: 2px 5px; border-radius: 5px; background: #3A2A1E; color: #FFB36B; }
 .q-app-badge.is-dl { background: #3A3220; color: #FFC230; }
 
-@media (max-width: 900px) {
-  /* Swiped through, one phone at a time, instead of three tall phones stacked. */
-  .q-app-phones { justify-content: flex-start; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 24px 28px; margin: 0 -24px; scrollbar-width: none; }
-  .q-app-phones::-webkit-scrollbar { display: none; }
-  .q-app-phones > figure { scroll-snap-align: center; }
-}
 
 @media (max-width: 980px) {
   .q-flow { grid-template-columns: minmax(0, 1fr) !important; row-gap: 12px; }

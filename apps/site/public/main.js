@@ -1,4 +1,4 @@
-// The landing's moving parts: the Lock Screen's Live Activity, the Quai Cloud switch,
+// The landing's moving parts: the Lock Screen's Live Activity or the app on the hero's iPhone, the Quai Cloud switch,
 // and cards that fade in as they scroll into view.
 document.documentElement.classList.add("js");
 
@@ -97,6 +97,10 @@ const renderPhone = (t) => {
   }
 };
 
+// The Lock Screen's story runs only while it is shown, on screen, in a visible tab; each start replays it.
+let view = "lock";
+let onScreen = true;
+const lockStory = { start() {}, stop() {} };
 if (phone && !reduceMotion) {
   let started = performance.now();
   let frame = 0;
@@ -110,18 +114,74 @@ if (phone && !reduceMotion) {
     }
     frame = requestAnimationFrame(tick);
   };
-  const start = () => { if (!frame) { started = performance.now(); frame = requestAnimationFrame(tick); } };
-  const stop = () => { cancelAnimationFrame(frame); frame = 0; };
-  // Only run while the phone is on screen and the tab is visible; each start replays the story.
-  let onScreen = true;
-  new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; onScreen && !document.hidden ? start() : stop(); }).observe(phone);
-  document.addEventListener("visibilitychange", () => { onScreen && !document.hidden ? start() : stop(); });
-  start();
+  lockStory.start = () => { if (!frame) { started = performance.now(); frame = requestAnimationFrame(tick); } };
+  lockStory.stop = () => { cancelAnimationFrame(frame); frame = 0; };
+}
+
+// "App": the app's Home, Today and Library, one after the other, or the one a dot picks.
+const appLayer = phone?.querySelector("[data-app-layer]");
+const appScreens = ["home", "today", "library"];
+const appLabels = {
+  home: "The Quai app's Home: what to fix, today's releases, the titles recently added, how many are wanted, the disk",
+  today: "Today's releases in the Quai app, each with its air time and where it stands",
+  library: "The Quai app's Library: posters of movies and series, one downloading, two wanted",
+};
+const lockLabel = phone?.getAttribute("aria-label") ?? "";
+let appShown = "home";
+let appTimer = 0;
+const showApp = (name) => {
+  appShown = name;
+  for (const screen of appLayer.querySelectorAll("[data-app]")) {
+    const show = screen.dataset.app === name;
+    if (show && screen.hidden && !reduceMotion) {
+      screen.classList.remove("q-swap");
+      void screen.offsetWidth;
+      screen.classList.add("q-swap");
+    }
+    screen.hidden = !show;
+  }
+  for (const dot of appLayer.querySelectorAll("[data-app-pick]")) dot.setAttribute("aria-pressed", String(dot.dataset.appPick === name));
+  phone.setAttribute("aria-label", appLabels[name]);
+};
+const appTour = {
+  start() {
+    if (reduceMotion || appTimer) return;
+    appTimer = setInterval(() => showApp(appScreens[(appScreens.indexOf(appShown) + 1) % appScreens.length]), 4000);
+  },
+  stop() { clearInterval(appTimer); appTimer = 0; },
+};
+
+const running = () => (view === "lock" ? lockStory : appTour);
+const idle = () => (view === "lock" ? appTour : lockStory);
+const sync = () => {
+  idle().stop();
+  onScreen && !document.hidden ? running().start() : running().stop();
+};
+if (phone) {
+  new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; sync(); }).observe(phone);
+  document.addEventListener("visibilitychange", sync);
+  sync();
+}
+
+const viewPicks = document.querySelectorAll(".q-view-pick");
+for (const button of viewPicks) {
+  button.addEventListener("click", () => {
+    view = button.dataset.view;
+    for (const b of viewPicks) b.setAttribute("aria-pressed", String(b === button));
+    appLayer.hidden = view !== "app";
+    if (view === "app") showApp("home");
+    else phone.setAttribute("aria-label", lockLabel);
+    sync();
+  });
+}
+for (const dot of appLayer?.querySelectorAll("[data-app-pick]") ?? []) {
+  // A pick restarts the tour from there, so it doesn't move on right away.
+  dot.addEventListener("click", () => { appTour.stop(); showApp(dot.dataset.appPick); sync(); });
 }
 
 // "With our Quai Cloud" or "Fully self-hosted": both buttons switch the diagram and the cards below it.
-const picks = document.querySelectorAll(".q-pick");
 const how = document.getElementById("how");
+const picks = how.querySelectorAll(".q-pick");
 for (const button of picks) {
   button.addEventListener("click", () => {
     const ours = button.dataset.mode === "ours";

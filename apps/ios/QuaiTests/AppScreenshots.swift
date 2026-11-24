@@ -36,38 +36,21 @@ struct AppScreenshots {
         Self.screenshot(window, "01-home")
     }
 
-    /// The Home's tiles under the fold: the square Library tiles over the disk.
-    @Test func homeLibraryTiles() async throws {
+    /// The Home scrolled to its end: the Recently added and Wanted tiles, over the disk.
+    @Test func homeBottom() async throws {
         let connection = try await Self.pairedConnection()
-        await connection.loadLibrary()
-        let library = try #require(connection.library, "The preview's library didn't load")
-        let highlights = LibraryHighlights(library.items)
-        let oldest = Array(library.items.filter { $0.addedAt != nil }.sorted { ($0.addedAt ?? 0) < ($1.addedAt ?? 0) }.prefix(1))
-        let window = try Self.show(
-            Screen {
-                TabHeader(eyebrow: "Home", title: "Library tiles")
-            } content: {
-                VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
-                    TileRow {
-                        RecentlyAddedTile(highlights: highlights)
-                        WantedTile(count: highlights.wanted)
-                    }
-                    // A quiet week, nothing missing: one poster, its caption, the tick.
-                    TileRow {
-                        RecentlyAddedTile(highlights: LibraryHighlights(oldest))
-                        WantedTile(count: 0)
-                    }
-                    if let disk = library.disk {
-                        StorageTile(reading: DiskReading(disk))
-                    }
-                }
-            }
-            .tint(.quaiAccent)
-            .preferredColorScheme(.dark),
-            connection
-        )
-        try await Self.settle(3)
-        Self.screenshot(window, "01-home-library-tiles")
+        let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .home), connection)
+        try await Self.until("the Home's tiles and the library") {
+            connection.fixes != nil && connection.requests != nil && connection.releases != nil && connection.library != nil
+        }
+        try await Self.settle()
+        // Nothing to scroll when the Home fits the screen: the tiles are already in view.
+        if let scroll = Self.scrollView(in: window) {
+            let bottom = scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom
+            scroll.setContentOffset(CGPoint(x: 0, y: bottom), animated: false)
+        }
+        try await Self.settle()
+        Self.screenshot(window, "01-home-bottom")
     }
 
     @Test func releases() async throws {
@@ -198,6 +181,15 @@ struct AppScreenshots {
         window.makeKeyAndVisible()
         windows.append(window)
         return window
+    }
+
+    /// The first scroll view that scrolls vertically, depth first: a screen's content.
+    private static func scrollView(in view: UIView) -> UIScrollView? {
+        if let scroll = view as? UIScrollView, scroll.contentSize.height > scroll.bounds.height { return scroll }
+        for child in view.subviews {
+            if let found = scrollView(in: child) { return found }
+        }
+        return nil
     }
 
     private static func until(
