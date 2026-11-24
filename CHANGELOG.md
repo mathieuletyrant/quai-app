@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.23.0](https://github.com/mathieuletyrant/quai-app/compare/v0.22.0...v0.23.0) (2026-11-24)
+
+
+### ✨ Features
+
+* **cloud:** host Quai Cloud on Cloudflare Containers at cloud.quai.stream ([#83](https://github.com/mathieuletyrant/quai-app/issues/83)) ([d52e7e3](https://github.com/mathieuletyrant/quai-app/commit/d52e7e3d8d6c44102274a592113df28b5dfc332f))
+* **site:** add the website and deploy it to quai.stream ([#79](https://github.com/mathieuletyrant/quai-app/issues/79)) ([043a5f4](https://github.com/mathieuletyrant/quai-app/commit/043a5f4fb4f67cecc51931ce634bd4e1015e5a3b))
+
+
+### 🐛 Fixes
+
+* **site:** run the deploy script, not pnpm's own deploy command ([#81](https://github.com/mathieuletyrant/quai-app/issues/81)) ([f8422c2](https://github.com/mathieuletyrant/quai-app/commit/f8422c290099d840296f507418e0e3eb0849c6d1))
+* **site:** run the deploy script, not pnpm's own deploy command ([#82](https://github.com/mathieuletyrant/quai-app/issues/82)) ([37bd002](https://github.com/mathieuletyrant/quai-app/commit/37bd002e1ee5070dbd387929b29cccceab240733))
+
 ## [0.22.0](https://github.com/mathieuletyrant/quai-app/compare/v0.21.0...v0.22.0) (2026-11-24)
 
 
