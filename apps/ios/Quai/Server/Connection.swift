@@ -75,6 +75,8 @@ final class Connection {
     @ObservationIgnored var readDelay: Duration?
 
     var isPaired: Bool { session != nil }
+    /// The last refresh of the activities reached the server.
+    private(set) var isConnected = false
     /// Looking for an address that answers, or about to try again.
     var isSearching: Bool { connecting != nil || retrying }
     /// Every address this iPhone may reach the server at, the local one first.
@@ -149,6 +151,7 @@ final class Connection {
         session = nil
         connecting = nil
         serverURL = nil
+        isConnected = false
         activities = []
         flowSubjects = [:]
         library = nil
@@ -196,7 +199,10 @@ final class Connection {
             do {
                 try await readActivities()
             } catch {
-                if !error.isCancellation { lastError = error.quaiMessage }
+                if !error.isCancellation {
+                    lastError = error.quaiMessage
+                    isConnected = false
+                }
             }
         }
     }
@@ -205,6 +211,7 @@ final class Connection {
         let client = try await requiredClient()
         activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
         lastError = nil
+        isConnected = true
         await learnSubjects()
     }
 

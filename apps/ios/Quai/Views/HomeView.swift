@@ -65,6 +65,13 @@ struct HomeView: View {
     private var releases: [DayRelease] { connection.releases?.items ?? [] }
     private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
 
+    /// A spinner while a search for the server takes a while, a green dot once it answered.
+    private var serverStatus: ServerStatus? {
+        if showsSearching { return .searching }
+        if connection.isConnected { return .connected }
+        return nil
+    }
+
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
         fixes.isEmpty && requests.isEmpty && releases.isEmpty && alerts.isEmpty
@@ -82,7 +89,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             Screen {
-                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay, busy: showsSearching)
+                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay, status: serverStatus)
             } content: {
                 VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
                     if isLoading {
