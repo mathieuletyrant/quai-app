@@ -124,10 +124,11 @@ struct ReleaseStatusLabel: View {
 }
 
 /// Today's releases, from Sonarr's and Radarr's calendars: when each airs and where it stands.
-/// Read only: Quai never grabs anything for them.
+/// A release opens its title of the Library. Read only: Quai never grabs anything for them.
 struct ReleasesView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
+    @State private var selected: LibraryItem?
 
     private var items: [DayRelease] { connection.releases?.items ?? [] }
 
@@ -135,6 +136,11 @@ struct ReleasesView: View {
         guard let releases = connection.releases else { return nil }
         let here = releases.items.filter { $0.status == .available }.count
         return releases.items.isEmpty ? "Nothing comes out today" : "\(here) of \(releases.items.count) here"
+    }
+
+    /// The release's title in the Library, once the Library is loaded.
+    private func libraryItem(_ release: DayRelease) -> LibraryItem? {
+        connection.library?.items.first { $0.id == release.libraryId }
     }
 
     var body: some View {
@@ -158,29 +164,60 @@ struct ReleasesView: View {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
             }
             ForEach(items, id: \.id) { release in
-                Card(spacing: 0) {
-                    HStack(alignment: .top, spacing: 12) {
-                        PosterThumbnail(url: PosterSize.small.url(release.posterUrl), width: 44, cornerRadius: 9) {
-                            SymbolSquare(systemImage: release.kind.rawValue == "movie" ? "film" : "tv", color: Palette.releases, size: 44)
-                        }
-                        .frame(width: 44, height: 66)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(release.headline)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Palette.primaryText)
-                            if let episodeTitle = release.episodeTitle {
-                                Text(episodeTitle).font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
-                            }
-                            Text(release.airTime).font(QuaiFont.caption.monospacedDigit()).foregroundStyle(Palette.secondaryText)
-                        }
-                        Spacer(minLength: 8)
-                        ReleaseStatusLabel(status: release.status)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
+                let item = libraryItem(release)
+                Button { selected = item } label: { ReleaseRow(release: release, opens: item != nil) }
+                    .buttonStyle(.plain)
+                    // Not `.disabled`: it would dim a release that only has no title to open.
+                    .allowsHitTesting(item != nil)
+                    .accessibilityHint(item == nil ? "" : "Opens it in the Library")
             }
         }
         .refreshable { await connection.loadReleases() }
-        .task { await connection.loadReleases() }
+        .task {
+            await connection.loadReleases()
+            if connection.library == nil { await connection.loadLibrary() }
+        }
+        .sheet(item: $selected) { item in
+            TitleDetailView(item: item)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+/// One release of the day: its poster, the title and episode, when it airs, where it stands, and a
+/// chevron when it opens its title of the Library.
+private struct ReleaseRow: View {
+    let release: DayRelease
+    let opens: Bool
+
+    var body: some View {
+        Card(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                PosterThumbnail(url: PosterSize.small.url(release.posterUrl), width: 44, cornerRadius: 9) {
+                    SymbolSquare(systemImage: release.kind.rawValue == "movie" ? "film" : "tv", color: Palette.releases, size: 44)
+                }
+                .frame(width: 44, height: 66)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(release.headline)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Palette.primaryText)
+                    if let episodeTitle = release.episodeTitle {
+                        Text(episodeTitle).font(QuaiFont.caption).foregroundStyle(Palette.secondaryText)
+                    }
+                    Text(release.airTime).font(QuaiFont.caption.monospacedDigit()).foregroundStyle(Palette.secondaryText)
+                }
+                Spacer(minLength: 8)
+                ReleaseStatusLabel(status: release.status)
+                if opens {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Palette.tertiaryText)
+                        .padding(.top, 2)
+                }
+            }
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+        }
     }
 }

@@ -89,6 +89,8 @@ describe("today's releases", () => {
       ["episode:503", "Slow Horses", "S05E03", "missing"],
       ["movie:60", "The Wild Robot", undefined, "grabbed"]
     ])
+    // Each points at its title in the Library: the series for an episode, the movie itself.
+    expect(releases.map((r) => r.libraryId)).toEqual(["series:3", "series:8", "series:11", "movie:60"])
     expect(releases[0]).toMatchObject({
       kind: "episode",
       episodeTitle: "Cold Harbor",

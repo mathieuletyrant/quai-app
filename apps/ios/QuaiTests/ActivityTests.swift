@@ -22,6 +22,13 @@ struct ActivityStateTests {
         let json = ##"{"key":"download|movie:tmdb:1","flowId":"download","title":"Dune","color":"#FFC230","icon":"arrow.down","steps":[{"id":"downloading","label":"Downloading","icon":"arrow.down"},{"id":"available","label":"Ready to watch","icon":"checkmark"}]}"##
         let attributes = try JSONDecoder().decode(QuaiActivityAttributes.self, from: Data(json.utf8))
         #expect(attributes.steps.map(\.id) == ["downloading", "available"])
+        #expect(attributes.showsSteps)
+    }
+
+    @Test func aRequestShowsItsButtonsNotItsSteps() throws {
+        let json = ##"{"key":"requests|request:1","flowId":"requests","title":"Send Help","color":"#8B8CF8","icon":"person.badge.clock","steps":[{"id":"pending","label":"To approve","icon":"person.badge.clock","actions":["request.approve","request.decline"]},{"id":"approved","label":"Approved","icon":"checkmark"}]}"##
+        let attributes = try JSONDecoder().decode(QuaiActivityAttributes.self, from: Data(json.utf8))
+        #expect(!attributes.showsSteps)
     }
 }
 

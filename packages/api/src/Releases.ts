@@ -16,6 +16,8 @@ export const DayRelease = Schema.Struct({
   /** `episode:<sonarr id>` or `movie:<radarr id>`. */
   id: Schema.String,
   kind: Schema.Literals(["episode", "movie"]),
+  /** The `LibraryItem` it belongs to: `series:<sonarr id>` for an episode, `movie:<radarr id>`. */
+  libraryId: Schema.String,
   /** The series' or the movie's title. */
   title: Schema.String,
   /** "S02E03" */

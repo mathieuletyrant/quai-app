@@ -14,6 +14,12 @@ struct QuaiActivityAttributes: ActivityAttributes {
         var actions: [String]?
     }
 
+    /// Whether the activity draws its row of steps. Not for a flow with buttons (a request: To
+    /// approve, Approved): the buttons already say where it stands. Not for a one-step flow either.
+    var showsSteps: Bool {
+        steps.count > 1 && !steps.contains { !($0.actions ?? []).isEmpty }
+    }
+
     enum Tone: String, Codable, Hashable {
         case active, stalled, done
     }

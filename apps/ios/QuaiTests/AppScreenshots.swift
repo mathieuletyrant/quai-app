@@ -36,6 +36,54 @@ struct AppScreenshots {
         Self.screenshot(window, "01-home")
     }
 
+    /// The Home scrolled to its end: the Recently added and Wanted tiles, over the disk.
+    @Test func homeBottom() async throws {
+        let connection = try await Self.pairedConnection()
+        let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .home), connection)
+        try await Self.until("the Home's tiles and the library") {
+            connection.fixes != nil && connection.requests != nil && connection.releases != nil && connection.library != nil
+        }
+        try await Self.settle()
+        // Nothing to scroll when the Home fits the screen: the tiles are already in view.
+        if let scroll = Self.scrollView(in: window) {
+            let bottom = scroll.contentSize.height - scroll.bounds.height + scroll.adjustedContentInset.bottom
+            scroll.setContentOffset(CGPoint(x: 0, y: bottom), animated: false)
+        }
+        try await Self.settle()
+        Self.screenshot(window, "01-home-bottom")
+    }
+
+    @Test func releases() async throws {
+        let connection = try await Self.pairedConnection()
+        let window = try Self.show(
+            NavigationStack { ReleasesView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        // The chevrons show once the Library is loaded: each release opens its title there.
+        try await Self.until("today's releases and the library") { connection.releases != nil && connection.library != nil }
+        try await Self.settle()
+        Self.screenshot(window, "01-home-releases")
+
+        // A release opened: its title's detail, as from the Library.
+        let opened = try #require(
+            connection.releases?.items.lazy.compactMap { release in connection.library?.items.first { $0.id == release.libraryId } }.first,
+            "No release of the preview is in its library"
+        )
+        let detail = try Self.show(
+            NavigationStack { ReleasesView() }.sheet(isPresented: .constant(true)) {
+                TitleDetailView(item: opened)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .tint(.quaiAccent)
+            .preferredColorScheme(.dark),
+            connection
+        )
+        // The sheet slides up while the screen under it loads: longer than the usual settle.
+        try await Self.settle(4)
+        Self.screenshot(detail, "01-home-releases-title")
+    }
+
     @Test func library() async throws {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .library), connection)
@@ -45,7 +93,7 @@ struct AppScreenshots {
 
         let item = try #require(connection.library?.items.first { $0.id == "movie:12" }, "Dune isn't in the preview's library")
         let detail = try Self.show(
-            LibraryView().sheet(isPresented: .constant(true)) {
+            LibraryView(filter: .constant(.recent)).sheet(isPresented: .constant(true)) {
                 TitleDetailView(item: item)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
@@ -56,6 +104,14 @@ struct AppScreenshots {
         )
         try await Self.settle()
         Self.screenshot(detail, "02-library-title")
+
+        // Where the Home's Wanted tile leads.
+        let wanted = try Self.show(
+            LibraryView(filter: .constant(.wanted)).tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle()
+        Self.screenshot(wanted, "02-library-wanted")
     }
 
     @Test func activity() async throws {
@@ -125,6 +181,15 @@ struct AppScreenshots {
         window.makeKeyAndVisible()
         windows.append(window)
         return window
+    }
+
+    /// The first scroll view that scrolls vertically, depth first: a screen's content.
+    private static func scrollView(in view: UIView) -> UIScrollView? {
+        if let scroll = view as? UIScrollView, scroll.contentSize.height > scroll.bounds.height { return scroll }
+        for child in view.subviews {
+            if let found = scrollView(in: child) { return found }
+        }
+        return nil
     }
 
     private static func until(

@@ -16,7 +16,7 @@ Flow
   id            slug, unique ("download", "anime-downloads")
   name          "Download"
   builtIn       true for the presets (can't be deleted, can be edited and reset)
-  enabled       off: no activity starts for anyone
+  enabled       off: no activity starts for anyone, and those running end at the next heartbeat
   color         hex, the activity's tint ("#FFC230")
   icon          SF Symbol name, the flow's glyph ("arrow.down")
   subject       what one activity follows: media | playback | request | day

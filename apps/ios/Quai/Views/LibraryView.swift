@@ -56,7 +56,7 @@ enum LibraryFilter: Hashable {
 struct LibraryView: View {
     @Environment(Connection.self) private var connection
     @State private var scope = LibraryScope.all
-    @State private var filter = LibraryFilter.recent
+    @Binding var filter: LibraryFilter
     @State private var selected: LibraryItem?
     @State private var loading = false
 

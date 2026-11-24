@@ -9,9 +9,9 @@ struct TodayLineTests {
 
     @Test func foldsASeriesEpisodesIntoOneLine() throws {
         let items = try releases(#"""
-        [{"id":"episode:1","kind":"episode","title":"12 12 12","episode":"S01E03","airsAt":1795150800,"status":"available"},
-         {"id":"episode:2","kind":"episode","title":"Percy Jackson and the Olympians","episode":"S02E04","airsAt":1795194000,"status":"available"},
-         {"id":"episode:3","kind":"episode","title":"Percy Jackson and the Olympians","episode":"S02E05","airsAt":1795196400,"status":"missing"}]
+        [{"id":"episode:1","kind":"episode","libraryId":"series:8","title":"12 12 12","episode":"S01E03","airsAt":1795150800,"status":"available"},
+         {"id":"episode:2","kind":"episode","libraryId":"series:31","title":"Percy Jackson and the Olympians","episode":"S02E04","airsAt":1795194000,"status":"available"},
+         {"id":"episode:3","kind":"episode","libraryId":"series:31","title":"Percy Jackson and the Olympians","episode":"S02E05","airsAt":1795196400,"status":"missing"}]
         """#)
         let lines = TodayLine.lines(items)
         #expect(lines.map(\.title) == ["12 12 12", "Percy Jackson and the Olympians"])
@@ -23,8 +23,8 @@ struct TodayLineTests {
 
     @Test func keepsMoviesApart() throws {
         let items = try releases(#"""
-        [{"id":"movie:1","kind":"movie","title":"Dune","status":"grabbed"},
-         {"id":"movie:2","kind":"movie","title":"Dune","status":"available"}]
+        [{"id":"movie:1","kind":"movie","libraryId":"movie:1","title":"Dune","status":"grabbed"},
+         {"id":"movie:2","kind":"movie","libraryId":"movie:2","title":"Dune","status":"available"}]
         """#)
         let lines = TodayLine.lines(items)
         #expect(lines.count == 2)
@@ -33,9 +33,9 @@ struct TodayLineTests {
 
     @Test func carriesThePosterAndTheDetail() throws {
         let items = try releases(#"""
-        [{"id":"episode:1","kind":"episode","title":"Tracker","episode":"S04E07","airsAt":1795150800,"status":"missing"},
-         {"id":"episode:2","kind":"episode","title":"Tracker","episode":"S04E08","airsAt":1795150800,"posterUrl":"https://image.tmdb.org/t/p/original/tracker.jpg","status":"missing"},
-         {"id":"movie:1","kind":"movie","title":"Noël à la page","status":"available"}]
+        [{"id":"episode:1","kind":"episode","libraryId":"series:7","title":"Tracker","episode":"S04E07","airsAt":1795150800,"status":"missing"},
+         {"id":"episode:2","kind":"episode","libraryId":"series:7","title":"Tracker","episode":"S04E08","airsAt":1795150800,"posterUrl":"https://image.tmdb.org/t/p/original/tracker.jpg","status":"missing"},
+         {"id":"movie:1","kind":"movie","libraryId":"movie:1","title":"Noël à la page","status":"available"}]
         """#)
         let lines = TodayLine.lines(items)
         #expect(lines[0].posterUrl == "https://image.tmdb.org/t/p/original/tracker.jpg")

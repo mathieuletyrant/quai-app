@@ -53,7 +53,9 @@ extension RunningActivity {
 struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
+    @Binding var libraryFilter: LibraryFilter
 
+    private var highlights: LibraryHighlights? { connection.library.map { LibraryHighlights($0.items) } }
     private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
     private var alerts: [Components.Schemas.ActiveAlert] { connection.alerts?.items ?? [] }
     private var fixes: [Fix] { connection.fixes?.items ?? [] }
@@ -150,10 +152,26 @@ struct HomeView: View {
                 color: Palette.accent
             )
         }
+        if let highlights, !highlights.isEmpty {
+            TileRow {
+                openLibrary(.recent) { RecentlyAddedTile(highlights: highlights) }
+                openLibrary(.wanted) { WantedTile(count: highlights.wanted) }
+            }
+        }
         if let disk = connection.library?.disk {
             Button { tab = .library } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
                 .buttonStyle(.plain)
         }
+    }
+
+    /// A tile that opens the Library tab on one of its filters.
+    private func openLibrary<Content: View>(_ filter: LibraryFilter, @ViewBuilder _ content: () -> Content) -> some View {
+        let tile = content()
+        return Button {
+            libraryFilter = filter
+            tab = .library
+        } label: { tile }
+            .buttonStyle(.plain)
     }
 
     /// A tile that opens the Activity tab.
@@ -180,6 +198,128 @@ private struct HomeSkeleton: View {
         .accessibilityElement()
         .accessibilityLabel("Loading")
         .accessibilityIdentifier("homeLoading")
+    }
+}
+
+/// What the Home's Library tiles say: the latest titles added, how many this week, how many wanted.
+struct LibraryHighlights {
+    /// The latest titles added to Radarr or Sonarr, newest first, at most 3.
+    let latest: [LibraryItem]
+    /// Added in the last 7 days.
+    let addedThisWeek: Int
+    /// Monitored, out, and still without their file (the Library's Wanted chip).
+    let wanted: Int
+
+    var isEmpty: Bool { latest.isEmpty }
+
+    init(_ items: [LibraryItem], now: Date = .now) {
+        let added = items.filter { $0.addedAt != nil }.sorted { ($0.addedAt ?? 0) > ($1.addedAt ?? 0) }
+        let weekAgo = now.addingTimeInterval(-7 * 24 * 3600).timeIntervalSince1970
+        latest = Array(added.prefix(3))
+        addedThisWeek = added.filter { ($0.addedAt ?? 0) >= weekAgo }.count
+        wanted = items.filter { $0.status == .wanted }.count
+    }
+
+    /// "4 this week", or the latest title's caption when none came this week.
+    var recentCaption: String {
+        if addedThisWeek > 0 { return "\(addedThisWeek) this week" }
+        return latest.first?.caption ?? ""
+    }
+
+    /// "titles missing", "title missing", "Nothing missing".
+    static func wantedCaption(_ wanted: Int) -> String {
+        switch wanted {
+        case 0: "Nothing missing"
+        case 1: "title missing"
+        default: "titles missing"
+        }
+    }
+}
+
+/// A square: the three latest posters fanned out, the newest title and how many came this week.
+private struct RecentlyAddedTile: View {
+    let highlights: LibraryHighlights
+
+    var body: some View {
+        SquareTile {
+            TileLabel(title: "Recently added", systemImage: "sparkles", color: Palette.accent)
+            Spacer(minLength: 8)
+            PosterFan(items: highlights.latest)
+                .frame(maxWidth: .infinity)
+            Spacer(minLength: 8)
+            Text(highlights.latest.first?.title ?? "")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Palette.primaryText)
+                .lineLimit(1)
+            Text(highlights.recentCaption)
+                .font(QuaiFont.caption)
+                .foregroundStyle(Palette.secondaryText)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens the Library")
+    }
+}
+
+/// Up to three posters, the newest in front, the others tilted behind it.
+private struct PosterFan: View {
+    let items: [LibraryItem]
+
+    private struct Layer: Identifiable {
+        let item: LibraryItem
+        let angle: Double
+        let offset: CGFloat
+        var id: String { item.id }
+    }
+
+    /// Back to front: the oldest first, so the newest is drawn last.
+    private var layers: [Layer] {
+        let placements: [(angle: Double, offset: CGFloat)] = [(0, 0), (8, 22), (-8, -22)]
+        return zip(items, placements).map { Layer(item: $0.0, angle: $0.1.angle, offset: $0.1.offset) }.reversed()
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(layers) { layer in
+                // Only the front poster falls back to its title: behind, it would peek out cut.
+                Poster(url: PosterSize.small.url(layer.item.posterUrl), title: layer.angle == 0 ? layer.item.title : "", cornerRadius: 8)
+                    .frame(width: 48)
+                    .shadow(color: .black.opacity(0.45), radius: 6, y: 3)
+                    .rotationEffect(.degrees(layer.angle))
+                    .offset(x: layer.offset, y: layer.angle == 0 ? 0 : 4)
+            }
+        }
+        .frame(height: 76)
+    }
+}
+
+/// A square: how many titles Radarr and Sonarr are still looking for, in large.
+private struct WantedTile: View {
+    let count: Int
+
+    private var color: Color { count == 0 ? Palette.ok : Palette.wantedText }
+
+    var body: some View {
+        SquareTile {
+            TileLabel(title: "Wanted", systemImage: "magnifyingglass", color: color)
+            Spacer(minLength: 8)
+            if count == 0 {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 44, weight: .semibold))
+                    .foregroundStyle(color)
+            } else {
+                Text("\(count)")
+                    .font(.system(size: 52, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .tracking(-1)
+                    .foregroundStyle(color)
+            }
+            Text(LibraryHighlights.wantedCaption(count))
+                .font(QuaiFont.caption)
+                .foregroundStyle(Palette.secondaryText)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens what's wanted in the Library")
     }
 }
 

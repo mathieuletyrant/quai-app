@@ -88,8 +88,8 @@ const lookupOf = (subject: Subject) => subject.kind === "media" ? subject.lookup
 const put = (activities: Map<string, Activity>, activity: Activity) => activities.set(activity.key, activity)
 
 /**
- * An activity whose flow was deleted, or edited so that the step it is on is gone: close what's on
- * screen and forget it.
+ * An activity whose flow was deleted, disabled, or edited so that the step it is on is gone: close
+ * what's on screen and forget it.
  */
 const forget = (activities: Map<string, Activity>, pushes: Array<Push>, activity: Activity, now: number) => {
   activities.delete(activity.key)
@@ -117,7 +117,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       const flow = flows.find((f) => f.id === activity.flowId)
       if (flow === undefined) continue
       const step = flow.steps[activity.stepIndex]
-      if (step === undefined) {
+      if (step === undefined || !flow.enabled) {
         forget(activities, pushes, activity, now)
         continue
       }
@@ -236,7 +236,7 @@ export const onTick = (state: EngineState, flows: ReadonlyArray<Flow>, now: numb
   const pushes: Array<Push> = []
   for (const activity of state.activities.values()) {
     const flow = flows.find((f) => f.id === activity.flowId)
-    if (flow === undefined) {
+    if (flow === undefined || !flow.enabled) {
       forget(activities, pushes, activity, now)
       continue
     }
