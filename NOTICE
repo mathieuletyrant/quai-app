@@ -6,3 +6,6 @@ The "Quai" name and logo are not covered by that license: see TRADEMARKS.md.
 
 The website (apps/site) bundles the Inter typeface, Copyright 2016 The Inter Project Authors,
 licensed under the SIL Open Font License 1.1 (apps/site/public/fonts/OFL.txt).
+
+The website shows the logos of the services Quai works with, which belong to their projects. They come
+from homarr-labs/dashboard-icons (Apache License 2.0) and, for Reclaimerr, selfhst/icons.
