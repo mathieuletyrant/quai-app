@@ -2,29 +2,13 @@ import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
 import { Config, Effect, Layer } from "effect"
 import { HttpRouter } from "effect/http"
 import { createServer } from "node:http"
-import { ApiLive } from "../src/Api.ts"
-import { Alerts } from "../src/alerts/Alerts.ts"
-import { ActionRunner } from "../src/flows/ActionRunner.ts"
-import { Activities } from "../src/flows/Activities.ts"
-import { FlowStore } from "../src/flows/FlowStore.ts"
-import { TestRunner } from "../src/flows/TestRunner.ts"
-import { Fixes } from "../src/fixes/Fixes.ts"
-import { Devices } from "../src/home/Devices.ts"
-import { HomeLink } from "../src/home/HomeLink.ts"
-import { HomeReads } from "../src/home/HomeReads.ts"
-import { Hub } from "../src/integrations/Hub.ts"
-import { Journal } from "../src/journal/Journal.ts"
-import { Notifier } from "../src/push/Notifier.ts"
-import { HomeTime } from "../src/releases/HomeTime.ts"
-import { IntegrationsLive } from "../src/integrations/All.ts"
+import { HomeRoutes } from "../src/App.ts"
+import { HomeLinks } from "../src/home/HomeLink.ts"
 import { torrentsWatchId } from "../src/integrations/qbittorrent.ts"
-import { Library } from "../src/library/Library.ts"
 import { PublicAccess } from "../src/PublicAccess.ts"
 import { Apns } from "../src/push/Apns.ts"
-import { Releases } from "../src/releases/Releases.ts"
-import { Requests } from "../src/requests/Requests.ts"
 import { ServerInfo } from "../src/Version.ts"
-import { type FakeHome, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
+import { type FakeHome, makeFakeHome, recordedHome, type Recording, testHomeId } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 
 /**
@@ -113,24 +97,12 @@ const HttpLive = Layer.unwrap(
   })
 )
 
-// main.ts's composition, without the /home route: the fake Quai Home is linked in memory.
-const Home = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
-  Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
-  Layer.provideMerge(Journal.layer),
-  Layer.provideMerge(HomeLink.layer)
-)
+// One home's routes, as main.ts builds them for each home, on the fake Quai Home linked in memory.
+// The console's routes answer on the public port here: the preview has no Quai Home to relay them.
+const Shared = Layer.mergeAll(HomeLinks.linkOf(testHomeId), Layer.effect(Apns, Apns.make(null)), PublicAccess.layer)
 
-const Engine = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
-  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Releases.layer)),
-  Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
-  Layer.provideMerge(Activities.layer),
-  Layer.provideMerge(Layer.mergeAll(Layer.effect(Apns, Apns.make(null)), PublicAccess.layer, IntegrationsLive, HomeTime.layer)),
-  Layer.provideMerge(Home)
-)
-
-HttpRouter.serve(ApiLive).pipe(
-  Layer.provide(FakeHomeLinked),
-  Layer.provide(Engine),
+HttpRouter.serve(Layer.mergeAll(HomeRoutes, FakeHomeLinked)).pipe(
+  Layer.provide(Shared),
   Layer.provide(Layer.succeed(ServerInfo, { version: "preview", startedAt: Date.now() })),
   Layer.provide(HttpLive),
   Layer.launch,

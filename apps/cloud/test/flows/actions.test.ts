@@ -1,3 +1,4 @@
+import { testLink } from "../fakeHome.ts"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { Activities } from "../../src/flows/Activities.ts"
@@ -20,7 +21,7 @@ describe("Live Activity buttons", () => {
     Layer.provide([
       fixedFlows([download, playback]),
       Layer.succeed(Integrations, [jellyfin]),
-      Journal.layer.pipe(Layer.provide(HomeLink.layer)),
+      Journal.layer.pipe(Layer.provide(testLink)),
       Layer.succeed(Hub, {
         apply: () => Effect.void,
         beat: Effect.void,

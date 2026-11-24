@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Cause, Effect, Exit } from "effect"
 import { HomeLink } from "../src/home/HomeLink.ts"
-import { makeFakeHome, recordedHome, settle } from "./fakeHome.ts"
+import { makeFakeHome, recordedHome, settle , testLink } from "./fakeHome.ts"
 
 describe("the fake Quai Home", () => {
   it.effect("refuses what the real allowlist refuses, as Quai Home does: Failed \"not allowed\"", () =>
@@ -34,7 +34,7 @@ describe("the fake Quai Home", () => {
         "seerr GET /api/v1/status",
         "watch w: radarr GET /api/v3/system/backup"
       ])
-    }).pipe(Effect.provide(HomeLink.layer)))
+    }).pipe(Effect.provide(testLink)))
 
   it.effect("strict, it fails the test that sent a refused call", () =>
     Effect.gen(function*() {
@@ -44,5 +44,5 @@ describe("the fake Quai Home", () => {
         yield* Effect.ignore((yield* HomeLink).call({ service: "sonarr", method: "DELETE", path: "/api/v3/series/3" }))
       })))
       expect(Exit.isFailure(exit) && Cause.pretty(exit.cause)).toContain("sonarr DELETE /api/v3/series/3")
-    }).pipe(Effect.provide(HomeLink.layer)))
+    }).pipe(Effect.provide(testLink)))
 })

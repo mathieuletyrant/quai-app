@@ -3,11 +3,11 @@ import { HomeProtocol, type JournalEntry, journalPage } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
 import { Socket } from "effect/socket"
-import { createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
+import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
 import { Activities } from "../src/flows/Activities.ts"
 import { FlowStore } from "../src/flows/FlowStore.ts"
 import { Devices } from "../src/home/Devices.ts"
-import { HomeError, HomeLink, offlineMessage } from "../src/home/HomeLink.ts"
+import { HomeError, HomeLink, HomeLinks, offlineMessage } from "../src/home/HomeLink.ts"
 import { HomeReads } from "../src/home/HomeReads.ts"
 import { Hub } from "../src/integrations/Hub.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
@@ -30,6 +30,21 @@ export type Answer =
 
 const close = Symbol("close")
 
+/** The fake home's key unless a test gives another: the same home in every test, `testHomeId`. */
+export const testHomeKey = createPrivateKey({
+  key: Buffer.concat([Buffer.from("302e020100300506032b657004220420", "hex"), Buffer.alloc(32, 7)]),
+  format: "der",
+  type: "pkcs8"
+})
+
+const publicKeyOf = (key: KeyObject) => createPublicKey(key).export({ format: "der", type: "spki" }).toString("base64")
+
+/** The home id of `testHomeKey`: the home the tests' `HomeLink` is to. */
+export const testHomeId = HomeId.homeId(publicKeyOf(testHomeKey))
+
+/** Links for Quai Homes, and the link to the tests' home (`testHomeId`). */
+export const testLink = HomeLinks.linkOf(testHomeId)
+
 /** Lets forked fibers run up to their next wait. */
 export const settle = Effect.repeat(Effect.yieldNow, { times: 50 })
 
@@ -51,7 +66,7 @@ export interface FakeHomeOptions {
   readonly protocol?: number
   /** Signs with another key than the one in Hello. */
   readonly badProof?: boolean
-  /** Another home: its own key. */
+  /** Another home: its own key. Default: `testHomeKey`. */
   readonly privateKey?: KeyObject
   /** Doesn't answer Pings. */
   readonly deaf?: boolean
@@ -114,9 +129,9 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           ? Effect.void
           : Effect.die(new Error(`the fake Quai Home refused what the allowlist doesn't allow: ${notAllowed.join(", ")}`)))
     }
-    const privateKey = options.privateKey ?? generateKeyPairSync("ed25519").privateKey
+    const privateKey = options.privateKey ?? testHomeKey
     const otherKey = generateKeyPairSync("ed25519").privateKey
-    const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
+    const publicKey = publicKeyOf(privateKey)
     const documents = new Map<string, unknown>()
     /** Its journal, like its disk: it outlives connections. */
     const journal: Array<JournalEntry> = []
@@ -216,8 +231,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       Effect.suspend(() => state.toCloud === null ? Effect.void : Effect.asVoid(Queue.offer(state.toCloud, JSON.stringify(message))))
 
     /** Opens a connection: the link serves it in the background. Settles before returning. */
-    const open: Effect.Effect<void, never, HomeLink | Scope.Scope> = Effect.gen(function*() {
-      const link = yield* HomeLink
+    const open: Effect.Effect<void, never, HomeLinks | Scope.Scope> = Effect.gen(function*() {
+      const links = yield* HomeLinks
       const toCloud = yield* Queue.unbounded<string | typeof close>()
       state.toCloud = toCloud
       state.closed = false
@@ -243,7 +258,7 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           writeAll: () => Effect.void
         })
       })
-      yield* Effect.forkScoped(link.serve(socket))
+      yield* Effect.forkScoped(links.serve(socket))
       yield* Queue.offer(toCloud, JSON.stringify(HomeProtocol.Hello.make({
         protocol: options.protocol ?? HomeProtocol.protocolVersion,
         homeVersion: "test",
@@ -270,7 +285,7 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       /** Connects and waits until the Cloud loaded the home. */
       connect: Effect.gen(function*() {
         yield* open
-        const link = yield* HomeLink
+        const link = yield* Effect.flatMap(Effect.service(HomeLinks), (links) => links.link(HomeId.homeId(publicKey)))
         for (let i = 0; i < 20 && Option.isNone(yield* link.home); i++) yield* settle
         if (Option.isNone(yield* link.home)) return yield* Effect.die(`the fake home didn't link: ${JSON.stringify(state.refused)}`)
       }),
@@ -316,7 +331,7 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
  * Quai Cloud without its HTTP server: the home link, the home's data on it, the engine and the
  * Hub (without heartbeat: tests call `beat`). Needs `Apns`; `integrations` may use the link.
  */
-export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link: Layer.Layer<HomeLink> = HomeLink.layer) =>
+export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link: Layer.Layer<HomeLink | HomeLinks> = testLink) =>
   Hub.layerFed.pipe(
     Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
@@ -333,7 +348,7 @@ export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link:
 export const linkDroppingOn = (...routes: ReadonlyArray<string>) =>
   Layer.effect(
     HomeLink,
-    Effect.map(HomeLink.make, (link) =>
+    Effect.map(Effect.flatMap(Effect.service(HomeLinks), (links) => links.link(testHomeId)), (link) =>
       HomeLink.of({
         ...link,
         call: (request, options) =>
@@ -341,7 +356,7 @@ export const linkDroppingOn = (...routes: ReadonlyArray<string>) =>
             ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
             : link.call(request, options)
       }))
-  )
+  ).pipe(Layer.provideMerge(HomeLinks.layer))
 
 /** With the real integrations. */
 export const cloudLive = cloud(IntegrationsLive)

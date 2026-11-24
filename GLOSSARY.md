@@ -27,9 +27,20 @@ page**, saved in `/data/services.json`. A change applies at once and Quai Home t
 services it reaches (`ServicesChanged`), never their keys. A key is write-only: the console shows
 that one is set, never its value.
 
-**Home link** (`HomeLink`). The WebSocket between the two, its handshake, and the messages on it
-(`packages/api/src/Home.ts`, `HomeProtocol`). Features don't call through it themselves: their
-calls go through `HomeReads`, the watches through the Hub.
+**Home link** (`HomeLink`, `HomeLinks`). The WebSocket between the two, its handshake, and the
+messages on it (`packages/api/src/Home.ts`, `HomeProtocol`). `HomeLinks` serves every Quai Home's
+WebSocket; each home's services read their own `HomeLink`, never another's. Features don't call
+through it themselves: their calls go through `HomeReads`, the watches through the Hub.
+
+**Home app** (`HomeApp`, `Homes`). One home's services and routes on its own link: stores, engine,
+Hub, journal, the whole API and the console relay. Quai Cloud builds one per home when its Quai
+Home links (`Homes`), forgets it an hour after it went away, and sends each request to its home's
+app: an iPhone's by its device token, a pairing by its code, the console's by the link it came
+over. What no home claims gets an app on no home: `/api/health`, and 503 for the rest.
+
+**Device token** (`DeviceToken`). An iPhone's bearer token, `<home id>.<secret>`, kept by its home
+as a hash only. The home id routes the request; the secret is checked by that home. Tokens issued
+before Quai Cloud served several homes are the secret alone: the linked home that holds it answers.
 
 **Home read** (`HomeReads`). A call the Cloud has Quai Home make to a service when it needs the
 answer now: a GET (`read`, `all`) or a write (`write`). One policy for all of them: Quai Home gone

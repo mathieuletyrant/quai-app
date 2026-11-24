@@ -5,7 +5,7 @@ import { TestClock } from "effect/testing"
 import { HomeLink, offlineMessage } from "../../src/home/HomeLink.ts"
 import { Journal } from "../../src/journal/Journal.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
-import { type Answer, makeFakeHome, recordedHome, settle } from "../fakeHome.ts"
+import { type Answer, makeFakeHome, recordedHome, settle , testLink } from "../fakeHome.ts"
 
 const Status = Schema.Struct({ version: Schema.String })
 const status = { service: "radarr", path: "/api/v3/system/status?secret=x", schema: Status } as const
@@ -16,7 +16,7 @@ const logs: Array<string> = []
 const captured = Logger.layer([Logger.make(({ logLevel, message }) => {
   if (logLevel === "Warn") logs.push((Array.isArray(message) ? message : [message]).map(String).join(" "))
 })])
-const reads = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(HomeLink.layer), Layer.provideMerge(captured))
+const reads = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(testLink), Layer.provideMerge(captured))
 
 /** A home whose status route answers `answer`; not strict, so a refusal can be the answer. */
 const homeAnswering = (answer: Answer) =>

@@ -8,7 +8,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 | --- | --- |
 | `packages/api` | The contract: Effect `HttpApi` + `Schema`. Single source of truth for routes and types. Generates `openapi.json`. |
 | `apps/home` | Quai Home: runs next to the services with their keys (environment, or the console's Services page in `/data`), links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents, serves the console behind `QUAI_HOME_PASSWORD` and relays its `/console-api` requests to the Cloud. |
-| `apps/cloud` | Quai Cloud, Effect on Node: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, answers the console's routes Quai Home relays (never on its public port). No interface, keeps nothing: the home's data lives in Quai Home. |
+| `apps/cloud` | Quai Cloud, Effect on Node, one for many homes: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, answers the console's routes Quai Home relays (never on its public port). No interface, keeps nothing: the home's data lives in Quai Home. |
 | `apps/console` | React + Vite web console, served by Quai Home, with typed clients derived from `packages/api` (`QuaiApi` relayed to the Cloud, `HomeConsoleApi` Quai Home's own). |
 | `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json` into `Quai/Generated`, not committed: the CI's `ios-client` job makes it, `pnpm gen:client` locally. |
 | `Dockerfile` | The two server deliverables, one build: `--target home` and `--target cloud` (default). |
@@ -39,6 +39,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 ## Server
 
+- One Cloud, many homes: a home's services are built for it alone (`HomeServices`/`HomeApp` in `App.ts`, one per home by `Homes`), so a service holds one home's state and never looks another up. What every home shares (`HomeLinks`, `Apns`, `PublicAccess`, `ServerInfo`) is built once in `main.ts`. A new per-home service goes in `HomeServices`.
 - A read is defined once, as a `Read<A>` (service, path, schema): `HomeReads` reads it when the app asks, `watchOf` makes its watch, `readSnapshot` decodes its snapshots (`dayReads`, `pendingRead`). Never a second path or decode for the same GET.
 - One adapter per media kind, not branches on the service: movies (Radarr) and series (Sonarr) each implement `MediaFixes` (`fixes/movies.ts`, `fixes/series.ts`); `Fixes.ts` only orchestrates. A new kind or rule goes in its adapter, a target carries only its own kind's fields, and what can be decided without a call is a pure function with its own test.
 - An id the server mints and reads back is made and parsed in one module (`fixes/FixId.ts`), never by string prefixes elsewhere.

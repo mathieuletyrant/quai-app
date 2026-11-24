@@ -3,7 +3,7 @@ import { Effect, Layer, Option } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { ActionRunner } from "../src/flows/ActionRunner.ts"
 import { TestRunner } from "../src/flows/TestRunner.ts"
-import { HomeLink, HomeRequiredLive } from "../src/home/HomeLink.ts"
+import { type HomeLink, type HomeLinks, HomeRequiredLive } from "../src/home/HomeLink.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
 import { ConnectionHandlers } from "../src/http/ConnectionHandlers.ts"
 import { ConsoleHandlers } from "../src/http/ConsoleHandlers.ts"
@@ -26,10 +26,10 @@ import { Fixes } from "../src/fixes/Fixes.ts"
 import { Library } from "../src/library/Library.ts"
 import { PublicAccess } from "../src/PublicAccess.ts"
 import { ServerInfo } from "../src/Version.ts"
-import { cloud, linkDroppingOn, makeFakeHome } from "./fakeHome.ts"
+import { cloud, linkDroppingOn, makeFakeHome, testLink } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink> = HomeLink.layer) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers, AppJournalHandlers, AlertsHandlers, ConsoleAlertsHandlers).pipe(
+export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink | HomeLinks> = testLink) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers, AppJournalHandlers, AlertsHandlers, ConsoleAlertsHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
   Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer, Requests.layer.pipe(Layer.provide(Seerr.layer)), Releases.layer)),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.

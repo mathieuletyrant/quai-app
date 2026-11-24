@@ -10,6 +10,7 @@ import {
 import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
 import { isTimeZone } from "../releases/Day.ts"
+import * as DeviceToken from "./DeviceToken.ts"
 import { HomeDocuments, toOffline } from "./HomeLink.ts"
 
 export const Timing = {
@@ -96,6 +97,8 @@ export type DeviceDocument = typeof DeviceDocument.Type
 export const PairingDocument = Schema.Struct({ expiresAt: Schema.Number })
 
 export const deviceKey = (id: string) => `devices/${id}`
+/** A code as typed: spaces around it and lowercase letters are forgiven. */
+const normalizedCode = (code: string) => code.trim().toUpperCase()
 export const pairingKey = (code: string) => `pairing/${sha256(code)}`
 
 const decodeDevice = Schema.decodeUnknownOption(DeviceDocument)
@@ -122,6 +125,10 @@ export class Devices extends Context.Service<Devices, {
     readonly timeZone?: string | undefined
   }) => Effect.Effect<Option.Option<{ readonly deviceId: DeviceId; readonly token: string }>, HomeOffline>
   readonly authenticate: (token: string) => Effect.Effect<Option.Option<Device>, HomeOffline>
+  /** Whether an iPhone of this home holds this token, without counting it as seen. False while offline. */
+  readonly holdsToken: (token: string) => Effect.Effect<boolean>
+  /** Whether this pairing code, unused and unexpired, is one of this home's. False while offline. */
+  readonly holdsPairingCode: (code: string) => Effect.Effect<boolean>
   readonly update: (
     id: DeviceId,
     patch: {
@@ -209,13 +216,13 @@ export class Devices extends Context.Service<Devices, {
         pair: (input) =>
           exclusive(Effect.gen(function*() {
             const now = yield* Clock.currentTimeMillis
-            const key = pairingKey(input.code.trim().toUpperCase())
+            const key = pairingKey(normalizedCode(input.code))
             const pairing = Option.flatMap(yield* Effect.mapError(store.get(key), toOffline), decodePairing)
             if (Option.isNone(pairing)) return Option.none()
             yield* Effect.mapError(store.delete(key), toOffline)
             if (pairing.value.expiresAt < now) return Option.none()
             const deviceId = randomUUID() as DeviceId
-            const token = randomBytes(32).toString("base64url")
+            const token = DeviceToken.make(store.homeId)
             yield* save({
               id: deviceId,
               name: input.name,
@@ -244,6 +251,16 @@ export class Devices extends Context.Service<Devices, {
             }
             return Option.some(toDevice(device))
           }),
+
+        holdsToken: (token) =>
+          Effect.map(all, (devices) => devices.some((d) => d.tokenHash === sha256(token))).pipe(Effect.orElseSucceed(() => false)),
+
+        holdsPairingCode: (code) =>
+          Effect.gen(function*() {
+            const now = yield* Clock.currentTimeMillis
+            const pairing = Option.flatMap(yield* store.get(pairingKey(normalizedCode(code))), decodePairing)
+            return Option.isSome(pairing) && pairing.value.expiresAt >= now
+          }).pipe(Effect.orElseSucceed(() => false)),
 
         update: (id, patch) =>
           change(id, (d) => ({

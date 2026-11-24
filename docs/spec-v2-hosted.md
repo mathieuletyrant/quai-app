@@ -189,7 +189,9 @@ iOS widget, the console UI, and the tests around them.
    proxy; tests with recorded responses.
 2. **Cloud, single home first.** Today's server on the protocol: integrations call through the
    Home. Runs against my home to validate.
-3. **Multi-home and accounts.** Homes, accounts, linking, per-home data; console signed in.
+3. **Multi-home.** One Cloud, many homes: each its own services and routes, built when it links
+   and forgotten an hour after it went away; an iPhone's token names its home. Done. Accounts
+   aren't needed (see "No accounts").
 4. **iOS.** Sign in, cloud URL, invitation of a second iPhone.
 5. **Hosting.** Domain, deploy, backups, monitoring; then TestFlight for a few outside testers.
 

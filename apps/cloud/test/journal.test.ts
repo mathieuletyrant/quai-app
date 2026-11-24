@@ -13,7 +13,7 @@ import { torrentsWatchId } from "../src/integrations/qbittorrent.ts"
 import { eventNote } from "../src/journal/describe.ts"
 import { Journal, Timing } from "../src/journal/Journal.ts"
 import { Apns } from "../src/push/Apns.ts"
-import { cloud, cloudLive, makeFakeHome, recordedHome } from "./fakeHome.ts"
+import { cloud, cloudLive, makeFakeHome, recordedHome , testLink } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
 import { TestApp } from "./testApp.ts"
@@ -22,7 +22,7 @@ const keyPem = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKe
   .export({ type: "pkcs8", format: "pem" }).toString()
 
 /** The Journal alone, on the real home link. */
-const journalOnly = Journal.layer.pipe(Layer.provideMerge(HomeLink.layer))
+const journalOnly = Journal.layer.pipe(Layer.provideMerge(testLink))
 
 /** The Cloud with no integration and no APNs key: its Hub hands the journal what Quai Home notes. */
 const quietCloud = cloud(Layer.succeed(Integrations, [])).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))

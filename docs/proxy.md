@@ -29,11 +29,12 @@ It depends on what the proxy checks.
 
 ## `QUAI_HOME_ID`
 
-Quai Cloud serves one home, the first Quai Home that links. While yours is away (restarting, its
-network down), another Quai Home that reaches `/home` could take its place. If `/home` can be
-reached from outside the home network, set `QUAI_HOME_ID` to your home's id, the 32 hex characters
-Quai Home logs once linked (`linked as home 3f9a…`): any other home is then refused at the
-handshake, with a reason that names both ids.
+Quai Cloud serves every Quai Home that links to `/home` and proves its key, each on its own: a home
+never sees another's iPhones, flows or journal. But any Quai Home that reaches `/home` can use your
+Cloud and its push key. If `/home` can be reached from outside the home network, set `QUAI_HOME_ID`
+to your home's id, the 32 hex characters Quai Home logs once linked (`linked as home 3f9a…`), or
+to several, comma-separated: any other home is then refused at the handshake, with a reason that
+names the ids. `QUAI_MAX_HOMES` caps how many homes are linked at once.
 
 ## `QUAI_PUBLIC_HEADERS`
 
