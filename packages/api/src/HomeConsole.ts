@@ -60,6 +60,12 @@ export const CloudLink = Schema.Struct({
 }).annotate({ identifier: "CloudLink" })
 export type CloudLink = typeof CloudLink.Type
 
+/** Quai's hosted Quai Cloud, as `CloudLink.url` shows it: it holds Quai's Apple key, nothing to set on it. */
+export const hostedCloudUrl = "https://cloud.quai.stream"
+
+/** Whether this home links to Quai's hosted Quai Cloud rather than one of its own. */
+export const isHostedCloud = (cloud: CloudLink): boolean => cloud.url?.replace(/\/+$/, "") === hostedCloudUrl
+
 export const HomeOverview = Schema.Struct({
   homeId: Schema.String,
   version: Schema.String,

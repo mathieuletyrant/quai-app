@@ -6,6 +6,7 @@ import { call, isCloudOffline, useLink } from "../client.ts"
 import { duration } from "../format.ts"
 import { useLoad } from "../load.ts"
 import { CloudChanged, loadOverview } from "./setup.tsx"
+import { withConsoleAddress } from "./pairing.ts"
 import {
   Async,
   Badge,
@@ -78,9 +79,10 @@ function usePairing(onPaired: () => void, cloudUrls: ReadonlyArray<string>) {
     setStarting(true)
     try {
       const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: cloudUrls } }))
-      const qrSvg = await QRCode.toString(result.link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: qrColors })
+      const link = withConsoleAddress(result.link, window.location.origin)
+      const qrSvg = await QRCode.toString(link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: qrColors })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
-      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link: result.link, accessHeaderNames: result.accessHeaderNames })
+      setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link, accessHeaderNames: result.accessHeaderNames })
       setNow(Date.now())
     } catch (e) {
       setError(e)

@@ -43,4 +43,11 @@ describe("site", () => {
       }
     });
   });
+
+  it("describes Quai for LLMs in llms.txt, with no placeholder left", () => {
+    const text = read("llms.txt");
+    expect(text.startsWith("# Quai\n")).toBe(true);
+    expect(text).toContain("wss://cloud.quai.stream/home");
+    expect(text).not.toMatch(/YOUR-CODE|\[[A-Z][A-Z :]+\]/);
+  });
 });

@@ -168,7 +168,8 @@ export const PairingCode = Schema.Struct({
    * What the QR code holds, read by the app's scanner:
    * `quai://pair?code=…&url=…&url=…&header=Name%3A%20value&header=…`, every value
    * percent-encoded. `header` carries the access headers (`QUAI_PUBLIC_HEADERS`), names and
-   * values: apps that predate them ignore it.
+   * values: apps that predate them ignore it. The console adds `console=…`, its own address, for
+   * the app's "Open the console": Quai Cloud serves none.
    */
   link: Schema.String,
   /** The access headers the link carries, by name only: their values are secrets. */
