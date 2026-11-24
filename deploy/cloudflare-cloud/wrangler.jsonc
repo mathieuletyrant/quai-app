@@ -23,7 +23,7 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuaiCloud"] }],
   "vars": {
-    "QUAI_PUBLIC_URL": "https://cloud.quai.stream",
+    "QUAI_CLOUD_PUBLIC_URL": "https://cloud.quai.stream",
     "QUAI_MAX_HOMES": "25"
   }
 }

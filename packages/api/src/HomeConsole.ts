@@ -69,7 +69,12 @@ export const isHostedCloud = (cloud: CloudLink): boolean => cloud.url?.replace(/
 export const HomeOverview = Schema.Struct({
   homeId: Schema.String,
   version: Schema.String,
-  cloud: CloudLink
+  cloud: CloudLink,
+  /**
+   * Where the console is reached from outside the home, `QUAI_CONSOLE_PUBLIC_URL`: the pairing code
+   * carries it next to the address the console was opened at, for the app's "Open the console".
+   */
+  consolePublicUrl: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "HomeOverview" })
 export type HomeOverview = typeof HomeOverview.Type
 

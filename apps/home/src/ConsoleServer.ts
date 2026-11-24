@@ -68,7 +68,8 @@ const HomeHandlers = HttpApiBuilder.group(HomeConsoleApi, "home", (handlers) =>
               linked: yield* link.linked,
               ...(appUrl === null ? {} : { url: appUrl }),
               ...Option.match(previous, { onNone: () => ({}), onSome: (previousUrl) => ({ previousUrl }) })
-            }
+            },
+            ...(config.consolePublicUrl === null ? {} : { consolePublicUrl: config.consolePublicUrl })
           } satisfies HomeOverview
         }))
       .handle("acknowledgeCloud", () => cloudSeen.acknowledge)

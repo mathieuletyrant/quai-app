@@ -6,8 +6,8 @@ a reverse proxy, and tell Quai about it with two variables.
 
 | Env | |
 |---|---|
-| `QUAI_PUBLIC_URL` | The public address, e.g. `https://quai.example.com`. Added to the pairing QR code after the local one. |
-| `QUAI_PUBLIC_HEADERS` | The headers the proxy requires from the app, if any. |
+| `QUAI_CLOUD_PUBLIC_URL` | The public address, e.g. `https://quai.example.com`. Added to the pairing QR code after the local one. |
+| `QUAI_CLOUD_PUBLIC_HEADERS` | The headers the proxy requires from the app, if any. |
 
 Nothing in Quai is tied to one proxy: any proxy that lets a client in with fixed request headers
 works (Cloudflare Access service tokens, Pangolin, Authentik or Authelia header tokens, an nginx
@@ -36,12 +36,12 @@ to your home's id, the 32 hex characters Quai Home logs once linked (`linked as 
 to several, comma-separated: any other home is then refused at the handshake, with a reason that
 names the ids. `QUAI_MAX_HOMES` caps how many homes are linked at once.
 
-## `QUAI_PUBLIC_HEADERS`
+## `QUAI_CLOUD_PUBLIC_HEADERS`
 
 `Name: value` pairs, separated by `;` or line breaks, so the whole list fits in one settings field:
 
 ```sh
-QUAI_PUBLIC_HEADERS="CF-Access-Client-Id: 1a2b3c.access; CF-Access-Client-Secret: 4d5e6f…"
+QUAI_CLOUD_PUBLIC_HEADERS="CF-Access-Client-Id: 1a2b3c.access; CF-Access-Client-Secret: 4d5e6f…"
 ```
 
 - A value can't hold a `;` or a line break; spaces around names and values are trimmed.
@@ -83,8 +83,8 @@ logged nor shown: the console's Settings page and pairing panel list the header 
 4. Set on Quai Cloud and restart it:
 
    ```sh
-   QUAI_PUBLIC_URL=https://quai.example.com
-   QUAI_PUBLIC_HEADERS="CF-Access-Client-Id: <client id>; CF-Access-Client-Secret: <client secret>"
+   QUAI_CLOUD_PUBLIC_URL=https://quai.example.com
+   QUAI_CLOUD_PUBLIC_HEADERS="CF-Access-Client-Id: <client id>; CF-Access-Client-Secret: <client secret>"
    ```
 
 5. In the console, **iPhones → Pair an iPhone**: the panel says which access headers the code

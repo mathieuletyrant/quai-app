@@ -55,3 +55,32 @@ struct FirstReachableTests {
         #expect(!ServerSession.isAtHome(nil, in: [local, publicURL]))
     }
 }
+
+struct ConsoleToOpenTests {
+    let local = URL(string: "http://umbrel.local:3078")!
+    let publicURL = URL(string: "https://quai.example.com")!
+
+    @Test func atHomeTheLocalConsoleOpens() async {
+        let url = await ServerSession.consoleToOpen([local, publicURL]) { _ in true }
+        #expect(url == local)
+    }
+
+    @Test func awayFromHomeThePublicConsoleOpens() async {
+        let local = self.local
+        let url = await ServerSession.consoleToOpen([local, publicURL]) { $0 != local }
+        #expect(url == publicURL)
+    }
+
+    @Test func aSingleAddressOpensWithoutAsking() async {
+        let url = await ServerSession.consoleToOpen([local]) { _ in
+            Issue.record("A single address isn't probed")
+            return false
+        }
+        #expect(url == local)
+    }
+
+    @Test func noAddressNoConsole() async {
+        let url = await ServerSession.consoleToOpen([]) { _ in true }
+        #expect(url == nil)
+    }
+}

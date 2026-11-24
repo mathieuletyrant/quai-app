@@ -10,6 +10,7 @@ const key = Redacted.make("masked")
 export const testConfig = {
   cloudUrl: "ws://cloud/home",
   cloudAppUrl: null,
+  consolePublicUrl: null,
   password: null,
   consoleDir: null,
   port: 8788,

@@ -158,7 +158,7 @@ function OwnCloudSettingsPanel() {
             <section className="flex flex-col gap-3 border-t border-line pt-5">
               <Eyebrow>iPhones away from home</Eyebrow>
               <AwayRows access={access} />
-              <p className="text-caption text-faint">Where your iPhones reach Quai Cloud when they're out, put in the pairing QR code: <Code>QUAI_PUBLIC_URL</Code>, and <Code>QUAI_PUBLIC_HEADERS</Code> if a proxy asks for them. It isn't the console's address.</p>
+              <p className="text-caption text-faint">Where your iPhones reach Quai Cloud when they're out, put in the pairing QR code: <Code>QUAI_CLOUD_PUBLIC_URL</Code>, and <Code>QUAI_CLOUD_PUBLIC_HEADERS</Code> if a proxy asks for them. The console's own address from outside is <Code>QUAI_CONSOLE_PUBLIC_URL</Code>, on Quai Home.</p>
             </section>
           </div>
         )}

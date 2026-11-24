@@ -25,6 +25,8 @@ export class HomeConfig extends Context.Service<HomeConfig, {
    * address only Quai Home reaches (a container name). Unset, `cloudUrl` in http(s).
    */
   readonly cloudAppUrl: string | null
+  /** Where the console is reached from outside the home (`QUAI_CONSOLE_PUBLIC_URL`), for the app's "Open the console". */
+  readonly consolePublicUrl: string | null
   /** The console's password. Unset, the console stays locked and says to set it. */
   readonly password: Redacted.Redacted<string> | null
   /** The built console Quai Home serves (set in the image). */
@@ -92,6 +94,7 @@ export class HomeConfig extends Context.Service<HomeConfig, {
       return {
         cloudUrl: Option.getOrNull(nonEmpty(yield* Config.option(Config.schema(Schema.String.check(Schema.isPattern(/^\s*(wss?:\/\/.*)?$/)), "QUAI_CLOUD_URL")))),
         cloudAppUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CLOUD_APP_URL")), trimSlash)),
+        consolePublicUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CONSOLE_PUBLIC_URL")), trimSlash)),
         password: Option.getOrNull(Option.filter(password, (p) => Redacted.value(p) !== "")),
         consoleDir: Option.getOrNull(nonEmpty(yield* opt("QUAI_CONSOLE_DIR"))),
         port: yield* Config.Port("QUAI_HOME_PORT").pipe(Config.withDefault(8788)),

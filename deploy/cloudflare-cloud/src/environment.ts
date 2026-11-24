@@ -1,7 +1,7 @@
 /** What the Worker holds for Quai Cloud: its vars from wrangler.jsonc and its secrets. */
 export interface CloudSettings {
   readonly QUAI_VERSION?: string
-  readonly QUAI_PUBLIC_URL?: string
+  readonly QUAI_CLOUD_PUBLIC_URL?: string
   readonly QUAI_MAX_HOMES?: string
   readonly QUAI_HOME_ID?: string
   readonly QUAI_TZ?: string
@@ -13,7 +13,7 @@ export interface CloudSettings {
 
 const names = [
   "QUAI_VERSION",
-  "QUAI_PUBLIC_URL",
+  "QUAI_CLOUD_PUBLIC_URL",
   "QUAI_MAX_HOMES",
   "QUAI_HOME_ID",
   "QUAI_TZ",

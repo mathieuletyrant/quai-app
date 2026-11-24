@@ -6,7 +6,7 @@ import { call, isCloudOffline, useLink } from "../client.ts"
 import { duration } from "../format.ts"
 import { useLoad } from "../load.ts"
 import { CloudChanged, loadOverview } from "./setup.tsx"
-import { withConsoleAddress } from "./pairing.ts"
+import { withConsoleAddresses } from "./pairing.ts"
 import {
   Async,
   Badge,
@@ -67,8 +67,9 @@ const subtitle = (devices: ReadonlyArray<Device> | null, offline: boolean) => {
 /**
  * Creates a pairing code and shows it as a QR code until it's used or expires. `cloudUrls`: where
  * the app reaches Quai Cloud, as Quai Home links to it (the console itself is Quai Home's).
+ * `consolePublicUrl`: Quai Home's console from outside, added to the code for "Open the console".
  */
-function usePairing(onPaired: () => void, cloudUrls: ReadonlyArray<string>) {
+function usePairing(onPaired: () => void, cloudUrls: ReadonlyArray<string>, consolePublicUrl: string | undefined) {
   const [pairing, setPairing] = useState<Pairing | null>(null)
   const [now, setNow] = useState(Date.now())
   const [error, setError] = useState<unknown>(null)
@@ -79,7 +80,7 @@ function usePairing(onPaired: () => void, cloudUrls: ReadonlyArray<string>) {
     setStarting(true)
     try {
       const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: cloudUrls } }))
-      const link = withConsoleAddress(result.link, window.location.origin)
+      const link = withConsoleAddresses(result.link, window.location.origin, consolePublicUrl)
       const qrSvg = await QRCode.toString(link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: qrColors })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
       setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link, accessHeaderNames: result.accessHeaderNames })
@@ -219,7 +220,7 @@ export function IphonesPage() {
   const { epoch } = useLink()
   const devices = useLoad(() => call((c) => c.console.devices()), [epoch])
   const overview = useLoad(loadOverview, [epoch])
-  const { pairing, left, error: pairingError, starting, start, stop } = usePairing(devices.refresh, cloudUrlsOf(overview.data))
+  const { pairing, left, error: pairingError, starting, start, stop } = usePairing(devices.refresh, cloudUrlsOf(overview.data), overview.data?.consolePublicUrl)
 
   const remove = async (device: Device) => {
     if (!window.confirm(`Remove ${device.name}? It stops receiving Live Activities until paired again.`)) return

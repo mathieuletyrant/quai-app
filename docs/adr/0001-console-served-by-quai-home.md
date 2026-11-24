@@ -56,7 +56,7 @@ runs the Cloud (ours, the user's, or none yet).
   often than the spec hoped. Its data and logic still come from the Cloud.
 - The relay is generic: a new console route in the Cloud needs no change in Quai Home.
 - Pairing: the QR code carries where the iPhone reaches the Cloud at home, `QUAI_CLOUD_APP_URL`
-  (else `QUAI_CLOUD_URL` in http(s)), plus the Cloud's `QUAI_PUBLIC_URL`, no longer the address
+  (else `QUAI_CLOUD_URL` in http(s)), plus the Cloud's `QUAI_CLOUD_PUBLIC_URL`, no longer the address
   the console was opened at. `QUAI_CLOUD_URL` may name the Cloud by a container name only Quai
   Home resolves, hence the second variable.
 
