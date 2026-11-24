@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/mathieuletyrant/quai-app/compare/v0.25.1...v0.26.0) (2026-11-24)
+
+
+### ✨ Features
+
+* a fuller Home, releases that open their title, the app on the landing, disabled flows end their activities ([#91](https://github.com/mathieuletyrant/quai-app/issues/91)) ([f29bbfd](https://github.com/mathieuletyrant/quai-app/commit/f29bbfd6d76a4c83c07f33f219ff1d27db175642))
+
 ## [0.25.1](https://github.com/mathieuletyrant/quai-app/compare/v0.25.0...v0.25.1) (2026-11-24)
 
 
