@@ -85,7 +85,7 @@ struct HomeView: View {
                         HomeSkeleton(showsStorage: connection.library == nil)
                             .transition(.opacity)
                     } else {
-                        TileColumns { tiles }
+                        tiles
                             .transition(.opacity)
                     }
                 }
@@ -169,7 +169,7 @@ private struct HomeSkeleton: View {
     let showsStorage: Bool
 
     var body: some View {
-        TileColumns {
+        VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
             SkeletonTile(rows: 3)
             SkeletonTile(rows: 2)
             SkeletonTile(rows: 2, showsValue: false)

@@ -93,45 +93,6 @@ struct AppScreenshots {
         Self.screenshot(window, "06-live-sheet")
     }
 
-    // MARK: iPhone Duo
-
-    /// The iPhone Duo's inner display, in points (2007 × 2853 pixels at 3×). The simulators don't
-    /// have it yet: its screens are drawn in a window of that size.
-    private static let duoInner = CGSize(width: 669, height: 951)
-
-    @Test func duoHome() async throws {
-        let connection = try await Self.pairedConnection()
-        let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .home), connection, size: Self.duoInner)
-        try await Self.until("the Home's tiles") {
-            connection.fixes != nil && connection.requests != nil && connection.releases != nil
-        }
-        try await Self.settle()
-        Self.screenshot(window, "duo-01-home")
-    }
-
-    @Test func duoLibrary() async throws {
-        let connection = try await Self.pairedConnection()
-        let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .library), connection, size: Self.duoInner)
-        try await Self.until("the library") { connection.library != nil }
-        try await Self.settle()
-        Self.screenshot(window, "duo-02-library")
-    }
-
-    @Test func duoActivity() async throws {
-        let connection = try await Self.pairedConnection()
-        let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .activity), connection, size: Self.duoInner)
-        try await Self.until("the journal") { !connection.journal.isEmpty || connection.journalError != nil }
-        try await Self.settle()
-        Self.screenshot(window, "duo-03-activity")
-    }
-
-    @Test func duoSettings() async throws {
-        let connection = try await Self.pairedConnection()
-        let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .settings), connection, size: Self.duoInner)
-        try await Self.settle()
-        Self.screenshot(window, "duo-04-settings")
-    }
-
     // MARK: Helpers
 
     /// The windows shown so far: kept until the end of the run, so a screen's tasks don't stop under it.
@@ -154,14 +115,13 @@ struct AppScreenshots {
         return connection
     }
 
-    /// The view full screen, in a window of its own above the test host's; at `size` when given.
-    private static func show(_ view: some View, _ connection: Connection, size: CGSize? = nil) throws -> UIWindow {
+    /// The view full screen, in a window of its own above the test host's.
+    private static func show(_ view: some View, _ connection: Connection) throws -> UIWindow {
         for window in windows { window.isHidden = true }
         let scene = try #require(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
         window.overrideUserInterfaceStyle = .dark
         window.rootViewController = UIHostingController(rootView: view.environment(connection))
-        if let size { window.frame = CGRect(origin: .zero, size: size) }
         window.makeKeyAndVisible()
         windows.append(window)
         return window
