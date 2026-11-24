@@ -255,7 +255,10 @@ export const SeerrSearchResult = Schema.Struct({
   firstAirDate: Schema.optional(Schema.NullOr(Schema.String)),
   posterPath: Schema.optional(Schema.NullOr(Schema.String)),
   overview: Schema.optional(Schema.NullOr(Schema.String)),
-  mediaInfo: Schema.optional(Schema.NullOr(Schema.Struct({ status: Schema.optional(Schema.Number) })))
+  mediaInfo: Schema.optional(Schema.NullOr(Schema.Struct({
+    status: Schema.optional(Schema.Number),
+    tvdbId: Schema.optional(Schema.NullOr(Schema.Number))
+  })))
 })
 
 export const SeerrSearchPage = Schema.Struct({ results: Schema.Array(SeerrSearchResult) })
@@ -270,9 +273,11 @@ export const searchResults = (page: typeof SeerrSearchPage.Type): ReadonlyArray<
     const year = knownYear(date === undefined || date === null || date === "" ? undefined : Number(date.slice(0, 4)))
     const poster = posterUrl(result.posterPath)
     const overview = result.overview?.trim()
+    const tvdbId = result.mediaType === "tv" ? result.mediaInfo?.tvdbId : undefined
     return [{
       kind: result.mediaType === "movie" ? "movie" : "series",
       tmdbId: result.id,
+      ...(tvdbId === undefined || tvdbId === null || tvdbId === 0 ? {} : { tvdbId }),
       title,
       ...(year === undefined ? {} : { year }),
       ...(poster === undefined ? {} : { posterUrl: poster }),

@@ -1,0 +1,169 @@
+[
+  {
+    "title": "Noël à la page",
+    "originalTitle": "Clashing Through the Snow",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "secondaryYearSourceId": 0,
+    "sortTitle": "noël à la page",
+    "sizeOnDisk": 3123426681,
+    "status": "released",
+    "overview": "Coincés par une tempête de neige durant les fêtes de fin d'année, Ryan Mitchell et Hannah Hendricks, deux éditeurs que tout oppose, doivent se rendre en voiture à New York, où chacun espère sauver sa carrière. Après un parcours semé d'embuches et de détours dans des petites villes, l'esprit des fêtes transforme leur rivalité farouche en une chose inattendue.",
+    "digitalRelease": "2026-11-23T00:00:00Z",
+    "releaseDate": "2026-11-23T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/95K1Y96ELBDL3M8kyTVb5wocCtX.jpg"
+      }
+    ],
+    "year": 2026,
+    "path": "/downloads/movies/Clashing Through the Snow (2026) [tmdbid-1611767]",
+    "qualityProfileId": 9,
+    "hasFile": true,
+    "movieFileId": 162,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 110,
+    "imdbId": "tt39316936",
+    "tmdbId": 1611767,
+    "titleSlug": "1611767",
+    "tags": [],
+    "added": "2026-11-23T07:42:13Z",
+    "movieFile": {
+      "movieId": 305,
+      "relativePath": "Clashing Through the Snow (2026) [tmdbid-1611767] - [MULTi Audio VF2-VFI][WEBDL-1080p][EAC3 5.1][h265]-GL0P.mkv",
+      "path": "/downloads/movies/Clashing Through the Snow (2026) [tmdbid-1611767]/Clashing Through the Snow (2026) [tmdbid-1611767] - [MULTi Audio VF2-VFI][WEBDL-1080p][EAC3 5.1][h265]-GL0P.mkv",
+      "size": 3123426681,
+      "dateAdded": "2026-11-23T08:23:00Z",
+      "sceneName": "Clashing.Through.the.Snow.2026.MULTi.VF2.1080p.WEB.H265-GL0P",
+      "releaseGroup": "GL0P",
+      "edition": "",
+      "quality": {
+        "quality": {
+          "id": 3,
+          "name": "WEBDL-1080p",
+          "source": "webdl",
+          "resolution": 1080,
+          "modifier": "none"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0,
+          "isRepack": false
+        }
+      },
+      "customFormatScore": 902500,
+      "indexerFlags": 0,
+      "originalFilePath": "Clashing.Through.the.Snow.2026.MULTi.VF2.1080p.WEB.H265-GL0P.mkv",
+      "qualityCutoffNotMet": false,
+      "id": 162
+    },
+    "lastSearchTime": "2026-11-23T07:42:17Z",
+    "statistics": {
+      "movieFileCount": 1,
+      "sizeOnDisk": 3123426681,
+      "releaseGroups": [
+        "GL0P"
+      ],
+      "movieFileQualities": [
+        {
+          "id": 3,
+          "name": "WEBDL-1080p",
+          "source": "webdl",
+          "resolution": 1080,
+          "modifier": "none"
+        }
+      ]
+    },
+    "id": 305
+  },
+  {
+    "title": "Warrior Kid",
+    "originalTitle": "Way of the Warrior Kid",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "secondaryYearSourceId": 0,
+    "sortTitle": "warrior kid",
+    "sizeOnDisk": 0,
+    "status": "released",
+    "overview": "Jake, un commando de la Marine blessé en mission, aide son neveu Marc, un ado timide et tourmenté, à devenir un jeune guerrier grâce à des principes militaires.",
+    "digitalRelease": "2026-11-24T00:00:00Z",
+    "releaseDate": "2026-11-24T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/atI81xXKNVah7PJFBo3aXqQKtnG.jpg"
+      }
+    ],
+    "year": 2026,
+    "path": "/downloads/movies/Way of the Warrior Kid (2026) [tmdbid-1280115]",
+    "qualityProfileId": 9,
+    "hasFile": false,
+    "movieFileId": 0,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 106,
+    "imdbId": "tt32213169",
+    "tmdbId": 1280115,
+    "titleSlug": "1280115",
+    "tags": [],
+    "added": "2026-10-29T21:26:12Z",
+    "statistics": {
+      "movieFileCount": 0,
+      "sizeOnDisk": 0,
+      "releaseGroups": [],
+      "movieFileQualities": []
+    },
+    "id": 285
+  },
+  {
+    "title": "Hershey",
+    "originalTitle": "Hershey",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "secondaryYearSourceId": 0,
+    "sortTitle": "hershey",
+    "sizeOnDisk": 0,
+    "status": "announced",
+    "overview": "Based on the life of Milton Hershey, founder of the iconic Hershey chocolate company. Milton's grit and determination to conquer the world of candy-making propel him from bankruptcy to monumental success, and the love of his life, Kitty, helps him build a legacy sweeter than any candy bar. But when Kitty falls ill, Milton’s wild optimism teeters on the edge of destruction, and she sparks an even bolder dream: to leave their fortune in the hands of America’s children in need.",
+    "inCinemas": "2026-11-25T00:00:00Z",
+    "releaseDate": "2026-11-25T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/ojd8Gu2bPsOzdMz6Ip5AYDu4Vki.jpg"
+      }
+    ],
+    "year": 2026,
+    "path": "/downloads/movies/Hershey (2026) [tmdbid-1461490]",
+    "qualityProfileId": 9,
+    "hasFile": false,
+    "movieFileId": 0,
+    "monitored": true,
+    "minimumAvailability": "tba",
+    "isAvailable": true,
+    "runtime": 110,
+    "imdbId": "tt17055444",
+    "tmdbId": 1461490,
+    "titleSlug": "1461490",
+    "tags": [],
+    "added": "2026-07-22T05:23:02Z",
+    "lastSearchTime": "2026-11-21T13:40:57Z",
+    "statistics": {
+      "movieFileCount": 0,
+      "sizeOnDisk": 0,
+      "releaseGroups": [],
+      "movieFileQualities": []
+    },
+    "id": 228
+  }
+]

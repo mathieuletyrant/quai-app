@@ -1,0 +1,20 @@
+[
+  {
+    "path": "/",
+    "label": "",
+    "freeSpace": 786623759360,
+    "totalSpace": 1963188352000
+  },
+  {
+    "path": "/config",
+    "label": "",
+    "freeSpace": 786623817728,
+    "totalSpace": 1963188352000
+  },
+  {
+    "path": "/downloads",
+    "label": "",
+    "freeSpace": 786623817728,
+    "totalSpace": 1963188352000
+  }
+]

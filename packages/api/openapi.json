@@ -3422,6 +3422,11 @@
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
           },
+          "tvdbId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
           "title": {
             "type": "string"
           },
@@ -4176,6 +4181,11 @@
             "maximum": 9007199254740991
           },
           "tmdbId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "tvdbId": {
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991

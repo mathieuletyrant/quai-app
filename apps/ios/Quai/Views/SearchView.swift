@@ -14,9 +14,15 @@ extension SearchResult: Identifiable {
         return parts.joined(separator: " · ")
     }
 
-    /// The same title in Radarr or Sonarr, by its TMDB id.
+    /// The same title in Radarr or Sonarr, by its TMDB id, or a series' TVDB id (Sonarr may not
+    /// know its TMDB id).
     func match(in library: Components.Schemas.Library?) -> LibraryItem? {
-        library?.items.first { $0.tmdbId == tmdbId && $0.kind.rawValue == kind.rawValue }
+        library?.items.first { item in
+            guard item.kind.rawValue == kind.rawValue else { return false }
+            if item.tmdbId == tmdbId { return true }
+            if let tvdbId, item.tvdbId == tvdbId { return true }
+            return false
+        }
     }
 }
 

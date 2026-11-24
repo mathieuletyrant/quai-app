@@ -1,0 +1,219 @@
+{
+  "episodeRunTime": [
+    184
+  ],
+  "firstAirDate": "2022-03-07",
+  "genres": [
+    {
+      "id": 9648,
+      "name": "Mystère"
+    },
+    {
+      "id": 18,
+      "name": "Drame"
+    }
+  ],
+  "homepage": "",
+  "id": 157014,
+  "inProduction": false,
+  "languages": [
+    "en"
+  ],
+  "lastAirDate": "2022-03-10",
+  "name": "Notre maison",
+  "networks": [
+    {
+      "id": 9,
+      "name": "ITV1",
+      "originCountry": "GB",
+      "logoPath": "/oz9pjTHnBUmlju8OkaTymhKbh6C.png"
+    }
+  ],
+  "numberOfEpisodes": 4,
+  "numberOfSeasons": 1,
+  "originCountry": [
+    "GB"
+  ],
+  "originalLanguage": "en",
+  "originalName": "Our House",
+  "tagline": "",
+  "overview": "En rentrant chez elle un jour, Fi Lawson découvre qu'une famille d'étrangers a pris possession des lieux. Le cauchemar commence alors pour Fi et Bram, son mari...",
+  "popularity": 2.5726,
+  "seasons": [
+    {
+      "airDate": "2022-03-07",
+      "episodeCount": 4,
+      "id": 242688,
+      "name": "Saison 1",
+      "overview": "",
+      "seasonNumber": 1,
+      "posterPath": "/rVAV47jNlwv3aZEvS3vZSEUHV8E.jpg"
+    }
+  ],
+  "status": "Ended",
+  "type": "Miniseries",
+  "voteAverage": 6.4,
+  "voteCount": 31,
+  "backdropPath": "/7317cBiCmr3T8kMYm88JJS4vg64.jpg",
+  "lastEpisodeToAir": {
+    "id": 3579097,
+    "airDate": "2022-03-10",
+    "episodeNumber": 4,
+    "name": "Fin de partie",
+    "overview": "Fi découvre enfin la vérité sur la vente de la maison et se confronte aux responsables.",
+    "productionCode": "",
+    "seasonNumber": 1,
+    "showId": 157014,
+    "voteAverage": 7,
+    "voteCount": 2,
+    "stillPath": "/myOoLXv6cq7qB1BSKd9q7OMBpY8.jpg"
+  },
+  "posterPath": "/fV30NivnHLfrCBeiDwVnpWkP0ur.jpg",
+  "externalIds": {
+    "facebookId": null,
+    "freebaseId": null,
+    "freebaseMid": null,
+    "imdbId": "tt10098728",
+    "instagramId": null,
+    "tvdbId": 407046,
+    "tvrageId": null,
+    "twitterId": null
+  },
+  "mediaInfo": {
+    "downloadStatus": [],
+    "downloadStatus4k": [],
+    "id": 205,
+    "mediaType": "tv",
+    "tmdbId": 157014,
+    "tvdbId": 407046,
+    "imdbId": null,
+    "status": 5,
+    "status4k": 1,
+    "createdAt": "2026-11-23T21:25:22.000Z",
+    "updatedAt": "2026-11-24T18:40:04.000Z",
+    "lastSeasonChange": "2026-11-24T18:40:04.416Z",
+    "mediaAddedAt": "2026-11-24T18:39:45.604Z",
+    "serviceId": 0,
+    "serviceId4k": null,
+    "externalServiceId": 233,
+    "externalServiceId4k": null,
+    "externalServiceSlug": "our-house-2022",
+    "externalServiceSlug4k": null,
+    "ratingKey": null,
+    "ratingKey4k": null,
+    "jellyfinMediaId": "1d44f2954a4209050a6e45617780e347",
+    "jellyfinMediaId4k": null,
+    "requests": [
+      {
+        "id": 36,
+        "status": 5,
+        "createdAt": "2026-11-23T21:26:11.000Z",
+        "updatedAt": "2026-11-24T18:40:04.000Z",
+        "type": "tv",
+        "is4k": false,
+        "serverId": null,
+        "profileId": null,
+        "rootFolder": null,
+        "languageProfileId": null,
+        "tags": null,
+        "isAutoRequest": false,
+        "ignoreQuota": false,
+        "media": {
+          "downloadStatus": [],
+          "downloadStatus4k": [],
+          "id": 205,
+          "mediaType": "tv",
+          "tmdbId": 157014,
+          "tvdbId": 407046,
+          "imdbId": null,
+          "status": 5,
+          "status4k": 1,
+          "createdAt": "2026-11-23T21:25:22.000Z",
+          "updatedAt": "2026-11-24T18:40:04.000Z",
+          "lastSeasonChange": "2026-11-24T18:40:04.416Z",
+          "mediaAddedAt": "2026-11-24T18:39:45.604Z",
+          "serviceId": 0,
+          "serviceId4k": null,
+          "externalServiceId": 233,
+          "externalServiceId4k": null,
+          "externalServiceSlug": "our-house-2022",
+          "externalServiceSlug4k": null,
+          "ratingKey": null,
+          "ratingKey4k": null,
+          "jellyfinMediaId": "1d44f2954a4209050a6e45617780e347",
+          "jellyfinMediaId4k": null,
+          "mediaUrl": "https://jellyfin.example/web/index.html#!/details?id=1d44f2954a4209050a6e45617780e347&context=home&serverId=00000000000000000000000000000000",
+          "serviceUrl": "http://sonarr_server_1:8989/series/our-house-2022"
+        },
+        "requestedBy": {
+          "permissions": 2,
+          "warnings": [],
+          "id": 1,
+          "plexUsername": null,
+          "jellyfinUsername": "guest",
+          "username": null,
+          "recoveryLinkExpirationDate": null,
+          "userType": 3,
+          "jellyfinUserId": "9a8b7c6d5e4f30211203f4e5d6c7b8a9",
+          "avatar": "/avatarproxy/0",
+          "avatarETag": null,
+          "avatarVersion": null,
+          "movieQuotaLimit": null,
+          "movieQuotaDays": null,
+          "tvQuotaLimit": null,
+          "tvQuotaDays": null,
+          "createdAt": "2026-10-17T09:16:27.000Z",
+          "updatedAt": "2026-10-18T12:47:39.000Z",
+          "requestCount": 35,
+          "displayName": "guest"
+        },
+        "modifiedBy": {
+          "permissions": 2,
+          "warnings": [],
+          "id": 1,
+          "plexUsername": null,
+          "jellyfinUsername": "guest",
+          "username": null,
+          "recoveryLinkExpirationDate": null,
+          "userType": 3,
+          "jellyfinUserId": "9a8b7c6d5e4f30211203f4e5d6c7b8a9",
+          "avatar": "/avatarproxy/0",
+          "avatarETag": null,
+          "avatarVersion": null,
+          "movieQuotaLimit": null,
+          "movieQuotaDays": null,
+          "tvQuotaLimit": null,
+          "tvQuotaDays": null,
+          "createdAt": "2026-10-17T09:16:27.000Z",
+          "updatedAt": "2026-10-18T12:47:39.000Z",
+          "requestCount": 35,
+          "displayName": "guest"
+        },
+        "seasons": [
+          {
+            "id": 10,
+            "seasonNumber": 1,
+            "status": 5,
+            "createdAt": "2026-11-23T21:26:11.000Z",
+            "updatedAt": "2026-11-24T18:40:04.000Z"
+          }
+        ],
+        "seasonCount": 1
+      }
+    ],
+    "issues": [],
+    "seasons": [
+      {
+        "id": 159,
+        "seasonNumber": 1,
+        "status": 5,
+        "status4k": 1,
+        "createdAt": "2026-11-24T04:30:05.000Z",
+        "updatedAt": "2026-11-24T18:40:04.000Z"
+      }
+    ],
+    "mediaUrl": "https://jellyfin.example/web/index.html#!/details?id=1d44f2954a4209050a6e45617780e347&context=home&serverId=00000000000000000000000000000000",
+    "serviceUrl": "http://sonarr_server_1:8989/series/our-house-2022"
+  },
+  "onUserWatchlist": false
+}
