@@ -32,4 +32,11 @@ struct QuaiErrorsTests {
         #expect(ConnectionError.removed.localizedDescription == "This iPhone was removed from the console. Pair it again.")
         #expect(ConnectionError.gone.localizedDescription.hasPrefix("This is already sorted out."))
     }
+
+    @Test func aCancelledCallIsNoFailure() {
+        #expect(CancellationError().isCancellation)
+        #expect(URLError(.cancelled).isCancellation)
+        #expect(!URLError(.timedOut).isCancellation)
+        #expect(!ConnectionError.unreachable.isCancellation)
+    }
 }

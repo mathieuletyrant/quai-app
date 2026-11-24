@@ -42,6 +42,7 @@ struct QuaiApp: App {
                 // Activities swiped away while the app wasn't running: the server learns it here.
                 .onChange(of: scenePhase, initial: true) { _, phase in
                     if phase == .active {
+                        connection.didBecomeActive()
                         Task { await connection.reportShownActivities() }
                         Task { await connection.reportTimeZone() }
                     }

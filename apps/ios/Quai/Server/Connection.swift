@@ -180,13 +180,32 @@ final class Connection {
     func refresh() async {
         guard session != nil else { return }
         do {
-            let client = try await requiredClient()
-            activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
-            lastError = nil
-            await learnSubjects()
+            try await readActivities()
         } catch {
-            lastError = error.quaiMessage
+            if error.isCancellation { return }
+            // Back in front, the network can take a moment to wake: one more try before saying so.
+            connecting = nil
+            try? await Task.sleep(for: .seconds(2))
+            if Task.isCancelled { return }
+            do {
+                try await readActivities()
+            } catch {
+                if !error.isCancellation { lastError = error.quaiMessage }
+            }
         }
+    }
+
+    private func readActivities() async throws {
+        let client = try await requiredClient()
+        activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        lastError = nil
+        await learnSubjects()
+    }
+
+    /// The app is back in front: a search started before it was suspended has had its requests
+    /// frozen past their timeout, so the next call starts a new one.
+    func didBecomeActive() {
+        connecting = nil
     }
 
     /// A Live Activity button pressed in the app: it shows at once, then the server confirms.
@@ -454,7 +473,11 @@ final class Connection {
 
     private func send(_ call: (Client) async throws -> Void) async {
         guard let client = await authenticatedClient() else { return }
-        do { try await call(client) } catch { lastError = error.quaiMessage }
+        do {
+            try await call(client)
+        } catch {
+            if !error.isCancellation { lastError = error.quaiMessage }
+        }
     }
 
     /// `requiredClient`, for the calls that have nowhere to report a failure but `lastError`.
