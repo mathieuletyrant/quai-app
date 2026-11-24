@@ -85,7 +85,9 @@ export type FlowPreference = typeof FlowPreference.Type
 export const DevicePreferences = Schema.Struct({
   flows: Schema.Record(Schema.String, FlowPreference),
   /** Alerts this iPhone doesn't want notified. Absent: every alert. */
-  mutedAlerts: Schema.optionalKey(Schema.Array(AlertKind))
+  mutedAlerts: Schema.optionalKey(Schema.Array(AlertKind)),
+  /** The Seerr user this iPhone requests as. Absent: Seerr's admin, the owner of Quai Home's key. */
+  seerrUserId: Schema.optionalKey(Schema.Int)
 }).annotate({ identifier: "DevicePreferences" })
 export type DevicePreferences = typeof DevicePreferences.Type
 

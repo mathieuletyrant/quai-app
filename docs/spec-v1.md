@@ -194,8 +194,8 @@ The first milestone that matters is #2: a real Download Live Activity, from the 
 These pieces are designed but wait for v2, in this order:
 
 1. **To fix**: fixed rules (import stuck, no source, no file after release, missing French subtitles, deletions scheduled by Cleanuparr or Reclaimerr, low disk), each with its one-tap fix.
-2. **Widgets, Siri and Shortcuts**: Home Screen, Lock Screen, StandBy; "Add Dune", "What's out today?".
-3. **Tiled home, library, search and add, title page** with the title's journey.
+2. **Widgets, Siri and Shortcuts**: Home Screen, Lock Screen, StandBy; "Add Dune", "What's out today?". Started with the search (#93): a Lock Screen control opening it already listening, a Lock Screen widget, and "Search in Quai" in Siri and Shortcuts.
+3. **Tiled home, library, search and add, title page** with the title's journey. The search and add is done (#93): Seerr's search, a request as the Seerr user each iPhone chose, the seasons of a series picked. Quai Home's allowlist now creates Seerr requests, with a checked body (a movie, or chosen seasons, optionally for a user; never 4K, a server, a profile or a root folder).
 
 ## Open questions
 

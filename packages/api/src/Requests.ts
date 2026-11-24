@@ -47,16 +47,112 @@ export class RequestFailed extends Schema.TaggedError<RequestFailed>()("RequestF
   message: Schema.String
 }, { httpApiStatus: 502 }) {}
 
+/**
+ * - `ok`: Seerr answered;
+ * - `unavailable`: Quai Home reaches Seerr but it didn't answer this time;
+ * - `notConfigured`: Quai Home has no Seerr;
+ * - `outdated`: Quai Home is too old to search or request (before protocol 8): update it.
+ */
+export const SearchStatus = Schema.Literals(["ok", "unavailable", "notConfigured", "outdated"]).annotate({ identifier: "SearchStatus" })
+export type SearchStatus = typeof SearchStatus.Type
+
+/**
+ * Where a title stands in Seerr:
+ * - `requestable`: nobody asked for it;
+ * - `requested`: asked for, waiting for approval or on its way;
+ * - `partial`: a series with some seasons in the library: the others can still be requested;
+ * - `available`: in the library.
+ */
+export const TitleState = Schema.Literals(["requestable", "requested", "partial", "available"]).annotate({ identifier: "TitleState" })
+export type TitleState = typeof TitleState.Type
+
+/** A movie or a series Seerr found. */
+export const SearchResult = Schema.Struct({
+  kind: RequestKind,
+  /** TMDB's id: what a request names. */
+  tmdbId: Schema.Int,
+  title: Schema.String,
+  year: Schema.optionalKey(Schema.Int),
+  /** The poster's public URL (TMDB). */
+  posterUrl: Schema.optionalKey(Schema.String),
+  overview: Schema.optionalKey(Schema.String),
+  state: TitleState
+}).annotate({ identifier: "SearchResult" })
+export type SearchResult = typeof SearchResult.Type
+
+/** Seerr's answer to a search, movies and series only (no people, no collections), in its order. */
+export const SearchResults = Schema.Struct({
+  items: Schema.Array(SearchResult),
+  status: SearchStatus
+}).annotate({ identifier: "SearchResults" })
+export type SearchResults = typeof SearchResults.Type
+
+/** A season of a series, as the season picker shows it. Specials (season 0) are left out. */
+export const SeasonChoice = Schema.Struct({
+  number: Schema.Int,
+  episodes: Schema.optionalKey(Schema.Int),
+  /** `requestable`, or already asked for or there. */
+  state: TitleState
+}).annotate({ identifier: "SeasonChoice" })
+export type SeasonChoice = typeof SeasonChoice.Type
+
+export const SeriesSeasons = Schema.Struct({
+  seasons: Schema.Array(SeasonChoice)
+}).annotate({ identifier: "SeriesSeasons" })
+export type SeriesSeasons = typeof SeriesSeasons.Type
+
+/**
+ * A request made from the app. A series names its seasons (at least one); a movie none. The
+ * requester is never in it: it's the Seerr user this iPhone chose (`DevicePreferences.seerrUserId`),
+ * or Seerr's admin when it chose none.
+ */
+export const CreateRequest = Schema.Struct({
+  kind: RequestKind,
+  tmdbId: Schema.Int.check(Schema.isGreaterThan(0)),
+  seasons: Schema.optionalKey(Schema.Array(Schema.Int.check(Schema.isGreaterThan(0))))
+}).annotate({ identifier: "CreateRequest" })
+export type CreateRequest = typeof CreateRequest.Type
+
+/** What Seerr made of the request: approved at once (an auto-approve user), or waiting for an admin. */
+export const RequestCreated = Schema.Struct({
+  status: Schema.Literals(["approved", "pending"])
+}).annotate({ identifier: "RequestCreated" })
+export type RequestCreated = typeof RequestCreated.Type
+
+/** A Seerr user an iPhone can request as. */
+export const SeerrUser = Schema.Struct({
+  id: Schema.Int,
+  /** As Seerr names them: "Julie". */
+  name: Schema.String
+}).annotate({ identifier: "SeerrUser" })
+export type SeerrUser = typeof SeerrUser.Type
+
+export const SeerrUsers = Schema.Struct({
+  items: Schema.Array(SeerrUser),
+  status: SearchStatus
+}).annotate({ identifier: "SeerrUsers" })
+export type SeerrUsers = typeof SeerrUsers.Type
+
 const id = { id: Schema.String }
 
-/** Seerr's requests waiting for approval, for the app's Requests tile and screen. */
+/**
+ * Seerr for the app: the requests waiting for approval (the Requests tile and screen), and the
+ * search that requests a title.
+ */
 export class RequestsGroup extends HttpApiGroup.make("requests")
   .add(
     HttpApiEndpoint.get("list", "/requests", { success: MediaRequests }).annotate(OpenApi.Identifier, "listRequests"),
     HttpApiEndpoint.post("approve", "/requests/:id/approve", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
       .annotate(OpenApi.Identifier, "approveRequest"),
     HttpApiEndpoint.post("decline", "/requests/:id/decline", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, "declineRequest")
+      .annotate(OpenApi.Identifier, "declineRequest"),
+    HttpApiEndpoint.post("create", "/requests", { payload: CreateRequest, success: RequestCreated, error: [RequestFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "createRequest"),
+    HttpApiEndpoint.get("users", "/requests/users", { success: SeerrUsers }).annotate(OpenApi.Identifier, "listSeerrUsers"),
+    HttpApiEndpoint.get("search", "/search", { query: { query: Schema.String }, success: SearchResults })
+      .annotate(OpenApi.Identifier, "searchTitles"),
+    HttpApiEndpoint.get("seasons", "/search/series/:tmdbId", { params: { tmdbId: Schema.String }, success: SeriesSeasons, error: [RequestFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "listSeasons")
   )
   .middleware(DeviceAuth)
   .middleware(HomeRequired)

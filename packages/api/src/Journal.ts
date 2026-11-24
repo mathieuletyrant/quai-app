@@ -171,6 +171,7 @@ export const appJournalKinds: ReadonlyArray<string> = [
   "playback.stopped",
   "alert.raised",
   "alert.over",
+  "request.created",
   "request.pending",
   "request.approved",
   "request.declined",

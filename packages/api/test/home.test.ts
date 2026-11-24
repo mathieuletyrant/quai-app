@@ -97,8 +97,33 @@ describe("allowlist: Seerr", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve", body: { is4k: true } })).toBe(false)
   })
 
-  it("refuses every other write: creating, retrying or deleting a request, the settings, the users", () => {
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } })).toBe(false)
+  it("searches, lists the users, and requests a movie or some seasons, for another user or not", () => {
+    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/search?query=dune&page=1" })).toBe(true)
+    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user?take=100" })).toBe(true)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 438631 } })).toBe(true)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 438631, userId: 2 } })).toBe(true)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "tv", mediaId: 95396, seasons: [1, 2] } })).toBe(true)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "tv", mediaId: 95396, seasons: [1], userId: 2 } })).toBe(true)
+  })
+
+  it("requests nothing else: no 4K, server, profile or root folder, no \"all\" seasons, no seasons on a movie", () => {
+    const request = (body: unknown) => allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body })
+    expect(request({ mediaType: "movie", mediaId: 1, is4k: true })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 1, profileId: 4 })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 1, rootFolder: "/" })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 1, seasons: [1] })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 1, seasons: "all" })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 1, seasons: [] })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 1, seasons: [0] })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 1, seasons: [1, 1] })).toBe(false)
+    expect(request({ mediaType: "tv", mediaId: 1 })).toBe(false)
+    expect(request({ mediaType: "music", mediaId: 1 })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: "1" })).toBe(false)
+    expect(request({ mediaType: "movie", mediaId: 1, userId: "admin" })).toBe(false)
+    expect(request(undefined)).toBe(false)
+  })
+
+  it("refuses every other write: retrying or deleting a request, the settings, the users", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/retry" })).toBe(false)
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/pending" })).toBe(false)
     expect(allowed({ service: "seerr", method: "DELETE", path: "/api/v1/request/12" })).toBe(false)
@@ -106,7 +131,8 @@ describe("allowlist: Seerr", () => {
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/notifications/webhook" })).toBe(false)
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/settings/notifications/webhook", body: { enabled: true } })).toBe(false)
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/main" })).toBe(false)
-    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/user", body: { email: "x" } })).toBe(false)
+    expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user/1/settings/main" })).toBe(false)
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(false)
   })
 })

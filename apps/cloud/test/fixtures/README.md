@@ -25,7 +25,12 @@ masked.
 `seerr/` follows Jellyseerr 2's API (`overseerr-api.yml`): `GET /api/v1/request?filter=pending`
 (`requests-pending.json`, a movie and a series asked by Julie), `GET /api/v1/request/{id}`
 (`request-approved.json`), `GET /api/v1/movie/{id}` and `GET /api/v1/tv/{id}` (`movie.json`,
-`tv.json`, trimmed). `webhook-*.json` are what Seerr posts with Quai Home's payload template
+`tv.json`, trimmed, with Severance's seasons: specials, 1 in the library, 2 asked for, 3 not out
+yet), `GET /api/v1/search?query=dune` (`search-dune.json`: movies, a series, a person and a
+collection; Dune in the library, Part Two on its way), `GET /api/v1/tv/90228`
+(`tv-prophecy.json`, Dune: Prophecy, nothing asked yet), `GET /api/v1/user` (`users.json`,
+Mathieu and Julie), and `POST /api/v1/request` (`request-created.json`, auto-approved).
+`webhook-*.json` are what Seerr posts with Quai Home's payload template
 (apps/home/src/SeerrWebhook.ts): pending, approved, declined, an auto-approved request (it must
 start nothing) and the test notification.
 

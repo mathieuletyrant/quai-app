@@ -1,0 +1,38 @@
+{
+  "id": 20,
+  "status": 2,
+  "createdAt": "2026-11-20T10:00:00.000Z",
+  "updatedAt": "2026-11-20T10:00:00.000Z",
+  "type": "tv",
+  "is4k": false,
+  "serverId": 0,
+  "profileId": 4,
+  "rootFolder": "/downloads/shows",
+  "languageProfileId": null,
+  "tags": [],
+  "isAutoRequest": false,
+  "media": {
+    "id": 60,
+    "mediaType": "tv",
+    "tmdbId": 90228,
+    "tvdbId": 409413,
+    "status": 3,
+    "status4k": 1
+  },
+  "seasons": [
+    {
+      "id": 120,
+      "seasonNumber": 1,
+      "status": 2
+    }
+  ],
+  "requestedBy": {
+    "id": 2,
+    "displayName": "Julie"
+  },
+  "modifiedBy": {
+    "id": 2,
+    "displayName": "Julie"
+  },
+  "seasonCount": 1
+}

@@ -1305,6 +1305,80 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "createRequest",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RequestCreated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestCreated"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequest"
+              }
+            }
+          },
+          "required": true
+        }
       }
     },
     "/api/requests/{id}/approve": {
@@ -1399,6 +1473,182 @@
         "responses": {
           "204": {
             "description": "<No Content>"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NotFound",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_NotFoundEncoded"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "RequestFailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestFailedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/requests/users": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "listSeerrUsers",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SeerrUsers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeerrUsers"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "searchTitles",
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SearchResults",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/search/series/{tmdbId}": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "operationId": "listSeasons",
+        "parameters": [
+          {
+            "name": "tmdbId",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SeriesSeasons",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeriesSeasons"
+                }
+              }
+            }
           },
           "401": {
             "description": "Unauthorized",
@@ -3085,6 +3335,204 @@
         ],
         "additionalProperties": false
       },
+      "SeriesSeasons": {
+        "type": "object",
+        "properties": {
+          "seasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeasonChoice"
+            }
+          }
+        },
+        "required": [
+          "seasons"
+        ],
+        "additionalProperties": false
+      },
+      "SeasonChoice": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "episodes": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "state": {
+            "$ref": "#/components/schemas/TitleState"
+          }
+        },
+        "required": [
+          "number",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "TitleState": {
+        "type": "string",
+        "enum": [
+          "requestable",
+          "requested",
+          "partial",
+          "available"
+        ]
+      },
+      "SearchResults": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/SearchStatus"
+          }
+        },
+        "required": [
+          "items",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "SearchStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "unavailable",
+          "notConfigured",
+          "outdated"
+        ]
+      },
+      "SearchResult": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RequestKind"
+          },
+          "tmdbId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "title": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/TitleState"
+          }
+        },
+        "required": [
+          "kind",
+          "tmdbId",
+          "title",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "RequestKind": {
+        "type": "string",
+        "enum": [
+          "movie",
+          "series"
+        ]
+      },
+      "SeerrUsers": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SeerrUser"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/SearchStatus"
+          }
+        },
+        "required": [
+          "items",
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "SeerrUser": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "RequestCreated": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "pending"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "CreateRequest": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/RequestKind"
+          },
+          "tmdbId": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "exclusiveMinimum": 0
+          },
+          "seasons": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "maximum": 9007199254740991,
+              "exclusiveMinimum": 0
+            }
+          }
+        },
+        "required": [
+          "kind",
+          "tmdbId"
+        ],
+        "additionalProperties": false
+      },
       "MediaRequests": {
         "type": "object",
         "properties": {
@@ -3161,13 +3609,6 @@
           "is4k"
         ],
         "additionalProperties": false
-      },
-      "RequestKind": {
-        "type": "string",
-        "enum": [
-          "movie",
-          "series"
-        ]
       },
       "FixFailedEncoded": {
         "type": "object",
@@ -4065,6 +4506,11 @@
             "items": {
               "$ref": "#/components/schemas/AlertKind"
             }
+          },
+          "seerrUserId": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
           }
         },
         "required": [

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Settings tab: this iPhone's Live Activities, the connection, disconnecting.
+/// The Settings tab: this iPhone's Live Activities, notifications and requester, the connection, disconnecting.
 struct SettingsView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.openURL) private var openURL
@@ -65,6 +65,12 @@ struct SettingsView: View {
                             NotificationSettingsView()
                         } label: {
                             ListRow(title: "Notifications", systemImage: "bell.badge.fill", iconColor: Palette.incident, chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                        NavigationLink {
+                            RequesterSettingsView()
+                        } label: {
+                            ListRow(title: "Request as", systemImage: "person.crop.circle", iconColor: Palette.requests, chevron: true)
                         }
                         .buttonStyle(.plain)
                     }

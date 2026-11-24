@@ -1,9 +1,20 @@
-import { type ActionType, type HomeOffline, InvalidAction, type MediaRequest, RequestFailed } from "@quai/api"
+import {
+  type ActionType,
+  type CreateRequest,
+  type HomeOffline,
+  InvalidAction,
+  type MediaRequest,
+  RequestFailed,
+  type SearchResult,
+  type SeasonChoice,
+  type SeerrUser,
+  type TitleState
+} from "@quai/api"
 import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
-import { type ActionHandler, anyEnabledFlow, type Integration, readSnapshot, runningWhere, type WatchContext, watchOf } from "./Integration.ts"
+import { type ActionHandler, anyEnabledFlow, type Integration, readJson, readSnapshot, runningWhere, type WatchContext, watchOf } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./arr.ts"
 
 /**
@@ -81,12 +92,12 @@ export interface TitleDetails {
 export const kindOf = (request: SeerrRequest): "movie" | "series" =>
   (request.type ?? request.media.mediaType) === "tv" ? "series" : "movie"
 
-export const requesterOf = (request: SeerrRequest) => {
-  const user = request.requestedBy
-  const name = [user?.displayName, user?.username, user?.jellyfinUsername, user?.plexUsername, user?.email]
+/** How Seerr names a user: its display name, else a username or the email. */
+const userName = (user: typeof User.Type | null | undefined) =>
+  [user?.displayName, user?.username, user?.jellyfinUsername, user?.plexUsername, user?.email]
     .find((n): n is string => typeof n === "string" && n !== "")
-  return name ?? "Someone"
-}
+
+export const requesterOf = (request: SeerrRequest) => userName(request.requestedBy) ?? "Someone"
 
 export const titleDetails = (body: typeof SeerrTitle.Type): TitleDetails | undefined => {
   const title = body.title ?? body.name
@@ -202,6 +213,133 @@ export const requestIdOf = (subjectKey: string): number | null => {
   return kind === "request" && Number.isInteger(n) && n > 0 ? n : null
 }
 
+// Searching and requesting, from the app's search.
+
+/** Seerr's media statuses (server/constants/media.ts, MediaStatus): a title's or a season's. */
+export const MediaStatus = { unknown: 1, pending: 2, processing: 3, partiallyAvailable: 4, available: 5, blocklisted: 6, deleted: 7 } as const
+
+/** Where a title or a season stands, in the app's words. Blocklisted or deleted: as if nobody asked. */
+export const titleState = (status: number | undefined): TitleState => {
+  switch (status) {
+    case MediaStatus.pending:
+    case MediaStatus.processing:
+      return "requested"
+    case MediaStatus.partiallyAvailable:
+      return "partial"
+    case MediaStatus.available:
+      return "available"
+    default:
+      return "requestable"
+  }
+}
+
+/**
+ * Seerr wants a strictly encoded query: `encodeURIComponent` leaves `!'()*` as they are, and Seerr
+ * answers 400 to "Ocean's Eleven" unless they're encoded too.
+ */
+export const searchPath = (query: string) =>
+  `/api/v1/search?query=${encodeURIComponent(query).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}&page=1`
+
+/** Seerr's users, enough for a household. */
+export const usersPath = "/api/v1/user?take=100&skip=0&sort=displayname"
+
+export const createPath = "/api/v1/request"
+
+/** One result of `GET /api/v1/search`: a movie, a series, a person or a collection. */
+export const SeerrSearchResult = Schema.Struct({
+  id: Schema.Number,
+  mediaType: Schema.String,
+  title: Schema.optional(Schema.NullOr(Schema.String)),
+  name: Schema.optional(Schema.NullOr(Schema.String)),
+  releaseDate: Schema.optional(Schema.NullOr(Schema.String)),
+  firstAirDate: Schema.optional(Schema.NullOr(Schema.String)),
+  posterPath: Schema.optional(Schema.NullOr(Schema.String)),
+  overview: Schema.optional(Schema.NullOr(Schema.String)),
+  mediaInfo: Schema.optional(Schema.NullOr(Schema.Struct({ status: Schema.optional(Schema.Number) })))
+})
+
+export const SeerrSearchPage = Schema.Struct({ results: Schema.Array(SeerrSearchResult) })
+
+/** Movies and series only, in Seerr's order (the most relevant first). */
+export const searchResults = (page: typeof SeerrSearchPage.Type): ReadonlyArray<SearchResult> =>
+  page.results.flatMap((result): ReadonlyArray<SearchResult> => {
+    if (result.mediaType !== "movie" && result.mediaType !== "tv") return []
+    const title = (result.mediaType === "movie" ? result.title : result.name) ?? result.title ?? result.name
+    if (title === undefined || title === null || title === "") return []
+    const date = result.mediaType === "movie" ? result.releaseDate : result.firstAirDate
+    const year = knownYear(date === undefined || date === null || date === "" ? undefined : Number(date.slice(0, 4)))
+    const poster = posterUrl(result.posterPath)
+    const overview = result.overview?.trim()
+    return [{
+      kind: result.mediaType === "movie" ? "movie" : "series",
+      tmdbId: result.id,
+      title,
+      ...(year === undefined ? {} : { year }),
+      ...(poster === undefined ? {} : { posterUrl: poster }),
+      ...(overview === undefined || overview === "" ? {} : { overview }),
+      state: titleState(result.mediaInfo?.status)
+    }]
+  })
+
+/** `GET /api/v1/tv/{id}`: its seasons, and those Seerr already knows of (there, or asked for). */
+export const SeerrSeries = Schema.Struct({
+  seasons: Schema.optional(Schema.Array(Schema.Struct({
+    seasonNumber: Schema.Number,
+    episodeCount: Schema.optional(Schema.NullOr(Schema.Number))
+  }))),
+  mediaInfo: Schema.optional(Schema.NullOr(Schema.Struct({
+    seasons: Schema.optional(Schema.Array(Schema.Struct({ seasonNumber: Schema.Number, status: Schema.Number }))),
+    requests: Schema.optional(Schema.Array(Schema.Struct({
+      status: Schema.Number,
+      seasons: Schema.optional(Schema.Array(Schema.Struct({ seasonNumber: Schema.Number })))
+    })))
+  })))
+})
+
+/**
+ * Each season but the specials, and where it stands: the library's state first, else asked for
+ * when a request waiting or approved names it.
+ */
+export const seasonChoices = (series: typeof SeerrSeries.Type): ReadonlyArray<SeasonChoice> => {
+  const known = new Map((series.mediaInfo?.seasons ?? []).map((s) => [s.seasonNumber, titleState(s.status)]))
+  const asked = new Set(
+    (series.mediaInfo?.requests ?? [])
+      .filter((r) => r.status === RequestStatus.pending || r.status === RequestStatus.approved)
+      .flatMap((r) => (r.seasons ?? []).map((s) => s.seasonNumber))
+  )
+  return (series.seasons ?? [])
+    .filter((season) => season.seasonNumber > 0)
+    .sort((a, b) => a.seasonNumber - b.seasonNumber)
+    .map((season) => {
+      const state = known.get(season.seasonNumber) ?? "requestable"
+      const episodes = season.episodeCount ?? undefined
+      return {
+        number: season.seasonNumber,
+        ...(episodes === undefined ? {} : { episodes }),
+        state: state === "requestable" && asked.has(season.seasonNumber) ? "requested" : state
+      }
+    })
+}
+
+/** `GET /api/v1/user`: Seerr names a user by `displayName`, which it fills in itself. */
+export const SeerrUserPage = Schema.Struct({
+  results: Schema.Array(Schema.Struct({ id: Schema.Number, ...User.fields }))
+})
+
+export const seerrUsers = (page: typeof SeerrUserPage.Type): ReadonlyArray<SeerrUser> =>
+  page.results.map((user) => ({ id: user.id, name: userName(user) ?? `User ${user.id}` }))
+
+/** Seerr's body for a new request: a movie, or a series' seasons; for a user, or as its admin. */
+export const createBody = (request: CreateRequest, userId: number | undefined) => ({
+  mediaType: request.kind === "movie" ? "movie" : "tv",
+  mediaId: request.tmdbId,
+  ...(request.kind === "series" ? { seasons: [...new Set(request.seasons ?? [])].sort((a, b) => a - b) } : {}),
+  ...(userId === undefined ? {} : { userId })
+})
+
+/** What `POST /api/v1/request` answers: the new request, approved at once or waiting. */
+export const CreatedRequest = Schema.Struct({ status: Schema.Number })
+
 /** A decision on a request that no longer waits: approved, declined or deleted meanwhile. */
 export class NotPending extends Data.TaggedError("NotPending")<{ readonly id: number }> {}
 
@@ -222,6 +360,17 @@ export class Seerr extends Context.Service<Seerr, {
    * has the Hub read the requests again, so the Live Activity follows.
    */
   readonly decide: (id: number, decision: "approve" | "decline") => Effect.Effect<void, HomeOffline | NotPending | RequestFailed>
+  /** The movies and series Seerr finds; None when it didn't answer. */
+  readonly search: (query: string) => Effect.Effect<Option.Option<ReadonlyArray<SearchResult>>, HomeOffline>
+  /** A series' seasons and where each stands; None when Seerr didn't answer or doesn't know it. */
+  readonly seasons: (tmdbId: number) => Effect.Effect<Option.Option<ReadonlyArray<SeasonChoice>>, HomeOffline>
+  /** Seerr's users; None when it didn't answer. */
+  readonly users: Effect.Effect<Option.Option<ReadonlyArray<SeerrUser>>, HomeOffline>
+  /**
+   * Requests a movie or a series' seasons, as `userId` or as Seerr's admin. Seerr refusing (already
+   * requested, a quota, a user it doesn't know) is a `RequestFailed` in its words.
+   */
+  readonly create: (request: CreateRequest, userId: number | undefined) => Effect.Effect<"approved" | "pending", HomeOffline | RequestFailed>
 }>()("quai/Seerr") {
   static readonly layer = Layer.effect(
     Seerr,
@@ -257,6 +406,21 @@ export class Seerr extends Context.Service<Seerr, {
             if (Option.isNone(now)) return yield* Effect.fail(new RequestFailed({ message: "Seerr didn't answer" }))
             if (now.value === "gone" || now.value.status !== RequestStatus.pending) return yield* Effect.fail(new NotPending({ id }))
             yield* reads.write({ service: "seerr", method: "POST", path: decisionPath(id, decision) }, (message) => new RequestFailed({ message }))
+          }),
+        search: (query) =>
+          Effect.map(reads.read({ service: "seerr", path: searchPath(query), schema: SeerrSearchPage }), Option.map(searchResults)),
+        seasons: (tmdbId) =>
+          Effect.map(reads.read({ service: "seerr", path: detailsPath("tv", tmdbId), schema: SeerrSeries }), Option.map(seasonChoices)),
+        users: Effect.map(reads.read({ service: "seerr", path: usersPath, schema: SeerrUserPage }), Option.map(seerrUsers)),
+        create: (request, userId) =>
+          Effect.gen(function*() {
+            const body = yield* reads.write(
+              { service: "seerr", method: "POST", path: createPath, body: createBody(request, userId) },
+              (message) => new RequestFailed({ message })
+            )
+            // Seerr made it: an answer it can't read is still a request, waiting as far as Quai knows.
+            const created = readJson(CreatedRequest, body)
+            return Option.isSome(created) && created.value.status === RequestStatus.approved ? "approved" as const : "pending" as const
           })
       }
     })

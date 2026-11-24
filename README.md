@@ -45,6 +45,9 @@ The app is for living with Quai, the console for setting it up: services, flows 
 - 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
   one), what Reclaimerr is about to delete and what Cleanuparr is about to take out of the queue
   (keep it, or let it go).
+- 🔎 **Search**: type or say a title, pick it among Seerr's results, request it (a series asks
+  which seasons). A Lock Screen control opens it already listening, a Lock Screen widget with the
+  keyboard up. Each iPhone chooses the Seerr user it requests as, in Settings.
 
 ## 🧭 How it works
 

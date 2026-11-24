@@ -404,6 +404,32 @@ final class Connection {
         await didDecide(request)
     }
 
+    // MARK: Search
+
+    /// The movies and series Seerr finds for this text.
+    func search(_ query: String) async throws -> Components.Schemas.SearchResults {
+        try await requiredClient().searchTitles(query: .init(query: query)).ok.body.json
+    }
+
+    /// A series' seasons, and where each stands, for the season picker.
+    func seasons(of result: Components.Schemas.SearchResult) async throws -> [Components.Schemas.SeasonChoice] {
+        try await requiredClient().listSeasons(path: .init(tmdbId: String(result.tmdbId))).ok.body.json.seasons
+    }
+
+    /// Requests a movie, or these seasons of a series, as the Seerr user chosen in Settings.
+    func request(_ result: Components.Schemas.SearchResult, seasons: [Int] = []) async throws -> Components.Schemas.RequestCreated {
+        let body = Components.Schemas.CreateRequest(kind: result.kind, tmdbId: result.tmdbId, seasons: result.kind == .series ? seasons : nil)
+        let created = try await requiredClient().createRequest(body: .json(body)).ok.body.json
+        // A request left waiting shows on the Home's Requests tile.
+        if created.status == .pending { await loadRequests() }
+        return created
+    }
+
+    /// Seerr's users, for Settings → Request as.
+    func seerrUsers() async throws -> Components.Schemas.SeerrUsers {
+        try await requiredClient().listSeerrUsers().ok.body.json
+    }
+
     /// Drops the decided request at once, then reads the list again.
     private func didDecide(_ request: Components.Schemas.MediaRequest) async {
         if let current = requests {

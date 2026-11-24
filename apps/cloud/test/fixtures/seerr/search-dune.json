@@ -1,0 +1,129 @@
+{
+  "page": 1,
+  "totalPages": 1,
+  "totalResults": 6,
+  "results": [
+    {
+      "id": 438631,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        878,
+        12
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Dune",
+      "overview": "Paul Atreides, a brilliant and gifted young man born into a great destiny beyond his understanding, must travel to the most dangerous planet in the universe to ensure the future of his family and his people.",
+      "popularity": 180.3,
+      "releaseDate": "2021-09-15",
+      "title": "Dune",
+      "video": false,
+      "voteAverage": 7.8,
+      "voteCount": 13000,
+      "backdropPath": "/jYEW5xZkZk2WTrdbMGAPFuBqbDc.jpg",
+      "posterPath": "/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",
+      "mediaInfo": {
+        "id": 41,
+        "tmdbId": 438631,
+        "status": 5,
+        "status4k": 1
+      }
+    },
+    {
+      "id": 693134,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        878,
+        12
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Dune: Part Two",
+      "overview": "Follow the mythic journey of Paul Atreides as he unites with Chani and the Fremen while on a path of revenge against the conspirators who destroyed his family.",
+      "popularity": 150.1,
+      "releaseDate": "2024-02-27",
+      "title": "Dune: Part Two",
+      "video": false,
+      "voteAverage": 8.1,
+      "voteCount": 7000,
+      "posterPath": "/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
+      "mediaInfo": {
+        "id": 42,
+        "tmdbId": 693134,
+        "status": 3,
+        "status4k": 1
+      }
+    },
+    {
+      "id": 90228,
+      "mediaType": "tv",
+      "adult": false,
+      "genreIds": [
+        10765,
+        18
+      ],
+      "originCountry": [
+        "US"
+      ],
+      "originalLanguage": "en",
+      "originalName": "Dune: Prophecy",
+      "overview": "Ten thousand years before the ascension of Paul Atreides, two Harkonnen sisters combat forces that threaten the future of humankind.",
+      "popularity": 90.4,
+      "firstAirDate": "2024-11-17",
+      "name": "Dune: Prophecy",
+      "voteAverage": 7.0,
+      "voteCount": 800,
+      "posterPath": "/A3aTsF6NqT6zsc4rVc1fuUUSnoV.jpg"
+    },
+    {
+      "id": 841,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        28,
+        878
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Dune",
+      "overview": "In the year 10,191, the most precious substance in the universe is the spice Melange.",
+      "popularity": 30.2,
+      "releaseDate": "1984-12-14",
+      "title": "Dune",
+      "video": false,
+      "voteAverage": 6.2,
+      "voteCount": 3000,
+      "posterPath": "/a3nDwAnKAl0jsSmsGaen1bFlmGP.jpg",
+      "mediaInfo": null
+    },
+    {
+      "id": 1225914,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        878
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Dune: Part Three",
+      "overview": "",
+      "popularity": 20.0,
+      "releaseDate": "",
+      "title": "Dune: Part Three",
+      "video": false,
+      "posterPath": null
+    },
+    {
+      "id": 59341,
+      "mediaType": "person",
+      "name": "Dune Medley",
+      "profilePath": null,
+      "popularity": 0.6,
+      "knownFor": []
+    },
+    {
+      "id": 605862,
+      "mediaType": "collection",
+      "title": "Dune Collection",
+      "posterPath": "/wcVafar6Efk3YgFvh8oZQ4yHL6H.jpg"
+    }
+  ]
+}
