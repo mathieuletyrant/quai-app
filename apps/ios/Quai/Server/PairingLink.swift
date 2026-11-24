@@ -25,7 +25,8 @@ struct PairingLink: Equatable {
         self.code = code
         serverURLs = items.filter { $0.name == "url" }.compactMap { $0.value.flatMap(URL.init(string:)) }
         accessHeaders = items.filter { $0.name == "header" }.compactMap { $0.value.flatMap(AccessHeader.init(pair:)) }
-        consoleURL = items.first(where: { $0.name == "console" })?.value.flatMap(URL.init(string:))
-            .flatMap { ["http", "https"].contains($0.scheme) ? $0 : nil }
+        consoleURL = items.first(where: { $0.name == "console" })?.value
+            .flatMap(URL.init(string:))
+            .flatMap { url in url.scheme == "http" || url.scheme == "https" ? url : nil }
     }
 }

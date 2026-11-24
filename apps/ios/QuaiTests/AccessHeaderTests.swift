@@ -22,12 +22,20 @@ struct PairingLinkHeaderTests {
 
     @Test func keepsTheConsoleAddress() throws {
         let url = try #require(URL(string: "quai://pair?code=A&url=https%3A%2F%2Fcloud.quai.stream&console=http%3A%2F%2Fumbrel.local%3A3078"))
-        #expect(try #require(PairingLink(url)).consoleURL?.absoluteString == "http://umbrel.local:3078")
+        let link = try #require(PairingLink(url))
+        #expect(link.consoleURL?.absoluteString == "http://umbrel.local:3078")
     }
 
     @Test func aLinkWithoutConsoleHasNone() throws {
-        #expect(try #require(PairingLink(try #require(URL(string: "quai://pair?code=A&url=https%3A%2F%2Fcloud.quai.stream")))).consoleURL == nil)
-        #expect(try #require(PairingLink(try #require(URL(string: "quai://pair?code=A&console=javascript%3Aalert(1)")))).consoleURL == nil)
+        let url = try #require(URL(string: "quai://pair?code=A&url=https%3A%2F%2Fcloud.quai.stream"))
+        let link = try #require(PairingLink(url))
+        #expect(link.consoleURL == nil)
+    }
+
+    @Test func ignoresAConsoleAddressThatIsntAWebPage() throws {
+        let url = try #require(URL(string: "quai://pair?code=A&console=javascript%3Aalert(1)"))
+        let link = try #require(PairingLink(url))
+        #expect(link.consoleURL == nil)
     }
 
     @Test func skipsAHeaderTheAppOwns() throws {
