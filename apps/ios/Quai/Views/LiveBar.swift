@@ -1,27 +1,29 @@
 import SwiftUI
 
-/// What the floating bar follows: playback first, then downloads, the furthest along first.
+/// What the floating bar follows: playback first, then titles on their way (downloads, the
+/// furthest along first, then searching or importing).
 struct LiveNow {
     let items: [LiveItem]
 
     init(_ today: Today) {
-        items = today.playing.map(LiveItem.playing) + today.downloading.map(LiveItem.downloading)
+        items = today.playing.map(LiveItem.playing) + (today.downloading + today.requested).map(LiveItem.media)
     }
 
     var isEmpty: Bool { items.isEmpty }
 
     var playing: [RunningActivity] { items.compactMap(\.playing) }
-    var downloading: [RunningActivity] { items.compactMap(\.downloading) }
+    var media: [RunningActivity] { items.compactMap(\.media) }
 }
 
 /// One thing going on right now, as the bar shows it.
 enum LiveItem: Identifiable {
     case playing(RunningActivity)
-    case downloading(RunningActivity)
+    /// A title on its way: searched for, downloading or importing.
+    case media(RunningActivity)
 
     var activity: RunningActivity {
         switch self {
-        case .playing(let activity), .downloading(let activity): activity
+        case .playing(let activity), .media(let activity): activity
         }
     }
 
@@ -32,8 +34,8 @@ enum LiveItem: Identifiable {
         return activity
     }
 
-    var downloading: RunningActivity? {
-        guard case .downloading(let activity) = self else { return nil }
+    var media: RunningActivity? {
+        guard case .media(let activity) = self else { return nil }
         return activity
     }
 
@@ -43,7 +45,8 @@ enum LiveItem: Identifiable {
         switch self {
         case .playing:
             return content.detail ?? activity.stepLabel
-        case .downloading:
+        case .media:
+            if content.tone == .stalled, let detail = content.detail { return detail }
             var parts: [String] = []
             if let speed = content.bytesPerSecond, speed > 0 { parts.append(Format.speed(speed)) }
             if let remaining = content.remainingSeconds { parts.append(Format.remaining(remaining)) }
@@ -55,7 +58,7 @@ enum LiveItem: Identifiable {
     var color: Color {
         switch self {
         case .playing: Palette.playback
-        case .downloading: activity.content.tone == .stalled ? Palette.stalled : Palette.downloads
+        case .media: activity.content.tone == .stalled ? Palette.stalled : Palette.downloads
         }
     }
 }
@@ -147,7 +150,7 @@ private struct LiveBarTrailing: View {
         switch item {
         case .playing(let activity):
             PlaybackButtons(activity: activity, only: [.playPause], size: 34)
-        case .downloading(let activity):
+        case .media(let activity):
             if let progress = activity.content.progress {
                 Text(Format.percent(progress))
                     .font(.system(size: 15, weight: .bold))
@@ -220,12 +223,12 @@ struct LiveSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
                     if live.isEmpty {
-                        MessageTile(title: "Nothing live", message: "Nothing is playing or downloading right now.", systemImage: "moon.stars.fill", color: Palette.accent)
+                        MessageTile(title: "Nothing live", message: "Nothing is playing or on its way right now.", systemImage: "moon.stars.fill", color: Palette.accent)
                     }
                     ForEach(live.playing, id: \.attributes.key) { activity in
                         PlayingCard(activity: activity)
                     }
-                    ForEach(live.downloading, id: \.attributes.key) { activity in
+                    ForEach(live.media, id: \.attributes.key) { activity in
                         ActivityRow(activity: activity)
                     }
                 }

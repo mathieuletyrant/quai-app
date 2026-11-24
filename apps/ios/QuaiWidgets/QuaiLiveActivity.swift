@@ -36,8 +36,10 @@ struct Model {
     var doneCount: Int { state.here ?? items.filter(\.isDone).count }
     var totalCount: Int { max(state.total ?? items.count, 1) }
 
-    /// "Downloading · ≈ 4 min · 11 MB/s", "Playing · TV Salon"
+    /// "Downloading · ≈ 4 min · 11 MB/s", "Playing · TV Salon", "Import blocked · see To fix"
     var subtitle: String {
+        // Grey with a reason (an import waiting for someone): the reason alone.
+        if state.tone == .stalled, let detail = state.detail { return detail }
         var parts = [state.tone == .stalled ? "No progress for a while" : paused ? "Paused" : (step?.label ?? "")]
         if let remaining = state.remainingSeconds { parts.append("≈ " + Self.duration(remaining)) }
         if let speed = state.bytesPerSecond, speed > 0 {

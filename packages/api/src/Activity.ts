@@ -13,6 +13,7 @@ export const EventType = Schema.Literals([
   "media.added",
   "media.grabbed",
   "media.imported",
+  "media.importBlocked",
   "media.available",
   "download.progress",
   "playback.started",

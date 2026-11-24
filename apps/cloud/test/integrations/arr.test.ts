@@ -114,6 +114,21 @@ describe("Sonarr webhooks", () => {
       expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((e) => e.type)).toEqual(["media.grabbed"])
     }))
 
+  it.effect("an import that needs someone says so on the torrent's activity", () =>
+    Effect.gen(function*() {
+      expect(sonarrEvents(yield* sonarrPayload("manual-interaction"))).toEqual([{
+        type: "media.importBlocked",
+        subject: {
+          kind: "media",
+          key: "series:tvdb:371980:dl:a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+          title: "Severance · S02E03",
+          mediaType: "series",
+          lookup: severance([{ season: 2, episode: 3 }])
+        },
+        values: { detail: "Import blocked · see To fix" }
+      }])
+    }))
+
   it.effect("a series added without a grab starts nothing", () =>
     Effect.gen(function*() {
       expect(sonarrEvents(yield* sonarrPayload("series-add"))).toEqual([])

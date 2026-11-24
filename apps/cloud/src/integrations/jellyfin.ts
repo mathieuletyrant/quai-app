@@ -144,12 +144,27 @@ const awaitingAvailability = (context: WatchContext): ReadonlyArray<Activity> =>
     return a.lookup !== null && target > a.stepIndex
   })
 
+/**
+ * The titles Jellyfin got last, newest first, with their ids: a title just imported is among them.
+ * Matched on its TMDB or TVDB id, never its name (Sonarr's "Our House (2022)" is Jellyfin's "Our
+ * House", and a library in another language names it otherwise). Jellyfin can't filter on an id's
+ * value, and a series' date is that of its last episode added.
+ */
+export const latestItemsParams = (lookup: MediaLookup): Record<string, string> => ({
+  Recursive: "true",
+  IncludeItemTypes: lookup._tag === "Movie" ? "Movie" : "Series",
+  SortBy: lookup._tag === "Movie" ? "DateCreated" : "DateLastContentAdded",
+  SortOrder: "Descending",
+  Limit: "100",
+  Fields: "ProviderIds"
+})
+
 const query = (path: string, params: Record<string, string>) => `${path}?${new URLSearchParams(params).toString()}`
 
 /**
  * Jellyfin doesn't push to Quai: Quai Home reads, every 15 s, whether imported titles are available
  * (while some activity awaits it) and what plays (while a playback flow is on). A series is found
- * in two reads: the series by its TVDB id, then its episodes. Its remote control runs the playback
+ * in two reads: the series among the latest by its TVDB id, then its episodes. Its remote control runs the playback
  * buttons, as one-off calls through Quai Home.
  */
 export const jellyfin = Effect.gen(function*() {
@@ -204,12 +219,7 @@ export const jellyfin = Effect.gen(function*() {
           return [{
             id: watchIds.find(activity.subjectKey),
             service: "jellyfin" as const,
-            path: query("/Items", {
-              Recursive: "true",
-              IncludeItemTypes: lookup._tag === "Movie" ? "Movie" : "Series",
-              SearchTerm: lookup.title,
-              Fields: "ProviderIds"
-            }),
+            path: query("/Items", latestItemsParams(lookup)),
             everySeconds: 15
           }]
         })

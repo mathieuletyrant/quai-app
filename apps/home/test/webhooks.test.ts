@@ -75,7 +75,7 @@ describe("webhook setup", () => {
       ])
       expect(seen[0]!.headers["x-api-key"]).toBe("masked")
       const body = JSON.parse(seen[1]!.body!)
-      expect(body).toMatchObject({ name: "Quai", implementation: "Webhook", onGrab: true, onDownload: true, onMovieAdded: true })
+      expect(body).toMatchObject({ name: "Quai", implementation: "Webhook", onGrab: true, onDownload: true, onManualInteractionRequired: true, onMovieAdded: true })
       expect(body.fields).toContainEqual({ name: "url", value: url })
     }).pipe(Effect.provide(ServiceAuth.fromConfig.pipe(Layer.provide([configLayer(), http]))))
   })

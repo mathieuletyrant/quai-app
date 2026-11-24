@@ -14,6 +14,7 @@ export const catalog: ReadonlyArray<{
   { type: "media.added", subject: "media", label: "Added (Radarr)", data: false, services: ["radarr"] },
   { type: "media.grabbed", subject: "media", label: "Release grabbed (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
   { type: "media.imported", subject: "media", label: "Imported (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  { type: "media.importBlocked", subject: "media", label: "Import needs you (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
   { type: "media.available", subject: "media", label: "Available in Jellyfin", data: false, services: ["jellyfin"] },
   { type: "download.progress", subject: "media", label: "Download progress (qBittorrent)", data: true, services: ["qbittorrent"] },
   { type: "playback.started", subject: "playback", label: "Playback started (Jellyfin)", data: false, services: ["jellyfin"] },

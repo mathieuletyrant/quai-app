@@ -52,7 +52,8 @@ Events are normalized by the adapters; flows only see these. Each belongs to a s
 | `media.added` | media | Radarr MovieAdded | title, media type |
 | `media.grabbed` | media | Radarr / Sonarr Grab | title, torrent id |
 | `media.imported` | media | Radarr / Sonarr Download | title |
-| `media.available` | media | Jellyfin (polled after an import) | title |
+| `media.importBlocked` | media (*data*) | Radarr / Sonarr ManualInteractionRequired | "Import blocked · see To fix": the activity turns grey until the next step |
+| `media.available` | media | Jellyfin (polled after an import: its latest titles, matched by TMDB or TVDB id) | title |
 | `download.progress` | media (by torrent id) | qBittorrent (polled) | progress, speed, eta |
 | `playback.started` | playback | Jellyfin sessions (polled) | title, device, end time |
 | `playback.progress` | playback | Jellyfin sessions (polled) | end time, paused |

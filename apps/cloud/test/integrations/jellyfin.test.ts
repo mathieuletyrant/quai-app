@@ -75,7 +75,7 @@ describe("Jellyfin integration", () => {
     Effect.flatMap(jellyfin, test).pipe(Effect.provide(link))
   const ctx = (flows: WatchContext["flows"], running: WatchContext["running"]): WatchContext => ({ flows, running, services: ["jellyfin"], now: 0, timeZone: "UTC", alerts: defaultAlertSettings })
 
-  it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once found by its TMDB id", () =>
+  it.effect("availability of a movie: watched while an activity awaits it with a lookup; available once among the latest by its TMDB id, whatever its name", () =>
     withJellyfin((integration) =>
       Effect.gen(function*() {
         const watcher = integration.watcher!
@@ -85,7 +85,7 @@ describe("Jellyfin integration", () => {
         expect(watch).toEqual({
           id: watchIds.find("movie:tmdb:1"),
           service: "jellyfin",
-          path: "/Items?Recursive=true&IncludeItemTypes=Movie&SearchTerm=Dune&Fields=ProviderIds",
+          path: "/Items?Recursive=true&IncludeItemTypes=Movie&SortBy=DateCreated&SortOrder=Descending&Limit=100&Fields=ProviderIds",
           everySeconds: 15
         })
         expect(yield* watcher.read({ watch: watch!, status: 200, body: JSON.stringify({ Items: [] }) }, ctx([download], [waiting]))).toEqual([])
@@ -104,7 +104,7 @@ describe("Jellyfin integration", () => {
           activity({ subjectKey: "series:tvdb:371980", title: "Severance", lookup: { _tag: "Episodes", tvdbId: 371980, title: "Severance", episodes } })
         const two = ctx([download], [severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }])])
         const [find] = watcher.watches(two)
-        expect(find?.path).toContain("IncludeItemTypes=Series")
+        expect(find?.path).toBe("/Items?Recursive=true&IncludeItemTypes=Series&SortBy=DateLastContentAdded&SortOrder=Descending&Limit=100&Fields=ProviderIds")
         expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/items-series.json")) }, two)).toEqual([])
         const [episodes] = watcher.watches(two)
         expect(episodes).toMatchObject({
