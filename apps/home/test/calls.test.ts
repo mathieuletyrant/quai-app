@@ -110,7 +110,7 @@ describe("To fix calls", () => {
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 
-  it.effect("approves a Seerr request with its API key, and never creates one", () => {
+  it.effect("approves a Seerr request with its API key, and creates one only as the allowlist says", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
       const calls = yield* Calls
@@ -120,8 +120,11 @@ describe("To fix calls", () => {
       expect(seen[0]!.headers["x-api-key"]).toBe("masked")
       expect(seen[0]!.body).toBeNull()
       const created = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } }))
-      expect(created).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      expect(seen).toHaveLength(1)
+      expect(created).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(JSON.parse(seen[1]!.body!)).toEqual({ mediaType: "movie", mediaId: 1 })
+      const in4k = yield* calls.run(request({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1, is4k: true } }))
+      expect(in4k).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
+      expect(seen).toHaveLength(2)
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 

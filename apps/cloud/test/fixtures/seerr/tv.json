@@ -31,7 +31,44 @@
   "overview": "Mark leads a team of office workers whose memories have been surgically divided between their work and personal lives.",
   "popularity": 201.2,
   "posterPath": "/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg",
-  "seasons": [],
+  "seasons": [
+    {
+      "id": 381216,
+      "airDate": "2022-02-17",
+      "episodeCount": 2,
+      "name": "Specials",
+      "overview": "",
+      "posterPath": null,
+      "seasonNumber": 0
+    },
+    {
+      "id": 219006,
+      "airDate": "2022-02-17",
+      "episodeCount": 9,
+      "name": "Season 1",
+      "overview": "",
+      "posterPath": "/lFf6LLrQjYldcZItzOkGmMMigP7.jpg",
+      "seasonNumber": 1
+    },
+    {
+      "id": 375449,
+      "airDate": "2025-01-16",
+      "episodeCount": 10,
+      "name": "Season 2",
+      "overview": "",
+      "posterPath": "/ivJOvMnUZhGUDZq8ifh2EQuSrja.jpg",
+      "seasonNumber": 2
+    },
+    {
+      "id": 452018,
+      "airDate": null,
+      "episodeCount": 1,
+      "name": "Season 3",
+      "overview": "",
+      "posterPath": null,
+      "seasonNumber": 3
+    }
+  ],
   "status": "Returning Series",
   "tagline": "",
   "type": "Scripted",
@@ -48,8 +85,32 @@
   "mediaInfo": {
     "id": 32,
     "tmdbId": 95396,
-    "status": 2,
-    "requests": []
+    "status": 4,
+    "seasons": [
+      {
+        "id": 70,
+        "seasonNumber": 1,
+        "status": 5
+      },
+      {
+        "id": 71,
+        "seasonNumber": 2,
+        "status": 1
+      }
+    ],
+    "requests": [
+      {
+        "id": 13,
+        "status": 1,
+        "seasons": [
+          {
+            "id": 90,
+            "seasonNumber": 2,
+            "status": 2
+          }
+        ]
+      }
+    ]
   },
   "watchProviders": []
 }

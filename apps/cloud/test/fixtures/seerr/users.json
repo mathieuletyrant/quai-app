@@ -1,0 +1,36 @@
+{
+  "pageInfo": {
+    "pages": 1,
+    "pageSize": 100,
+    "results": 2,
+    "page": 1
+  },
+  "results": [
+    {
+      "id": 1,
+      "email": "admin@example.com",
+      "jellyfinUsername": "mathieu",
+      "username": null,
+      "userType": 3,
+      "permissions": 2,
+      "avatar": "/avatarproxy/1",
+      "createdAt": "2026-01-02T10:00:00.000Z",
+      "updatedAt": "2026-11-01T10:00:00.000Z",
+      "requestCount": 40,
+      "displayName": "Mathieu"
+    },
+    {
+      "id": 2,
+      "email": "julie@example.com",
+      "jellyfinUsername": "julie",
+      "username": null,
+      "userType": 3,
+      "permissions": 8388640,
+      "avatar": "/avatarproxy/2",
+      "createdAt": "2026-01-02T10:05:00.000Z",
+      "updatedAt": "2026-11-01T10:00:00.000Z",
+      "requestCount": 12,
+      "displayName": "Julie"
+    }
+  ]
+}

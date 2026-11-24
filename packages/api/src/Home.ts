@@ -12,7 +12,7 @@ import { JournalEntry, JournalQuery } from "./Journal.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 7
+export const protocolVersion = 8
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -25,7 +25,9 @@ export const protocolVersion = 7
  * (`/api/v3/health`), for the alerts: an older Home refuses the health watch, so that alert stays
  * quiet, and doesn't list Prowlarr. Protocol 7 added the console relay (`ConsoleRequest`, answered
  * `ConsoleResponse`) and `ServicesChanged`: the console is served by Quai Home, and an older Home
- * sends neither, so its console is the one the Cloud no longer serves.
+ * sends neither, so its console is the one the Cloud no longer serves. Protocol 8 added Seerr's
+ * search, its users and creating a request: the Cloud doesn't ask an older Home for them
+ * (`searchProtocolVersion`), and the app says to update it.
  */
 export const minProtocolVersion = 1
 
@@ -37,6 +39,9 @@ export const arrHealthProtocolVersion = 6
 
 /** The first protocol whose Home serves the console and relays its requests. */
 export const consoleProtocolVersion = 7
+
+/** The first protocol whose Home allows Seerr's search, its users and creating a request. */
+export const searchProtocolVersion = 8
 
 /** The services a Home can reach. */
 export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"])
@@ -407,6 +412,19 @@ const manualImportBody = (media: "movie" | "series") =>
       ))
   })
 
+const isSeasons = (value: unknown) =>
+  Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(isId) && new Set(value).size === value.length
+
+/**
+ * A request Quai makes in Seerr: a movie, or some seasons of a series (never `"all"`, which would
+ * also take the seasons not out yet), by TMDB id, optionally for another user. Nothing else: no
+ * server, profile, root folder or 4K, which Seerr picks.
+ */
+export const requestBody = (body: unknown): boolean =>
+  isRecord(body) && (body.mediaType === "movie"
+    ? shape({ mediaType: isAny, mediaId: isId }, { userId: isId })(body)
+    : body.mediaType === "tv" && shape({ mediaType: isAny, mediaId: isId, seasons: isSeasons }, { userId: isId })(body))
+
 /** What both *arr allow for the To fix list: the queue, what's missing, the grabs, releases and imports. */
 const arrFixes = (media: "movie" | "series"): ReadonlyArray<AllowRule> => [
   { method: "GET", path: /^\/api\/v3\/queue$/ },
@@ -465,14 +483,20 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v1\/candidates$/ },
     { method: "POST", path: /^\/api\/v1\/candidates\/\d+\/protect$/, body: shape({}, { reason: isString }) }
   ],
-  // Seerr (Jellyseerr, Overseerr): its status, the requests and the titles they ask for, and
-  // approving or declining one request. Never creating, editing or deleting a request, and never
-  // its settings: Quai Home sets up Seerr's webhook itself, at start, outside this list.
+  // Seerr (Jellyseerr, Overseerr): its status, the requests and the titles they ask for,
+  // approving or declining one request, searching for a title, its users (who an iPhone requests
+  // as), and requesting a movie or some seasons of a series (`requestBody`). Never editing or
+  // deleting a request, and never its settings: Quai Home sets up Seerr's webhook itself, at
+  // start, outside this list.
   seerr: [
     { method: "GET", path: /^\/api\/v1\/status$/ },
     { method: "GET", path: /^\/api\/v1\/request$/ },
     { method: "GET", path: /^\/api\/v1\/request\/\d+$/ },
     { method: "POST", path: /^\/api\/v1\/request\/\d+\/(approve|decline)$/ },
+    // Seerr reads the title from TMDB, and sends an auto-approved request to Radarr or Sonarr, before answering.
+    { method: "POST", path: /^\/api\/v1\/request$/, body: (body) => requestBody(body), timeoutSeconds: checkedWriteTimeoutSeconds },
+    { method: "GET", path: /^\/api\/v1\/search$/ },
+    { method: "GET", path: /^\/api\/v1\/user$/ },
     { method: "GET", path: /^\/api\/v1\/movie\/\d+$/ },
     { method: "GET", path: /^\/api\/v1\/tv\/\d+$/ }
   ],
