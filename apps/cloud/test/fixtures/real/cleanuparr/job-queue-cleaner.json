@@ -1,0 +1,8 @@
+{
+  "name": "QueueCleaner",
+  "status": "Scheduled",
+  "schedule": "0 0/5 * ? * * *",
+  "nextRunTime": "2026-11-24T21:00:00+00:00",
+  "previousRunTime": "2026-11-24T20:55:00+00:00",
+  "jobType": "QueueCleaner"
+}

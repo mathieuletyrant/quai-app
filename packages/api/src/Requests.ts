@@ -71,6 +71,8 @@ export const SearchResult = Schema.Struct({
   kind: RequestKind,
   /** TMDB's id: what a request names. */
   tmdbId: Schema.Int,
+  /** A series' TVDB id, when Seerr knows it: Sonarr may not know the TMDB id. */
+  tvdbId: Schema.optionalKey(Schema.Int),
   title: Schema.String,
   year: Schema.optionalKey(Schema.Int),
   /** The poster's public URL (TMDB). */

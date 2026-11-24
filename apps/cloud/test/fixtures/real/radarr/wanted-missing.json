@@ -1,0 +1,142 @@
+{
+  "page": 1,
+  "pageSize": 1000,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "descending",
+  "totalRecords": 10,
+  "records": [
+    {
+      "title": "Warrior Kid",
+      "originalTitle": "Way of the Warrior Kid",
+      "originalLanguage": {
+        "id": 1,
+        "name": "English"
+      },
+      "secondaryYearSourceId": 0,
+      "sortTitle": "warrior kid",
+      "sizeOnDisk": 0,
+      "status": "released",
+      "overview": "Jake, un commando de la Marine blessé en mission, aide son neveu Marc, un ado timide et tourmenté, à devenir un jeune guerrier grâce à des principes militaires.",
+      "digitalRelease": "2026-11-24T00:00:00Z",
+      "releaseDate": "2026-11-24T00:00:00Z",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/285/poster.jpg?h=8dff9fefc9f38b0831b8",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/atI81xXKNVah7PJFBo3aXqQKtnG.jpg"
+        }
+      ],
+      "year": 2026,
+      "path": "/downloads/movies/Way of the Warrior Kid (2026) [tmdbid-1280115]",
+      "qualityProfileId": 9,
+      "hasFile": false,
+      "movieFileId": 0,
+      "monitored": true,
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "runtime": 106,
+      "imdbId": "tt32213169",
+      "tmdbId": 1280115,
+      "titleSlug": "1280115",
+      "tags": [],
+      "added": "2026-10-29T21:26:12Z",
+      "statistics": {
+        "movieFileCount": 0,
+        "sizeOnDisk": 0,
+        "releaseGroups": [],
+        "movieFileQualities": []
+      },
+      "id": 285
+    },
+    {
+      "title": "Union County",
+      "originalTitle": "Union County",
+      "originalLanguage": {
+        "id": 1,
+        "name": "English"
+      },
+      "secondaryYearSourceId": 0,
+      "sortTitle": "union county",
+      "sizeOnDisk": 0,
+      "status": "released",
+      "overview": "Assigné à un programme de tribunal de la drogue imposé par le comté, Cody Parsons entreprend un parcours vers la guérison au cœur de l’épidémie d’opiacés dans l’Ohio.",
+      "inCinemas": "2026-08-14T00:00:00Z",
+      "digitalRelease": "2026-10-02T00:00:00Z",
+      "releaseDate": "2026-08-14T00:00:00Z",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/232/poster.jpg?h=97ad4582974a6a5536f4",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/1HW5lVwsuLo6CHW3i9Cm240jLL2.jpg"
+        }
+      ],
+      "year": 2026,
+      "path": "/downloads/movies/Union County (2026) [tmdbid-1482938]",
+      "qualityProfileId": 9,
+      "hasFile": false,
+      "movieFileId": 0,
+      "monitored": true,
+      "minimumAvailability": "tba",
+      "isAvailable": true,
+      "runtime": 97,
+      "imdbId": "tt36981462",
+      "tmdbId": 1482938,
+      "titleSlug": "1482938",
+      "tags": [],
+      "added": "2026-08-20T22:18:29Z",
+      "lastSearchTime": "2026-11-18T09:23:02Z",
+      "statistics": {
+        "movieFileCount": 0,
+        "sizeOnDisk": 0,
+        "releaseGroups": [],
+        "movieFileQualities": []
+      },
+      "id": 232
+    },
+    {
+      "title": "Ray Gunn",
+      "originalTitle": "Ray Gunn",
+      "originalLanguage": {
+        "id": 1,
+        "name": "English"
+      },
+      "secondaryYearSourceId": 0,
+      "sortTitle": "ray gunn",
+      "sizeOnDisk": 0,
+      "status": "announced",
+      "overview": "Dans le futur, les humains cohabitent avec les extraterrestres. Le dernier détective privé humain est engagé pour enquêter sur la fidélité d'une célèbre pop star.",
+      "inCinemas": "2026-12-02T00:00:00Z",
+      "digitalRelease": "2026-12-18T00:00:00Z",
+      "releaseDate": "2026-12-02T00:00:00Z",
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "/MediaCover/239/poster.jpg?h=aa76e9b0c88affb38d49",
+          "remoteUrl": "https://image.tmdb.org/t/p/original/rpP29aOKpHy1FhX8OZQdUICEs2j.jpg"
+        }
+      ],
+      "year": 2026,
+      "path": "/downloads/movies/Ray Gunn (2026) [tmdbid-940009]",
+      "qualityProfileId": 9,
+      "hasFile": false,
+      "movieFileId": 0,
+      "monitored": true,
+      "minimumAvailability": "tba",
+      "isAvailable": true,
+      "runtime": 120,
+      "imdbId": "tt18270542",
+      "tmdbId": 940009,
+      "titleSlug": "940009",
+      "tags": [],
+      "added": "2026-09-24T09:32:44Z",
+      "lastSearchTime": "2026-11-21T13:40:22Z",
+      "statistics": {
+        "movieFileCount": 0,
+        "sizeOnDisk": 0,
+        "releaseGroups": [],
+        "movieFileQualities": []
+      },
+      "id": 239
+    }
+  ]
+}

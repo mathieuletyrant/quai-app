@@ -1,0 +1,58 @@
+{
+  "pageInfo": {
+    "pages": 1,
+    "pageSize": 100,
+    "results": 2,
+    "page": 1
+  },
+  "results": [
+    {
+      "permissions": 2,
+      "warnings": [],
+      "id": 1,
+      "plexUsername": null,
+      "jellyfinUsername": "guest",
+      "username": null,
+      "recoveryLinkExpirationDate": null,
+      "userType": 3,
+      "jellyfinUserId": "9a8b7c6d5e4f30211203f4e5d6c7b8a9",
+      "avatar": "/avatarproxy/0",
+      "avatarETag": null,
+      "avatarVersion": null,
+      "movieQuotaLimit": null,
+      "movieQuotaDays": null,
+      "tvQuotaLimit": null,
+      "tvQuotaDays": null,
+      "createdAt": "2026-10-17T09:16:27.000Z",
+      "updatedAt": "2026-10-18T12:47:39.000Z",
+      "requestCount": 35,
+      "displayName": "guest",
+      "email": "guest@example.com",
+      "plexId": null
+    },
+    {
+      "permissions": 32,
+      "warnings": [],
+      "id": 2,
+      "email": "admin@example.com",
+      "plexUsername": null,
+      "jellyfinUsername": null,
+      "username": "admin",
+      "recoveryLinkExpirationDate": null,
+      "userType": 2,
+      "plexId": null,
+      "jellyfinUserId": null,
+      "avatar": "/avatarproxy/0",
+      "avatarETag": null,
+      "avatarVersion": null,
+      "movieQuotaLimit": null,
+      "movieQuotaDays": null,
+      "tvQuotaLimit": null,
+      "tvQuotaDays": null,
+      "createdAt": "2026-11-24T15:03:09.000Z",
+      "updatedAt": "2026-11-24T15:03:09.000Z",
+      "requestCount": 1,
+      "displayName": "admin"
+    }
+  ]
+}

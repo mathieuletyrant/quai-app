@@ -1,0 +1,213 @@
+[
+  {
+    "seriesId": 227,
+    "tvdbId": 12040503,
+    "episodeFileId": 1483,
+    "seasonNumber": 1,
+    "episodeNumber": 7,
+    "title": "What Comes Up?",
+    "airDate": "2026-11-24",
+    "airDateUtc": "2026-11-24T05:00:00Z",
+    "lastSearchTime": "2026-10-24T06:13:31Z",
+    "runtime": 28,
+    "overview": "Sonny seeks out therapy and tries to return to normal while Mallory embraces her faith.",
+    "hasFile": true,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "series": {
+      "title": "Phony",
+      "sortTitle": "phony",
+      "status": "continuing",
+      "ended": false,
+      "overview": "After waking up from a freak car accident, Sonny suspects that his mother — his only parent and best friend — has been replaced by an impostor. He tries to navigate living with this potentially dangerous imposter while he sets out to prove he’s not crazy.",
+      "network": "Hulu",
+      "airTime": "00:00",
+      "images": [
+        {
+          "coverType": "poster",
+          "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/455844/posters/6abd29d7d49ca.jpg"
+        }
+      ],
+      "originalLanguage": {
+        "id": 1,
+        "name": "English"
+      },
+      "seasons": [
+        {
+          "seasonNumber": 1,
+          "monitored": true
+        }
+      ],
+      "year": 2026,
+      "path": "/downloads/shows/Phony (2026) [tvdbid-455844]",
+      "qualityProfileId": 9,
+      "monitored": true,
+      "monitorNewItems": "all",
+      "useSceneNumbering": false,
+      "runtime": 29,
+      "tvdbId": 455844,
+      "tvRageId": 0,
+      "tvMazeId": 63873,
+      "tmdbId": 275139,
+      "firstAired": "2026-10-20T00:00:00Z",
+      "lastAired": "2026-12-01T00:00:00Z",
+      "seriesType": "standard",
+      "imdbId": "tt21952924",
+      "titleSlug": "phony",
+      "tags": [
+        2
+      ],
+      "added": "2026-10-24T01:35:41Z",
+      "languageProfileId": 1,
+      "id": 227
+    },
+    "id": 6415
+  },
+  {
+    "seriesId": 165,
+    "tvdbId": 11897966,
+    "episodeFileId": 0,
+    "seasonNumber": 3,
+    "episodeNumber": 7,
+    "title": "TBA",
+    "airDate": "2026-11-25",
+    "airDateUtc": "2026-11-25T08:00:00Z",
+    "lastSearchTime": "2026-11-16T07:20:57Z",
+    "runtime": 73,
+    "hasFile": false,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "series": {
+      "title": "The Lord of the Rings: The Rings of Power",
+      "sortTitle": "lord of the rings the rings of power",
+      "status": "continuing",
+      "ended": false,
+      "overview": "Beginning in a time of relative peace, we follow an ensemble cast of characters as they confront the re-emergence of evil to Middle-earth. From the darkest depths of the Misty Mountains, to the majestic forests of Lindon, to the breathtaking island kingdom of Númenor, to the furthest reaches of the map, these kingdoms and characters will carve out legacies that live on long after they are gone.",
+      "network": "Prime Video",
+      "airTime": "03:00",
+      "images": [
+        {
+          "coverType": "poster",
+          "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/367506/posters/633f2338e7e17.jpg"
+        }
+      ],
+      "originalLanguage": {
+        "id": 1,
+        "name": "English"
+      },
+      "seasons": [
+        {
+          "seasonNumber": 0,
+          "monitored": false
+        },
+        {
+          "seasonNumber": 1,
+          "monitored": false
+        },
+        {
+          "seasonNumber": 2,
+          "monitored": false
+        },
+        {
+          "seasonNumber": 3,
+          "monitored": true
+        }
+      ],
+      "year": 2022,
+      "path": "/downloads/shows/The Lord of the Rings - The Rings of Power",
+      "qualityProfileId": 10,
+      "monitored": true,
+      "monitorNewItems": "all",
+      "useSceneNumbering": false,
+      "runtime": 67,
+      "tvdbId": 367506,
+      "tvRageId": 0,
+      "tvMazeId": 33352,
+      "tmdbId": 84773,
+      "firstAired": "2022-09-01T00:00:00Z",
+      "lastAired": "2026-11-25T00:00:00Z",
+      "seriesType": "standard",
+      "imdbId": "tt7631058",
+      "titleSlug": "the-lord-of-the-rings-the-rings-of-power",
+      "tags": [],
+      "added": "2026-06-30T07:09:47Z",
+      "languageProfileId": 1,
+      "id": 165
+    },
+    "id": 5204
+  },
+  {
+    "seriesId": 165,
+    "tvdbId": 11897967,
+    "episodeFileId": 0,
+    "seasonNumber": 3,
+    "episodeNumber": 8,
+    "title": "TBA",
+    "airDate": "2026-11-25",
+    "airDateUtc": "2026-11-25T09:07:00Z",
+    "lastSearchTime": "2026-11-16T07:20:57Z",
+    "runtime": 0,
+    "finaleType": "season",
+    "hasFile": false,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "series": {
+      "title": "The Lord of the Rings: The Rings of Power",
+      "sortTitle": "lord of the rings the rings of power",
+      "status": "continuing",
+      "ended": false,
+      "overview": "Beginning in a time of relative peace, we follow an ensemble cast of characters as they confront the re-emergence of evil to Middle-earth. From the darkest depths of the Misty Mountains, to the majestic forests of Lindon, to the breathtaking island kingdom of Númenor, to the furthest reaches of the map, these kingdoms and characters will carve out legacies that live on long after they are gone.",
+      "network": "Prime Video",
+      "airTime": "03:00",
+      "images": [
+        {
+          "coverType": "poster",
+          "remoteUrl": "https://artworks.thetvdb.com/banners/v4/series/367506/posters/633f2338e7e17.jpg"
+        }
+      ],
+      "originalLanguage": {
+        "id": 1,
+        "name": "English"
+      },
+      "seasons": [
+        {
+          "seasonNumber": 0,
+          "monitored": false
+        },
+        {
+          "seasonNumber": 1,
+          "monitored": false
+        },
+        {
+          "seasonNumber": 2,
+          "monitored": false
+        },
+        {
+          "seasonNumber": 3,
+          "monitored": true
+        }
+      ],
+      "year": 2022,
+      "path": "/downloads/shows/The Lord of the Rings - The Rings of Power",
+      "qualityProfileId": 10,
+      "monitored": true,
+      "monitorNewItems": "all",
+      "useSceneNumbering": false,
+      "runtime": 67,
+      "tvdbId": 367506,
+      "tvRageId": 0,
+      "tvMazeId": 33352,
+      "tmdbId": 84773,
+      "firstAired": "2022-09-01T00:00:00Z",
+      "lastAired": "2026-11-25T00:00:00Z",
+      "seriesType": "standard",
+      "imdbId": "tt7631058",
+      "titleSlug": "the-lord-of-the-rings-the-rings-of-power",
+      "tags": [],
+      "added": "2026-06-30T07:09:47Z",
+      "languageProfileId": 1,
+      "id": 165
+    },
+    "id": 5205
+  }
+]

@@ -1,0 +1,178 @@
+[
+  {
+    "title": "28 Jours plus tard",
+    "originalTitle": "28 Days Later",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "secondaryYearSourceId": 0,
+    "sortTitle": "28 jours plus tard",
+    "sizeOnDisk": 15009618240,
+    "status": "released",
+    "overview": "Un commando de la Protection Animale fait irruption dans un laboratoire top secret pour délivrer des dizaines de chimpanzés soumis à de terribles expériences. Mais aussitôt libérés, les primates, contaminés par un mystérieux virus et animés d’une rage incontrôlable, bondissent sur leurs « sauveurs » et les massacrent. 28 jours plus tard, le mal s’est répandu à une vitesse fulgurante à travers le pays, la population a été évacuée en masse et Londres n’est plus qu’une ville fantôme. Les rares rescapés se terrent pour échapper aux « Contaminés » assoiffés de violence. C’est dans ce contexte que Jim, un coursier, sort d’un profond coma…",
+    "inCinemas": "2002-10-31T00:00:00Z",
+    "physicalRelease": "2003-05-19T00:00:00Z",
+    "digitalRelease": "2008-02-23T00:00:00Z",
+    "releaseDate": "2003-05-19T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/1/poster.jpg?h=29247d3dad31c23cf7d9",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/sQckQRt17VaWbo39GIu0TMOiszq.jpg"
+      }
+    ],
+    "year": 2002,
+    "path": "/downloads/movies/28 Days Later (2002)",
+    "qualityProfileId": 9,
+    "hasFile": true,
+    "movieFileId": 2,
+    "monitored": false,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 113,
+    "imdbId": "tt0289043",
+    "tmdbId": 170,
+    "titleSlug": "170",
+    "rootFolderPath": "/downloads/movies",
+    "tags": [],
+    "added": "2026-03-29T08:14:02Z",
+    "movieFile": {
+      "movieId": 1,
+      "relativePath": "28.Days.Later.2002.MULTi.1080p.BluRay.x264.DTS.(28 Jours Plus Tard).MKV",
+      "path": "/downloads/movies/28 Days Later (2002)/28.Days.Later.2002.MULTi.1080p.BluRay.x264.DTS.(28 Jours Plus Tard).MKV",
+      "size": 15009618240,
+      "dateAdded": "2026-03-29T08:14:05Z",
+      "edition": "",
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p",
+          "source": "bluray",
+          "resolution": 1080,
+          "modifier": "none"
+        },
+        "revision": {
+          "version": 1,
+          "real": 0,
+          "isRepack": false
+        }
+      },
+      "indexerFlags": 0,
+      "qualityCutoffNotMet": false,
+      "id": 2
+    },
+    "collection": {
+      "title": "28 Days/Weeks/Years Later Collection",
+      "tmdbId": 1565
+    },
+    "statistics": {
+      "movieFileCount": 1,
+      "sizeOnDisk": 15009618240,
+      "releaseGroups": [],
+      "movieFileQualities": [
+        {
+          "id": 7,
+          "name": "Bluray-1080p",
+          "source": "bluray",
+          "resolution": 1080,
+          "modifier": "none"
+        }
+      ]
+    },
+    "id": 1
+  },
+  {
+    "title": "Hershey",
+    "originalTitle": "Hershey",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "secondaryYearSourceId": 0,
+    "sortTitle": "hershey",
+    "sizeOnDisk": 0,
+    "status": "announced",
+    "overview": "Based on the life of Milton Hershey, founder of the iconic Hershey chocolate company. Milton's grit and determination to conquer the world of candy-making propel him from bankruptcy to monumental success, and the love of his life, Kitty, helps him build a legacy sweeter than any candy bar. But when Kitty falls ill, Milton’s wild optimism teeters on the edge of destruction, and she sparks an even bolder dream: to leave their fortune in the hands of America’s children in need.",
+    "inCinemas": "2026-11-25T00:00:00Z",
+    "releaseDate": "2026-11-25T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/228/poster.jpg?h=badb783ee7eebf7db9ba",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/ojd8Gu2bPsOzdMz6Ip5AYDu4Vki.jpg"
+      }
+    ],
+    "year": 2026,
+    "path": "/downloads/movies/Hershey (2026) [tmdbid-1461490]",
+    "qualityProfileId": 9,
+    "hasFile": false,
+    "movieFileId": 0,
+    "monitored": true,
+    "minimumAvailability": "tba",
+    "isAvailable": true,
+    "runtime": 110,
+    "imdbId": "tt17055444",
+    "tmdbId": 1461490,
+    "titleSlug": "1461490",
+    "rootFolderPath": "/downloads/movies",
+    "tags": [],
+    "added": "2026-07-22T05:23:02Z",
+    "lastSearchTime": "2026-11-21T13:40:57Z",
+    "statistics": {
+      "movieFileCount": 0,
+      "sizeOnDisk": 0,
+      "releaseGroups": [],
+      "movieFileQualities": []
+    },
+    "id": 228
+  },
+  {
+    "title": "Avengers : Doomsday",
+    "originalTitle": "Avengers: Doomsday",
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "secondaryYearSourceId": 0,
+    "sortTitle": "avengers doomsday",
+    "sizeOnDisk": 0,
+    "status": "announced",
+    "overview": "Les Avengers, les Wakandais, les Quatre Fantastiques, les New Avengers et les X-Men, tous héros issus de trois univers distincts se retrouvent sur une trajectoire de collision mortelle et font face à une menace existentielle sans précédent, comme ils n'en ont jamais rencontré auparavant, le Docteur Doom.",
+    "inCinemas": "2026-12-16T00:00:00Z",
+    "releaseDate": "2026-12-16T00:00:00Z",
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "/MediaCover/257/poster.jpg?h=c88c840d8b85ac10538f",
+        "remoteUrl": "https://image.tmdb.org/t/p/original/1zqWkLwC1zLBBBtIWzmkmWeMWnT.jpg"
+      }
+    ],
+    "year": 2026,
+    "path": "/downloads/movies/Avengers Doomsday (2026) [tmdbid-1003596]",
+    "qualityProfileId": 9,
+    "hasFile": false,
+    "movieFileId": 0,
+    "monitored": true,
+    "minimumAvailability": "inCinemas",
+    "isAvailable": false,
+    "runtime": 165,
+    "imdbId": "tt21357150",
+    "tmdbId": 1003596,
+    "titleSlug": "1003596",
+    "rootFolderPath": "/downloads/movies",
+    "tags": [],
+    "added": "2026-10-08T07:09:02Z",
+    "collection": {
+      "title": "The Avengers Collection",
+      "tmdbId": 86311
+    },
+    "statistics": {
+      "movieFileCount": 0,
+      "sizeOnDisk": 0,
+      "releaseGroups": [],
+      "movieFileQualities": []
+    },
+    "id": 257
+  }
+]

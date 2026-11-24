@@ -1,0 +1,140 @@
+[
+  {
+    "episodeId": 6415,
+    "seriesId": 227,
+    "sourceTitle": "Phony.S01E07.VOSTFR.1080p.DSNP.WEB-DL.DDP5.1.H.264-TVPASSION",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "web",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormatScore": 662300,
+    "qualityCutoffNotMet": false,
+    "date": "2026-11-24T09:33:01Z",
+    "downloadId": "1067651561D6178F478BBF8EABA7879964E393B2",
+    "eventType": "grabbed",
+    "data": {
+      "indexer": "Tracker (Prowlarr)",
+      "releaseGroup": "TVPASSION",
+      "age": "0",
+      "ageHours": "2.1989614395555557",
+      "ageMinutes": "131.93768645666665",
+      "publishedDate": "2026-11-24T07:21:05Z",
+      "downloadClient": "qBittorrent",
+      "downloadClientName": "qBittorrent VPN",
+      "size": "1035243237",
+      "guid": "https://tracker.example/torrents/2001",
+      "tvdbId": "0",
+      "tvRageId": "0",
+      "imdbId": null,
+      "protocol": "2",
+      "customFormatScore": "662300",
+      "seriesMatchType": "Title",
+      "releaseSource": "Rss",
+      "indexerFlags": "0",
+      "releaseType": "SingleEpisode",
+      "torrentInfoHash": "1067651561d6178f478bbf8eaba7879964e393b2"
+    },
+    "id": 3857
+  },
+  {
+    "episodeId": 6493,
+    "seriesId": 233,
+    "sourceTitle": "Notre.Maison.2022.S01.INTEGRALE.VFF.1080p.WEB.AAC.2.0.H264-NOTAG",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "web",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormatScore": 810210,
+    "qualityCutoffNotMet": false,
+    "date": "2026-11-24T18:35:38Z",
+    "downloadId": "A023231BF0630AF6D783211374AC3D1AC6A8EF36",
+    "eventType": "grabbed",
+    "data": {
+      "indexer": "Tracker (Prowlarr)",
+      "releaseGroup": "NOTAG",
+      "age": "0",
+      "ageHours": "2.0221708294444443",
+      "ageMinutes": "121.33024985833333",
+      "publishedDate": "2026-11-24T16:34:19Z",
+      "downloadClient": "qBittorrent",
+      "downloadClientName": "qBittorrent VPN",
+      "size": "3069933130",
+      "guid": "https://tracker.example/torrents/2002",
+      "tvdbId": "0",
+      "tvRageId": "0",
+      "imdbId": "tt10098728",
+      "protocol": "2",
+      "customFormatScore": "810210",
+      "seriesMatchType": "Id",
+      "releaseSource": "Rss",
+      "indexerFlags": "0",
+      "releaseType": "SeasonPack",
+      "torrentInfoHash": "a023231bf0630af6d783211374ac3d1ac6a8ef36"
+    },
+    "id": 3859
+  },
+  {
+    "episodeId": 6494,
+    "seriesId": 233,
+    "sourceTitle": "Notre.Maison.2022.S01.INTEGRALE.VFF.1080p.WEB.AAC.2.0.H264-NOTAG",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "web",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormatScore": 810210,
+    "qualityCutoffNotMet": false,
+    "date": "2026-11-24T18:35:38Z",
+    "downloadId": "A023231BF0630AF6D783211374AC3D1AC6A8EF36",
+    "eventType": "grabbed",
+    "data": {
+      "indexer": "Tracker (Prowlarr)",
+      "releaseGroup": "NOTAG",
+      "age": "0",
+      "ageHours": "2.0221723618333334",
+      "ageMinutes": "121.33034180166666",
+      "publishedDate": "2026-11-24T16:34:19Z",
+      "downloadClient": "qBittorrent",
+      "downloadClientName": "qBittorrent VPN",
+      "size": "3069933130",
+      "guid": "https://tracker.example/torrents/2002",
+      "tvdbId": "0",
+      "tvRageId": "0",
+      "imdbId": "tt10098728",
+      "protocol": "2",
+      "customFormatScore": "810210",
+      "seriesMatchType": "Id",
+      "releaseSource": "Rss",
+      "indexerFlags": "0",
+      "releaseType": "SeasonPack",
+      "torrentInfoHash": "a023231bf0630af6d783211374ac3d1ac6a8ef36"
+    },
+    "id": 3860
+  }
+]
