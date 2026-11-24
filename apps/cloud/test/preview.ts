@@ -63,7 +63,8 @@ const previewRoutes = (days: number): Readonly<Record<string, Recording>> => ({
   "cleanuparr GET /api/queue-rules/slow": "cleanuparr/slow-rules.json",
   "cleanuparr GET /api/jobs/QueueCleaner": shifted("cleanuparr/job-queue-cleaner.json", days),
   "cleanuparr GET /api/events": shifted("cleanuparr/events-removed.json", days),
-  "jellyfin GET /Items": "jellyfin/items-movie.json"
+  "jellyfin GET /Items": "jellyfin/items-movie.json",
+  "jellyfin GET /Users": "jellyfin/users.json"
 })
 
 /** Something going on: Dune downloading at 42 %. */

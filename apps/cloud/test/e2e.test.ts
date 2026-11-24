@@ -59,7 +59,9 @@ describe("end to end", () => {
         expect(steps().at(-1)).toBe("update:2")
         expect(home.watch(torrentsWatchId)).toBeUndefined()
 
-        // Waiting for Jellyfin: Quai Home reads its latest titles; not there yet, then there.
+        // Waiting for Jellyfin: Quai Home reads its users, then its latest titles as the
+        // administrator; not there yet, then there.
+        yield* home.snapshot(watchIds.users, fixture("jellyfin/users.json"))
         const find = watchIds.find("movie:tmdb:693134")
         expect(home.watch(find)?.path).toContain("SortBy=DateCreated")
         yield* home.snapshot(find, { Items: [] })
