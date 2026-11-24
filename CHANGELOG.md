@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.27.0](https://github.com/mathieuletyrant/quai-app/compare/v0.26.0...v0.27.0) (2026-11-24)
+
+
+### ✨ Features
+
+* search Seerr and request a title from the app, the Lock Screen and Siri ([#95](https://github.com/mathieuletyrant/quai-app/issues/95)) ([96f44b5](https://github.com/mathieuletyrant/quai-app/commit/96f44b50f67675670463c37a991a7472986fad4b))
+
+
+### 🐛 Fixes
+
+* **ios:** no "Can't reach" tile when coming back to the app, and a connection mark on the Home ([#94](https://github.com/mathieuletyrant/quai-app/issues/94)) ([0e1a99b](https://github.com/mathieuletyrant/quai-app/commit/0e1a99b2564cf07f203eabe7f8b5a0f850b9ac5e))
+
 ## [0.26.0](https://github.com/mathieuletyrant/quai-app/compare/v0.25.1...v0.26.0) (2026-11-24)
 
 
