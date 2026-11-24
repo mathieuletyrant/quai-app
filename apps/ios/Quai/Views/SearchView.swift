@@ -161,7 +161,7 @@ struct SearchView: View {
             states = [:]
             error = nil
         } catch {
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, !error.isCancellation else { return }
             self.error = error.quaiMessage
         }
     }
