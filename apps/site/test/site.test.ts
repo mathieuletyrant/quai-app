@@ -30,10 +30,15 @@ describe("site", () => {
       expect(html).not.toMatch(/\.dc\.html|\{\{|<sc-|<x-dc|<helmet|support\.js/);
     });
 
-    it("loads nothing from another site", () => {
+    it("loads nothing from another site but Cloudflare's visit counter", () => {
       for (const tag of html.match(/<(?:script|link|img)\b[^>]*>/g) ?? []) {
+        if (tag.includes('src="https://static.cloudflareinsights.com/beacon.min.js"')) continue;
         expect(tag).not.toMatch(/(?:src|href)="(?:https?:)?\/\//);
       }
+    });
+
+    it("counts its visits with Cloudflare Web Analytics", () => {
+      expect(html).toContain('src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=');
     });
 
     it("links only to files and anchors that exist", () => {
