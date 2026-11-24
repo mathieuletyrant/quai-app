@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.5](https://github.com/mathieuletyrant/quai-app/compare/v0.27.4...v0.27.5) (2026-11-24)
+
+
+### 🐛 Fixes
+
+* **deploy:** the hosted Cloud reports the version it runs ([#107](https://github.com/mathieuletyrant/quai-app/issues/107)) ([f4c9fc7](https://github.com/mathieuletyrant/quai-app/commit/f4c9fc7c46653676961fab9752e955b5addd5da9))
+
 ## [0.27.4](https://github.com/mathieuletyrant/quai-app/compare/v0.27.3...v0.27.4) (2026-11-24)
 
 
