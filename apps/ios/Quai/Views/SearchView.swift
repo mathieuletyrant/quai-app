@@ -23,7 +23,6 @@ struct SearchView: View {
     @State private var query: String
     @State private var results: Components.Schemas.SearchResults?
     @State private var error: String?
-    @State private var searching = false
     /// What a request just changed, until the next search reads it from Seerr.
     @State private var states: [String: TitleState] = [:]
     @State private var working: String?
@@ -49,6 +48,9 @@ struct SearchView: View {
                     }
                     content
                 }
+                // Full width even when empty: otherwise the column collapses to its padding and
+                // the loader grows out of it, a narrow vertical band, as the keyboard animates.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Metrics.gutter)
                 .padding(.top, 8)
                 .padding(.bottom, Metrics.tabBarClearance)
@@ -132,7 +134,8 @@ struct SearchView: View {
                     }
                 }
             }
-        } else if searching {
+        } else if error == nil {
+            // From the first letter, while the search waits for a pause and while Seerr answers.
             ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
         }
     }
@@ -149,11 +152,10 @@ struct SearchView: View {
             error = nil
             return
         }
-        // Typing: wait for a pause before asking Seerr.
+        // Typing: wait for a pause before asking Seerr. The last results stay until new ones come.
+        error = nil
         try? await Task.sleep(for: .milliseconds(350))
         guard !Task.isCancelled else { return }
-        searching = true
-        defer { searching = false }
         do {
             let found = try await connection.search(text)
             guard !Task.isCancelled else { return }
