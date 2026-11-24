@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.2](https://github.com/mathieuletyrant/quai-app/compare/v0.27.1...v0.27.2) (2026-11-24)
+
+
+### 🐛 Fixes
+
+* follow titles to Jellyfin by id, keep a season pack's name, show blocked imports ([#99](https://github.com/mathieuletyrant/quai-app/issues/99)) ([7052b14](https://github.com/mathieuletyrant/quai-app/commit/7052b14e624825c4a20c16f50ea1dba94c9675ef))
+
 ## [0.27.1](https://github.com/mathieuletyrant/quai-app/compare/v0.27.0...v0.27.1) (2026-11-24)
 
 
