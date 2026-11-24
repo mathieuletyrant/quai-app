@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/mathieuletyrant/quai-app/compare/v0.23.0...v0.24.0) (2026-11-24)
+
+
+### ✨ Features
+
+* clearer Settings for the hosted Cloud, the console's own address in the app, landing rework ([#84](https://github.com/mathieuletyrant/quai-app/issues/84)) ([d909c2b](https://github.com/mathieuletyrant/quai-app/commit/d909c2b6709640dd0b38504e9e2f83d35b8e8231))
+
 ## [0.23.0](https://github.com/mathieuletyrant/quai-app/compare/v0.22.0...v0.23.0) (2026-11-24)
 
 
