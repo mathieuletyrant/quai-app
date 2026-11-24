@@ -207,6 +207,7 @@ Ask on the Discord (https://discord.gg/ytrjjGXTKZ) or write to support@quai.stre
 - Your services' addresses, API keys, library and journal stay in Quai Home, on your server. Quai Home never sends addresses or keys to any Quai Cloud.
 - The hosted Quai Cloud receives only the content of each update (a title, an episode, a step, a percentage, the name of a service that is down) and the iPhones' Apple push tokens. It forwards updates to Apple and keeps nothing on disk. Push tokens are held in memory while your Quai Home is connected. It runs on Cloudflare, in the European Union.
 - No account, no analytics, no ads, no tracking, no third-party SDK in the app.
+- The website, quai.stream, counts its visits with Cloudflare Web Analytics, without cookies.
 - Full policy: https://quai.stream/privacy
 
 ## Limits of the beta
