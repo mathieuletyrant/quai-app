@@ -171,6 +171,14 @@ struct AppScreenshots {
         try await Self.settle(5)
         Self.screenshot(seasons, "07-search-seasons")
 
+        // A result tapped that isn't in the library yet: Seerr's details and the Request button.
+        let preview = try Self.show(
+            SearchResultDetail(result: prophecy, state: .requestable) {}.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle(5)
+        Self.screenshot(preview, "07-search-preview")
+
         let requester = try Self.show(
             NavigationStack { RequesterSettingsView() }.tint(.quaiAccent).preferredColorScheme(.dark),
             connection

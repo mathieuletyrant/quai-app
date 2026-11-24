@@ -13,6 +13,11 @@ extension SearchResult: Identifiable {
         if let year { parts.append(String(year)) }
         return parts.joined(separator: " · ")
     }
+
+    /// The same title in Radarr or Sonarr, by its TMDB id.
+    func match(in library: Components.Schemas.Library?) -> LibraryItem? {
+        library?.items.first { $0.tmdbId == tmdbId && $0.kind.rawValue == kind.rawValue }
+    }
 }
 
 /// The Search tab: a title typed or dictated, Seerr's results, and the one to request. Opened by
@@ -23,11 +28,16 @@ struct SearchView: View {
     @State private var query: String
     @State private var results: Components.Schemas.SearchResults?
     @State private var error: String?
-    @State private var searching = false
     /// What a request just changed, until the next search reads it from Seerr.
     @State private var states: [String: TitleState] = [:]
     @State private var working: String?
     @State private var choosingSeasons: SearchResult?
+    /// A result tapped that Radarr or Sonarr has: its library page.
+    @State private var opened: LibraryItem?
+    /// A result tapped that isn't in the library yet: what Seerr says of it.
+    @State private var previewing: SearchResult?
+    /// Requested from that preview: asked once its sheet is gone, so the season picker can open.
+    @State private var requestAfterPreview: SearchResult?
     @State private var notice: String?
     @State private var failure: String?
     @State private var dictation = Dictation()
@@ -49,6 +59,9 @@ struct SearchView: View {
                     }
                     content
                 }
+                // Full width even when empty: otherwise the column collapses to its padding and
+                // the loader grows out of it, a narrow vertical band, as the keyboard animates.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, Metrics.gutter)
                 .padding(.top, 8)
                 .padding(.bottom, Metrics.tabBarClearance)
@@ -83,6 +96,23 @@ struct SearchView: View {
             dictation.finished = { text in query = text }
         }
         .onDisappear { dictation.cancel() }
+        .task {
+            // To open a result that's already there on its library page.
+            if connection.library == nil { await connection.loadLibrary() }
+        }
+        .sheet(item: $opened) { item in
+            TitleDetailView(item: item)
+        }
+        .sheet(item: $previewing, onDismiss: {
+            guard let result = requestAfterPreview else { return }
+            requestAfterPreview = nil
+            request(result)
+        }) { result in
+            SearchResultDetail(result: result, state: states[result.id] ?? result.state) {
+                requestAfterPreview = result
+                previewing = nil
+            }
+        }
         .sheet(item: $choosingSeasons) { series in
             SeasonPicker(result: series) { seasons in send(series, seasons: seasons) }
                 .presentationDetents([.medium, .large])
@@ -130,9 +160,13 @@ struct SearchView: View {
                     SearchResultRow(result: result, state: states[result.id] ?? result.state, busy: working == result.id) {
                         request(result)
                     }
+                    .contentShape(RoundedRectangle(cornerRadius: Metrics.cardRadius, style: .continuous))
+                    .onTapGesture { open(result) }
+                    .accessibilityAddTraits(.isButton)
                 }
             }
-        } else if searching {
+        } else if error == nil {
+            // From the first letter, while the search waits for a pause and while Seerr answers.
             ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
         }
     }
@@ -149,11 +183,10 @@ struct SearchView: View {
             error = nil
             return
         }
-        // Typing: wait for a pause before asking Seerr.
+        // Typing: wait for a pause before asking Seerr. The last results stay until new ones come.
+        error = nil
         try? await Task.sleep(for: .milliseconds(350))
         guard !Task.isCancelled else { return }
-        searching = true
-        defer { searching = false }
         do {
             let found = try await connection.search(text)
             guard !Task.isCancelled else { return }
@@ -163,6 +196,23 @@ struct SearchView: View {
         } catch {
             guard !Task.isCancelled, !error.isCancellation else { return }
             self.error = error.quaiMessage
+        }
+    }
+
+    /// Its library page when Radarr or Sonarr has it, Seerr's details otherwise. A title Seerr says
+    /// is requested or there may have reached the library since it was read: read it again first.
+    private func open(_ result: SearchResult) {
+        if let item = result.match(in: connection.library) {
+            opened = item
+            return
+        }
+        guard (states[result.id] ?? result.state) != .requestable else {
+            previewing = result
+            return
+        }
+        Task {
+            await connection.loadLibrary()
+            if let item = result.match(in: connection.library) { opened = item } else { previewing = result }
         }
     }
 
@@ -185,6 +235,7 @@ struct SearchView: View {
                 notice = created.status == .approved
                     ? "\(result.title) is on its way."
                     : "\(result.title) waits for approval in Seerr."
+                await connection.loadLibrary()
             } catch {
                 failure = error.quaiMessage
             }
@@ -209,6 +260,68 @@ private struct SearchHint: View {
             }
             .buttonStyle(PillButtonStyle())
         }
+    }
+}
+
+/// A title Seerr found that isn't in the library: its poster, story and the Request button.
+struct SearchResultDetail: View {
+    @Environment(\.dismiss) private var dismiss
+    let result: SearchResult
+    let state: TitleState
+    let request: () -> Void
+
+    private var stateLine: (text: String, color: Color) {
+        switch state {
+        case .available: ("In library", Palette.ok)
+        case .requested: ("Requested", Palette.requests)
+        case .partial: ("Some seasons in library", Palette.requests)
+        case .requestable: ("Not in library", Palette.secondaryText)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Spacer()
+                    GlassIconButton(systemImage: "xmark", label: "Close") { dismiss() }
+                }
+                HStack(alignment: .bottom, spacing: 16) {
+                    Poster(url: PosterSize.large.url(result.posterUrl), title: result.title, cornerRadius: 14)
+                        .frame(width: 104)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(result.title)
+                            .font(QuaiFont.title)
+                            .tracking(-0.3)
+                            .foregroundStyle(Palette.primaryText)
+                            .lineLimit(3)
+                        Text(result.facts)
+                            .font(.system(size: 14))
+                            .foregroundStyle(Palette.secondaryText)
+                        Text(stateLine.text)
+                            .font(QuaiFont.eyebrow)
+                            .foregroundStyle(stateLine.color)
+                    }
+                    .padding(.bottom, 4)
+                }
+                if state == .requestable || state == .partial {
+                    Button(state == .partial ? "Request more seasons" : "Request", action: request)
+                        .buttonStyle(PillButtonStyle())
+                }
+                if let overview = result.overview {
+                    Card(spacing: 8) {
+                        Text("STORY").font(QuaiFont.eyebrow).foregroundStyle(Palette.secondaryText)
+                        Text(overview)
+                            .font(QuaiFont.subheadline)
+                            .foregroundStyle(Palette.primaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(Metrics.gutter)
+        }
+        .scrollIndicators(.hidden)
+        .background(Palette.background.ignoresSafeArea())
     }
 }
 

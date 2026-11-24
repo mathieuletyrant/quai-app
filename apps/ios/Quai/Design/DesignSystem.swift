@@ -298,8 +298,8 @@ struct Poster: View {
             .aspectRatio(2.0 / 3.0, contentMode: .fit)
             .background(Palette.poster)
             .overlay {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
+                RemoteImage(url: url) { phase in
+                    if case let .loaded(image) = phase {
                         image.resizable().scaledToFill()
                     } else {
                         Text(title)
@@ -341,8 +341,8 @@ struct PosterThumbnail<Fallback: View>: View {
     @ViewBuilder var fallback: Fallback
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            if let image = phase.image {
+        RemoteImage(url: url) { phase in
+            if case let .loaded(image) = phase {
                 image
                     .resizable()
                     .scaledToFill()
@@ -360,7 +360,7 @@ struct PosterThumbnail<Fallback: View>: View {
                                 .offset(x: 5, y: 5)
                         }
                     }
-            } else if url != nil, case .empty = phase {
+            } else if case .loading = phase {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Palette.raised)
                     .frame(width: width, height: width * 1.5)
