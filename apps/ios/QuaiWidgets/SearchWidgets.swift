@@ -44,8 +44,8 @@ struct SearchWidgetTimeline: TimelineProvider {
         completion(SearchWidgetEntry(date: .now))
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<SearchWidgetEntry>) -> Void) {
-        completion(Timeline(entries: [SearchWidgetEntry(date: .now)], policy: .never))
+    func getTimeline(in context: Context, completion: @escaping (WidgetKit.Timeline<SearchWidgetEntry>) -> Void) {
+        completion(WidgetKit.Timeline(entries: [SearchWidgetEntry(date: .now)], policy: .never))
     }
 }
 
