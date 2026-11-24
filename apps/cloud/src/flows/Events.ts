@@ -2,16 +2,32 @@ import type { ActivityItem, EventType } from "@quai/api"
 
 /**
  * How to find a title in the media server: set by the service that imported it, read by the one
- * that says it's ready. Travels with the activity.
+ * that says it's ready. Travels with the activity. It carries every id the service knows: the
+ * media server may know the title by any one of them (Jellyfin has no TVDB id without its plugin).
  */
 export type MediaLookup =
-  | { readonly _tag: "Movie"; readonly tmdbId: number; readonly title: string }
+  | { readonly _tag: "Movie"; readonly tmdbId: number; readonly imdbId?: string; readonly title: string }
   | {
     readonly _tag: "Episodes"
     readonly tvdbId: number
+    readonly tmdbId?: number
+    readonly imdbId?: string
     readonly title: string
     readonly episodes: ReadonlyArray<{ readonly season: number; readonly episode: number }>
   }
+
+/** The ids a lookup carries, by provider as media servers name them, lower-cased. */
+export const lookupIds = (lookup: MediaLookup): ReadonlyArray<readonly [provider: string, id: string]> => {
+  const ids: Array<readonly [string, string]> = lookup._tag === "Movie"
+    ? [["tmdb", String(lookup.tmdbId)]]
+    : [["tvdb", String(lookup.tvdbId)], ...(lookup.tmdbId === undefined ? [] : [["tmdb", String(lookup.tmdbId)] as const])]
+  if (lookup.imdbId !== undefined) ids.push(["imdb", lookup.imdbId])
+  return ids
+}
+
+/** An id a service sent: 0 and "" mean it has none. */
+export const knownId = <A extends number | string>(id: A | undefined | null): A | undefined =>
+  id === undefined || id === null || id === 0 || id === "" ? undefined : id
 
 const episodeKey = (e: { readonly season: number; readonly episode: number }) => `${e.season}:${e.episode}`
 
@@ -25,7 +41,12 @@ export const widenLookup = (current: MediaLookup | null, incoming: MediaLookup |
   if (current?._tag !== "Episodes" || incoming._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return incoming
   const known = new Set(current.episodes.map(episodeKey))
   const added = incoming.episodes.filter((e) => !known.has(episodeKey(e)))
-  return added.length === 0 ? current : { ...current, episodes: [...current.episodes, ...added] }
+  const tmdbId = current.tmdbId ?? incoming.tmdbId
+  const imdbId = current.imdbId ?? incoming.imdbId
+  const ids = { ...(tmdbId === undefined ? {} : { tmdbId }), ...(imdbId === undefined ? {} : { imdbId }) }
+  return added.length === 0 && tmdbId === current.tmdbId && imdbId === current.imdbId
+    ? current
+    : { ...current, ...ids, episodes: [...current.episodes, ...added] }
 }
 
 /** The event is about part of what the activity follows (one episode of the pack): its title would narrow it. */

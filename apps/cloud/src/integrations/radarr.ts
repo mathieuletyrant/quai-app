@@ -1,7 +1,7 @@
 import type { DiskSpace, LibraryItem } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
-import { movieKey } from "../flows/Events.ts"
+import { knownId, movieKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
 import type { Integration } from "./Integration.ts"
@@ -9,7 +9,8 @@ import type { Integration } from "./Integration.ts"
 const Movie = Schema.Struct({
   title: Schema.String,
   year: Schema.optional(Schema.Number),
-  tmdbId: Schema.Number
+  tmdbId: Schema.Number,
+  imdbId: Schema.optional(Schema.NullOr(Schema.String))
 })
 
 /** The Radarr webhook payload, only the fields Quai reads. Unknown event types are kept as-is. */
@@ -31,7 +32,12 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
     key: movieKey(movie.tmdbId),
     title: titleOf(movie),
     mediaType: "movie" as const,
-    lookup: { _tag: "Movie" as const, tmdbId: movie.tmdbId, title: movie.title }
+    lookup: {
+      _tag: "Movie" as const,
+      tmdbId: movie.tmdbId,
+      ...(knownId(movie.imdbId) === undefined ? {} : { imdbId: movie.imdbId! }),
+      title: movie.title
+    }
   }
   switch (payload.eventType) {
     case "MovieAdded":

@@ -1,13 +1,15 @@
 import type { LibraryItem } from "@quai/api"
 import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
-import { seriesKey } from "../flows/Events.ts"
+import { knownId, seriesKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import type { Integration } from "./Integration.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
-  tvdbId: Schema.Number
+  tvdbId: Schema.Number,
+  tmdbId: Schema.optional(Schema.NullOr(Schema.Number)),
+  imdbId: Schema.optional(Schema.NullOr(Schema.String))
 })
 
 const Episode = Schema.Struct({
@@ -56,6 +58,8 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
     lookup: {
       _tag: "Episodes" as const,
       tvdbId: series.tvdbId,
+      ...(knownId(series.tmdbId) === undefined ? {} : { tmdbId: series.tmdbId! }),
+      ...(knownId(series.imdbId) === undefined ? {} : { imdbId: series.imdbId! }),
       title: series.title,
       episodes: (payload.episodes ?? []).map((e) => ({ season: e.seasonNumber, episode: e.episodeNumber }))
     }

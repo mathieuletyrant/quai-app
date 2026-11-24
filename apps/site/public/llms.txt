@@ -12,7 +12,7 @@
 
 ## What Quai does
 
-- **Download Live Activity**: from the moment a title is added, on the Lock Screen and in the Dynamic Island: searching, downloading (percent, speed, time left, from qBittorrent), importing, ready to watch. A season pack keeps its name while its episodes import one by one. When Radarr or Sonarr can't import a download on its own, the activity turns grey and says so until it's imported. "Ready to watch" comes once Jellyfin has the title, matched by its TMDB or TVDB id, whatever Jellyfin names it.
+- **Download Live Activity**: from the moment a title is added, on the Lock Screen and in the Dynamic Island: searching, downloading (percent, speed, time left, from qBittorrent), importing, ready to watch. A season pack keeps its name while its episodes import one by one. When Radarr or Sonarr can't import a download on its own, the activity turns grey and says so until it's imported. "Ready to watch" comes once Jellyfin has the title, matched by any id both know (TMDB, TVDB or IMDb; Jellyfin has no TVDB id without its plugin), whatever Jellyfin names it.
 - **Request Live Activity**: a Seerr request waiting for approval, with Approve and Decline buttons on the Lock Screen.
 - **Playback Live Activity**: what plays on Jellyfin, time left, Play/Pause from the Lock Screen.
 - **Today Live Activity**: today's episodes and movies with their air time, ticked off as they arrive.

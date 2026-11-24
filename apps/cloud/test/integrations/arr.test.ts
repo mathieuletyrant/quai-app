@@ -12,8 +12,8 @@ const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provi
 
 const radarrPayload = (name: string) => decodeRadarrWebhook(fixture(`radarr/${name}.json`))
 const sonarrPayload = (name: string) => decodeSonarrWebhook(fixture(`sonarr/${name}.json`))
-const duneLookup = { _tag: "Movie", tmdbId: 693134, title: "Dune: Part Two" }
-const severance = (episodes: Array<{ season: number; episode: number }>) => ({ _tag: "Episodes", tvdbId: 371980, title: "Severance", episodes })
+const duneLookup = { _tag: "Movie", tmdbId: 693134, imdbId: "tt15239678", title: "Dune: Part Two" }
+const severance = (episodes: Array<{ season: number; episode: number }>) => ({ _tag: "Episodes", tvdbId: 371980, tmdbId: 95396, imdbId: "tt11280740", title: "Severance", episodes })
 
 describe("Radarr webhooks", () => {
   it.effect("MovieAdded starts a search", () =>
@@ -108,7 +108,8 @@ describe("Sonarr webhooks", () => {
           key: "series:tvdb:371980:dl:fedcba98765432100123456789abcdef01234567",
           title: "Severance · S02",
           mediaType: "series",
-          lookup: severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }])
+          // This payload has no IMDb id: the lookup carries the ids Sonarr sent.
+          lookup: { ...severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }]), imdbId: undefined }
         }
       }])
       expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((e) => e.type)).toEqual(["media.grabbed"])
