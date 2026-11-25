@@ -12,8 +12,8 @@ export const FlowsHandlers = HttpApiBuilder.group(QuaiApi, "flows", (handlers) =
     const hub = yield* Hub
     // A flow turned on or off changes what Quai Home must watch.
     const synced = <A, E>(effect: Effect.Effect<A, E>) => Effect.tap(effect, () => hub.sync)
-    const orNotFound = <A>(o: Option.Option<A>) =>
-      Option.match(o, { onNone: () => Effect.fail(new HttpApiError.NotFound()), onSome: Effect.succeed })
+    const orNotFound = <A>(option: Option.Option<A>) =>
+      Option.match(option, { onNone: () => Effect.fail(new HttpApiError.NotFound()), onSome: Effect.succeed })
     return handlers
       .handle("list", () => store.all)
       .handle("catalog", () => Effect.succeed(catalog))

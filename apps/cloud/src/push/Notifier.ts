@@ -8,7 +8,7 @@ import { Journal } from "../journal/Journal.ts"
 import { Apns } from "./Apns.ts"
 import { apnsBody } from "./ApnsPayload.ts"
 
-const iphones = (n: number) => `${n} iPhone${n === 1 ? "" : "s"}`
+const iphones = (count: number) => `${count} iPhone${count === 1 ? "" : "s"}`
 
 /** "· pushed to 2 iPhones": where an activity's change went. */
 const reach = (pushed: number, configured: boolean) =>
@@ -71,29 +71,29 @@ export class Notifier extends Context.Service<Notifier, {
 
       const one = (push: Push, only: DeviceId | null) =>
         Effect.gen(function*() {
-          const flow = (yield* flowStore.all).find((f) => f.id === push.activity.flowId)
+          const flow = (yield* flowStore.all).find((candidate) => candidate.id === push.activity.flowId)
           if (flow === undefined) return
           if (!(yield* apns.configured)) return yield* logged(push, flow, 0, false)
           const activityKey = push.activity.key
           const now = yield* Clock.currentTimeMillis
-          const targets = (yield* devices.targets(activityKey)).filter((t) => only === null || t.deviceId === only)
+          const targets = (yield* devices.targets(activityKey)).filter((target) => only === null || target.deviceId === only)
           let pushed = 0
           yield* Effect.forEach(targets, (target: PushTarget) =>
             Effect.gen(function*() {
-              const k = key(target.deviceId, activityKey)
+              const shownKey = key(target.deviceId, activityKey)
               const delivery = deliveryFor(push, flow, {
                 preferences: target.preferences,
                 pushToStartToken: target.pushToStartToken,
                 activityToken: target.activityToken,
-                shown: shown.has(k) || target.activityToken !== null,
+                shown: shown.has(shownKey) || target.activityToken !== null,
                 dismissed: target.dismissed
               }, now)
               // The activity is over: nothing left to show again.
               if (push._tag === "End" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
               if (delivery._tag === "None") return
-              if (delivery._tag === "Start") shown.add(k)
+              if (delivery._tag === "Start") shown.add(shownKey)
               if (delivery._tag === "Start" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
-              if (delivery._tag === "End") shown.delete(k)
+              if (delivery._tag === "End") shown.delete(shownKey)
               const step = flow.steps[push.activity.stepIndex]?.id ?? "?"
               const progress = delivery.content.progress === undefined ? "" : ` ${Math.round(delivery.content.progress * 100)} %`
               yield* apns.send({
@@ -129,8 +129,8 @@ export class Notifier extends Context.Service<Notifier, {
         )
 
       return {
-        send: (pushes) => Effect.forEach(pushes, (p) => one(p, null), { discard: true }),
-        sendTo: (deviceId, pushes) => Effect.forEach(pushes, (p) => one(p, deviceId), { discard: true })
+        send: (pushes) => Effect.forEach(pushes, (push) => one(push, null), { discard: true }),
+        sendTo: (deviceId, pushes) => Effect.forEach(pushes, (push) => one(push, deviceId), { discard: true })
       }
     })
   )

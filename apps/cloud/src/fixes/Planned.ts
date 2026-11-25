@@ -33,8 +33,8 @@ export const deletionsWithPosters = (reads: HomeReads["Service"], planned: Reado
   Effect.gen(function*(): Effect.fn.Return<ReadonlyArray<Detected>, HomeOffline> {
     if (planned.length === 0) return []
     const { values } = yield* reads.all({
-      movies: planned.some((p) => isMovie(p.candidate)) ? radarrMoviesRead : null,
-      series: planned.some((p) => !isMovie(p.candidate)) ? sonarrSeriesRead : null
+      movies: planned.some((entry) => isMovie(entry.candidate)) ? radarrMoviesRead : null,
+      series: planned.some((entry) => !isMovie(entry.candidate)) ? sonarrSeriesRead : null
     }, { optional: ["movies", "series"] })
     return plannedDeletionFixes(planned, { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) })
   })
@@ -61,7 +61,7 @@ export const stuckRemovalsRead = (reads: HomeReads["Service"]) =>
     const queues = yield* Effect.forEach([movies, series] as const, (adapter) => {
       const queued = adapter.queued
       return reached.includes(adapter.service)
-        ? Effect.map(reads.read(adapter.queue), (page) => ({ queued, records: Option.match(page, { onNone: () => [], onSome: (p) => p.records }) }))
+        ? Effect.map(reads.read(adapter.queue), (page) => ({ queued, records: Option.match(page, { onNone: () => [], onSome: (queuePage) => queuePage.records }) }))
         : Effect.succeed({ queued, records: [] as ReadonlyArray<QueueRecord> })
     }, { concurrency: "unbounded" })
     const job = Option.getOrUndefined(values.job)

@@ -143,7 +143,7 @@ const covers = (rule: QueueRules[number], percent: number) =>
  * or public torrent and by upgrade, which Quai can't see: the lowest is the soonest it can go.
  */
 export const ruleLimit = (rules: QueueRules, percent: number | undefined): number => {
-  const limits = rules.filter((r) => r.enabled && r.maxStrikes > 0 && (percent === undefined || covers(r, percent))).map((r) => r.maxStrikes)
+  const limits = rules.filter((rule) => rule.enabled && rule.maxStrikes > 0 && (percent === undefined || covers(rule, percent))).map((rule) => rule.maxStrikes)
   return limits.length === 0 ? 0 : Math.min(...limits)
 }
 
@@ -177,7 +177,7 @@ export interface RemovalInput {
   readonly queued: QueuedDownload
 }
 
-const sameId = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+const sameId = (left: string, right: string) => left.toLowerCase() === right.toLowerCase()
 
 /** Whether the queue cleaner leaves this download alone (its own ignore list, by download id). */
 export const isIgnored = (settings: QueueCleanerSettings, downloadId: string) =>
@@ -186,7 +186,7 @@ export const isIgnored = (settings: QueueCleanerSettings, downloadId: string) =>
 /** The downloads that may be planned for removal: struck, not removed yet, not left alone, while the queue cleaner runs. */
 export const struckDownloads = (input: Pick<RemovalInput, "downloads" | "settings">): ReadonlyArray<StruckDownload> =>
   input.settings.enabled
-    ? input.downloads.filter((d) => d.isRemoved !== true && !isIgnored(input.settings, d.downloadId) && d.strikes.some((s) => s.isDryRun !== true))
+    ? input.downloads.filter((download) => download.isRemoved !== true && !isIgnored(input.settings, download.downloadId) && download.strikes.some((strike) => strike.isDryRun !== true))
     : []
 
 /**
@@ -223,11 +223,11 @@ export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<Remov
       const left = limit - strikes.length
       const planned = limit > 0 && (left === 1 || (left <= 0 && download.isMarkedForRemoval === true))
       return planned ? [{ type, strikes, limit, left }] : []
-    }).sort((a, b) => a.left - b.left)
+    }).sort((left, right) => left.left - right.left)
     const first = due[0]
     if (first === undefined) return []
     const kind = strikeKinds[first.type]!
-    const since = Math.min(...first.strikes.map((s) => epochSeconds(s.createdAt) ?? Infinity))
+    const since = Math.min(...first.strikes.map((strike) => epochSeconds(strike.createdAt) ?? Infinity))
     const { media } = found
     return [{
       fix: {
@@ -251,12 +251,12 @@ export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<Remov
       },
       target: { kind: "removal", downloadItemId: download.downloadItemId, downloadId: download.downloadId }
     }]
-  }).sort((a, b) => strikesLeft(a) - strikesLeft(b))
+  }).sort((left, right) => strikesLeft(left) - strikesLeft(right))
 
-const strikesLeft = (d: Detected<RemovalTarget>) => (d.fix.removal?.maxStrikes ?? 0) - (d.fix.removal?.strikes ?? 0)
+const strikesLeft = (detected: Detected<RemovalTarget>) => (detected.fix.removal?.maxStrikes ?? 0) - (detected.fix.removal?.strikes ?? 0)
 
 const decodeAnswered = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)))
-const isStrings = (value: unknown): value is ReadonlyArray<string> => Array.isArray(value) && value.every((v) => typeof v === "string")
+const isStrings = (value: unknown): value is ReadonlyArray<string> => Array.isArray(value) && value.every((item) => typeof item === "string")
 
 /**
  * Keep, Cleanuparr's only write: the queue cleaner's settings exactly as it answered them (the body
@@ -366,13 +366,13 @@ export interface SeedCleanup<T extends SeedingTorrent = SeedingTorrent> {
   readonly freesFiles: boolean
 }
 
-const tagsOf = (torrent: SeedingTorrent) => (torrent.tags ?? "").split(",").map((t) => t.trim()).filter((t) => t !== "")
+const tagsOf = (torrent: SeedingTorrent) => (torrent.tags ?? "").split(",").map((tag) => tag.trim()).filter((tag) => tag !== "")
 
 /** Whether a rule covers the torrent: true, false, or undefined when Quai can't tell (trackers, privacy unknown). */
 const ruleCovers = (rule: SeedingRule, torrent: SeedingTorrent, tags: ReadonlyArray<string>): boolean | undefined => {
-  if (!rule.categories.some((c) => sameId(c, torrent.category ?? ""))) return false
-  if ((rule.tagsAny ?? []).length > 0 && !rule.tagsAny!.some((t) => tags.some((tag) => sameId(tag, t)))) return false
-  if ((rule.tagsAll ?? []).length > 0 && !rule.tagsAll!.every((t) => tags.some((tag) => sameId(tag, t)))) return false
+  if (!rule.categories.some((category) => sameId(category, torrent.category ?? ""))) return false
+  if ((rule.tagsAny ?? []).length > 0 && !rule.tagsAny!.some((wanted) => tags.some((tag) => sameId(tag, wanted)))) return false
+  if ((rule.tagsAll ?? []).length > 0 && !rule.tagsAll!.every((wanted) => tags.some((tag) => sameId(tag, wanted)))) return false
   // Quai doesn't read the trackers.
   if ((rule.trackerPatterns ?? []).length > 0) return undefined
   if (rule.privacyType === "Both") return true
@@ -386,7 +386,7 @@ const ruleCovers = (rule: SeedingRule, torrent: SeedingTorrent, tags: ReadonlyAr
  */
 export const seedingRuleOf = (rules: ReadonlyArray<SeedingRule>, torrent: SeedingTorrent): SeedingRule | undefined => {
   const tags = tagsOf(torrent)
-  for (const rule of [...rules].sort((a, b) => a.priority - b.priority)) {
+  for (const rule of [...rules].sort((left, right) => left.priority - right.priority)) {
     const covered = ruleCovers(rule, torrent, tags)
     if (covered === undefined) return undefined
     if (covered) return rule
@@ -411,13 +411,13 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
   readonly now: number
 }): ReadonlyArray<SeedCleanup<T>> => {
   if (!input.settings.enabled) return []
-  const client = input.settings.clients.find((c) => c.downloadClientEnabled && sameId(c.downloadClientTypeName, "qBittorrent"))
+  const client = input.settings.clients.find((candidate) => candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent"))
   if (client === undefined) return []
   const ignored = input.settings.ignoredDownloads ?? []
   const firstRun = (at: number) => input.nextRunAt !== undefined && at <= input.nextRunAt ? input.nextRunAt : Math.max(at, input.now)
   return input.torrents.flatMap((torrent): ReadonlyArray<SeedCleanup<T>> => {
     if (torrent.progress < 1) return []
-    if (ignored.some((entry) => sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") || tagsOf(torrent).some((t) => sameId(t, entry)))) return []
+    if (ignored.some((entry) => sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") || tagsOf(torrent).some((tag) => sameId(tag, entry)))) return []
     const rule = seedingRuleOf(client.seedingRules, torrent)
     if (rule === undefined || (rule.action !== "Delete" && rule.action !== "Stop")) return []
     if (rule.action === "Stop" && isStopped(torrent)) return []
@@ -425,8 +425,8 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
     const ratioReached = byRatio && torrent.ratio >= rule.maxRatio
     const ratioDue = ratioReached ? input.now + Math.max(0, rule.minSeedTime * 3600 - torrent.seeding_time) * 1000 : undefined
     const timeDue = rule.maxSeedTime >= 0 ? input.now + Math.max(0, rule.maxSeedTime * 3600 - torrent.seeding_time) * 1000 : undefined
-    const due = [ratioDue, timeDue].filter((d): d is number => d !== undefined)
-    const dueNow = due.some((d) => d <= input.now)
+    const due = [ratioDue, timeDue].filter((instant): instant is number => instant !== undefined)
+    const dueNow = due.some((instant) => instant <= input.now)
     // Stopped, it gets no closer to its limits: only what's due already goes.
     if (isStopped(torrent) && !dueNow) return []
     if (due.length === 0 && !byRatio) return []
@@ -444,7 +444,7 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
 
 /** The category Cleanuparr gives torrents no hardlink holds, when it does: their files aren't in the library. */
 export const unlinkedCategory = (settings: DownloadCleanerSettings): string | undefined => {
-  const config = settings.clients.find((c) => c.downloadClientEnabled && sameId(c.downloadClientTypeName, "qBittorrent"))?.unlinkedConfig
+  const config = settings.clients.find((candidate) => candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent"))?.unlinkedConfig
   return config?.enabled === true ? config.targetCategory : undefined
 }
 
@@ -492,8 +492,8 @@ export const firstLookBackMs = 3600_000
  */
 export const newRemovals = (events: ReadonlyArray<RemovalEvent>, after: number, seen: ReadonlySet<string>): ReadonlyArray<RemovalEvent> =>
   events
-    .filter((e) => e.isDryRun !== true && !seen.has(e.id) && Date.parse(e.timestamp) > after)
-    .sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp))
+    .filter((event) => event.isDryRun !== true && !seen.has(event.id) && Date.parse(event.timestamp) > after)
+    .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
 
 /**
  * The journal's Cleanuparr lines: its removals, read every 5 minutes while Quai Home reaches it, each
@@ -505,7 +505,7 @@ export const cleanuparr = (journal: Journal["Service"]): Integration => {
   let after: number | undefined
   const lastLogged = Effect.gen(function*() {
     const page = yield* journal.history({ limit: 200, sources: ["cleanuparr"] })
-    const last = page.entries.find((e) => e.kind === "cleanuparr.removed")
+    const last = page.entries.find((entry) => entry.kind === "cleanuparr.removed")
     return last === undefined ? (yield* Clock.currentTimeMillis) - firstLookBackMs : last.at
   })
   return {

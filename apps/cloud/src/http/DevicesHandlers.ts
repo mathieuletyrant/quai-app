@@ -52,14 +52,14 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
         }))
       .handle("flows", () =>
         Effect.map(flowStore.all, (flows) =>
-          flows.map((f) => ({
-            id: f.id,
-            name: f.name,
-            enabled: f.enabled,
-            subject: f.subject,
-            color: f.color,
-            icon: f.icon,
-            steps: f.steps.map((s) => ({ id: s.id, label: s.label, icon: s.icon }))
+          flows.map((flow) => ({
+            id: flow.id,
+            name: flow.name,
+            enabled: flow.enabled,
+            subject: flow.subject,
+            color: flow.color,
+            icon: flow.icon,
+            steps: flow.steps.map((step) => ({ id: step.id, label: step.label, icon: step.icon }))
           }))))
       .handle("action", ({ payload }) => actions.run(payload.key, payload.action))
       .handle("activities", () =>
@@ -69,7 +69,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
           const flows = yield* flowStore.all
           const { activities: running } = yield* activities.snapshot
           return [...running.values()].flatMap((activity) => {
-            const flow = flows.find((f) => f.id === activity.flowId)
+            const flow = flows.find((candidate) => candidate.id === activity.flowId)
             if (flow === undefined) return []
             const preference = preferenceFor(preferences, flow.id)
             if (!preference.enabled || visibleSteps(flow, preference).length === 0) return []

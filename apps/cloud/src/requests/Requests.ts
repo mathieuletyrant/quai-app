@@ -75,11 +75,11 @@ export class Requests extends Context.Service<Requests, {
       /** What the last list said of each request, to name it in the journal. */
       const listed = new Map<number, MediaRequest>()
       const named = (id: number, decision: "approve" | "decline") => {
-        const r = listed.get(id)
+        const request = listed.get(id)
         const verb = decision === "approve" ? "Approved" : "Declined"
-        return r === undefined
+        return request === undefined
           ? { text: `${verb} Seerr request #${id}` }
-          : { text: `${verb} ${r.requester}'s request for ${r.title}`, title: r.title }
+          : { text: `${verb} ${request.requester}'s request for ${request.title}`, title: request.title }
       }
       /** What the last search found, to name a request in the journal. */
       const found = new Map<string, string>()
@@ -102,7 +102,7 @@ export class Requests extends Context.Service<Requests, {
             onSome: (items) => {
               listed.clear()
               for (const item of items) listed.set(item.id, item)
-              return { items: [...items].sort((a, b) => (a.requestedAt ?? 0) - (b.requestedAt ?? 0)), status: "ok" as const }
+              return { items: [...items].sort((left, right) => (left.requestedAt ?? 0) - (right.requestedAt ?? 0)), status: "ok" as const }
             }
           })
         }),
@@ -162,7 +162,7 @@ export class Requests extends Context.Service<Requests, {
             const title = found.get(`${request.kind}:${request.tmdbId}`) ?? `TMDB ${request.tmdbId}`
             const asked = userId === undefined
               ? undefined
-              : Option.getOrUndefined(Option.flatMap(yield* seerr.users, (all) => Option.fromNullishOr(all.find((u) => u.id === userId)?.name)))
+              : Option.getOrUndefined(Option.flatMap(yield* seerr.users, (all) => Option.fromNullishOr(all.find((user) => user.id === userId)?.name)))
             const forWhom = asked === undefined ? "" : ` for ${asked}`
             const created = yield* journal.outcome(
               { level: "info", source: "seerr", kind: "request.created", title, text: `Requested ${title}${forWhom} from ${device.name}` },

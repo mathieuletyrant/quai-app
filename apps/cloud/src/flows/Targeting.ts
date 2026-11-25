@@ -14,11 +14,11 @@ export const attributesFor = (flow: Flow, activity: Activity, preference: FlowPr
   title: activity.title,
   color: flow.color,
   icon: flow.icon,
-  steps: visibleSteps(flow, preference).map((s) => ({
-    id: s.id,
-    label: s.label,
-    icon: s.icon,
-    ...(s.actions !== undefined && s.actions.length > 0 ? { actions: s.actions } : {})
+  steps: visibleSteps(flow, preference).map((step) => ({
+    id: step.id,
+    label: step.label,
+    icon: step.icon,
+    ...(step.actions !== undefined && step.actions.length > 0 ? { actions: step.actions } : {})
   }))
 })
 
@@ -30,7 +30,7 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
   if (step === undefined) return null
   const index = visibleSteps(flow, preference).indexOf(step)
   if (index < 0) return null
-  const v = activity.values
+  const values = activity.values
   // Only what this kind of flow can show, whatever an older saved flow asks for: a playback
   // step with Progress would otherwise keep the last paused fraction over the countdown.
   const show = Object.fromEntries(
@@ -39,20 +39,20 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
   return {
     step: index,
     tone: activity.endedAt !== null ? "done" : activity.tone,
-    ...(show.progress && v.progress !== undefined ? { progress: v.progress } : {}),
-    ...(show.speed && v.bytesPerSecond !== undefined ? { bytesPerSecond: v.bytesPerSecond } : {}),
-    ...(show.eta && v.remainingSeconds !== undefined ? { remainingSeconds: v.remainingSeconds } : {}),
-    ...(show.timer && v.endsAt !== undefined ? { endsAt: seconds(v.endsAt) } : {}),
-    ...(show.timer && v.startsAt !== undefined ? { startsAt: seconds(v.startsAt) } : {}),
+    ...(show.progress && values.progress !== undefined ? { progress: values.progress } : {}),
+    ...(show.speed && values.bytesPerSecond !== undefined ? { bytesPerSecond: values.bytesPerSecond } : {}),
+    ...(show.eta && values.remainingSeconds !== undefined ? { remainingSeconds: values.remainingSeconds } : {}),
+    ...(show.timer && values.endsAt !== undefined ? { endsAt: seconds(values.endsAt) } : {}),
+    ...(show.timer && values.startsAt !== undefined ? { startsAt: seconds(values.startsAt) } : {}),
     // Paused or not drives the label and the Play/Pause button, whatever the step shows.
-    ...(v.paused !== undefined ? { paused: v.paused } : {}),
+    ...(values.paused !== undefined ? { paused: values.paused } : {}),
     // A paused timeline holds where it is: the iPhone needs the fraction to draw it.
-    ...(show.timer && !show.progress && v.paused === true && v.progress !== undefined ? { progress: v.progress } : {}),
-    ...(show.since ? { since: seconds(v.since ?? activity.enteredAt) } : {}),
-    ...(v.detail !== undefined ? { detail: v.detail } : {}),
-    ...(show.list && v.items !== undefined ? { items: v.items } : {}),
-    ...(show.list && v.here !== undefined ? { here: v.here } : {}),
-    ...(show.list && v.total !== undefined ? { total: v.total } : {})
+    ...(show.timer && !show.progress && values.paused === true && values.progress !== undefined ? { progress: values.progress } : {}),
+    ...(show.since ? { since: seconds(values.since ?? activity.enteredAt) } : {}),
+    ...(values.detail !== undefined ? { detail: values.detail } : {}),
+    ...(show.list && values.items !== undefined ? { items: values.items } : {}),
+    ...(show.list && values.here !== undefined ? { here: values.here } : {}),
+    ...(show.list && values.total !== undefined ? { total: values.total } : {})
   }
 }
 

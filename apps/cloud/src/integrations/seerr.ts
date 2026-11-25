@@ -96,7 +96,7 @@ export const kindOf = (request: SeerrRequest): TitleKind =>
 /** How Seerr names a user: its display name, else a username or the email. */
 const userName = (user: typeof User.Type | null | undefined) =>
   [user?.displayName, user?.username, user?.jellyfinUsername, user?.plexUsername, user?.email]
-    .find((n): n is string => typeof n === "string" && n !== "")
+    .find((name): name is string => typeof name === "string" && name !== "")
 
 export const requesterOf = (request: SeerrRequest) => userName(request.requestedBy) ?? "Someone"
 
@@ -114,16 +114,16 @@ export const requestDetail = (requester: string, kind: TitleKind, options: {
   readonly seasons?: ReadonlyArray<number>
   readonly is4k?: boolean | undefined
 } = {}) => {
-  const seasons = [...(options.seasons ?? [])].sort((a, b) => a - b)
+  const seasons = [...(options.seasons ?? [])].sort((left, right) => left - right)
   const range = seasons.length === 0
     ? undefined
     : seasons.length === 1
     ? `S${seasons[0]}`
-    : seasons.every((s, i) => i === 0 || s === seasons[i - 1]! + 1)
+    : seasons.every((season, index) => index === 0 || season === seasons[index - 1]! + 1)
     ? `S${seasons[0]}–${seasons[seasons.length - 1]}`
     : `${seasons.length} seasons`
   return [requester, kind === "movie" ? "Movie" : "Series", options.year, range, options.is4k === true ? "4K" : undefined]
-    .filter((p) => p !== undefined).join(" · ")
+    .filter((part) => part !== undefined).join(" · ")
 }
 
 export const toMediaRequest = (request: SeerrRequest, details: TitleDetails | undefined): MediaRequest => {
@@ -137,13 +137,13 @@ export const toMediaRequest = (request: SeerrRequest, details: TitleDetails | un
     ...(details?.posterUrl === undefined ? {} : { posterUrl: details.posterUrl }),
     requester: requesterOf(request),
     ...(requestedAt === undefined ? {} : { requestedAt }),
-    seasons: kind === "series" ? (request.seasons ?? []).map((s) => s.seasonNumber).sort((a, b) => a - b) : [],
+    seasons: kind === "series" ? (request.seasons ?? []).map((season) => season.seasonNumber).sort((left, right) => left - right) : [],
     is4k: request.is4k === true
   }
 }
 
 /** Only what really waits: a request Seerr approved on its own is never pending. */
-export const waiting = (requests: ReadonlyArray<SeerrRequest>) => requests.filter((r) => r.status === RequestStatus.pending)
+export const waiting = (requests: ReadonlyArray<SeerrRequest>) => requests.filter((request) => request.status === RequestStatus.pending)
 
 const subjectOf = (request: { readonly id: number; readonly title: string; readonly kind: TitleKind; readonly requester: string }): Subject => ({
   kind: "request",
@@ -210,8 +210,8 @@ export const decodeSeerrWebhook = Schema.decodeUnknownEffect(SeerrWebhook)
 /** The id of a request subject (`request:12`). */
 export const requestIdOf = (subjectKey: string): number | null => {
   const [kind, id] = subjectKey.split(":")
-  const n = Number(id)
-  return kind === "request" && Number.isInteger(n) && n > 0 ? n : null
+  const parsed = Number(id)
+  return kind === "request" && Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 // Searching and requesting, from the app's search.
@@ -239,7 +239,7 @@ export const titleState = (status: number | undefined): TitleState => {
  * answers 400 to "Ocean's Eleven" unless they're encoded too.
  */
 export const searchPath = (query: string) =>
-  `/api/v1/search?query=${encodeURIComponent(query).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}&page=1`
+  `/api/v1/search?query=${encodeURIComponent(query).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}&page=1`
 
 /** Seerr's users, enough for a household. */
 export const usersPath = "/api/v1/user?take=100&skip=0&sort=displayname"
@@ -307,15 +307,15 @@ export const SeerrSeries = Schema.Struct({
  * when a request waiting or approved names it.
  */
 export const seasonChoices = (series: typeof SeerrSeries.Type): ReadonlyArray<SeasonChoice> => {
-  const known = new Map((series.mediaInfo?.seasons ?? []).map((s) => [s.seasonNumber, titleState(s.status)]))
+  const known = new Map((series.mediaInfo?.seasons ?? []).map((season) => [season.seasonNumber, titleState(season.status)]))
   const asked = new Set(
     (series.mediaInfo?.requests ?? [])
-      .filter((r) => r.status === RequestStatus.pending || r.status === RequestStatus.approved)
-      .flatMap((r) => (r.seasons ?? []).map((s) => s.seasonNumber))
+      .filter((request) => request.status === RequestStatus.pending || request.status === RequestStatus.approved)
+      .flatMap((request) => (request.seasons ?? []).map((season) => season.seasonNumber))
   )
   return (series.seasons ?? [])
     .filter((season) => season.seasonNumber > 0)
-    .sort((a, b) => a.seasonNumber - b.seasonNumber)
+    .sort((left, right) => left.seasonNumber - right.seasonNumber)
     .map((season) => {
       const state = known.get(season.seasonNumber) ?? "requestable"
       const episodes = season.episodeCount ?? undefined
@@ -339,7 +339,7 @@ export const seerrUsers = (page: typeof SeerrUserPage.Type): ReadonlyArray<Seerr
 export const createBody = (request: CreateRequest, userId: number | undefined) => ({
   mediaType: request.kind === "movie" ? "movie" : "tv",
   mediaId: request.tmdbId,
-  ...(request.kind === "series" ? { seasons: [...new Set(request.seasons ?? [])].sort((a, b) => a - b) } : {}),
+  ...(request.kind === "series" ? { seasons: [...new Set(request.seasons ?? [])].sort((left, right) => left - right) } : {}),
   ...(userId === undefined ? {} : { userId })
 })
 
@@ -397,7 +397,7 @@ export class Seerr extends Context.Service<Seerr, {
           return found.value
         })
       const withTitles = (requests: ReadonlyArray<SeerrRequest>) =>
-        Effect.forEach(waiting(requests), (r) => Effect.map(details(r), (d) => toMediaRequest(r, d)), { concurrency: 4 })
+        Effect.forEach(waiting(requests), (request) => Effect.map(details(request), (found) => toMediaRequest(request, found)), { concurrency: 4 })
       const current = (id: number) => reads.read<SeerrRequest | "gone">({ service: "seerr", path: requestPath(id), schema: SeerrRequest, notFound: "gone" })
       return {
         details,
@@ -446,10 +446,10 @@ const followed = (context: WatchContext): ReadonlyArray<Activity> => runningWher
 const unfollowed = (context: WatchContext, request: SeerrRequest) => {
   const key = requestKey(request.id)
   const kind = kindOf(request)
-  return context.flows.some((f) =>
-    f.enabled && f.subject === "request" &&
-    ((f.filter.mediaType ?? "any") === "any" || f.filter.mediaType === kind) &&
-    !context.running.some((a) => a.flowId === f.id && a.subjectKey === key)
+  return context.flows.some((flow) =>
+    flow.enabled && flow.subject === "request" &&
+    ((flow.filter.mediaType ?? "any") === "any" || flow.filter.mediaType === kind) &&
+    !context.running.some((activity) => activity.flowId === flow.id && activity.subjectKey === key)
   )
 }
 
@@ -504,18 +504,18 @@ export const seerr = Effect.gen(function*() {
           if (Option.isNone(page)) return []
           const pending = waiting(page.value.results)
           const started = yield* Effect.forEach(
-            pending.filter((r) => unfollowed(context, r)),
-            (r) => Effect.map(requests.details(r), (details) => pendingEvent(toMediaRequest(r, details))),
+            pending.filter((request) => unfollowed(context, request)),
+            (request) => Effect.map(requests.details(request), (details) => pendingEvent(toMediaRequest(request, details))),
             { concurrency: 4 }
           )
           // Approved or declined elsewhere (Seerr's own page) and the notification missed: ask.
-          const ids = new Set(pending.map((r) => requestKey(r.id)))
-          const left = [...new Map(followed(context).filter((a) => !ids.has(a.subjectKey)).map((a) => [a.subjectKey, a])).values()]
+          const ids = new Set(pending.map((request) => requestKey(request.id)))
+          const left = [...new Map(followed(context).filter((activity) => !ids.has(activity.subjectKey)).map((activity) => [activity.subjectKey, activity])).values()]
           const ended = yield* Effect.forEach(left, (activity) => {
             const id = requestIdOf(activity.subjectKey)
             return id === null
               ? Effect.succeed([])
-              : Effect.map(requests.current(id), Option.match({ onNone: () => [], onSome: (r) => outcome(activity, r) }))
+              : Effect.map(requests.current(id), Option.match({ onNone: () => [], onSome: (found) => outcome(activity, found) }))
           }, { concurrency: 4 })
           return [...started, ...ended.flat()]
         }).pipe(Effect.catchTag("HomeOffline", (error) => Effect.as(Effect.logDebug(`seerr: ${error.message}`), [])))

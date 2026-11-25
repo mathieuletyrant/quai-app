@@ -15,9 +15,9 @@ export const isTimeZone = (zone: string): boolean => {
 
 const formatters = new Map<string, Intl.DateTimeFormat>()
 const formatter = (zone: string) => {
-  let f = formatters.get(zone)
-  if (f === undefined) {
-    f = new Intl.DateTimeFormat("en-US", {
+  let cached = formatters.get(zone)
+  if (cached === undefined) {
+    cached = new Intl.DateTimeFormat("en-US", {
       timeZone: zone,
       hourCycle: "h23",
       year: "numeric",
@@ -27,9 +27,9 @@ const formatter = (zone: string) => {
       minute: "2-digit",
       second: "2-digit"
     })
-    formatters.set(zone, f)
+    formatters.set(zone, cached)
   }
-  return f
+  return cached
 }
 
 interface Parts {
@@ -42,7 +42,7 @@ interface Parts {
 }
 
 const partsOf = (ms: number, zone: string): Parts => {
-  const parts = Object.fromEntries(formatter(zone).formatToParts(new Date(ms)).map((p) => [p.type, p.value]))
+  const parts = Object.fromEntries(formatter(zone).formatToParts(new Date(ms)).map((part) => [part.type, part.value]))
   return {
     year: Number(parts["year"]),
     month: Number(parts["month"]),
@@ -53,39 +53,39 @@ const partsOf = (ms: number, zone: string): Parts => {
   }
 }
 
-const pad = (n: number) => n.toString().padStart(2, "0")
+const pad = (value: number) => value.toString().padStart(2, "0")
 
 /** The local day at that instant: "2026-11-20". */
 export const dayOf = (ms: number, zone: string): string => {
-  const p = partsOf(ms, zone)
-  return `${p.year}-${pad(p.month)}-${pad(p.day)}`
+  const parts = partsOf(ms, zone)
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`
 }
 
 /** Minutes past local midnight at that instant. */
 export const minuteOfDay = (ms: number, zone: string): number => {
-  const p = partsOf(ms, zone)
-  return p.hour * 60 + p.minute
+  const parts = partsOf(ms, zone)
+  return parts.hour * 60 + parts.minute
 }
 
 /** How far ahead of UTC the zone is at that instant, in milliseconds. */
 const offsetAt = (ms: number, zone: string) => {
-  const p = partsOf(ms, zone)
-  return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000
+  const parts = partsOf(ms, zone)
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - Math.floor(ms / 1000) * 1000
 }
 
 /** The instant a local time ("18:00") of a day happens; a time a DST jump skips comes an hour later. */
 export const instantOf = (day: string, time: string, zone: string): number => {
-  const [y, m, d] = day.split("-").map(Number) as [number, number, number]
+  const [year, month, dayOfMonth] = day.split("-").map(Number) as [number, number, number]
   const [hh, mm] = time.split(":").map(Number) as [number, number]
-  const wall = Date.UTC(y, m - 1, d, hh, mm)
+  const wall = Date.UTC(year, month - 1, dayOfMonth, hh, mm)
   const first = wall - offsetAt(wall, zone)
   return wall - offsetAt(first, zone)
 }
 
 /** The next day: "2026-11-21". */
 export const nextDay = (day: string): string => {
-  const [y, m, d] = day.split("-").map(Number) as [number, number, number]
-  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10)
+  const [year, month, dayOfMonth] = day.split("-").map(Number) as [number, number, number]
+  return new Date(Date.UTC(year, month - 1, dayOfMonth + 1)).toISOString().slice(0, 10)
 }
 
 /** The day's instants: from local midnight to the next one. */

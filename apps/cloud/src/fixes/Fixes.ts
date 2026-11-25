@@ -52,17 +52,17 @@ type FixError = HomeOffline | HttpApiError.NotFound | InvalidFix | FixFailed
 
 const order: Record<Fix["kind"], number> = { plannedDeletion: 0, stuckRemoval: 1, noSource: 2, importBlocked: 3 }
 const goesAt = (fix: Fix) => fix.deletion?.deletesAt ?? fix.removal?.removesAt ?? 0
-const byUrgency = (a: Detected, b: Detected) =>
-  order[a.fix.kind] - order[b.fix.kind] ||
-  goesAt(a.fix) - goesAt(b.fix) ||
-  (a.fix.since ?? 0) - (b.fix.since ?? 0)
+const byUrgency = (left: Detected, right: Detected) =>
+  order[left.fix.kind] - order[right.fix.kind] ||
+  goesAt(left.fix) - goesAt(right.fix) ||
+  (left.fix.since ?? 0) - (right.fix.since ?? 0)
 
 /** The media adapters, in the order their problems are listed and their services reported. */
 const media = [movies, series] as const
 
-/** Runs `f` with the adapter of a movie's or a series' target; undefined for a Reclaimerr candidate or a Cleanuparr download. */
-const withMedia = <R>(target: FixTarget, f: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => R): R | undefined =>
-  target.kind === "movie" ? f(movies, target) : target.kind === "series" ? f(series, target) : undefined
+/** Runs `apply` with the adapter of a movie's or a series' target; undefined for a Reclaimerr candidate or a Cleanuparr download. */
+const withMedia = <R>(target: FixTarget, apply: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => R): R | undefined =>
+  target.kind === "movie" ? apply(movies, target) : target.kind === "series" ? apply(series, target) : undefined
 
 interface Detection {
   readonly detected: ReadonlyArray<Detected>
@@ -124,7 +124,7 @@ export class Fixes extends Context.Service<Fixes, {
           const outcomes: ReadonlyArray<readonly [FixService, Option.Option<unknown>]> = [
             ["reclaimerr", candidates],
             ["cleanuparr", planned],
-            ...media.map((adapter, i) => [adapter.service, found[i]!] as const)
+            ...media.map((adapter, index) => [adapter.service, found[index]!] as const)
           ]
           const unavailable = outcomes.flatMap(([service, value]) => asked(service) && Option.isNone(value) ? [service] : [])
           const due = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
@@ -147,7 +147,7 @@ export class Fixes extends Context.Service<Fixes, {
           if (service === undefined) return yield* Effect.fail(new HttpApiError.NotFound())
           const { detected, unavailable } = yield* detect(service)
           if (unavailable.includes(service)) return yield* Effect.fail(new FixFailed({ message: `${service} didn't answer` }))
-          const found = detected.find((d) => d.fix.id === id)
+          const found = detected.find((entry) => entry.fix.id === id)
           return found === undefined ? yield* Effect.fail(new HttpApiError.NotFound()) : found
         })
 
@@ -157,18 +157,18 @@ export class Fixes extends Context.Service<Fixes, {
             ? Effect.succeed(found)
             : Effect.fail(new InvalidFix({ message: `“${found.fix.title}” doesn't offer ${action}` })))
 
-      /** Runs `f` with the adapter of the problem's movie or series, and its target: anything else is `refused`. */
+      /** Runs `apply` with the adapter of the problem's movie or series, and its target: anything else is `refused`. */
       const onMedia = <R>(
         found: Detected,
         refused: string,
-        f: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => Effect.Effect<R, FixError> | undefined
-      ): Effect.Effect<R, FixError> => withMedia(found.target, f) ?? Effect.fail(new InvalidFix({ message: refused }))
+        apply: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => Effect.Effect<R, FixError> | undefined
+      ): Effect.Effect<R, FixError> => withMedia(found.target, apply) ?? Effect.fail(new InvalidFix({ message: refused }))
 
       const list = Effect.gen(function*() {
         const { detected, read: complete, unavailable } = yield* detect()
         const nowMs = yield* Clock.currentTimeMillis
         const hidden = yield* Effect.mapError(documents.list(hiddenPrefix), toOffline)
-        const present = new Set(detected.map((d) => d.fix.id))
+        const present = new Set(detected.map((entry) => entry.fix.id))
         const hiddenIds = new Set<string>()
         const stale: Array<string> = []
         for (const document of hidden) {
@@ -184,7 +184,7 @@ export class Fixes extends Context.Service<Fixes, {
         }
         yield* Effect.forEach(stale, (key) => Effect.ignore(documents.delete(key)), { discard: true })
         return {
-          items: detected.filter((d) => !hiddenIds.has(d.fix.id)).map((d) => d.fix),
+          items: detected.filter((entry) => !hiddenIds.has(entry.fix.id)).map((entry) => entry.fix),
           hidden: hiddenIds.size,
           unavailable
         }
@@ -207,7 +207,7 @@ export class Fixes extends Context.Service<Fixes, {
       const importPreview = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>) =>
         Effect.gen(function*() {
           const files = (yield* importRows(adapter, target)).rows.map(adapter.importFile)
-          const episodes = files.some((f) => f.needsEpisodes) ? yield* adapter.choices(reads, target) : []
+          const episodes = files.some((file) => file.needsEpisodes) ? yield* adapter.choices(reads, target) : []
           return { files, episodes: [...episodes] }
         })
 
@@ -224,7 +224,7 @@ export class Fixes extends Context.Service<Fixes, {
           const body = yield* write({ service: adapter.service, method: "GET", path: adapter.releaseSearch(target) }, { timeoutMs: releaseSearchTimeoutMs })
           const records = readJson(ReleaseRecords, body)
           if (Option.isNone(records)) return yield* Effect.fail(new FixFailed({ message: `${adapter.service} answered something Quai can't read` }))
-          return { items: records.value.filter((r) => adapter.usable(target, r)).map(toRelease).sort(byPreference) }
+          return { items: records.value.filter((record) => adapter.usable(target, record)).map(toRelease).sort(byPreference) }
         })
 
       const notADownload = "not a download"

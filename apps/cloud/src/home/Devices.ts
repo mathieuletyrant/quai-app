@@ -26,7 +26,7 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 /** 8 characters, no look-alikes (0/O, 1/I/L), easy to type when the camera can't scan. */
 const codeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 const newCode = () =>
-  Array.from(randomBytes(8), (b) => codeAlphabet[b % codeAlphabet.length]).join("")
+  Array.from(randomBytes(8), (byte) => codeAlphabet[byte % codeAlphabet.length]).join("")
 
 export interface Device {
   readonly id: DeviceId
@@ -115,14 +115,14 @@ const withCurrentAlertKinds = (doc: unknown): unknown => {
 const decodeDevice = (doc: unknown) => decodeDeviceDocument(withCurrentAlertKinds(doc))
 const decodePairing = Schema.decodeUnknownOption(PairingDocument)
 
-const toDevice = (d: DeviceDocument): Device => ({
-  id: d.id as DeviceId,
-  name: d.name,
-  apnsEnvironment: d.apnsEnvironment,
-  pushToStartToken: d.pushToStartToken,
-  pairedAt: d.pairedAt,
-  lastSeenAt: d.lastSeenAt,
-  timeZone: d.timeZone ?? null
+const toDevice = (device: DeviceDocument): Device => ({
+  id: device.id as DeviceId,
+  name: device.name,
+  apnsEnvironment: device.apnsEnvironment,
+  pushToStartToken: device.pushToStartToken,
+  pairedAt: device.pairedAt,
+  lastSeenAt: device.lastSeenAt,
+  timeZone: device.timeZone ?? null
 })
 
 export class Devices extends Context.Service<Devices, {
@@ -184,27 +184,27 @@ export class Devices extends Context.Service<Devices, {
       const exclusive = <A, E>(effect: Effect.Effect<A, E>) => Semaphore.withPermits(lock, 1)(effect)
 
       const all = store.list("devices/").pipe(
-        Effect.map((docs) => docs.flatMap((d) => Option.toArray(decodeDevice(d.value)))),
+        Effect.map((docs) => docs.flatMap((document) => Option.toArray(decodeDevice(document.value)))),
         Effect.mapError(toOffline)
       )
       const one = (id: DeviceId) =>
         store.get(deviceKey(id)).pipe(Effect.map(Option.flatMap(decodeDevice)), Effect.mapError(toOffline))
       const save = (device: DeviceDocument) => Effect.mapError(store.put(deviceKey(device.id), device), toOffline)
       /** Applies `change` to one iPhone; nothing when it isn't paired (anymore). */
-      const change = (id: DeviceId, f: (device: DeviceDocument) => DeviceDocument) =>
+      const change = (id: DeviceId, update: (device: DeviceDocument) => DeviceDocument) =>
         exclusive(Effect.gen(function*() {
           const device = yield* one(id)
           if (Option.isNone(device)) return
-          const changed = f(device.value)
+          const changed = update(device.value)
           if (changed !== device.value) yield* save(changed)
         }))
-      const recipients = (pick: (d: DeviceDocument) => string | null | undefined) =>
+      const recipients = (pick: (device: DeviceDocument) => string | null | undefined) =>
         Effect.map(all, (devices) =>
-          devices.flatMap((d): ReadonlyArray<Recipient> => {
-            const token = pick(d)
+          devices.flatMap((device): ReadonlyArray<Recipient> => {
+            const token = pick(device)
             return token === null || token === undefined
               ? []
-              : [{ deviceId: d.id as DeviceId, apnsEnvironment: d.apnsEnvironment, token }]
+              : [{ deviceId: device.id as DeviceId, apnsEnvironment: device.apnsEnvironment, token }]
           }))
       const without = <V>(record: Readonly<Record<string, V>>, key: string): Record<string, V> => {
         const { [key]: _, ...rest } = record
@@ -253,18 +253,18 @@ export class Devices extends Context.Service<Devices, {
         authenticate: (token) =>
           Effect.gen(function*() {
             const hash = sha256(token)
-            const device = (yield* all).find((d) => d.tokenHash === hash)
+            const device = (yield* all).find((paired) => paired.tokenHash === hash)
             if (device === undefined) return Option.none()
             const now = yield* Clock.currentTimeMillis
             if (device.lastSeenAt === null || now - device.lastSeenAt >= Timing.lastSeenMs) {
-              yield* change(device.id as DeviceId, (d) => ({ ...d, lastSeenAt: now }))
+              yield* change(device.id as DeviceId, (stored) => ({ ...stored, lastSeenAt: now }))
               return Option.some(toDevice({ ...device, lastSeenAt: now }))
             }
             return Option.some(toDevice(device))
           }),
 
         holdsToken: (token) =>
-          Effect.map(all, (devices) => devices.some((d) => d.tokenHash === sha256(token))).pipe(Effect.orElseSucceed(() => false)),
+          Effect.map(all, (devices) => devices.some((device) => device.tokenHash === sha256(token))).pipe(Effect.orElseSucceed(() => false)),
 
         holdsPairingCode: (code) =>
           Effect.gen(function*() {
@@ -274,8 +274,8 @@ export class Devices extends Context.Service<Devices, {
           }).pipe(Effect.orElseSucceed(() => false)),
 
         update: (id, patch) =>
-          change(id, (d) => ({
-            ...d,
+          change(id, (device) => ({
+            ...device,
             ...(patch.name === undefined ? {} : { name: patch.name }),
             ...(patch.pushToStartToken === undefined ? {} : { pushToStartToken: patch.pushToStartToken }),
             ...(patch.timeZone === undefined || !isTimeZone(patch.timeZone) ? {} : { timeZone: patch.timeZone }),
@@ -285,18 +285,18 @@ export class Devices extends Context.Service<Devices, {
         timeZone: Effect.map(all, (devices) =>
           Option.fromNullishOr(
             [...devices]
-              .filter((d) => d.timeZone !== undefined && isTimeZone(d.timeZone))
-              .sort((a, b) => (b.lastSeenAt ?? b.pairedAt) - (a.lastSeenAt ?? a.pairedAt))[0]?.timeZone
+              .filter((device) => device.timeZone !== undefined && isTimeZone(device.timeZone))
+              .sort((left, right) => (right.lastSeenAt ?? right.pairedAt) - (left.lastSeenAt ?? left.pairedAt))[0]?.timeZone
           )),
 
         setActivityToken: (id, activityKey, pushToken) =>
-          change(id, (d) => ({
-            ...d,
-            activityTokens: { ...d.activityTokens, [activityKey]: pushToken },
-            dismissed: without(d.dismissed, activityKey)
+          change(id, (device) => ({
+            ...device,
+            activityTokens: { ...device.activityTokens, [activityKey]: pushToken },
+            dismissed: without(device.dismissed, activityKey)
           })),
 
-        list: Effect.map(all, (devices) => [...devices].sort((a, b) => a.pairedAt - b.pairedAt).map(toDevice)),
+        list: Effect.map(all, (devices) => [...devices].sort((left, right) => left.pairedAt - right.pairedAt).map(toDevice)),
 
         remove: (id) =>
           exclusive(Effect.gen(function*() {
@@ -305,43 +305,43 @@ export class Devices extends Context.Service<Devices, {
             return true
           })),
 
-        startRecipients: recipients((d) => d.pushToStartToken),
+        startRecipients: recipients((device) => device.pushToStartToken),
 
-        activityRecipients: (activityKey) => recipients((d) => d.activityTokens[activityKey]),
+        activityRecipients: (activityKey) => recipients((device) => device.activityTokens[activityKey]),
 
-        preferences: (id) => Effect.map(one(id), Option.match({ onNone: () => defaultPreferences, onSome: (d) => d.preferences })),
+        preferences: (id) => Effect.map(one(id), Option.match({ onNone: () => defaultPreferences, onSome: (device) => device.preferences })),
 
-        setPreferences: (id, preferences) => Effect.as(change(id, (d) => ({ ...d, preferences })), preferences),
+        setPreferences: (id, preferences) => Effect.as(change(id, (device) => ({ ...device, preferences })), preferences),
 
         targets: (activityKey) =>
           Effect.map(all, (devices) =>
-            devices.map((d): PushTarget => ({
-              deviceId: d.id as DeviceId,
-              name: d.name,
-              apnsEnvironment: d.apnsEnvironment,
-              pushToStartToken: d.pushToStartToken,
-              activityToken: d.activityTokens[activityKey] ?? null,
-              preferences: d.preferences,
-              dismissed: d.dismissed[activityKey] ?? null
+            devices.map((device): PushTarget => ({
+              deviceId: device.id as DeviceId,
+              name: device.name,
+              apnsEnvironment: device.apnsEnvironment,
+              pushToStartToken: device.pushToStartToken,
+              activityToken: device.activityTokens[activityKey] ?? null,
+              preferences: device.preferences,
+              dismissed: device.dismissed[activityKey] ?? null
             }))),
 
         reconcile: (id, shownKeys, stateOf) =>
-          change(id, (d) => {
+          change(id, (device) => {
             const shown = new Set(shownKeys)
-            const gone = Object.keys(d.activityTokens).filter((key) => !shown.has(key))
-            if (gone.length === 0) return d
-            const activityTokens = { ...d.activityTokens }
-            const dismissed = { ...d.dismissed }
+            const gone = Object.keys(device.activityTokens).filter((key) => !shown.has(key))
+            if (gone.length === 0) return device
+            const activityTokens = { ...device.activityTokens }
+            const dismissed = { ...device.dismissed }
             for (const key of gone) {
               delete activityTokens[key]
               const state = stateOf(key)
               if (state !== null) dismissed[key] = state
             }
-            return { ...d, activityTokens, dismissed }
+            return { ...device, activityTokens, dismissed }
           }),
 
         clearDismissed: (id, activityKey) =>
-          change(id, (d) => d.dismissed[activityKey] === undefined ? d : { ...d, dismissed: without(d.dismissed, activityKey) }),
+          change(id, (device) => device.dismissed[activityKey] === undefined ? device : { ...device, dismissed: without(device.dismissed, activityKey) }),
 
         dropToken: (token) =>
           Effect.gen(function*() {
@@ -349,13 +349,13 @@ export class Devices extends Context.Service<Devices, {
               const holds = device.pushToStartToken === token || device.notificationToken === token ||
                 Object.values(device.activityTokens).includes(token)
               if (!holds) continue
-              yield* change(device.id as DeviceId, (d) => {
-                const { notificationToken, ...rest } = d
+              yield* change(device.id as DeviceId, (stored) => {
+                const { notificationToken, ...rest } = stored
                 return {
                   ...rest,
                   ...(notificationToken === undefined || notificationToken === token ? {} : { notificationToken }),
-                  pushToStartToken: d.pushToStartToken === token ? null : d.pushToStartToken,
-                  activityTokens: Object.fromEntries(Object.entries(d.activityTokens).filter(([, t]) => t !== token))
+                  pushToStartToken: stored.pushToStartToken === token ? null : stored.pushToStartToken,
+                  activityTokens: Object.fromEntries(Object.entries(stored.activityTokens).filter(([, activityToken]) => activityToken !== token))
                 }
               })
             }
@@ -363,10 +363,10 @@ export class Devices extends Context.Service<Devices, {
 
         alertRecipients: (kind) =>
           Effect.map(all, (devices) =>
-            devices.flatMap((d): ReadonlyArray<AlertRecipient> =>
-              d.notificationToken === undefined || (d.preferences.mutedAlerts ?? []).includes(kind)
+            devices.flatMap((device): ReadonlyArray<AlertRecipient> =>
+              device.notificationToken === undefined || (device.preferences.mutedAlerts ?? []).includes(kind)
                 ? []
-                : [{ deviceId: d.id as DeviceId, name: d.name, apnsEnvironment: d.apnsEnvironment, token: d.notificationToken }]
+                : [{ deviceId: device.id as DeviceId, name: device.name, apnsEnvironment: device.apnsEnvironment, token: device.notificationToken }]
             ))
       }
     })

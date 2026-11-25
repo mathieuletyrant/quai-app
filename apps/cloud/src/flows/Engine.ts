@@ -57,10 +57,10 @@ export const activityKey = (flowId: string, subjectKey: string) => `${flowId}|${
  * What a push would change on screen. Times are rounded to 10 s: a playback's end time drifts by
  * milliseconds between polls, and the iPhone animates the bar itself, so only a seek is news.
  */
-const fingerprint = (a: Activity) => {
+const fingerprint = (activity: Activity) => {
   const round = (ms: number | undefined) => ms === undefined ? undefined : Math.round(ms / 10_000)
-  const { endsAt, startsAt, ...rest } = a.values
-  return JSON.stringify([a.stepIndex, a.tone, rest, round(endsAt), round(startsAt)])
+  const { endsAt, startsAt, ...rest } = activity.values
+  return JSON.stringify([activity.stepIndex, activity.tone, rest, round(endsAt), round(startsAt)])
 }
 
 const matches = (flow: Flow, subject: Subject) => {
@@ -124,7 +124,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
     for (const activity of state.activities.values()) {
       if (activity.endedAt !== null) continue
       if (event.flowId !== undefined && activity.flowId !== event.flowId) continue
-      const flow = flows.find((f) => f.id === activity.flowId)
+      const flow = flows.find((candidate) => candidate.id === activity.flowId)
       if (flow === undefined) continue
       const step = flow.steps[activity.stepIndex]
       if (step === undefined || !flow.enabled) {
@@ -194,7 +194,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       pushes.push({ _tag: "End", activity: ended })
       continue
     }
-    const index = flow.steps.findIndex((s) => s.on === event.type)
+    const index = flow.steps.findIndex((step) => step.on === event.type)
     if (index < 0) continue
 
     if (current === undefined) {
@@ -260,7 +260,7 @@ export const onTick = (state: EngineState, flows: ReadonlyArray<Flow>, now: numb
   const activities = new Map(state.activities)
   const pushes: Array<Push> = []
   for (const activity of state.activities.values()) {
-    const flow = flows.find((f) => f.id === activity.flowId)
+    const flow = flows.find((candidate) => candidate.id === activity.flowId)
     if (flow === undefined || !flow.enabled) {
       forget(activities, pushes, activity, now)
       continue

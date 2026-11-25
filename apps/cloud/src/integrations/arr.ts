@@ -18,7 +18,7 @@ const Images = Schema.optional(Schema.Array(ArrImage))
 
 /** The poster's public URL (TMDB, TheTVDB). Never the service's own `url`: that one needs its key. */
 export const posterOf = (images: ReadonlyArray<typeof ArrImage.Type> | undefined): string | undefined => {
-  const remote = images?.find((i) => i.coverType === "poster")?.remoteUrl
+  const remote = images?.find((image) => image.coverType === "poster")?.remoteUrl
   return remote !== undefined && /^https:\/\//.test(remote) ? remote : undefined
 }
 
@@ -104,9 +104,9 @@ export const isImportBlocked = (record: QueueRecord) => {
 
 /** The *arr's messages, flattened: each entry is titled with a file name, or is the message itself. */
 export const queueMessages = (record: QueueRecord): ReadonlyArray<string> => {
-  const lines = (record.statusMessages ?? []).flatMap((m) => {
-    const messages = (m.messages ?? []).filter((text) => text !== "")
-    return messages.length > 0 ? messages : m.title !== undefined && m.title !== null && m.title !== "" ? [m.title] : []
+  const lines = (record.statusMessages ?? []).flatMap((message) => {
+    const messages = (message.messages ?? []).filter((text) => text !== "")
+    return messages.length > 0 ? messages : message.title !== undefined && message.title !== null && message.title !== "" ? [message.title] : []
   })
   return [...new Set(lines)]
 }
@@ -135,31 +135,31 @@ export type ReleaseRecord = typeof ReleaseRecord.Type
 export const ReleaseRecords = Schema.Array(ReleaseRecord)
 
 const reasonsOf = (rejections: ReadonlyArray<string | { readonly reason?: string | undefined }> | null | undefined) =>
-  (rejections ?? []).map((r) => typeof r === "string" ? r : r.reason ?? "").filter((r) => r !== "")
+  (rejections ?? []).map((rejection) => typeof rejection === "string" ? rejection : rejection.reason ?? "").filter((reason) => reason !== "")
 
-export const toRelease = (r: ReleaseRecord): Release => {
-  const rejections = reasonsOf(r.rejections)
+export const toRelease = (record: ReleaseRecord): Release => {
+  const rejections = reasonsOf(record.rejections)
   return {
-    guid: r.guid,
-    indexerId: r.indexerId,
-    indexer: r.indexer ?? "",
-    title: r.title ?? "",
-    sizeBytes: r.size ?? 0,
-    protocol: r.protocol ?? "unknown",
-    ...(r.seeders === undefined || r.seeders === null ? {} : { seeders: Math.trunc(r.seeders) }),
-    ...(r.leechers === undefined || r.leechers === null ? {} : { leechers: Math.trunc(r.leechers) }),
-    quality: r.quality?.quality?.name ?? "Unknown",
-    languages: (r.languages ?? []).flatMap((l) => l.name === undefined ? [] : [l.name]),
-    ageHours: r.ageHours ?? (r.age ?? 0) * 24,
-    ...(r.customFormatScore === undefined ? {} : { customFormatScore: Math.trunc(r.customFormatScore) }),
-    rejected: r.rejected ?? rejections.length > 0,
+    guid: record.guid,
+    indexerId: record.indexerId,
+    indexer: record.indexer ?? "",
+    title: record.title ?? "",
+    sizeBytes: record.size ?? 0,
+    protocol: record.protocol ?? "unknown",
+    ...(record.seeders === undefined || record.seeders === null ? {} : { seeders: Math.trunc(record.seeders) }),
+    ...(record.leechers === undefined || record.leechers === null ? {} : { leechers: Math.trunc(record.leechers) }),
+    quality: record.quality?.quality?.name ?? "Unknown",
+    languages: (record.languages ?? []).flatMap((language) => language.name === undefined ? [] : [language.name]),
+    ageHours: record.ageHours ?? (record.age ?? 0) * 24,
+    ...(record.customFormatScore === undefined ? {} : { customFormatScore: Math.trunc(record.customFormatScore) }),
+    rejected: record.rejected ?? rejections.length > 0,
     rejections
   }
 }
 
 /** Accepted ones first, then the best seeded. */
-export const byPreference = (a: Release, b: Release) =>
-  Number(a.rejected) - Number(b.rejected) || (b.seeders ?? -1) - (a.seeders ?? -1) || a.ageHours - b.ageHours
+export const byPreference = (left: Release, right: Release) =>
+  Number(left.rejected) - Number(right.rejected) || (right.seeders ?? -1) - (left.seeders ?? -1) || left.ageHours - right.ageHours
 
 /** One file of `GET /api/v3/manualimport?downloadId=`, as the *arr matched it. */
 export const ManualImportRow = Schema.Struct({
@@ -221,6 +221,6 @@ export const mediaManagementRead = <S extends "radarr" | "sonarr">(service: S): 
  */
 export const seasonOfRelease = (name: string): number | undefined => {
   if (/(?:^|[^a-z0-9])s\d{1,2}\s*[-–]\s*s?\d{1,2}(?:[^a-z0-9]|$)/i.test(name)) return undefined
-  const seasons = new Set([...name.matchAll(/(?:^|[^a-z0-9])s(\d{1,2})(?:e\d{1,3})*(?=[^a-z0-9]|$)/gi)].map((m) => Number(m[1])))
+  const seasons = new Set([...name.matchAll(/(?:^|[^a-z0-9])s(\d{1,2})(?:e\d{1,3})*(?=[^a-z0-9]|$)/gi)].map((match) => Number(match[1])))
   return seasons.size === 1 ? [...seasons][0] : undefined
 }

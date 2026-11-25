@@ -23,7 +23,6 @@ interface HomeApp {
   goneSince: number | null
 }
 
-/** The bearer token of a request, if it has one. */
 const bearerOf = (request: HttpServerRequest.HttpServerRequest): Option.Option<string> => {
   const header = request.headers["authorization"]
   if (header === undefined || !/^bearer /i.test(header)) return Option.none()
@@ -93,7 +92,7 @@ export class Homes extends Context.Service<Homes, {
 
       const nowhere = yield* build(HomeLink.offline)
       yield* Effect.addFinalizer(() =>
-        Effect.forEach([nowhere, ...apps.values()], (a) => Scope.close(a.scope, Exit.void), { discard: true }))
+        Effect.forEach([nowhere, ...apps.values()], (home) => Scope.close(home.scope, Exit.void), { discard: true }))
 
       const ensure = (homeId: string) =>
         Semaphore.withPermits(lock, 1)(Effect.gen(function*() {

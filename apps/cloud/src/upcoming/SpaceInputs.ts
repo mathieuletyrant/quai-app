@@ -54,23 +54,23 @@ export const libraryHolds = (reads: Pick<SpaceReads, "movies" | "series">) => (k
   const parsed = LibraryId.parse(key)
   if (parsed === undefined) return true
   if (parsed.kind === "movie") {
-    const movie = reads.movies?.find((m) => m.id === parsed.id)
+    const movie = reads.movies?.find((listed) => listed.id === parsed.id)
     return movie === undefined || movie.hasFile !== false
   }
-  const series = reads.series?.find((s) => s.id === parsed.id)
+  const series = reads.series?.find((show) => show.id === parsed.id)
   return series === undefined || (series.statistics?.sizeOnDisk ?? 1) > 0
 }
 
 /** The torrents as space back takes them, with what the download cleaner plans for each. */
 export const torrentInputs = (torrents: ReadonlyArray<FinishedTorrent>, cleanups: ReadonlyArray<SeedCleanup>): ReadonlyArray<TorrentInput> => {
-  const cleanupOf = new Map(cleanups.map((c) => [c.torrent.hash.toLowerCase(), c]))
-  return torrents.map((t) => {
-    const cleanup = cleanupOf.get(t.hash.toLowerCase())
+  const cleanupOf = new Map(cleanups.map((cleanup) => [cleanup.torrent.hash.toLowerCase(), cleanup]))
+  return torrents.map((torrent) => {
+    const cleanup = cleanupOf.get(torrent.hash.toLowerCase())
     return {
-      hash: t.hash,
-      name: t.name,
-      size: t.size,
-      category: t.category,
+      hash: torrent.hash,
+      name: torrent.name,
+      size: torrent.size,
+      category: torrent.category,
       cleanup: cleanup === undefined ? undefined : { at: cleanup.at, timing: cleanup.timing, freesFiles: cleanup.freesFiles }
     }
   })

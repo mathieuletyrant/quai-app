@@ -100,7 +100,7 @@ export const importFiles = <T extends MediaTarget>(
 ): Result.Result<ReadonlyArray<ImportCommandFile>, InvalidFix> => {
   if (input.rows.length === 0) return Result.fail(new InvalidFix({ message: "There's no file left to import" }))
   const known = new Set(input.rows.map(fileOf))
-  const unknown = input.assignments.find((a) => !known.has(a.file))
+  const unknown = input.assignments.find((assignment) => !known.has(assignment.file))
   if (unknown !== undefined) return Result.fail(new InvalidFix({ message: `${unknown.file} isn't in this download` }))
   return adapter.importFiles(input)
 }

@@ -25,7 +25,7 @@ export class HomeTime extends Context.Service<HomeTime, {
     HomeTime,
     Effect.gen(function*() {
       const configured = yield* Config.option(Config.String("QUAI_TZ"))
-      const fallback = Option.match(configured, { onNone: () => "UTC", onSome: (z) => isTimeZone(z) ? z : "UTC" })
+      const fallback = Option.match(configured, { onNone: () => "UTC", onSome: (zone) => isTimeZone(zone) ? zone : "UTC" })
       return yield* HomeTime.make(fallback)
     })
   )

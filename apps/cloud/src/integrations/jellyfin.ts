@@ -32,8 +32,8 @@ export const Users = Schema.Array(User)
  * lists only part of it, and leaves out titles just added.
  */
 export const libraryUser = (users: typeof Users.Type): string | null => {
-  const enabled = users.filter((u) => u.Policy?.IsDisabled !== true)
-  return (enabled.find((u) => u.Policy?.IsAdministrator === true) ?? enabled[0])?.Id ?? null
+  const enabled = users.filter((user) => user.Policy?.IsDisabled !== true)
+  return (enabled.find((user) => user.Policy?.IsAdministrator === true) ?? enabled[0])?.Id ?? null
 }
 
 const Session = Schema.Struct({
@@ -69,22 +69,22 @@ export interface Playing {
 /** Remote control commands Quai sends to a Jellyfin session. */
 export type PlaybackCommand = "PlayPause" | "Stop"
 
-const pad = (n: number) => n.toString().padStart(2, "0")
+const pad = (value: number) => value.toString().padStart(2, "0")
 
 export const playingFrom = (sessions: typeof Sessions.Type): ReadonlyArray<Playing> =>
-  sessions.flatMap((s) => {
-    const item = s.NowPlayingItem
+  sessions.flatMap((session) => {
+    const item = session.NowPlayingItem
     if (item === undefined) return []
     const episode = item.SeriesName !== undefined && item.ParentIndexNumber !== undefined && item.IndexNumber !== undefined
       ? `${item.SeriesName} · S${pad(item.ParentIndexNumber)}E${pad(item.IndexNumber)}`
       : null
     const runtime = item.RunTimeTicks
-    const position = s.PlayState?.PositionTicks ?? 0
+    const position = session.PlayState?.PositionTicks ?? 0
     return [{
-      key: `playback:${s.Id}:${item.Id}`,
+      key: `playback:${session.Id}:${item.Id}`,
       title: episode ?? item.Name,
-      device: s.DeviceName ?? "Jellyfin",
-      paused: s.PlayState?.IsPaused === true,
+      device: session.DeviceName ?? "Jellyfin",
+      paused: session.PlayState?.IsPaused === true,
       // Jellyfin ticks are 100 ns.
       remainingMs: runtime === undefined ? null : Math.max(0, (runtime - position) / 10_000),
       positionMs: position / 10_000,
@@ -103,25 +103,25 @@ export const playbackEvents = (
 ): ReadonlyArray<FlowEvent> => {
   const events: Array<FlowEvent> = []
   const seen = new Set<string>()
-  for (const p of now) {
-    seen.add(p.key)
-    const subject = { kind: "playback" as const, key: p.key, title: p.title, device: p.device }
-    const values = p.paused
+  for (const playing of now) {
+    seen.add(playing.key)
+    const subject = { kind: "playback" as const, key: playing.key, title: playing.title, device: playing.device }
+    const values = playing.paused
       ? {
         paused: true,
-        detail: p.device,
-        ...(p.runtimeMs === null || p.runtimeMs === 0 ? {} : { progress: p.positionMs / p.runtimeMs })
+        detail: playing.device,
+        ...(playing.runtimeMs === null || playing.runtimeMs === 0 ? {} : { progress: playing.positionMs / playing.runtimeMs })
       }
       : {
         paused: false,
-        detail: p.device,
-        ...(p.remainingMs === null ? {} : { endsAt: nowMs + p.remainingMs, startsAt: nowMs - p.positionMs })
+        detail: playing.device,
+        ...(playing.remainingMs === null ? {} : { endsAt: nowMs + playing.remainingMs, startsAt: nowMs - playing.positionMs })
       }
-    events.push({ type: before.has(p.key) ? "playback.progress" : "playback.started", subject, values })
+    events.push({ type: before.has(playing.key) ? "playback.progress" : "playback.started", subject, values })
   }
-  for (const [key, p] of before) {
+  for (const [key, previous] of before) {
     if (!seen.has(key)) {
-      events.push({ type: "playback.stopped", subject: { kind: "playback", key, title: p.title, device: p.device } })
+      events.push({ type: "playback.stopped", subject: { kind: "playback", key, title: previous.title, device: previous.device } })
     }
   }
   return events
@@ -135,7 +135,7 @@ export const sessionOf = (subjectKey: string): string | null => {
 
 /** Jellyfin's provider id keys are capitalized ("Tmdb", "Tvdb"), but be lenient. */
 const providerId = (item: typeof Item.Type, provider: string) =>
-  Object.entries(item.ProviderIds ?? {}).find(([k]) => k.toLowerCase() === provider)?.[1]
+  Object.entries(item.ProviderIds ?? {}).find(([name]) => name.toLowerCase() === provider)?.[1]
 
 /**
  * The item of this title among Jellyfin's, by any id both know: TMDB or IMDb for a movie, TVDB,
@@ -148,8 +148,8 @@ export const matchItem = (result: typeof ItemsResult.Type, lookup: MediaLookup):
 
 /** Whether every episode of the lookup has a file (Jellyfin also lists missing ones, as virtual). */
 export const hasEpisodes = (result: typeof EpisodesResult.Type, lookup: Extract<MediaLookup, { readonly _tag: "Episodes" }>) => {
-  const present = new Set(result.Items.filter((e) => e.LocationType !== "Virtual").map((e) => `${e.ParentIndexNumber}:${e.IndexNumber}`))
-  return lookup.episodes.every((e) => present.has(`${e.season}:${e.episode}`))
+  const present = new Set(result.Items.filter((episode) => episode.LocationType !== "Virtual").map((episode) => `${episode.ParentIndexNumber}:${episode.IndexNumber}`))
+  return lookup.episodes.every((episode) => present.has(`${episode.season}:${episode.episode}`))
 }
 
 export const watchIds = {
@@ -161,9 +161,9 @@ export const watchIds = {
 
 /** Running activities waiting for "Available in Jellyfin", with a lookup to search it by. */
 const awaitingAvailability = (context: WatchContext): ReadonlyArray<Activity> =>
-  runningWhere(context, (a, flow) => {
-    const target = flow.steps.findIndex((s) => s.on === "media.available")
-    return a.lookup !== null && target > a.stepIndex
+  runningWhere(context, (activity, flow) => {
+    const target = flow.steps.findIndex((step) => step.on === "media.available")
+    return activity.lookup !== null && target > activity.stepIndex
   })
 
 /**
@@ -225,7 +225,7 @@ export const jellyfin = Effect.gen(function*() {
     watcher: {
       watches: (context) => {
         const awaiting = awaitingAvailability(context)
-        const keys = new Set(awaiting.map((a) => a.subjectKey))
+        const keys = new Set(awaiting.map((activity) => activity.subjectKey))
         for (const key of series.keys()) if (!keys.has(key)) series.delete(key)
         const seen = new Set<string>()
         // The users, to list the library as one of them (`libraryUser`). Until they're read (or
@@ -267,7 +267,7 @@ export const jellyfin = Effect.gen(function*() {
             if (Option.isNone(sessions)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the sessions"), [])
             const now = playingFrom(sessions.value)
             const events = playbackEvents(playing, now, yield* Clock.currentTimeMillis)
-            playing = new Map(now.map((p) => [p.key, p]))
+            playing = new Map(now.map((entry) => [entry.key, entry]))
             return events
           }
           if (watch.id === watchIds.users) {
@@ -277,8 +277,8 @@ export const jellyfin = Effect.gen(function*() {
             if (userId === null) yield* Effect.logWarning("Jellyfin: no enabled user to list the library as")
             return []
           }
-          const activity = awaitingAvailability(context).find((a) =>
-            watch.id === watchIds.find(a.subjectKey) || watch.id === watchIds.episodes(a.subjectKey))
+          const activity = awaitingAvailability(context).find((candidate) =>
+            watch.id === watchIds.find(candidate.subjectKey) || watch.id === watchIds.episodes(candidate.subjectKey))
           if (activity === undefined) return []
           const lookup = activity.lookup!
           if (watch.id === watchIds.episodes(activity.subjectKey)) {

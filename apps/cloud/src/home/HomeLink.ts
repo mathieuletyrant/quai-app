@@ -116,7 +116,7 @@ const makeDocuments = (
     get: (key) => Effect.map(documents, (all) => Option.fromNullishOr(all.get(key))),
     list: (prefix) =>
       Effect.map(documents, (all) =>
-        [...all].filter(([key]) => key.startsWith(prefix)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+        [...all].filter(([key]) => key.startsWith(prefix)).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
           .map(([key, value]) => ({ key, value }))),
     put: (key, value) => Effect.andThen(checked(key), write(key, asStored(value))),
     delete: (key) => Effect.andThen(checked(key), write(key, undefined))
@@ -164,7 +164,6 @@ export const verifyProof = (publicKey: string, nonce: string, signature: string)
  * (see `Homes`): it never sees another home.
  */
 export class HomeLink extends Context.Service<HomeLink, {
-  /** The home this link is to. */
   readonly homeId: string
   /** The home, once its documents are loaded; None while its Quai Home isn't connected. */
   readonly home: Effect.Effect<Option.Option<LinkedHome>>
@@ -204,7 +203,6 @@ export class HomeLink extends Context.Service<HomeLink, {
     }
   })()
 
-  /** The home's documents. */
   static readonly documents = Layer.effect(HomeDocuments, Effect.map(Effect.service(HomeLink), (link) => link.documents))
 }
 
@@ -264,7 +262,7 @@ export class HomeLinks extends Context.Service<HomeLinks, {
 
     const request = (connection: Connection, make: (id: string) => CloudMessage, timeoutMs: number = Timing.requestMs) =>
       Effect.gen(function*() {
-        const id = `r${yield* Ref.updateAndGet(requestCount, (n) => n + 1)}`
+        const id = `r${yield* Ref.updateAndGet(requestCount, (count) => count + 1)}`
         const answer = yield* Deferred.make<Answer, HomeError>()
         connection.pending.set(id, answer)
         yield* connection.send(make(id))
@@ -289,7 +287,7 @@ export class HomeLinks extends Context.Service<HomeLinks, {
           : Effect.succeed(connection)
       })
       const documents = makeDocuments(
-        Effect.map(current, (c) => c.documents!),
+        Effect.map(current, (connection) => connection.documents!),
         (key, value) =>
           Effect.gen(function*() {
             const connection = yield* current
@@ -434,7 +432,7 @@ export class HomeLinks extends Context.Service<HomeLinks, {
         yield* Effect.forkScoped(Effect.gen(function*() {
           const answer = yield* request(connection, (id) => HomeProtocol.StoreList.make({ id, prefix: "" })).pipe(Effect.flatMap(failedWith))
           if (answer._tag !== "StoreDocuments") return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
-          connection.documents = new Map(answer.documents.map((d) => [d.key, d.value]))
+          connection.documents = new Map(answer.documents.map((document) => [document.key, document.value]))
           yield* Queue.offer(events, { _tag: "Ready", home: { homeId, services: connection.services, protocol: connection.protocol, webUrls: connection.webUrls } })
           yield* Queue.offer(readyHomes, homeId)
           yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))

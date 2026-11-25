@@ -13,9 +13,9 @@ export const pairingLink = (code: string, serverUrls: ReadonlyArray<string>, hea
   const params = [
     ["code", code],
     ...serverUrls.map((url) => ["url", url]),
-    ...headers.map((h) => ["header", `${h.name}: ${Redacted.value(h.value)}`])
+    ...headers.map((header) => ["header", `${header.name}: ${Redacted.value(header.value)}`])
   ]
-  return `quai://pair?${params.map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join("&")}`
+  return `quai://pair?${params.map(([name, value]) => `${name}=${encodeURIComponent(value!)}`).join("&")}`
 }
 
 export const ConsoleHandlers = HttpApiBuilder.group(QuaiApi, "console", (handlers) =>
@@ -36,13 +36,13 @@ export const ConsoleHandlers = HttpApiBuilder.group(QuaiApi, "console", (handler
         }))
       .handle("devices", () =>
         Effect.map(devices.list, (list) =>
-          list.map((d) => ({
-            id: d.id,
-            name: d.name,
-            apnsEnvironment: d.apnsEnvironment,
-            canStartActivities: d.pushToStartToken !== null,
-            pairedAt: DateTime.makeUnsafe(d.pairedAt),
-            ...(d.lastSeenAt === null ? {} : { lastSeenAt: DateTime.makeUnsafe(d.lastSeenAt) })
+          list.map((device) => ({
+            id: device.id,
+            name: device.name,
+            apnsEnvironment: device.apnsEnvironment,
+            canStartActivities: device.pushToStartToken !== null,
+            pairedAt: DateTime.makeUnsafe(device.pairedAt),
+            ...(device.lastSeenAt === null ? {} : { lastSeenAt: DateTime.makeUnsafe(device.lastSeenAt) })
           }))))
       .handle("removeDevice", ({ params }) =>
         Effect.flatMap(devices.remove(params.id), (removed) =>

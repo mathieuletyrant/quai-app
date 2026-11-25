@@ -35,7 +35,7 @@ export const serviceError = (status: number, body: string): string => {
   if (parsed._tag === "Some") {
     const value = parsed.value
     const candidates = [Array.isArray(value) ? field(value[0], "errorMessage") : undefined, field(value, "message"), field(value, "detail"), field(value, "error")]
-    const found = candidates.find((c): c is string => typeof c === "string" && c !== "")
+    const found = candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate !== "")
     if (found !== undefined) return found
   }
   const text = body.trim()
@@ -116,24 +116,24 @@ export class HomeReads extends Context.Service<HomeReads, {
       const webUrls = Effect.flatMap(link.home, (home) =>
         Option.isSome(home) ? Effect.succeed(home.value.webUrls ?? {}) : Effect.fail(new HomeOffline({ message: offlineMessage })))
 
-      const read = <A>(r: Read<A>) =>
+      const read = <A>(spec: Read<A>) =>
         Effect.gen(function*() {
-          const answer = yield* call({ service: r.service, method: "GET", path: r.path })
+          const answer = yield* call({ service: spec.service, method: "GET", path: spec.path })
           const value = answer._tag === "Failed"
             ? Option.none<A>()
-            : answer.status === 404 && r.notFound !== undefined
-            ? Option.some(r.notFound)
+            : answer.status === 404 && spec.notFound !== undefined
+            ? Option.some(spec.notFound)
             : answer.status >= 200 && answer.status < 300
-            ? readJson(r.schema, answer.body)
+            ? readJson(spec.schema, answer.body)
             : Option.none<A>()
-          const path = r.path.split("?")[0]!
+          const path = spec.path.split("?")[0]!
           if (Option.isNone(value)) {
             const why = answer._tag === "Failed" ? answer.message : answer.status >= 200 && answer.status < 300 ? "an answer Quai can't read" : `HTTP ${answer.status}`
-            yield* Effect.logWarning(`${r.service} ${path}: ${why}`)
+            yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
             // A 4xx says the service is there: what was asked isn't.
-            if (answer._tag === "Failed" || answer.status >= 500 || answer.status < 300) yield* observed(r.service, { why, path })
+            if (answer._tag === "Failed" || answer.status >= 500 || answer.status < 300) yield* observed(spec.service, { why, path })
           } else {
-            yield* observed(r.service, null)
+            yield* observed(spec.service, null)
           }
           return value
         })
@@ -141,8 +141,8 @@ export class HomeReads extends Context.Service<HomeReads, {
       const all = <R extends Reads>(reads: R, options?: { readonly optional?: ReadonlyArray<keyof R> }) =>
         Effect.gen(function*() {
           const reached = yield* services
-          const asked = Object.entries(reads).flatMap(([key, r]) => r !== null && reached.includes(r.service) ? [[key, r] as const] : [])
-          const results = yield* Effect.forEach(asked, ([key, r]) => Effect.map(read(r), (value) => [key, r.service, value] as const), {
+          const asked = Object.entries(reads).flatMap(([key, spec]) => spec !== null && reached.includes(spec.service) ? [[key, spec] as const] : [])
+          const results = yield* Effect.forEach(asked, ([key, spec]) => Effect.map(read(spec), (value) => [key, spec.service, value] as const), {
             concurrency: "unbounded"
           })
           const unavailable: Array<ServiceOf<R>> = []
