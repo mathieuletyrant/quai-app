@@ -18,6 +18,14 @@ import { Notifier } from "../src/push/Notifier.ts"
 import { fixture } from "./fixtures.ts"
 
 type Call = typeof HomeProtocol.Call.Type
+type CloudMessageOf<Tag extends HomeProtocol.CloudMessage["_tag"]> = Extract<
+  HomeProtocol.CloudMessage,
+  { readonly _tag: Tag }
+>
+/** An answer for each message the Cloud sends, by its `_tag`. */
+type Responders = {
+  readonly [Tag in HomeProtocol.CloudMessage["_tag"]]: (message: CloudMessageOf<Tag>) => HomeProtocol.HomeMessage | null
+}
 /**
  * How the fake Home answers a call: a response, a failure, nothing at all (a timeout), or the
  * connection dropped while the call is in flight.
@@ -179,76 +187,102 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       }
     }
 
+    /** The connection cut while a call is in flight: the Cloud reads a close, the watches stop. */
+    const drop = () => {
+      if (state.toCloud !== null) Queue.offerUnsafe(state.toCloud, close)
+      state.toCloud = null
+      state.watches = []
+    }
+
+    /** What Quai Home sends back for an answer it got: nothing for a silent one or a drop. */
+    const replyOf = (call: Call, answer: Answer): HomeProtocol.HomeMessage | null => {
+      if ("silent" in answer) return null
+      if ("drop" in answer) {
+        drop()
+        return null
+      }
+      if ("failed" in answer) return HomeProtocol.Failed.make({ id: call.id, reason: answer.failed })
+      const body = answer.body ?? (answer.json === undefined ? "" : JSON.stringify(answer.json))
+      return HomeProtocol.CallResponse.make({ id: call.id, status: answer.status ?? 200, body })
+    }
+
+    const runCall = (call: Call) => {
+      calls.push(call)
+      if (!allows(call) || !passesAgainst(call)) {
+        notAllowed.push(routeOf(call))
+        return HomeProtocol.Failed.make({ id: call.id, reason: "not allowed" })
+      }
+      return replyOf(call, options.answer?.(call) ?? { status: 404, body: "" })
+    }
+
+    // Quai Home answers a watch it refuses with Failed under the watch's id, and never polls it.
+    const setWatches = (message: CloudMessageOf<"SetWatches">) => {
+      for (const watch of message.watches) {
+        if (!allows({ service: watch.service, method: "GET", path: watch.path })) {
+          notAllowed.push(`watch ${watch.id}: ${watch.service} GET ${watch.path.split("?")[0]}`)
+        }
+      }
+      state.watches = message.watches
+      return null
+    }
+
+    /** How the fake answers each message of the Cloud, by its `_tag`. */
+    const responders: Responders = {
+      Challenge: (message) =>
+        HomeProtocol.Proof.make({
+          signature: sign(
+            null,
+            Buffer.from(HomeProtocol.challengePayload(message.nonce)),
+            options.badProof === true ? otherKey : privateKey
+          )
+            .toString("base64")
+        }),
+      Welcome: (message) => {
+        state.welcomed = message.homeId
+        return null
+      },
+      Refused: (message) => {
+        state.refused = { reason: message.reason, retryAfterSeconds: message.retryAfterSeconds }
+        return null
+      },
+      Ping: (message) => options.deaf === true ? null : HomeProtocol.Pong.make({ at: message.at }),
+      Call: runCall,
+      SetWatches: setWatches,
+      StoreList: (message) =>
+        HomeProtocol.StoreDocuments.make({
+          id: message.id,
+          documents: [...documents].filter(([key]) => key.startsWith(message.prefix)).sort().map(([key, value]) => ({
+            key,
+            value
+          }))
+        }),
+      StorePut: (message) => {
+        documents.set(message.key, JSON.parse(JSON.stringify(message.value)))
+        return HomeProtocol.StoreDone.make({ id: message.id })
+      },
+      StoreDelete: (message) => {
+        documents.delete(message.key)
+        return HomeProtocol.StoreDone.make({ id: message.id })
+      },
+      JournalAppend: (message) => {
+        journal.push(...message.entries)
+        return null
+      },
+      JournalRead: (message) =>
+        HomeProtocol.JournalPage.make({ id: message.id, ...journalPage(journal, message.query) }),
+      ConsoleResponse: (message) => {
+        consoleAnswers.set(message.id, message)
+        return null
+      }
+    }
+
     const respond = (message: HomeProtocol.CloudMessage): HomeProtocol.HomeMessage | null => {
       received.push(message)
-      switch (message._tag) {
-        case "Challenge":
-          return HomeProtocol.Proof.make({
-            signature: sign(
-              null,
-              Buffer.from(HomeProtocol.challengePayload(message.nonce)),
-              options.badProof === true ? otherKey : privateKey
-            )
-              .toString("base64")
-          })
-        case "Welcome":
-          state.welcomed = message.homeId
-          return null
-        case "Refused":
-          state.refused = { reason: message.reason, retryAfterSeconds: message.retryAfterSeconds }
-          return null
-        case "Ping":
-          return options.deaf === true ? null : HomeProtocol.Pong.make({ at: message.at })
-        case "Call": {
-          calls.push(message)
-          if (!allows(message) || !passesAgainst(message)) {
-            notAllowed.push(routeOf(message))
-            return HomeProtocol.Failed.make({ id: message.id, reason: "not allowed" })
-          }
-          const answer = options.answer?.(message) ?? { status: 404, body: "" }
-          if ("silent" in answer) return null
-          if ("drop" in answer) {
-            if (state.toCloud !== null) Queue.offerUnsafe(state.toCloud, close)
-            state.toCloud = null
-            state.watches = []
-            return null
-          }
-          if ("failed" in answer) return HomeProtocol.Failed.make({ id: message.id, reason: answer.failed })
-          const body = answer.body ?? (answer.json === undefined ? "" : JSON.stringify(answer.json))
-          return HomeProtocol.CallResponse.make({ id: message.id, status: answer.status ?? 200, body })
-        }
-        case "SetWatches":
-          // Quai Home answers a watch it refuses with Failed under the watch's id, and never polls it.
-          for (const watch of message.watches) {
-            if (!allows({ service: watch.service, method: "GET", path: watch.path })) {
-              notAllowed.push(`watch ${watch.id}: ${watch.service} GET ${watch.path.split("?")[0]}`)
-            }
-          }
-          state.watches = message.watches
-          return null
-        case "StoreList":
-          return HomeProtocol.StoreDocuments.make({
-            id: message.id,
-            documents: [...documents].filter(([key]) => key.startsWith(message.prefix)).sort().map(([key, value]) => ({
-              key,
-              value
-            }))
-          })
-        case "StorePut":
-          documents.set(message.key, JSON.parse(JSON.stringify(message.value)))
-          return HomeProtocol.StoreDone.make({ id: message.id })
-        case "StoreDelete":
-          documents.delete(message.key)
-          return HomeProtocol.StoreDone.make({ id: message.id })
-        case "JournalAppend":
-          journal.push(...message.entries)
-          return null
-        case "JournalRead":
-          return HomeProtocol.JournalPage.make({ id: message.id, ...journalPage(journal, message.query) })
-        case "ConsoleResponse":
-          consoleAnswers.set(message.id, message)
-          return null
-      }
+      // The table gives each tag its own message; TypeScript can't follow the tag from the union.
+      const responder = responders[message._tag] as (
+        message: HomeProtocol.CloudMessage
+      ) => HomeProtocol.HomeMessage | null
+      return responder(message)
     }
 
     const send = (message: HomeProtocol.HomeMessage) =>

@@ -34,7 +34,15 @@ const lostPoster = "https://artworks.thetvdb.com/banners/posters/73739-1.jpg"
 /** Radarr's library with Reclaimerr's movies in it: the recorded Dune, renamed. */
 const moviesWithCandidates = (): ReadonlyArray<unknown> => {
   const movies = fixture("radarr/movies.json") as Array<Record<string, unknown>>
-  const like = (id: number, title: string, year: number, tmdbId: number, poster: string) => ({
+  const like = (
+    { id, poster, title, tmdbId, year }: {
+      readonly id: number
+      readonly title: string
+      readonly year: number
+      readonly tmdbId: number
+      readonly poster: string
+    }
+  ) => ({
     ...movies[0],
     id,
     title,
@@ -42,7 +50,11 @@ const moviesWithCandidates = (): ReadonlyArray<unknown> => {
     tmdbId,
     images: [{ coverType: "poster", url: `/MediaCover/${id}/poster.jpg`, remoteUrl: poster }]
   })
-  return [...movies, like(142, "Up", 2009, 2042, upPoster), like(143, "Cars 2", 2011, 99999, carsPoster)]
+  return [
+    ...movies,
+    like({ id: 142, title: "Up", year: 2009, tmdbId: 2042, poster: upPoster }),
+    like({ id: 143, title: "Cars 2", year: 2011, tmdbId: 99999, poster: carsPoster })
+  ]
 }
 
 /** The To fix reads, and every write accepted. */

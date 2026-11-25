@@ -28,6 +28,15 @@ const line = (at: number, overrides: Partial<JournalEntry> = {}): JournalEntry =
 const opened = <A, E>(dir: string, use: (journal: Journal["Service"]) => Effect.Effect<A, E>) =>
   Effect.scoped(Effect.flatMap(Journal.make(join(dir, "journal")), use))
 
+/** `opened`, with the test's steps written as a generator. */
+const withJournal = <A, E>(
+  dir: string,
+  steps: (journal: Journal["Service"]) => Generator<Effect.Effect<unknown, E>, A, never>
+) => opened(dir, (journal) => Effect.gen(() => steps(journal)))
+
+/** The texts of a page's entries, newest first. */
+const textsOf = (page: { readonly entries: ReadonlyArray<JournalEntry> }) => page.entries.map((entry) => entry.text)
+
 const inTemp = <A, E>(
   test: (dir: string, fs: FileSystem.FileSystem) => Effect.Effect<A, E, FileSystem.FileSystem | Scope.Scope>
 ) =>
@@ -46,17 +55,16 @@ describe("home journal", () => {
       Effect.gen(function*() {
         const lateYesterday = line(morning - 9 * 3600_000)
         const today = line(morning)
-        yield* opened(dir, (journal) =>
-          Effect.gen(function*() {
-            yield* journal.append([lateYesterday, today])
-            expect(yield* files(fs, dir)).toEqual([])
-            yield* TestClock.adjust(Retention.flushMs)
-            // Waits for the write the timer started (the disk is real).
-            yield* journal.flush
-            expect(yield* files(fs, dir)).toEqual(["2026-11-19.jsonl", "2026-11-20.jsonl"])
-            const text = yield* fs.readFileString(join(dir, "journal", "2026-11-20.jsonl"))
-            expect(text).toBe(JSON.stringify(today) + "\n")
-          }))
+        yield* withJournal(dir, function*(journal) {
+          yield* journal.append([lateYesterday, today])
+          expect(yield* files(fs, dir)).toEqual([])
+          yield* TestClock.adjust(Retention.flushMs)
+          // Waits for the write the timer started (the disk is real).
+          yield* journal.flush
+          expect(yield* files(fs, dir)).toEqual(["2026-11-19.jsonl", "2026-11-20.jsonl"])
+          const text = yield* fs.readFileString(join(dir, "journal", "2026-11-20.jsonl"))
+          expect(text).toBe(JSON.stringify(today) + "\n")
+        })
         const again = yield* opened(dir, (journal) => journal.read({ limit: 10 }))
         expect(again.entries).toEqual([today, lateYesterday])
       })
@@ -91,17 +99,16 @@ describe("home journal", () => {
       Effect.gen(function*() {
         const old = line(morning - 7 * day)
         const recent = line(morning - 6 * day)
-        yield* opened(dir, (journal) =>
-          Effect.gen(function*() {
-            yield* journal.append([old, recent])
-            yield* journal.flush
-            expect(yield* files(fs, dir)).toEqual(["2026-11-13.jsonl", "2026-11-14.jsonl"])
-            yield* TestClock.adjust(day)
-            yield* journal.append([line(morning + day)])
-            yield* journal.flush
-            expect(yield* files(fs, dir)).toEqual(["2026-11-14.jsonl", "2026-11-21.jsonl"])
-            expect((yield* journal.read({ limit: 10 })).entries.at(-1)).toEqual(recent)
-          }))
+        yield* withJournal(dir, function*(journal) {
+          yield* journal.append([old, recent])
+          yield* journal.flush
+          expect(yield* files(fs, dir)).toEqual(["2026-11-13.jsonl", "2026-11-14.jsonl"])
+          yield* TestClock.adjust(day)
+          yield* journal.append([line(morning + day)])
+          yield* journal.flush
+          expect(yield* files(fs, dir)).toEqual(["2026-11-14.jsonl", "2026-11-21.jsonl"])
+          expect((yield* journal.read({ limit: 10 })).entries.at(-1)).toEqual(recent)
+        })
       })
     ))
 
@@ -111,13 +118,12 @@ describe("home journal", () => {
         const total = Retention.maxEntries + Retention.slack + 1
         const older = Array.from({ length: 300 }, (_, index) => line(morning - day + index))
         const newer = Array.from({ length: total - 300 }, (_, index) => line(morning + index))
-        yield* opened(dir, (journal) =>
-          Effect.gen(function*() {
-            yield* journal.append([...older, ...newer])
-            yield* journal.flush
-            const page = yield* journal.read({ limit: 1, before: newer[0]!.id })
-            expect(page.entries).toEqual([older.at(-1)])
-          }))
+        yield* withJournal(dir, function*(journal) {
+          yield* journal.append([...older, ...newer])
+          yield* journal.flush
+          const page = yield* journal.read({ limit: 1, before: newer[0]!.id })
+          expect(page.entries).toEqual([older.at(-1)])
+        })
         const kept = parseJournal(yield* fs.readFileString(join(dir, "journal", journalFile(older[0]!.at)))).entries
         expect(kept).toHaveLength(Retention.maxEntries - newer.length)
         expect(kept.at(-1)).toEqual(older.at(-1))
@@ -135,17 +141,18 @@ describe("home journal", () => {
           yield* TestClock.adjust(1000)
           yield* journal.note({ level: "warn", source: "home", kind: "call.refused", text: "refused" })
           const all = yield* journal.read({ limit: 10 })
-          expect(all.entries.map((entry) => entry.text)).toEqual(["refused", grabbed.text])
+          expect(textsOf(all)).toEqual(["refused", grabbed.text])
           expect(all.entries[0]!.id).toMatch(/-h/)
-          expect((yield* journal.read({ limit: 10, level: "warn" })).entries.map((entry) => entry.text)).toEqual([
-            "refused"
-          ])
+          expect(textsOf(yield* journal.read({ limit: 10, level: "warn" }))).toEqual(["refused"])
           expect((yield* journal.read({ limit: 10, subject: "movie:tmdb:1" })).entries).toEqual([grabbed])
           expect((yield* journal.read({ limit: 1 })).more).toBe(true)
           expect(yield* journal.noted).toHaveLength(1)
         }))
     ))
 })
+
+/** An entry as the journal lines' test reads it: its level, its source and its text. */
+const lineText = (entry: JournalEntry) => `${entry.level} ${entry.source} ${entry.text}`
 
 describe("home journal lines", () => {
   it.effect("a refused call, a service that stops answering and comes back: once per streak", () =>
@@ -174,9 +181,7 @@ describe("home journal lines", () => {
           up = true
           yield* calls.run(status)
           yield* calls.run(status)
-          const texts = (yield* journal.read({ limit: 10 })).entries.map((entry) =>
-            `${entry.level} ${entry.source} ${entry.text}`
-          ).reverse()
+          const texts = (yield* journal.read({ limit: 10 })).entries.map(lineText).reverse()
           expect(texts).toEqual([
             "warn radarr Quai Home refused a call outside its allowlist: Radarr GET /api/v3/config/host",
             "warn radarr Quai Home can't reach Radarr: unreachable",
