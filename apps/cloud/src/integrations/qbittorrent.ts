@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect"
+import { Clock, Effect, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
@@ -32,6 +32,23 @@ const downloading = (context: WatchContext): ReadonlyArray<Activity> =>
 
 export const torrentsWatchId = "qbittorrent:torrents"
 
+/** What a download gone from the client says on its Live Activity. */
+export const removedDetail = "Removed from the download client"
+
+/**
+ * A grab qBittorrent no longer has: replaced by another release, failed, or removed by hand or by
+ * Cleanuparr. Only after a minute on the step, the time qBittorrent takes to add what was grabbed.
+ */
+export const removedDownloads = (activities: ReadonlyArray<Activity>, torrents: ReadonlyArray<Torrent>, now: number): ReadonlyArray<FlowEvent> => {
+  const present = new Set(torrents.map((t) => t.hash.toLowerCase()))
+  const gone = new Set(
+    activities
+      .filter((a) => a.downloadId !== null && !present.has(a.downloadId) && now - a.enteredAt >= 60_000)
+      .map((a) => a.downloadId!)
+  )
+  return [...gone].map((downloadId) => ({ type: "download.removed", downloadId, values: { detail: removedDetail } }))
+}
+
 /**
  * qBittorrent doesn't push: Quai Home reads the progress of the torrents every 5 s (the Home protocol's minimum), only while a
  * running activity's current step shows it. (Quai Home logs in to qBittorrent itself.)
@@ -48,13 +65,14 @@ export const qbittorrent: Integration = {
         everySeconds: 5
       }]
     },
-    read: ({ status, body }) => {
-      if (status !== 200) return Effect.as(Effect.logWarning(`qBittorrent answered HTTP ${status}`), [])
-      const torrents = readJson(Torrents, body)
-      return torrents._tag === "None"
-        ? Effect.as(Effect.logWarning("qBittorrent: could not read the torrents"), [])
-        : Effect.succeed(torrents.value.map(progressEvent))
-    }
+    read: ({ status, body }, context) =>
+      Effect.gen(function*() {
+        if (status !== 200) return yield* Effect.as(Effect.logWarning(`qBittorrent answered HTTP ${status}`), [])
+        const torrents = readJson(Torrents, body)
+        if (torrents._tag === "None") return yield* Effect.as(Effect.logWarning("qBittorrent: could not read the torrents"), [])
+        const now = yield* Clock.currentTimeMillis
+        return [...torrents.value.map(progressEvent), ...removedDownloads(downloading(context), torrents.value, now)]
+      })
   },
   actions: {}
 }

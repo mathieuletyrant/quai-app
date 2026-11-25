@@ -66,6 +66,7 @@ struct ActivityRow: View {
                     .font(QuaiFont.headline)
                     .foregroundStyle(Palette.primaryText)
                     .lineLimit(1)
+                    .truncationMode(.middle)
                 Spacer(minLength: 8)
                 if let progress = activity.content.progress, activity.content.endsAt == nil {
                     Text(Format.percent(progress))

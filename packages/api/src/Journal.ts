@@ -168,6 +168,7 @@ export const appJournalKinds: ReadonlyArray<string> = [
   "media.imported",
   "media.importBlocked",
   "media.available",
+  "download.removed",
   "playback.started",
   "playback.stopped",
   "alert.raised",

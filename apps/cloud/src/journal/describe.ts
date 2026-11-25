@@ -37,6 +37,8 @@ export const eventNote = (event: FlowEvent, from: From): JournalNote | null => {
       return note(`${name} imported ${title}`)
     case "media.importBlocked":
       return note(`${name} can't import ${title} on its own: it's in To fix`)
+    case "download.removed":
+      return note(`${title}: the download is gone before its import`)
     case "media.available":
       return note(`${title} is available in ${name}`)
     case "playback.started":
