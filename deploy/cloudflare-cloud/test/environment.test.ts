@@ -11,6 +11,7 @@ describe("containerEnvironment", () => {
       QUAI_APNS_TEAM_ID: "FGHIJ67890"
     })).toEqual({
       QUAI_PORT: "8787",
+      NODE_OPTIONS: "--max-old-space-size=160 --max-semi-space-size=8",
       QUAI_CLOUD_PUBLIC_URL: "https://cloud.quai.stream",
       QUAI_MAX_HOMES: "25",
       QUAI_APNS_KEY: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
@@ -20,7 +21,10 @@ describe("containerEnvironment", () => {
   })
 
   it("leaves out what is unset or blank, so Quai Cloud runs without pushes", () => {
-    expect(containerEnvironment({ QUAI_APNS_KEY: "  ", QUAI_APNS_KEY_ID: "" })).toEqual({ QUAI_PORT: "8787" })
+    expect(containerEnvironment({ QUAI_APNS_KEY: "  ", QUAI_APNS_KEY_ID: "" })).toEqual({
+      QUAI_PORT: "8787",
+      NODE_OPTIONS: "--max-old-space-size=160 --max-semi-space-size=8"
+    })
   })
 
   it("leaves the version to the image, built with it", () => {
