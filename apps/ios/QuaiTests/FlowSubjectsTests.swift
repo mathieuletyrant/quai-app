@@ -4,8 +4,8 @@ import Testing
 
 @MainActor
 struct FlowSubjectsTests {
-    private let requestActivity = #"{"attributes":{"key":"requests|request:1","flowId":"requests","title":"Send Help","color":"#8B8CF8","icon":"person.badge.clock","steps":[{"id":"pending","label":"To approve","icon":"person.badge.clock"}]},"content":{"step":0,"tone":"active"}}"#
-    private let requestsFlow = #"{"id":"requests","name":"Requests","enabled":true,"subject":"request","color":"#8B8CF8","icon":"person.badge.clock","steps":[{"id":"pending","label":"To approve","icon":"person.badge.clock"}]}"#
+    private let requestActivity = ##"{"attributes":{"key":"requests|request:1","flowId":"requests","title":"Send Help","color":"#8B8CF8","icon":"person.badge.clock","steps":[{"id":"pending","label":"To approve","icon":"person.badge.clock"}]},"content":{"step":0,"tone":"active"}}"##
+    private let requestsFlow = ##"{"id":"requests","name":"Requests","enabled":true,"subject":"request","color":"#8B8CF8","icon":"person.badge.clock","steps":[{"id":"pending","label":"To approve","icon":"person.badge.clock"}]}"##
 
     private func activities(_ json: String) throws -> [RunningActivity] {
         try JSONDecoder().decode([RunningActivity].self, from: Data("[\(json)]".utf8))
