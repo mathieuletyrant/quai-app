@@ -261,10 +261,27 @@ jobs:
             screenshots
             preview.log
           if-no-files-found: ignore
-      # A fork's PR has a read-only token: its screenshots stay in the artifact.
+      # A fork's PR has a read-only token: its screenshots stay in the artifact. Publishing them is not part of the
+      # proof: GitHub's API failing here (it answers 500 at times) doesn't fail the build and tests above.
       - name: Post the screenshots
         if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: .github/scripts/ios-screenshots.sh screenshots ${{ github.event.pull_request.number }}
+
+  # The one check branch protection requires. A branch named claude/** runs this workflow twice, on push and on its
+  # PR, and both report jobs of the same names: requiring those names lets a push run's cancelled job block the PR.
+  # This job runs on the PR only and passes when every job passed or was skipped (a PR that doesn't touch its files).
+  required:
+    if: always() && github.event_name == 'pull_request'
+    needs: [typescript, docker, changes, live-activity-pushes, ios-client, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job passed or was skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e 'all(.[]; .result == "success" or .result == "skipped")' > /dev/null
