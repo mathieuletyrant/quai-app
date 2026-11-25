@@ -48,31 +48,11 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - Time goes through `Clock` (never `Date.now()` in logic) so `TestClock` works. One exception: the start time in `ServerInfo.layer`.
 - In `HttpApiBuilder.group`, get services in the outer `Effect.gen`, not inside each handler.
 
-## Server
+## Per app
 
-- One Cloud, many homes: a home's services are built for it alone (`HomeServices`/`HomeApp` in `App.ts`, one per home by `Homes`), so a service holds one home's state and never looks another up. What every home shares (`HomeLinks`, `Apns`, `PublicAccess`, `ServerInfo`) is built once in `main.ts`. A new per-home service goes in `HomeServices`.
-- A read is defined once, as a `Read<A>` (service, path, schema): `HomeReads` reads it when the app asks, `watchOf` makes its watch, `readSnapshot` decodes its snapshots (`dayReads`, `pendingRead`). Never a second path or decode for the same GET.
-- One adapter per media kind, not branches on the service: movies (Radarr) and series (Sonarr) each implement `MediaFixes` (`fixes/movies.ts`, `fixes/series.ts`); `Fixes.ts` only orchestrates. A new kind or rule goes in its adapter, a target carries only its own kind's fields, and what can be decided without a call is a pure function with its own test.
-- An id the server mints and reads back is made and parsed in one module (`fixes/FixId.ts`), never by string prefixes elsewhere.
-- One decision per action: the HTTP route and the Live Activity button call the same service function (`Seerr.decide`), which checks the state it acts on; each caller only maps its errors and refreshes the Hub.
-- Shared *arr helpers (images, dates, years, queue, releases, manual import) live in `integrations/arr.ts`, not in one service's module.
-
-## iOS
-
-- Quai's refusals become a `ConnectionError` in `QuaiErrorsMiddleware` only (from the answer's `_tag` and `message`), proxy refusals in `AccessHeadersMiddleware`. A call reads only its success with the generated throwing accessors (`try await client.listFixes().ok.body.json`, `.noContent`): no `switch` over an `Output`, no error message per route.
-- Without a Mac, the `verify` skill's `ios` scenario (`.claude/skills/verify/ios/`) is the loop: `pnpm test` checks the contract for the generated client (`packages/api/test/ios.test.ts`), the CI generates it (`ios-client`, Linux), the preview server (`pnpm --filter @quai/cloud preview`: real Quai Cloud, fake Quai Home on the fixtures) serves the app, and the `ios` CI job builds, tests and posts screenshots of the views paired to it (`QuaiTests/AppScreenshots.swift`) (a push to `claude/**` is enough). A view change is done when its screenshot looks right.
-
-## Console
-
-`apps/console/src` (React 19, Tailwind v4). A page reads as a short list of sections; the look lives in `ui/`.
-
-- **Served by Quai Home** ([ADR 1](docs/adr/0001-console-served-by-quai-home.md)). `callHome` reaches Quai Home's own routes (`/home-api`: sign-in, the home, the services); `call` reaches the Cloud's (`/console-api`, `/api/health`), which Quai Home relays over the link. A new Cloud route needs nothing in Quai Home; a Cloud route that must never be relayed stays out of `HomeProtocol.isConsolePath`.
-- **The app to live with Quai, the console to set it up.** The console only has setup pages (Settings, Services, Flows, Alerts, iPhones) and the Journal, to see what Quai did. What's used day to day (requests, fixes, today's releases, the library) lives in the iOS app only: no console page, no `/console-api` route for it.
-- `ui/` is the single source of the look, one file per job (buttons, layout, feedback, forms, menus, nav, log, status, table, checklist, icons), re-exported by `ui/index.ts`: import `from "../ui"`. A page that needs a new look adds or extends a `ui/` component; delete what nothing imports.
-- Loading, offline, failed and ready go through one primitive: read with `useLoad` (`load.ts`), show with `<Async state loading offline failed>{(data) => …}</Async>`, report with `<ErrorCallout unlessOffline>`. Data-specific states (empty, not configured) are early returns in the component that gets the data. No ternary chains for states.
-- Rows and items are named components with explicit props (`DeviceName`, `StepNode`).
-- Theme tokens only: colours, the type scale (`text-caption`, `text-body`, `text-subhead`…), tracking, radii and shadows are `@theme` tokens in `styles.css`. No arbitrary `[#hex]`, `text-[Npx]` or `rounded-[Npx]`; add a token instead. Arbitrary values are kept for one-off layout calcs (`grid-cols-[minmax(0,1fr)_300px]`, `h-[calc(100vh-4rem)]`). In JS styles use `var(--color-…)`; hex only for data (a flow's colour) or a library that takes hex.
-- Text and logic stay out of the markup: subtitles, facts and labels are small named functions next to the page, or in `format.ts` when pages share them (`duration`, `shortMinutes`). No multi-line expressions in props.
+Each app's own rules sit next to its code, read when working there: [`apps/cloud/AGENTS.md`](apps/cloud/AGENTS.md)
+(one Cloud for many homes, reads, adapters, ids), [`apps/console/AGENTS.md`](apps/console/AGENTS.md) (pages, `ui/`,
+states, theme tokens), [`apps/ios/AGENTS.md`](apps/ios/AGENTS.md) (errors, the loop without a Mac).
 
 ## Tests
 
