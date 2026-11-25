@@ -13,8 +13,8 @@ extension Components.Schemas.Fix {
     /// The kind's symbol and color, as in the mockups.
     var symbol: (name: String, color: Color) {
         switch kind {
-        case .scheduledDeletion: ("trash", Palette.toFix)
-        case .removalPlanned: ("xmark.bin", Palette.downloads)
+        case .plannedDeletion: ("trash", Palette.toFix)
+        case .stuckRemoval: ("xmark.bin", Palette.downloads)
         case .noSource: ("magnifyingglass", Palette.downloads)
         case .importBlocked: ("exclamationmark.triangle", Palette.incident)
         }
@@ -25,10 +25,10 @@ extension Components.Schemas.Fix {
     /// "Up will be deleted in 5 days", "The Wild Robot may leave the queue in 4 min", "Runner, still without a file", "Import blocked · Mouse"
     var headline: String {
         switch kind {
-        case .scheduledDeletion:
+        case .plannedDeletion:
             let verb = deletion?.operation == .move ? "moved" : "deleted"
             return "\(title) will be \(verb) \(Fix.when(deletion?.deletesAt ?? 0))"
-        case .removalPlanned:
+        case .stuckRemoval:
             return "\(title) may leave the queue \(Fix.soon(removal?.removesAt))"
         case .noSource:
             return "\(title), still without a file"
@@ -43,7 +43,7 @@ extension Components.Schemas.Fix {
         if kind == .noSource, let since {
             parts.append("for " + Fix.elapsed(since))
         }
-        if kind == .removalPlanned, let removal {
+        if kind == .stuckRemoval, let removal {
             parts.append("\(removal.strikes) of \(removal.maxStrikes) strikes")
         }
         return parts.joined(separator: " · ")
@@ -185,8 +185,8 @@ struct FixesView: View {
     private func perform(_ action: FixCardAction, on fix: Fix) {
         switch action {
         case .keep: run(fix) { try await connection.keep(fix) }
-        case .dismiss: run(fix) { try await connection.dismiss(fix) }
-        case let .snooze(days): run(fix) { try await connection.snooze(fix, days: days) }
+        case .letGo: run(fix) { try await connection.letGo(fix) }
+        case let .ignoreAndWait(days): run(fix) { try await connection.ignoreAndWait(fix, days: days) }
         case .searchReleases: sheet = .releases(fix)
         case .importAnyway: sheet = .importing(fix)
         case .remove: removing = fix
@@ -208,9 +208,9 @@ struct FixesView: View {
 }
 
 enum FixCardAction {
-    case keep, dismiss, searchReleases, importAnyway, remove
+    case keep, letGo, searchReleases, importAnyway, remove
     /// `nil`: until a release is grabbed.
-    case snooze(days: Int?)
+    case ignoreAndWait(days: Int?)
 }
 
 /// The title's poster with the kind's symbol on its corner; the symbol alone without a poster.
@@ -263,16 +263,16 @@ private struct FixCard: View {
 
     @ViewBuilder private var buttons: some View {
         switch fix.kind {
-        case .scheduledDeletion, .removalPlanned:
+        case .plannedDeletion, .stuckRemoval:
             if fix.offers(.keep) { Button("Keep") { act(.keep) }.buttonStyle(FixButtonStyle()) }
-            if fix.offers(.dismiss) { Button("Let it go") { act(.dismiss) }.buttonStyle(FixButtonStyle(prominent: false)) }
+            if fix.offers(.letGo) { Button("Let it go") { act(.letGo) }.buttonStyle(FixButtonStyle(prominent: false)) }
         case .noSource:
             if fix.offers(.searchReleases) { Button("Search releases") { act(.searchReleases) }.buttonStyle(FixButtonStyle()) }
-            if fix.offers(.snooze) {
+            if fix.offers(.ignoreAndWait) {
                 Menu {
-                    Button("Until a release is grabbed") { act(.snooze(days: nil)) }
-                    Button("For a day") { act(.snooze(days: 1)) }
-                    Button("For a week") { act(.snooze(days: 7)) }
+                    Button("Until a release is grabbed") { act(.ignoreAndWait(days: nil)) }
+                    Button("For a day") { act(.ignoreAndWait(days: 1)) }
+                    Button("For a week") { act(.ignoreAndWait(days: 7)) }
                 } label: {
                     Text("Ignore and wait").modifier(FixButtonLabel(prominent: false))
                 }

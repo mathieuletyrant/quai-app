@@ -1,4 +1,4 @@
-import type { ActivityItem, EventType } from "@quai/api"
+import type { ActivityItem, EventType, TitleKind } from "@quai/api"
 
 /**
  * How to find a title in the media server: set by the service that imported it, read by the one
@@ -62,7 +62,7 @@ export type Subject =
     readonly kind: "media"
     readonly key: string
     readonly title: string
-    readonly mediaType: "movie" | "series"
+    readonly mediaType: TitleKind
     readonly lookup?: MediaLookup
   }
   | { readonly kind: "playback"; readonly key: string; readonly title: string; readonly device: string }
@@ -71,7 +71,7 @@ export type Subject =
     readonly kind: "request"
     readonly key: string
     readonly title: string
-    readonly mediaType: "movie" | "series"
+    readonly mediaType: TitleKind
     readonly requester: string
   }
 

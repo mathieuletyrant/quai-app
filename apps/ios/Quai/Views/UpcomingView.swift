@@ -6,7 +6,7 @@ extension Components.Schemas.UpcomingItem: Identifiable {}
 
 extension Components.Schemas.UpcomingItem {
     /// It arrives (a release) rather than goes (a deletion, a removal, a seed cleanup).
-    var isComing: Bool { kind == .release }
+    var isComing: Bool { kind == .releaseDay }
 
     /// The service's color over the title: what comes in the releases' blue, what goes in the To fix orange.
     var tint: Color { isComing ? Palette.releases : Palette.toFix }
@@ -17,8 +17,8 @@ extension Components.Schemas.UpcomingItem {
     /// The symbol a row without a poster shows.
     var symbol: String {
         switch kind {
-        case .release: episode == nil ? "film" : "tv"
-        case .deletion: "trash"
+        case .releaseDay: episode == nil ? "film" : "tv"
+        case .plannedDeletion: "trash"
         case .stuckRemoval: "xmark.bin"
         case .seedCleanup: "arrow.up.arrow.down"
         }
@@ -145,7 +145,7 @@ struct UpcomingSchedule {
     func goingThisWeek(_ items: [UpcomingItem]) -> String? {
         let going = items.filter { !$0.isComing && [.today, .thisWeek].contains(period($0)) }
         guard !going.isEmpty else { return nil }
-        if going.allSatisfy({ $0.kind == .deletion }) {
+        if going.allSatisfy({ $0.kind == .plannedDeletion }) {
             return going.count == 1 ? "1 Reclaimerr deletion this week" : "\(going.count) Reclaimerr deletions this week"
         }
         return "\(going.count) going this week"

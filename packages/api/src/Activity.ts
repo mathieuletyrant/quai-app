@@ -1,8 +1,9 @@
 import { Schema } from "effect"
+import { Service } from "./Service.ts"
 
 /** What one activity follows. */
 /** What an alert is about (Alerts.ts): a service down, the media disk low, a problem an *arr reports. */
-export const AlertKind = Schema.Literals(["serviceDown", "diskLow", "arrHealth", "deletionPlanned"]).annotate({ identifier: "AlertKind" })
+export const AlertKind = Schema.Literals(["serviceDown", "diskLow", "arrHealth", "plannedDeletion"]).annotate({ identifier: "AlertKind" })
 export type AlertKind = typeof AlertKind.Type
 
 export const FlowSubject = Schema.Literals(["media", "playback", "request", "day"]).annotate({ identifier: "FlowSubject" })
@@ -30,9 +31,15 @@ export const EventType = Schema.Literals([
 ]).annotate({ identifier: "EventType" })
 export type EventType = typeof EventType.Type
 
-/** Where events come from and where actions go: one integration per service on the server. */
-export const ServiceName = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "quai"]).annotate({ identifier: "ServiceName" })
+/**
+ * Where a catalog event comes from and where an action goes: a service, or `quai` for what Quai
+ * decides itself (the day's end). Not every service: only those a flow hears from.
+ */
+export const ServiceName = Schema.Literals([...Service.pick(["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr"]).literals, "quai"]).annotate({ identifier: "ServiceName" })
 export type ServiceName = typeof ServiceName.Type
+
+/** What an integration is for on the server: a service, or Quai's own checks (alerts, the day's end). */
+export type IntegrationSource = Service | "quai"
 
 /** Buttons a step can offer on the Live Activity (docs/flows.md, Actions). */
 export const ActionType = Schema.Literals(["playback.playPause", "playback.stop", "request.approve", "request.decline"]).annotate({ identifier: "ActionType" })

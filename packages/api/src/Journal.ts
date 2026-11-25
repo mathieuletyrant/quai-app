@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth } from "./Devices.ts"
+import { Service } from "./Service.ts"
 
 /**
  * The journal: what Quai did, in plain words, one line per thing. Quai Cloud writes most of it,
@@ -13,7 +14,12 @@ export const JournalLevel = Schema.Literals(["info", "warn", "error"]).annotate(
 export type JournalLevel = typeof JournalLevel.Type
 
 /** Where a line comes from: a service, Apple (pushes), Quai Home or Quai Cloud itself. */
-export const JournalSource = Schema.Literals(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr", "apple", "home", "cloud"])
+export const JournalSource = Schema.Literals([
+  ...Service.pick(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"]).literals,
+  "apple",
+  "home",
+  "cloud"
+])
   .annotate({ identifier: "JournalSource" })
 export type JournalSource = typeof JournalSource.Type
 export const journalSources: ReadonlyArray<JournalSource> = JournalSource.literals

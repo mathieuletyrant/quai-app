@@ -1,8 +1,8 @@
-import { type HomeProtocol, isDataEvent, type JournalNote, type JournalSource, journalSourceNames, type ServiceName } from "@quai/api"
+import { isDataEvent, type JournalNote, type JournalSource, journalSourceNames, type IntegrationSource } from "@quai/api"
 import type { FlowEvent } from "../flows/Events.ts"
 
 /** The journal's source for an integration's service: Quai's own checks are the Cloud's. */
-export type From = ServiceName | HomeProtocol.HomeService
+export type From = IntegrationSource
 
 export const sourceOf = (service: From): JournalSource => service === "quai" ? "cloud" : service
 

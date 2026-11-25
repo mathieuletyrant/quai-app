@@ -143,7 +143,7 @@ export const episodesWithoutSource = (
         ...(posterUrl === undefined ? {} : { posterUrl }),
         reason: aired ? "No release grabbed since it aired" : "No release grabbed since the series was added",
         since,
-        actions: ["searchReleases", "snooze"],
+        actions: ["searchReleases", "ignoreAndWait"],
         missing: { episodes: sorted.map((e) => episodeCode(e.seasonNumber, e.episodeNumber)) }
       },
       target: { kind: "series", _tag: "Missing", seriesId: first.seriesId, seasonNumber: first.seasonNumber, episodeIds: sorted.map((e) => e.id) }

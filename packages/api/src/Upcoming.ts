@@ -1,19 +1,20 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { Service } from "./Service.ts"
 
 /**
  * What a row of Upcoming is (docs/upcoming.md):
- * - `release`: a monitored movie or episode without its file, out on that day (coming);
- * - `deletion`: a title Reclaimerr deletes on its own (going);
+ * - `releaseDay`: a monitored movie or episode without its file, out on that day (coming);
+ * - `plannedDeletion`: a title Reclaimerr deletes on its own (going);
  * - `stuckRemoval`: a download Cleanuparr's queue cleaner takes out at its next strike, if it's still stuck (going);
  * - `seedCleanup`: finished torrents Cleanuparr's download cleaner takes out of qBittorrent, grouped by week (going).
  */
-export const UpcomingKind = Schema.Literals(["release", "deletion", "stuckRemoval", "seedCleanup"]).annotate({ identifier: "UpcomingKind" })
+export const UpcomingKind = Schema.Literals(["releaseDay", "plannedDeletion", "stuckRemoval", "seedCleanup"]).annotate({ identifier: "UpcomingKind" })
 export type UpcomingKind = typeof UpcomingKind.Type
 
 /** Who does it: the row's tag. */
-export const UpcomingService = Schema.Literals(["radarr", "sonarr", "reclaimerr", "cleanuparr", "qbittorrent"]).annotate({
+export const UpcomingService = Service.pick(["radarr", "sonarr", "reclaimerr", "cleanuparr", "qbittorrent"]).annotate({
   identifier: "UpcomingService"
 })
 export type UpcomingService = typeof UpcomingService.Type

@@ -8,7 +8,7 @@ import {
   completion,
   excluding,
   newRemovals,
-  plannedRemovals,
+  stuckRemovals,
   queuedByDownload,
   type QueueRules,
   removalNote,
@@ -36,7 +36,7 @@ const settings = () => decode(settingsRead, "cleanuparr/queue-cleaner.json")
 const radarrQueue = () => Schema.decodeUnknownSync(QueuePage)(fixture("radarr/queue.json")).records
 
 /** The rules' input, every download in Radarr's queue. */
-const input = (downloads: ReadonlyArray<StruckDownload>, overrides: Partial<Parameters<typeof plannedRemovals>[0]> = {}) => ({
+const input = (downloads: ReadonlyArray<StruckDownload>, overrides: Partial<Parameters<typeof stuckRemovals>[0]> = {}) => ({
   downloads,
   settings: settings(),
   stallRules: decode(stallRulesRead, "cleanuparr/stall-rules.json"),
@@ -87,7 +87,7 @@ describe("Cleanuparr: what it removes next", () => {
 
   it("one strike short of a limit, or at it and marked for removal; dry runs and turned-off checks never count", () => {
     const ids = (downloads: ReadonlyArray<StruckDownload>, overrides = {}) =>
-      plannedRemovals(input(downloads, overrides)).map((d) => `${d.fix.removal?.reason} ${d.fix.removal?.strikes}/${d.fix.removal?.maxStrikes}`)
+      stuckRemovals(input(downloads, overrides)).map((d) => `${d.fix.removal?.reason} ${d.fix.removal?.strikes}/${d.fix.removal?.maxStrikes}`)
     expect(ids([struck(["Stalled", "Stalled"])])).toEqual(["stalled 2/3"])
     expect(ids([struck(["Stalled"])])).toEqual([])
     expect(ids([struck(["Stalled", "Stalled", "Stalled"])])).toEqual([])
@@ -106,23 +106,23 @@ describe("Cleanuparr: what it removes next", () => {
   })
 
   it("names the *arr's title, Cleanuparr the release; a download no queue has is gone", () => {
-    const [mouse] = plannedRemovals(input([struck(["Stalled", "Stalled"])], { nextRunAt: 1_700_000_000 }))
+    const [mouse] = stuckRemovals(input([struck(["Stalled", "Stalled"])], { nextRunAt: 1_700_000_000 }))
     expect(mouse).toEqual({
       fix: {
         id: "removal-0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09",
-        kind: "removalPlanned",
+        kind: "stuckRemoval",
         service: "cleanuparr",
         title: "Mouse",
         year: 2025,
         posterUrl: "https://image.tmdb.org/t/p/original/6WYrOc6VZbmBbEhAMuB7vKWd8oY.jpg",
         reason: "Stalled, no progress",
         since: Date.parse("2026-11-19T11:10:00Z") / 1000,
-        actions: ["keep", "dismiss"],
+        actions: ["keep", "letGo"],
         removal: { release: "Mouse.2025.MULTi.1080p.WEB.H264-SUPPLY", reason: "stalled", strikes: 2, maxStrikes: 3, removesAt: 1_700_000_000 }
       },
       target: { kind: "removal", downloadItemId: "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09", downloadId: "C3D4E5F60718293A4B5C6D7E8F90123456789012" }
     })
-    expect(plannedRemovals(input([struck(["Stalled", "Stalled"], { downloadId: "E5F60718293A4B5C6D7E8F9012345678901234AB" })]))).toEqual([])
+    expect(stuckRemovals(input([struck(["Stalled", "Stalled"], { downloadId: "E5F60718293A4B5C6D7E8F9012345678901234AB" })]))).toEqual([])
   })
 
   it("finds a download in the queues by id, any case, named from all its rows (a season pack has one per episode)", () => {
@@ -134,8 +134,8 @@ describe("Cleanuparr: what it removes next", () => {
 
   it("what the queue cleaner leaves alone, or all of it when it's off, is never planned", () => {
     const mouse = [struck(["Stalled", "Stalled"])]
-    expect(plannedRemovals(input(mouse, { settings: { ...settings(), ignoredDownloads: ["c3d4e5f60718293a4b5c6d7e8f90123456789012"] } }))).toEqual([])
-    expect(plannedRemovals(input(mouse, { settings: { ...settings(), enabled: false } }))).toEqual([])
+    expect(stuckRemovals(input(mouse, { settings: { ...settings(), ignoredDownloads: ["c3d4e5f60718293a4b5c6d7e8f90123456789012"] } }))).toEqual([])
+    expect(stuckRemovals(input(mouse, { settings: { ...settings(), enabled: false } }))).toEqual([])
   })
 
   it("keep sends back what Cleanuparr answered, the download added to its ignore list, and passes Quai Home's check", () => {
@@ -157,9 +157,9 @@ describe("Cleanuparr: what it removes next", () => {
   it("keep is offered only for a download id Quai Home lets into the ignore list; otherwise only let it go", () => {
     const nzbget = "4711"
     const queued = () => ({ media: { title: "Mouse", messages: [] }, records: radarrQueue().slice(2, 3) })
-    const [mouse] = plannedRemovals(input([struck(["Stalled", "Stalled"], { downloadId: nzbget })], { queued }))
-    expect(mouse?.fix.actions).toEqual(["dismiss"])
-    expect(plannedRemovals(input([struck(["Stalled", "Stalled"])]))[0]?.fix.actions).toEqual(["keep", "dismiss"])
+    const [mouse] = stuckRemovals(input([struck(["Stalled", "Stalled"], { downloadId: nzbget })], { queued }))
+    expect(mouse?.fix.actions).toEqual(["letGo"])
+    expect(stuckRemovals(input([struck(["Stalled", "Stalled"])]))[0]?.fix.actions).toEqual(["keep", "letGo"])
   })
 })
 

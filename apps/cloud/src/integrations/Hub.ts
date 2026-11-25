@@ -8,7 +8,7 @@ import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
 import { eventNote, type From } from "../journal/describe.ts"
 import { Journal } from "../journal/Journal.ts"
 import { Notifier } from "../push/Notifier.ts"
-import { HomeTime } from "../releases/HomeTime.ts"
+import { HomeTime } from "../home/HomeTime.ts"
 import { type Integration, Integrations, isAlertState, type Signal, type Watcher, type WatchContext } from "./Integration.ts"
 
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */

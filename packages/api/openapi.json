@@ -922,12 +922,12 @@
         }
       }
     },
-    "/api/fixes/{id}/dismiss": {
+    "/api/fixes/{id}/let-go": {
       "post": {
         "tags": [
           "fixes"
         ],
-        "operationId": "dismissFix",
+        "operationId": "letGoFix",
         "parameters": [
           {
             "name": "id",
@@ -1000,12 +1000,12 @@
         }
       }
     },
-    "/api/fixes/{id}/snooze": {
+    "/api/fixes/{id}/ignore-and-wait": {
       "post": {
         "tags": [
           "fixes"
         ],
-        "operationId": "snoozeFix",
+        "operationId": "ignoreAndWaitFix",
         "parameters": [
           {
             "name": "id",
@@ -1080,7 +1080,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SnoozeFix"
+                "$ref": "#/components/schemas/IgnoreAndWait"
               }
             }
           },
@@ -2603,7 +2603,7 @@
             ],
             "additionalProperties": false
           },
-          "deletionPlanned": {
+          "plannedDeletion": {
             "type": "object",
             "properties": {
               "enabled": {
@@ -2620,7 +2620,7 @@
           "serviceDown",
           "diskLow",
           "arrHealth",
-          "deletionPlanned"
+          "plannedDeletion"
         ],
         "additionalProperties": false
       },
@@ -2667,7 +2667,7 @@
           "serviceDown",
           "diskLow",
           "arrHealth",
-          "deletionPlanned"
+          "plannedDeletion"
         ]
       },
       "ActiveAlert": {
@@ -3329,8 +3329,8 @@
       "UpcomingKind": {
         "type": "string",
         "enum": [
-          "release",
-          "deletion",
+          "releaseDay",
+          "plannedDeletion",
           "stuckRemoval",
           "seedCleanup"
         ]
@@ -3433,7 +3433,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "$ref": "#/components/schemas/RequestKind"
+            "$ref": "#/components/schemas/TitleKind"
           },
           "tmdbId": {
             "type": "integer",
@@ -3471,7 +3471,7 @@
         ],
         "additionalProperties": false
       },
-      "RequestKind": {
+      "TitleKind": {
         "type": "string",
         "enum": [
           "movie",
@@ -3535,7 +3535,7 @@
         "type": "object",
         "properties": {
           "kind": {
-            "$ref": "#/components/schemas/RequestKind"
+            "$ref": "#/components/schemas/TitleKind"
           },
           "tmdbId": {
             "type": "integer",
@@ -3593,7 +3593,7 @@
             "maximum": 9007199254740991
           },
           "kind": {
-            "$ref": "#/components/schemas/RequestKind"
+            "$ref": "#/components/schemas/TitleKind"
           },
           "title": {
             "type": "string"
@@ -3780,7 +3780,7 @@
         ],
         "additionalProperties": false
       },
-      "SnoozeFix": {
+      "IgnoreAndWait": {
         "type": "object",
         "properties": {
           "days": {
@@ -4003,10 +4003,10 @@
             "$ref": "#/components/schemas/BlockedDownload"
           },
           "deletion": {
-            "$ref": "#/components/schemas/ScheduledDeletion"
+            "$ref": "#/components/schemas/PlannedDeletion"
           },
           "removal": {
-            "$ref": "#/components/schemas/PlannedRemoval"
+            "$ref": "#/components/schemas/StuckRemoval"
           },
           "missing": {
             "$ref": "#/components/schemas/MissingMedia"
@@ -4037,7 +4037,7 @@
         ],
         "additionalProperties": false
       },
-      "PlannedRemoval": {
+      "StuckRemoval": {
         "type": "object",
         "properties": {
           "release": {
@@ -4078,7 +4078,7 @@
           "errored"
         ]
       },
-      "ScheduledDeletion": {
+      "PlannedDeletion": {
         "type": "object",
         "properties": {
           "deletesAt": {
@@ -4126,17 +4126,17 @@
           "remove",
           "importAnyway",
           "keep",
-          "dismiss",
+          "letGo",
           "searchReleases",
-          "snooze"
+          "ignoreAndWait"
         ]
       },
       "FixKind": {
         "type": "string",
         "enum": [
           "importBlocked",
-          "scheduledDeletion",
-          "removalPlanned",
+          "plannedDeletion",
+          "stuckRemoval",
           "noSource"
         ]
       },
@@ -4195,7 +4195,7 @@
             "type": "string"
           },
           "kind": {
-            "$ref": "#/components/schemas/LibraryKind"
+            "$ref": "#/components/schemas/TitleKind"
           },
           "title": {
             "type": "string"
@@ -4280,13 +4280,6 @@
           "wanted",
           "notAvailable",
           "notMonitored"
-        ]
-      },
-      "LibraryKind": {
-        "type": "string",
-        "enum": [
-          "movie",
-          "series"
         ]
       },
       "RunningActivity": {

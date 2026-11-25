@@ -1,8 +1,8 @@
 import type { UpcomingItem } from "@quai/api"
 import type { Detected } from "../fixes/Detected.ts"
 import type { SeedCleanup } from "../integrations/cleanuparr.ts"
-import { dayOf, instantOf } from "../releases/Day.ts"
-import type { DayRelease } from "../releases/Today.ts"
+import { dayOf, instantOf } from "../home/Day.ts"
+import type { DayRelease } from "../releases/ReleaseDays.ts"
 
 /**
  * Upcoming's rows (packages/api `Upcoming.ts`), made from what the services plan. Pure: each
@@ -40,7 +40,7 @@ export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease
     const at = first.airsAt ?? instantOf(day, "00:00", zone) / 1000
     return {
       id: `release-${first.id.replace(":", "-")}`,
-      kind: "release",
+      kind: "releaseDay",
       service: first.kind === "episode" ? "sonarr" : "radarr",
       title: first.title,
       ...(episode === undefined ? {} : { episode }),
@@ -55,18 +55,24 @@ export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease
 
 // What goes.
 
+/**
+ * When a planned deletion or a stuck removal shows, in epoch seconds: a date already past means the
+ * service does it at its next run, so it shows now. Space back orders the same moments with it.
+ */
+export const dueAt = (atSeconds: number, now: number): number => Math.max(atSeconds, Math.floor(now / 1000))
+
 /** Reclaimerr's planned deletions; one whose date passed goes at its next run, shown now. */
-export const deletionItems = (detected: ReadonlyArray<Detected>, now: number, frees: ReadonlyMap<number, number>): ReadonlyArray<UpcomingItem> =>
+export const plannedDeletionItems = (detected: ReadonlyArray<Detected>, now: number, frees: ReadonlyMap<number, number>): ReadonlyArray<UpcomingItem> =>
   detected.flatMap((d): ReadonlyArray<UpcomingItem> => {
     if (d.fix.deletion === undefined || d.target.kind !== "candidate") return []
     const freesBytes = frees.get(d.target.candidateId)
     return [{
       id: d.fix.id,
-      kind: "deletion",
+      kind: "plannedDeletion",
       service: "reclaimerr",
       title: d.fix.title,
       ...(d.fix.posterUrl === undefined ? {} : { posterUrl: d.fix.posterUrl }),
-      at: Math.max(d.fix.deletion.deletesAt, Math.floor(now / 1000)),
+      at: dueAt(d.fix.deletion.deletesAt, now),
       timed: false,
       earliest: false,
       ...(freesBytes === undefined ? {} : { freesBytes }),
@@ -75,7 +81,7 @@ export const deletionItems = (detected: ReadonlyArray<Detected>, now: number, fr
   })
 
 /** Cleanuparr's stuck removals: at its next queue cleaning, if the download is still stuck then. */
-export const removalItems = (detected: ReadonlyArray<Detected>, now: number): ReadonlyArray<UpcomingItem> =>
+export const stuckRemovalItems = (detected: ReadonlyArray<Detected>, now: number): ReadonlyArray<UpcomingItem> =>
   detected.flatMap((d): ReadonlyArray<UpcomingItem> =>
     d.fix.removal === undefined ? [] : [{
       id: d.fix.id,
@@ -84,7 +90,7 @@ export const removalItems = (detected: ReadonlyArray<Detected>, now: number): Re
       title: d.fix.title,
       ...(d.fix.posterUrl === undefined ? {} : { posterUrl: d.fix.posterUrl }),
       // A run Cleanuparr was due for already: the next one, soon.
-      at: Math.max(d.fix.removal.removesAt ?? 0, Math.floor(now / 1000)),
+      at: dueAt(d.fix.removal.removesAt ?? 0, now),
       timed: d.fix.removal.removesAt !== undefined && d.fix.removal.removesAt * 1000 >= now,
       earliest: true,
       fixId: d.fix.id

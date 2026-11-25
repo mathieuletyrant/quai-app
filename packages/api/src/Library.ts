@@ -1,9 +1,9 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { Service } from "./Service.ts"
+import { TitleKind } from "./Title.ts"
 
-export const LibraryKind = Schema.Literals(["movie", "series"]).annotate({ identifier: "LibraryKind" })
-export type LibraryKind = typeof LibraryKind.Type
 
 /**
  * Where a title stands:
@@ -32,7 +32,7 @@ export const EpisodeCount = Schema.Struct({
 export const LibraryItem = Schema.Struct({
   /** `movie:<radarr id>` or `series:<sonarr id>`: unique in the list. */
   id: Schema.String,
-  kind: LibraryKind,
+  kind: TitleKind,
   title: Schema.String,
   year: Schema.optionalKey(Schema.Int),
   /** The title's TMDB id, when Radarr or Sonarr knows it: how a search result finds it in the library. */
@@ -64,7 +64,7 @@ export const DiskSpace = Schema.Struct({
 }).annotate({ identifier: "DiskSpace" })
 export type DiskSpace = typeof DiskSpace.Type
 
-export const LibraryService = Schema.Literals(["radarr", "sonarr"]).annotate({ identifier: "LibraryService" })
+export const LibraryService = Service.pick(["radarr", "sonarr"]).annotate({ identifier: "LibraryService" })
 
 export const Library = Schema.Struct({
   /** Newest first. */

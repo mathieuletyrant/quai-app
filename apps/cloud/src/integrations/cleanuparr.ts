@@ -196,7 +196,7 @@ export const struckDownloads = (input: Pick<RemovalInput, "downloads" | "setting
  * strike that reaches the limit; a download that recovers loses its strikes instead (when its rule
  * says so), and goes from the list.
  */
-export const plannedRemovals = (input: RemovalInput): ReadonlyArray<Detected<RemovalTarget>> =>
+export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<RemovalTarget>> =>
   struckDownloads(input).flatMap((download): ReadonlyArray<Detected<RemovalTarget>> => {
     const found = input.queued(download.downloadId)
     if (found === undefined) return []
@@ -232,7 +232,7 @@ export const plannedRemovals = (input: RemovalInput): ReadonlyArray<Detected<Rem
     return [{
       fix: {
         id: FixId.removal(download.downloadItemId),
-        kind: "removalPlanned",
+        kind: "stuckRemoval",
         service: "cleanuparr",
         title: media.title,
         ...(media.year === undefined ? {} : { year: media.year }),
@@ -240,7 +240,7 @@ export const plannedRemovals = (input: RemovalInput): ReadonlyArray<Detected<Rem
         reason: kind.reason === "failedImport" ? media.messages[0] ?? kind.words : kind.words,
         ...(Number.isFinite(since) ? { since } : {}),
         // Keep adds the download id to the ignore list: only a torrent hash or a SABnzbd job, which Quai Home lets through.
-        actions: HomeProtocol.isDownloadId(download.downloadId) ? ["keep", "dismiss"] : ["dismiss"],
+        actions: HomeProtocol.isDownloadId(download.downloadId) ? ["keep", "letGo"] : ["letGo"],
         removal: {
           release: download.title,
           reason: kind.reason,

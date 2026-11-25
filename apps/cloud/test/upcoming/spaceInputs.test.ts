@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
-import { seasonOfRelease } from "../../src/integrations/arr.ts"
+import { epochSeconds, seasonOfRelease } from "../../src/integrations/arr.ts"
 import type { SeedCleanup } from "../../src/integrations/cleanuparr.ts"
 import type { FinishedTorrent } from "../../src/integrations/qbittorrent.ts"
 import { RadarrMovies } from "../../src/integrations/radarr.ts"
-import { CandidatePage, candidateTitleKey } from "../../src/integrations/reclaimerr.ts"
+import { type Candidate, CandidatePage, candidateTitleKey, type PlannedCandidate } from "../../src/integrations/reclaimerr.ts"
 import { SonarrSeries } from "../../src/integrations/sonarr.ts"
 import { grabKey, grabsByHash, libraryHolds, type SpaceReads, spaceInputs } from "../../src/upcoming/SpaceInputs.ts"
 import { grabsSince, maxGrabLookbackMs } from "../../src/upcoming/Upcoming.ts"
@@ -66,28 +66,34 @@ describe("whether the library still holds a title", () => {
   })
 })
 
+/** A candidate as the planned deletion it would be, whatever its state. */
+const planned = (candidate: Candidate): PlannedCandidate => ({
+  candidate,
+  deletesAt: epochSeconds(candidate.auto_delete_eligible_at) ?? 0,
+  operation: candidate.delete_operation === "move" ? "move" : "delete" })
+
 describe("the title a Reclaimerr deletion takes", () => {
   it("a movie version is the Radarr movie only when it weighs the same", () => {
-    expect(candidateTitleKey(runner(), { movies: radarrMovie() })).toBe("movie:55")
-    expect(candidateTitleKey(runner(), { movies: radarrMovie({ sizeOnDisk: 2 * 7268360548 }) })).toBeUndefined()
-    expect(candidateTitleKey({ ...runner(), scope: "movie" }, { movies: radarrMovie({ sizeOnDisk: 1 }) })).toBe("movie:55")
-    expect(candidateTitleKey({ ...runner(), delete_operation: "move" }, { movies: radarrMovie() })).toBeUndefined()
-    expect(candidateTitleKey(runner(), {})).toBeUndefined()
+    expect(candidateTitleKey(planned(runner()), { movies: radarrMovie() })).toBe("movie:55")
+    expect(candidateTitleKey(planned(runner()), { movies: radarrMovie({ sizeOnDisk: 2 * 7268360548 }) })).toBeUndefined()
+    expect(candidateTitleKey(planned({ ...runner(), scope: "movie" }), { movies: radarrMovie({ sizeOnDisk: 1 }) })).toBe("movie:55")
+    expect(candidateTitleKey(planned({ ...runner(), delete_operation: "move" }), { movies: radarrMovie() })).toBeUndefined()
+    expect(candidateTitleKey(planned(runner()), {})).toBeUndefined()
   })
 
   it("a season, or the whole series; an episode is only part of it", () => {
     const vampire = candidates().find((c) => c.media_type === "series")!
     const series = Schema.decodeUnknownSync(SonarrSeries)([{ id: 12, title: "Vampire Diaries", tvdbId: 1, tmdbId: vampire.tmdb_id }])
-    expect(candidateTitleKey(vampire, { series })).toBe(`series:12:s${vampire.season_number}`)
-    expect(candidateTitleKey({ ...vampire, scope: "series" }, { series })).toBe("series:12")
-    expect(candidateTitleKey({ ...vampire, scope: "episode" }, { series })).toBeUndefined()
+    expect(candidateTitleKey(planned(vampire), { series })).toBe(`series:12:s${vampire.season_number}`)
+    expect(candidateTitleKey(planned({ ...vampire, scope: "series" }), { series })).toBe("series:12")
+    expect(candidateTitleKey(planned({ ...vampire, scope: "episode" }), { series })).toBeUndefined()
   })
 })
 
 describe("space back's input", () => {
   const reads = (overrides: Partial<SpaceReads> = {}): SpaceReads => ({
     now,
-    candidates: [runner()],
+    planned: [planned(runner())],
     movies: radarrMovie(),
     series: null,
     radarrGrabs: [{ movieId: 55, date: "2026-11-01T00:00:00Z", downloadId: "AAA" }],

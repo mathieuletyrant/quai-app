@@ -6,6 +6,7 @@ import {
   type AlertSettings,
   AlertSettings as AlertSettingsSchema,
   alertKinds,
+  currentAlertKind as currentKind,
   defaultAlertSettings,
   type HomeOffline,
   type JournalSource,
@@ -60,11 +61,23 @@ const StoredAlert = Schema.Struct({
 })
 type StoredAlert = typeof StoredAlert.Type
 
+const renamedKeys = (doc: object): object =>
+  Object.fromEntries(Object.entries(doc).map(([key, value]) => [String(currentKind(key)), value]))
+
+/** An alert stored under an older kind: its kind and the start of its id follow. */
+const renamedAlert = (alert: unknown): unknown => {
+  if (typeof alert !== "object" || alert === null || !("kind" in alert) || !("id" in alert)) return alert
+  const kind = currentKind(alert.kind)
+  if (kind === alert.kind || typeof alert.id !== "string") return alert
+  return { ...alert, kind, id: `${String(kind)}${alert.id.slice(String(alert.kind).length)}` }
+}
+
 const decodeAlertSettings = Schema.decodeUnknownOption(AlertSettingsSchema)
 /** Saved before a kind existed, the settings get its defaults; the others are kept. */
 const decodeSettings = (doc: unknown) =>
-  decodeAlertSettings(typeof doc === "object" && doc !== null ? { ...defaultAlertSettings, ...doc } : doc)
-const decodeActive = Schema.decodeUnknownOption(Schema.Array(StoredAlert))
+  decodeAlertSettings(typeof doc === "object" && doc !== null ? { ...defaultAlertSettings, ...renamedKeys(doc) } : doc)
+const decodeStoredAlerts = Schema.decodeUnknownOption(Schema.Array(StoredAlert))
+const decodeActive = (doc: unknown) => decodeStoredAlerts(Array.isArray(doc) ? doc.map(renamedAlert) : doc)
 
 export const alertId = (kind: AlertKind, scope: string, what: string) => `${kind}:${scope}:${what}`
 

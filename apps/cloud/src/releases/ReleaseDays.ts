@@ -3,7 +3,8 @@ import type { Read } from "../home/HomeReads.ts"
 import { epochSeconds, posterOf, QueuePage, type QueueRecord } from "../integrations/arr.ts"
 import { RadarrCalendar, radarrCalendarPath, radarrCalendarQueuePath, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
 import { episodeCode, SonarrCalendar, sonarrCalendarPath, sonarrCalendarQueuePath, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
-import { dayOf, dayRange, instantOf, nextDay } from "./Day.ts"
+import { dayOf, dayRange, instantOf, nextDay } from "../home/Day.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 
 /**
  * Where a release of the day stands: `available` (its file is there), `downloading` (in the
@@ -18,7 +19,7 @@ export interface DayRelease {
   readonly id: string
   readonly kind: "episode" | "movie"
   /** The library title it belongs to: `series:<sonarr id>` for an episode, `movie:<radarr id>`. */
-  readonly libraryId: string
+  readonly libraryId: LibraryId.LibraryId
   /** The series' or the movie's title. */
   readonly title: string
   /** "S02E03" */
@@ -116,7 +117,7 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
       release: {
         id: `episode:${e.id}`,
         kind: "episode",
-        libraryId: `series:${e.seriesId}`,
+        libraryId: LibraryId.series(e.seriesId),
         title: e.series?.title ?? "Unknown series",
         episode: episodeCode(e.seasonNumber, e.episodeNumber),
         ...(e.title === undefined || e.title === "" || e.title === "TBA" ? {} : { episodeTitle: e.title }),
@@ -136,7 +137,7 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
       release: {
         id: `movie:${m.id}`,
         kind: "movie",
-        libraryId: `movie:${m.id}`,
+        libraryId: LibraryId.movie(m.id),
         title: m.title,
         ...(posterUrl === undefined ? {} : { posterUrl }),
         status

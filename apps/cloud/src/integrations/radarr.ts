@@ -5,6 +5,7 @@ import { knownId, movieKey } from "../flows/Events.ts"
 import { ArrImage, epochSeconds, grabsSincePath, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
 import type { Integration } from "./Integration.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 
 const Movie = Schema.Struct({
   title: Schema.String,
@@ -146,7 +147,7 @@ export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string>
   const posterUrl = posterOf(movie.images)
   const addedAt = epochSeconds(movie.added)
   return {
-    id: `movie:${movie.id}`,
+    id: LibraryId.movie(movie.id),
     kind: "movie",
     title: movie.title,
     ...(year === undefined ? {} : { year }),

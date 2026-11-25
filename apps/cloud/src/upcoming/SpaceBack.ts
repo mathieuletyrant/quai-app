@@ -5,10 +5,12 @@
  * services, this decides. Whatever Quai can't be sure of gives no space at all: a row says "+X GB"
  * only when its own moment is surely the last copy going.
  */
+import type { TitleKind } from "@quai/api"
 import type { CleanupTiming } from "../integrations/cleanuparr.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 
-/** A title as the library holds it: `movie:<radarr id>`, `series:<sonarr id>`, a season `series:<id>:s<n>`. */
-export type TitleKey = string
+/** A title as the library holds it (`LibraryId`): a movie, a series, a season. */
+export type TitleKey = LibraryId.LibraryId
 
 /** A deletion Reclaimerr plans, as space back needs it. */
 export interface DeletionInput {
@@ -59,10 +61,9 @@ export interface SpaceBack {
   readonly torrents: ReadonlyMap<string, number>
 }
 
-const kindOf = (key: TitleKey): "movie" | "series" => key.startsWith("movie:") ? "movie" : "series"
+const kindOf = (key: TitleKey): TitleKind => LibraryId.parse(key)?.kind ?? "series"
 
-/** The whole title a key belongs to: `series:5:s2` → `series:5`. */
-const titleOf = (key: TitleKey) => key.split(":").slice(0, 2).join(":")
+const titleOf = LibraryId.titleOf
 
 /** Whether deleting `deleted` takes the files of `files`: the same title, or a season of the series deleted. */
 export const covers = (deleted: TitleKey, files: TitleKey) => deleted === files || (deleted === titleOf(deleted) && titleOf(files) === deleted)

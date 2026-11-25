@@ -9,7 +9,7 @@ extension AlertKind {
         case .serviceDown: "A service stops answering"
         case .diskLow: "The media disk runs low"
         case .arrHealth: "Radarr, Sonarr or Prowlarr report a problem"
-        case .deletionPlanned: "Reclaimerr plans to delete a title"
+        case .plannedDeletion: "Reclaimerr plans to delete a title"
         }
     }
 }

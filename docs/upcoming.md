@@ -68,7 +68,7 @@ A service Quai Home doesn't reach is never mentioned. One that didn't answer get
 - Allowlist additions (Quai Home protocol 9): Cleanuparr `GET /api/configuration/download_cleaner` and
   `GET /api/jobs/DownloadCleaner`, Radarr's and Sonarr's `GET /api/v3/config/mediamanagement`. The
   history and the finished torrents were already allowed.
-- Code: `upcoming/Rows.ts` (the rows), `upcoming/SpaceInputs.ts` and `upcoming/SpaceBack.ts` (the space),
+- Code: `upcoming/Rows.ts` (the rows), `reclaimerr.ts` `plannedDeletions` (the planned deletions, read once), `upcoming/SpaceInputs.ts` and `upcoming/SpaceBack.ts` (the space),
   `seedCleanups` in `integrations/cleanuparr.ts`, all pure and tested; `upcoming/Upcoming.ts` only reads.
 
 ## Later

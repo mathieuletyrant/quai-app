@@ -15,7 +15,7 @@ import { Hub } from "./integrations/Hub.ts"
 import { Journal } from "./journal/Journal.ts"
 import { Library } from "./library/Library.ts"
 import { Notifier } from "./push/Notifier.ts"
-import { HomeTime } from "./releases/HomeTime.ts"
+import { HomeTime } from "./home/HomeTime.ts"
 import { Requests } from "./requests/Requests.ts"
 import { Upcoming } from "./upcoming/Upcoming.ts"
 

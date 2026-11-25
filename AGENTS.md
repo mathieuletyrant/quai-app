@@ -29,6 +29,11 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 
 Everything in the repo is in English: code, comments, UI strings, docs, commit messages.
 
+## Code
+
+- Names say what a value is, in loops and callbacks too: `movie`, `candidate`, `index`, `entry`. One letter is never a name.
+- Comments carry what the code can't: why, a service's quirk, a gotcha. A doc comment on an export says what it is in a line; the names tell the rest.
+
 ## Effect
 
 - `effect` and `@effect/*` are pinned to **4.1.4** through the `catalog:` in `pnpm-workspace.yaml`. Never bump them unasked: `effect/http`, `effect/http-api` and `effect/sql` are marked unstable.
@@ -68,7 +73,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 ## Tests
 
-- **No feature merged without its test.**
+- **Test relentlessly.** Every change comes with its tests: a feature, a fix (a test that goes red on the bug first), each branch of a rule, and its edges (empty, missing, offline, a date already past, a service that didn't answer). A change is done when every behaviour it adds or touches has a test.
 - `@effect/vitest` (`it.effect`); move time with `TestClock.adjust`, never real waits.
 - Routes: `HttpApiTest.groups(QuaiApi, [...])` with `NodeHttpServer.layerTest`.
 - Quai Home in Cloud tests: `makeFakeHome` with `recordedHome(routes, overrides)` (`"radarr GET /api/v3/queue"` → fixture). It enforces the real allowlist and fails the test on a refused call or watch.

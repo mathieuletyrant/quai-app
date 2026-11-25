@@ -15,7 +15,7 @@ import { HomeReads } from "../home/HomeReads.ts"
 import { byPreference, epochSeconds, ManualImportRows, type QueueRecord, ReleaseRecords, toRelease } from "../integrations/arr.ts"
 import { excluding, settingsRead } from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
-import { CandidatePage, candidatesPath, protectPath, protectReason, scheduledDeletions } from "../integrations/reclaimerr.ts"
+import { candidatesRead, plannedDeletionFixes, plannedDeletions, protectPath, protectReason } from "../integrations/reclaimerr.ts"
 import { Journal } from "../journal/Journal.ts"
 import type { Detected, FixTarget, RemovalTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
@@ -30,15 +30,18 @@ import {
   type QueuedOf
 } from "./MediaFixes.ts"
 import { movies } from "./movies.ts"
-import { deletionsWithPosters, plannedRemovalsRead } from "./Planned.ts"
+import { deletionsWithPosters, stuckRemovalsRead } from "./Planned.ts"
 import { series } from "./series.ts"
 
-/** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
+/**
+ * Where what the user hid is kept, at home: `fixes/snoozed/<fix id>` (ignored for now),
+ * `fixes/dismissed/<fix id>` (let go). The paths are older than the names and stay as they are.
+ */
 export const hiddenPrefix = "fixes/"
-const snoozedKey = (id: string) => `fixes/snoozed/${id}`
-export const dismissedKey = (id: string) => `fixes/dismissed/${id}`
+const ignoredKey = (id: string) => `fixes/snoozed/${id}`
+export const letGoKey = (id: string) => `fixes/dismissed/${id}`
 
-/** A snooze: until a date, or (no `until`) until the problem goes away, a release grabbed. */
+/** Ignored for now: until a date, or (no `until`) until the problem goes away, a release grabbed. */
 const Hidden = Schema.Struct({ at: Schema.Number, until: Schema.optional(Schema.Number) })
 const decodeHidden = Schema.decodeUnknownOption(Hidden)
 
@@ -47,7 +50,7 @@ const releaseSearchTimeoutMs = 55_000
 
 type FixError = HomeOffline | HttpApiError.NotFound | InvalidFix | FixFailed
 
-const order: Record<Fix["kind"], number> = { scheduledDeletion: 0, removalPlanned: 1, noSource: 2, importBlocked: 3 }
+const order: Record<Fix["kind"], number> = { plannedDeletion: 0, stuckRemoval: 1, noSource: 2, importBlocked: 3 }
 const goesAt = (fix: Fix) => fix.deletion?.deletesAt ?? fix.removal?.removesAt ?? 0
 const byUrgency = (a: Detected, b: Detected) =>
   order[a.fix.kind] - order[b.fix.kind] ||
@@ -80,8 +83,8 @@ export class Fixes extends Context.Service<Fixes, {
   readonly importPreview: (id: string) => Effect.Effect<ImportPreview, FixError>
   readonly importDownload: (id: string, assignments: ImportAssignments) => Effect.Effect<void, FixError>
   readonly keep: (id: string) => Effect.Effect<void, FixError>
-  readonly dismiss: (id: string) => Effect.Effect<void, FixError>
-  readonly snooze: (id: string, days: number | undefined) => Effect.Effect<void, FixError>
+  readonly letGo: (id: string) => Effect.Effect<void, FixError>
+  readonly ignoreAndWait: (id: string, days: number | undefined) => Effect.Effect<void, FixError>
   readonly releases: (id: string) => Effect.Effect<Releases, FixError>
   readonly grab: (id: string, release: { readonly guid: string; readonly indexerId: number }) => Effect.Effect<void, FixError>
 }>()("quai/Fixes") {
@@ -114,8 +117,8 @@ export class Fixes extends Context.Service<Fixes, {
           const asked = (service: FixService) => (only === undefined || only === service) && reached.includes(service)
           const none = Effect.succeed(Option.none<never>())
           const [candidates, planned, ...found] = yield* Effect.all([
-            asked("reclaimerr") ? reads.read({ service: "reclaimerr", path: candidatesPath, schema: CandidatePage }) : none,
-            asked("cleanuparr") ? plannedRemovalsRead(reads) : none,
+            asked("reclaimerr") ? reads.read(candidatesRead) : none,
+            asked("cleanuparr") ? stuckRemovalsRead(reads) : none,
             ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
           ], { concurrency: "unbounded" })
           const outcomes: ReadonlyArray<readonly [FixService, Option.Option<unknown>]> = [
@@ -124,12 +127,11 @@ export class Fixes extends Context.Service<Fixes, {
             ...media.map((adapter, i) => [adapter.service, found[i]!] as const)
           ]
           const unavailable = outcomes.flatMap(([service, value]) => asked(service) && Option.isNone(value) ? [service] : [])
-          const deletions = Option.isNone(candidates)
-            ? []
-            : only === undefined
-            ? yield* deletionsWithPosters(reads, candidates.value.items)
+          const due = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
+          const deletions = only === undefined
+            ? yield* deletionsWithPosters(reads, due)
             // Acting on a deletion needs no poster.
-            : scheduledDeletions(candidates.value.items)
+            : plannedDeletionFixes(due)
           const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) => Option.getOrElse(problems, () => []))
           return {
             detected: [...deletions, ...Option.getOrElse(planned, () => []), ...detected].sort(byUrgency),
@@ -275,20 +277,20 @@ export class Fixes extends Context.Service<Fixes, {
             }
           }),
 
-        dismiss: (id) =>
+        letGo: (id) =>
           Effect.gen(function*() {
-            const found = yield* offering(id, "dismiss")
+            const found = yield* offering(id, "letGo")
             const at = yield* Clock.currentTimeMillis
-            yield* acted("dismiss", "Dismissed", found, Effect.mapError(documents.put(dismissedKey(id), { at }), toOffline))
+            yield* acted("letGo", "Let go", found, Effect.mapError(documents.put(letGoKey(id), { at }), toOffline))
           }),
 
-        snooze: (id, days) =>
+        ignoreAndWait: (id, days) =>
           Effect.gen(function*() {
-            const found = yield* offering(id, "snooze")
+            const found = yield* offering(id, "ignoreAndWait")
             const at = yield* Clock.currentTimeMillis
-            yield* acted("snooze", days === undefined ? "Snoozed until a release is grabbed" : `Snoozed for ${days} day${days === 1 ? "" : "s"}`,
+            yield* acted("ignoreAndWait", days === undefined ? "Ignored until a release is grabbed" : `Ignored for ${days} day${days === 1 ? "" : "s"}`,
               found,
-              Effect.mapError(documents.put(snoozedKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
+              Effect.mapError(documents.put(ignoredKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
             )
           }),
 

@@ -1,22 +1,23 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { Service } from "./Service.ts"
 
 /**
  * The To fix list: problems found by fixed rules (no AI) in what Quai Home reads, each with its own
- * one-tap fix. Computed when asked, never stored; what the user chose to hide (snoozed, let go) is
- * kept at home.
+ * one-tap fix. Computed when asked, never stored; what the user chose to hide (ignored for now, let
+ * go) is kept at home.
  *
  * - `importBlocked`: a finished download Radarr or Sonarr won't import.
- * - `scheduledDeletion`: a title Reclaimerr is going to delete.
- * - `removalPlanned`: a download Cleanuparr removes from the queue at its next strike.
+ * - `plannedDeletion`: a title Reclaimerr is going to delete.
+ * - `stuckRemoval`: a download Cleanuparr removes from the queue at its next strike.
  * - `noSource`: a monitored title still without a file, and no release grabbed for it, 2 hours
  *   after it was added or became available (aired, for an episode).
  */
-export const FixKind = Schema.Literals(["importBlocked", "scheduledDeletion", "removalPlanned", "noSource"]).annotate({ identifier: "FixKind" })
+export const FixKind = Schema.Literals(["importBlocked", "plannedDeletion", "stuckRemoval", "noSource"]).annotate({ identifier: "FixKind" })
 export type FixKind = typeof FixKind.Type
 
-export const FixService = Schema.Literals(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({ identifier: "FixService" })
+export const FixService = Service.pick(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({ identifier: "FixService" })
 export type FixService = typeof FixService.Type
 
 /**
@@ -25,11 +26,11 @@ export type FixService = typeof FixService.Type
  * - `importAnyway`: import its files as Radarr or Sonarr matched them (or to the episodes chosen);
  * - `keep`: protect the title in Reclaimerr, for good; or exclude the download from Cleanuparr's
  *   queue cleaner, for good;
- * - `dismiss`: let the deletion or the removal happen, and stop showing it;
+ * - `letGo`: let the deletion or the removal happen, and stop showing it;
  * - `searchReleases`: list the releases the indexers have, to grab one;
- * - `snooze`: hide it until a release is grabbed, or for some days.
+ * - `ignoreAndWait`: hide it until a release is grabbed, or for some days.
  */
-export const FixAction = Schema.Literals(["remove", "importAnyway", "keep", "dismiss", "searchReleases", "snooze"]).annotate({
+export const FixAction = Schema.Literals(["remove", "importAnyway", "keep", "letGo", "searchReleases", "ignoreAndWait"]).annotate({
   identifier: "FixAction"
 })
 export type FixAction = typeof FixAction.Type
@@ -43,12 +44,13 @@ export const BlockedDownload = Schema.Struct({
   downloadClient: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "BlockedDownload" })
 
-/** `scheduledDeletion`: when Reclaimerr deletes (or moves) the title. */
-export const ScheduledDeletion = Schema.Struct({
+/** `plannedDeletion`: when Reclaimerr deletes (or moves) the title. */
+export const PlannedDeletion = Schema.Struct({
   /** Epoch seconds. In the past: it goes at Reclaimerr's next cleanup run. */
   deletesAt: Schema.Finite,
   operation: Schema.Literals(["delete", "move"])
-}).annotate({ identifier: "ScheduledDeletion" })
+}).annotate({ identifier: "PlannedDeletion" })
+export type PlannedDeletion = typeof PlannedDeletion.Type
 
 /**
  * Why Cleanuparr strikes a download: stalled, downloading too slowly (or too long), an import that
@@ -59,8 +61,8 @@ export const RemovalReason = Schema.Literals(["stalled", "slow", "failedImport",
 })
 export type RemovalReason = typeof RemovalReason.Type
 
-/** `removalPlanned`: the download, its strikes, and when Cleanuparr strikes again. */
-export const PlannedRemoval = Schema.Struct({
+/** `stuckRemoval`: the download, its strikes, and when Cleanuparr strikes again. */
+export const StuckRemoval = Schema.Struct({
   /** The release, as the download client names it. */
   release: Schema.String,
   reason: RemovalReason,
@@ -69,8 +71,8 @@ export const PlannedRemoval = Schema.Struct({
   maxStrikes: Schema.Int,
   /** Epoch seconds of Cleanuparr's next queue cleaning, when it's scheduled: the strike that removes it. */
   removesAt: Schema.optionalKey(Schema.Finite)
-}).annotate({ identifier: "PlannedRemoval" })
-export type PlannedRemoval = typeof PlannedRemoval.Type
+}).annotate({ identifier: "StuckRemoval" })
+export type StuckRemoval = typeof StuckRemoval.Type
 
 /** `noSource`: what has no file. A series' missing episodes are grouped by season. */
 export const MissingMedia = Schema.Struct({
@@ -98,15 +100,15 @@ export const Fix = Schema.Struct({
   /** The actions offered, the main one first. */
   actions: Schema.Array(FixAction),
   download: Schema.optionalKey(BlockedDownload),
-  deletion: Schema.optionalKey(ScheduledDeletion),
-  removal: Schema.optionalKey(PlannedRemoval),
+  deletion: Schema.optionalKey(PlannedDeletion),
+  removal: Schema.optionalKey(StuckRemoval),
   missing: Schema.optionalKey(MissingMedia)
 }).annotate({ identifier: "Fix" })
 export type Fix = typeof Fix.Type
 
 export const Fixes = Schema.Struct({
   items: Schema.Array(Fix),
-  /** How many problems are hidden for now (snoozed, or let go). */
+  /** How many fixes are hidden for now (ignored for now, or let go). */
   hidden: Schema.Int,
   /** Services Quai Home reaches that couldn't be read this time: their problems are missing. */
   unavailable: Schema.Array(FixService)
@@ -152,11 +154,11 @@ export const RemoveDownload = Schema.Struct({
 }).annotate({ identifier: "RemoveDownload" })
 export type RemoveDownload = typeof RemoveDownload.Type
 
-export const SnoozeFix = Schema.Struct({
+export const IgnoreAndWait = Schema.Struct({
   /** Hide it this many days. Left out: until a release is grabbed for it. */
   days: Schema.optionalKey(Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 365 })))
-}).annotate({ identifier: "SnoozeFix" })
-export type SnoozeFix = typeof SnoozeFix.Type
+}).annotate({ identifier: "IgnoreAndWait" })
+export type IgnoreAndWait = typeof IgnoreAndWait.Type
 
 /** One file of a blocked download, as Radarr or Sonarr's manual import sees it. */
 export const ImportFile = Schema.Struct({
@@ -234,10 +236,10 @@ export class FixesGroup extends HttpApiGroup.make("fixes")
     }).annotate(OpenApi.Identifier, "importDownload"),
     HttpApiEndpoint.post("keep", "/fixes/:id/keep", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
       .annotate(OpenApi.Identifier, "keepTitle"),
-    HttpApiEndpoint.post("dismiss", "/fixes/:id/dismiss", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, "dismissFix"),
-    HttpApiEndpoint.post("snooze", "/fixes/:id/snooze", { params: id, payload: SnoozeFix, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
-      .annotate(OpenApi.Identifier, "snoozeFix"),
+    HttpApiEndpoint.post("letGo", "/fixes/:id/let-go", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "letGoFix"),
+    HttpApiEndpoint.post("ignoreAndWait", "/fixes/:id/ignore-and-wait", { params: id, payload: IgnoreAndWait, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+      .annotate(OpenApi.Identifier, "ignoreAndWaitFix"),
     HttpApiEndpoint.get("releases", "/fixes/:id/releases", {
       params: id,
       success: Releases,

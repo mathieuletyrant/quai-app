@@ -5,6 +5,7 @@ import { knownId, seriesKey } from "../flows/Events.ts"
 import type { Read } from "../home/HomeReads.ts"
 import { ArrImage, epochSeconds, grabsSincePath, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import type { Integration } from "./Integration.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
@@ -144,7 +145,7 @@ export const librarySeries = (series: SonarrSeries, webBases: ReadonlyArray<stri
   const have = Math.trunc(series.statistics?.episodeFileCount ?? 0)
   const total = Math.trunc(series.statistics?.episodeCount ?? 0)
   return {
-    id: `series:${series.id}`,
+    id: LibraryId.series(series.id),
     kind: "series",
     title: series.title,
     ...(year === undefined ? {} : { year }),
