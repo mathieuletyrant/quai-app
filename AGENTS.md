@@ -82,12 +82,17 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - Quai Home in Cloud tests: `makeFakeHome` with `recordedHome(routes, overrides)` (`"radarr GET /api/v3/queue"` → fixture). It enforces the real allowlist and fails the test on a refused call or watch.
 - *arr adapters: recorded real responses (fixtures), never calls to the real stack.
 - Responses recorded from a real home live in `apps/cloud/test/fixtures/real` (its README says how they were changed) and `test/real.test.ts` runs the adapters on them: identity across services (TMDB, TVDB, IMDb ids, download hashes) is tested there first.
-- Scale: `apps/cloud/test/scale.test.ts` checks each screen's pure computation stays linear on the real home copied over (`test/bigHome.ts`); `pnpm bench` gives the numbers (`test/bench`). A lookup inside a loop goes through a Map or Set built once.
+- Scale: `apps/cloud/test/scale.test.ts` checks the pure computations behind Upcoming, To fix and the Library stay linear on the real home copied over (`test/bigHome.ts`); `pnpm bench` gives the numbers (`test/bench`). A lookup inside a loop goes through a Map or Set built once.
 - Contract: a test checks `openapi.json`. After changing `packages/api`, run `pnpm gen:openapi` and commit the file.
 
 ## Commits and releases
 
 [Conventional Commits](https://www.conventionalcommits.org): `feat:` → minor, `fix:` → patch, `chore:`/`docs:`/`refactor:` → no release. release-please turns `main` into a release PR; merging it tags, releases and publishes `ghcr.io/mathieuletyrant/quai`.
+
+**A PR you open is yours until it merges.** Right after opening it, subscribe to its activity (in Claude Code on the
+web, `subscribe_pr_activity`) and see it through: fix a failing CI job, and answer every AI review finding, fixed in a
+commit or, when it is wrong, a reply saying why (the review's tuning reads the replies). Unsubscribe once it is merged
+or closed.
 
 ## Commands
 
