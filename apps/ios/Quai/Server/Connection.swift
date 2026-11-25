@@ -231,7 +231,7 @@ final class Connection {
         let client = try await requiredClient()
         let read = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
         // Before they show: a request's activity read as media would flash in the live bar.
-        await learnSubjects(of: read)
+        flowSubjects = await Self.subjects(for: read, known: flowSubjects) { try? await self.flows() }
         activities = read
         lastError = nil
         hasAnswered = true
@@ -253,12 +253,15 @@ final class Connection {
         await refresh()
     }
 
-    /// A flow seen for the first time (a new custom one, or the first refresh): learn what it follows.
-    private func learnSubjects(of activities: [RunningActivity]) async {
-        guard activities.contains(where: { flowSubjects[$0.attributes.flowId] == nil }),
-              let all = try? await flows()
-        else { return }
-        flowSubjects = Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
+    /// What each flow follows, by flow id: read again when an activity's flow is new (a new custom
+    /// one, or the first refresh). A failed read keeps what was known.
+    static func subjects(
+        for activities: [RunningActivity],
+        known: [String: Components.Schemas.FlowSubject],
+        load: () async -> [Components.Schemas.FlowSummary]?
+    ) async -> [String: Components.Schemas.FlowSubject] {
+        guard activities.contains(where: { known[$0.attributes.flowId] == nil }), let all = await load() else { return known }
+        return Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
     }
 
     // MARK: Library

@@ -51,4 +51,11 @@ struct UpcomingScheduleTests {
         #expect(schedule.goingThisWeek([deletion, seed]) == "2 going this week")
         #expect(schedule.goingThisWeek([release]) == nil)
     }
+
+    @Test func saysTheFreedSpaceAfterTheDateOnlyWhenItComesBack() throws {
+        let freeing = try item(#"{"id":"d","kind":"deletion","service":"reclaimerr","title":"Vampire Diaries S06","at":1796032800,"timed":false,"earliest":false,"freesBytes":24491050987}"#)
+        #expect(freeing.freedText == "· +" + Format.bytes(24_491_050_987))
+        let keeping = try item(#"{"id":"k","kind":"deletion","service":"reclaimerr","title":"Runner","at":1796032800,"timed":false,"earliest":false}"#)
+        #expect(keeping.freedText == nil)
+    }
 }

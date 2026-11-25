@@ -27,6 +27,9 @@ extension Components.Schemas.UpcomingItem {
     /// A deletion or a stuck removal opens its To fix card.
     var opensFix: Bool { fixId != nil }
 
+    /// After the date: "· +24.49 GB", when the space surely comes back.
+    var freedText: String? { freesBytes.map { "· +" + Format.bytes($0) } }
+
     /// A row opens something: To fix, or the title of a release.
     var opens: Bool { opensFix || libraryId != nil }
 }
@@ -311,8 +314,8 @@ struct UpcomingRow: View {
                 HStack(spacing: 4) {
                     Text(when)
                         .foregroundStyle(Palette.secondaryText)
-                    if let freesBytes = item.freesBytes {
-                        Text("· +" + Format.bytes(freesBytes))
+                    if let freesBytes = item.freesBytes, let freedText = item.freedText {
+                        Text(freedText)
                             .fontWeight(.semibold)
                             .foregroundStyle(Palette.ok)
                             .accessibilityLabel("frees \(Format.bytes(freesBytes))")
