@@ -14,7 +14,7 @@ describe("Live Activity buttons", () => {
   const refreshed: Array<string> = []
   const jellyfin: Integration = {
     service: "jellyfin",
-    actions: { "playback.playPause": (a) => Effect.sync(() => void ran.push(`playPause ${a.subjectKey}`)) }
+    actions: { "playback.playPause": (activity) => Effect.sync(() => void ran.push(`playPause ${activity.subjectKey}`)) }
   }
   const layer = ActionRunner.layer.pipe(
     Layer.provideMerge(engineWith([download, playback])),
@@ -27,7 +27,7 @@ describe("Live Activity buttons", () => {
         beat: Effect.void,
         sync: Effect.void,
         handle: () => Effect.void,
-        refresh: (s) => Effect.sync(() => void refreshed.push(s))
+        refresh: (service) => Effect.sync(() => void refreshed.push(service))
       })
     ])
   )

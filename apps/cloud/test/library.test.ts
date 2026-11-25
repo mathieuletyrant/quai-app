@@ -69,7 +69,7 @@ describe("library adapters", () => {
   it.effect("reads Sonarr's series: available once every expected episode has a file", () =>
     Effect.gen(function*() {
       const series = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series.json"))
-      expect(series.map((one) => librarySeries(one)).map((s) => [s.title, s.status, s.episodes, s.posterUrl, s.tmdbId])).toEqual([
+      expect(series.map((one) => librarySeries(one)).map((item) => [item.title, item.status, item.episodes, item.posterUrl, item.tmdbId])).toEqual([
         ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg", 95396],
         ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg", 136315]
       ])
@@ -122,7 +122,7 @@ describe("GET /api/library", () => {
       for (const event of sonarrEvents(grab)) yield* (yield* Activities).handle(event)
 
       const library = yield* api.library.library()
-      expect(library.items.map((i) => [i.id, i.status])).toEqual([
+      expect(library.items.map((item) => [item.id, item.status])).toEqual([
         ["movie:48", "wanted"],
         ["movie:51", "notAvailable"],
         ["series:3", "downloading"],
@@ -131,7 +131,7 @@ describe("GET /api/library", () => {
       ])
       expect(library.disk).toEqual({ freeBytes: 759102349312, totalBytes: 1800360124416 })
       expect(library.unavailable).toEqual([])
-      expect(home.calls.map((c) => `${c.service} ${c.method} ${c.path}`).sort()).toEqual([
+      expect(home.calls.map((call) => `${call.service} ${call.method} ${call.path}`).sort()).toEqual([
         "radarr GET /api/v3/diskspace",
         "radarr GET /api/v3/movie",
         "sonarr GET /api/v3/series"
@@ -145,8 +145,8 @@ describe("GET /api/library", () => {
         webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"], sonarr: ["https://sonarr.example.com"] }
       })
       const items = (yield* api.library.library()).items
-      expect(items.find((i) => i.id === "movie:12")?.webUrls).toEqual(["http://umbrel.local:7878/movie/693134", "https://radarr.example.com/movie/693134"])
-      expect(items.find((i) => i.id === "series:3")?.webUrls).toEqual(["https://sonarr.example.com/series/severance"])
+      expect(items.find((item) => item.id === "movie:12")?.webUrls).toEqual(["http://umbrel.local:7878/movie/693134", "https://radarr.example.com/movie/693134"])
+      expect(items.find((item) => item.id === "series:3")?.webUrls).toEqual(["https://sonarr.example.com/series/severance"])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("no link for a title without its slug, and the slug is escaped", () =>
@@ -160,7 +160,7 @@ describe("GET /api/library", () => {
   it.effect("no link when Quai Home gave no address", () =>
     Effect.gen(function*() {
       const { api } = yield* phoneOn({ answer: recorded })
-      expect((yield* api.library.library()).items.every((i) => i.webUrls === undefined)).toBe(true)
+      expect((yield* api.library.library()).items.every((item) => item.webUrls === undefined)).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service that doesn't answer is unavailable; the others still show", () =>
@@ -170,7 +170,7 @@ describe("GET /api/library", () => {
       })
       const library = yield* api.library.library()
       expect(library.unavailable).toEqual(["sonarr"])
-      expect(library.items.map((i) => i.kind)).toEqual(["movie", "movie", "movie"])
+      expect(library.items.map((item) => item.kind)).toEqual(["movie", "movie", "movie"])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("Quai Home dropping while the library is read is 503 HomeOffline, not a service unavailable", () =>
@@ -186,9 +186,9 @@ describe("GET /api/library", () => {
         answer: recordedHome(routes, { "sonarr GET /api/v3/diskspace": "radarr/diskspace.json" })
       })
       const library = yield* api.library.library()
-      expect(library.items.map((i) => i.id)).toEqual(["series:3", "series:7"])
+      expect(library.items.map((item) => item.id)).toEqual(["series:3", "series:7"])
       expect(library.disk?.totalBytes).toBe(1800360124416)
-      expect(home.calls.every((c) => c.service === "sonarr")).toBe(true)
+      expect(home.calls.every((call) => call.service === "sonarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("needs the iPhone's token", () =>

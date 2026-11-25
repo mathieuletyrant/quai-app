@@ -67,7 +67,7 @@ describe("recorded responses", () => {
 
 describe("one title through every service, by its ids", () => {
   const series = real(SonarrSeries, "real/sonarr/series")
-  const ourHouse = series.find((s) => s.id === 233)!
+  const ourHouse = series.find((show) => show.id === 233)!
 
   it("Sonarr knows it by TVDB and IMDb, not TMDB (0): the library item carries what Sonarr knows", () => {
     expect(ourHouse).toMatchObject({ title: "Our House (2022)", tvdbId: 407046, tmdbId: 0 })
@@ -78,27 +78,27 @@ describe("one title through every service, by its ids", () => {
 
   it("Seerr finds it as \"Notre maison\" with its TMDB and TVDB ids: the app links the two by TVDB", () => {
     const results = searchResults(real(SeerrSearchPage, "real/seerr/search-our-house"))
-    expect(results.map((r) => [r.title, r.year, r.tmdbId, r.tvdbId, r.state])).toEqual([
+    expect(results.map((result) => [result.title, result.year, result.tmdbId, result.tvdbId, result.state])).toEqual([
       ["Our House", 1986, 10625, undefined, "requestable"],
       ["Our House", 1960, 29516, undefined, "requestable"],
       ["Notre maison", 2022, 157014, 407046, "available"]
     ])
     // The namesakes share the name, not the id.
-    expect(results.filter((r) => r.tvdbId === librarySeries(ourHouse).tvdbId).map((r) => r.tmdbId)).toEqual([157014])
+    expect(results.filter((result) => result.tvdbId === librarySeries(ourHouse).tvdbId).map((result) => result.tmdbId)).toEqual([157014])
     expect(seasonChoices(real(SeerrSeries, "real/seerr/tv-our-house"))).toEqual([{ number: 1, episodes: 4, state: "available" }])
   })
 
   it("the grab's download id is qBittorrent's torrent hash, in another case", () => {
     // As Sonarr answered (Quai's schema keeps only what fixes read): S01E01 and S01E02 of the pack.
     const grabs = (fixture("real/sonarr/history-since.json") as ReadonlyArray<{ episodeId: number; downloadId: string }>)
-      .filter((g) => g.episodeId === 6493 || g.episodeId === 6494)
+      .filter((grab) => grab.episodeId === 6493 || grab.episodeId === 6494)
     expect(grabs).toHaveLength(2)
     // A season pack: one grab per episode, the same download.
-    expect(new Set(grabs.map((g) => g.downloadId)).size).toBe(1)
+    expect(new Set(grabs.map((grab) => grab.downloadId)).size).toBe(1)
     const hash = grabs[0]!.downloadId.toLowerCase()
     const torrents = real(Torrents, "real/qbittorrent/torrents-info")
     // The torrent's name isn't the release Sonarr grabbed: only the hash links them.
-    const torrent = torrents.find((t) => t.hash === hash)
+    const torrent = torrents.find((entry) => entry.hash === hash)
     expect(torrent).toBeDefined()
     expect(progressEvent(torrent!)).toEqual({ type: "download.progress", downloadId: hash, values: { progress: 1, bytesPerSecond: 0 } })
   })
@@ -110,25 +110,25 @@ describe("one title through every service, by its ids", () => {
     expect(matchItem(real(ItemsResult, "jellyfin/latest-series"), lookup)).toBe("1d44f2954a4209050a6e45617780e347")
     expect(hasEpisodes(real(EpisodesResult, "jellyfin/episodes-notre-maison"), lookup)).toBe(true)
     // Sonarr's episodes are the same four.
-    expect(real(SonarrEpisodes, "real/sonarr/episodes").map((e) => [e.seasonNumber, e.episodeNumber])).toEqual([[1, 1], [1, 2], [1, 3], [1, 4]])
+    expect(real(SonarrEpisodes, "real/sonarr/episodes").map((episode) => [episode.seasonNumber, episode.episodeNumber])).toEqual([[1, 1], [1, 2], [1, 3], [1, 4]])
   })
 })
 
 describe("the library", () => {
   it("reads each movie where it stands: on disk, wanted, or announced", () => {
-    const movies = real(RadarrMovies, "real/radarr/movies").map((m) => libraryMovie(m))
-    expect(movies.map((m) => [m.title, m.status, m.tmdbId])).toEqual([
+    const movies = real(RadarrMovies, "real/radarr/movies").map((movie) => libraryMovie(movie))
+    expect(movies.map((item) => [item.title, item.status, item.tmdbId])).toEqual([
       ["28 Jours plus tard", "available", 170],
       ["Hershey", "wanted", 1461490],
       ["Avengers : Doomsday", "notAvailable", 1003596]
     ])
     // The public poster, never Radarr's own (key-bound) URL.
-    expect(movies.every((m) => m.posterUrl?.startsWith("https://image.tmdb.org/") === true)).toBe(true)
+    expect(movies.every((item) => item.posterUrl?.startsWith("https://image.tmdb.org/") === true)).toBe(true)
   })
 
   it("reads each series with Sonarr's own count, and the media disk", () => {
-    const series = real(SonarrSeries, "real/sonarr/series").map((s) => librarySeries(s))
-    expect(series.map((s) => [s.title, s.status, s.episodes])).toEqual([
+    const series = real(SonarrSeries, "real/sonarr/series").map((show) => librarySeries(show))
+    expect(series.map((item) => [item.title, item.status, item.episodes])).toEqual([
       ["Our House (2022)", "available", { have: 4, total: 4 }],
       ["Harlan Coben's Lazarus", "available", { have: 6, total: 6 }],
       // Seasons 1 to 3 aren't monitored: only the missing aired episode of season 4 counts.
@@ -142,7 +142,7 @@ describe("today's releases", () => {
   const inputs = { episodes: real(SonarrCalendar, "real/sonarr/calendar"), movies: real(RadarrCalendar, "real/radarr/calendar"), sonarrQueue: [], radarrQueue: [] }
 
   it("on the 24th in Paris: the episode already here, the movie out today and still missing", () => {
-    expect(dayReleases("2026-11-24", "Europe/Paris", inputs).map((r) => [r.id, r.title, r.episode, r.status])).toEqual([
+    expect(dayReleases("2026-11-24", "Europe/Paris", inputs).map((release) => [release.id, release.title, release.episode, release.status])).toEqual([
       ["episode:6415", "Phony", "S01E07", "available"],
       ["movie:285", "Warrior Kid", undefined, "missing"]
     ])
@@ -150,11 +150,11 @@ describe("today's releases", () => {
 
   it("on the 25th: two episodes still to come, a title \"TBA\" left out", () => {
     const releases = dayReleases("2026-11-25", "Europe/Paris", inputs)
-    expect(releases.map((r) => [r.id, r.episode, r.status])).toEqual([
+    expect(releases.map((release) => [release.id, release.episode, release.status])).toEqual([
       ["episode:5204", "S03E07", "missing"],
       ["episode:5205", "S03E08", "missing"]
     ])
-    expect(releases.every((r) => r.episodeTitle === undefined)).toBe(true)
+    expect(releases.every((release) => release.episodeTitle === undefined)).toBe(true)
   })
 })
 
@@ -162,7 +162,7 @@ describe("to fix", () => {
   it("movies out with no release grabbed since; the announced one isn't due yet", () => {
     const missing = real(RadarrMissing, "real/radarr/wanted-missing").records
     const fixes = moviesWithoutSource(missing, [], real(RadarrGrabs, "real/radarr/history-since"), now)
-    expect(fixes.map((f) => [f.fix.id, f.fix.title, f.fix.reason])).toEqual([
+    expect(fixes.map((detected) => [detected.fix.id, detected.fix.title, detected.fix.reason])).toEqual([
       ["missing-movie-285", "Warrior Kid", "No release grabbed since it came out"],
       ["missing-movie-232", "Union County", "No release grabbed since it came out"]
     ])
@@ -170,12 +170,12 @@ describe("to fix", () => {
 
   it("an episode aired two days ago with no release grabbed", () => {
     const fixes = episodesWithoutSource(real(SonarrMissing, "real/sonarr/wanted-missing").records, [], real(SonarrGrabs, "real/sonarr/history-since"), now)
-    expect(fixes.map((f) => [f.fix.id, f.fix.title, f.fix.reason])).toEqual([["missing-season-105-4", "Tracker (2024) · S04E07", "No release grabbed since it aired"]])
+    expect(fixes.map((detected) => [detected.fix.id, detected.fix.title, detected.fix.reason])).toEqual([["missing-season-105-4", "Tracker (2024) · S04E07", "No release grabbed since it aired"]])
   })
 
   it("Reclaimerr's scheduled deletions, soonest first, a movie's poster from Radarr when it has it", () => {
     const deletions = plannedDeletionFixes(plannedDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items), { movies: real(RadarrMovies, "real/radarr/movies") })
-    expect(deletions.map((d) => [d.fix.id, d.fix.title])).toEqual([
+    expect(deletions.map((detected) => [detected.fix.id, detected.fix.title])).toEqual([
       ["deletion-7", "Vampire Diaries S06"],
       ["deletion-8", "Chainsaw Man – Le Film : L'arc de Reze"],
       ["deletion-9", "Runner"]

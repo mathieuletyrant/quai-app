@@ -18,7 +18,7 @@ const rules = () => settings().clients[0]!.seedingRules
 /** The fixture's rules replaced, for the client Quai reads. */
 const withRules = (seedingRules: ReadonlyArray<SeedingRule>) => {
   const base = settings()
-  return { ...base, clients: base.clients.map((c) => ({ ...c, seedingRules })) }
+  return { ...base, clients: base.clients.map((client) => ({ ...client, seedingRules })) }
 }
 
 const torrent = (overrides: Partial<SeedingTorrent> = {}): SeedingTorrent => ({
@@ -76,27 +76,27 @@ describe("seed cleanups", () => {
   it("go at the next run once due; with only a ratio, have no date", () => {
     const nextRunAt = now + 2 * hour
     expect(run([torrent({ seeding_time: 2160 * 3600 - 60 })], { nextRunAt })[0]?.at).toBe(nextRunAt)
-    const ratioOnly = withRules(rules().map((r) => ({ ...r, maxRatio: 2, maxSeedTime: -1 })))
+    const ratioOnly = withRules(rules().map((rule) => ({ ...rule, maxRatio: 2, maxSeedTime: -1 })))
     expect(run([torrent({ ratio: 1 })], { settings: ratioOnly })[0]?.at).toBeUndefined()
     expect(run([torrent({ ratio: 2.5 })], { settings: ratioOnly, nextRunAt })[0]).toMatchObject({ at: nextRunAt, timing: "at" })
   })
 
   it("with a ratio too, the seed time is only the latest it goes", () => {
-    const both = withRules(rules().map((r) => ({ ...r, maxRatio: 2 })))
+    const both = withRules(rules().map((rule) => ({ ...rule, maxRatio: 2 })))
     expect(run([torrent({ ratio: 1 })], { settings: both })[0]?.timing).toBe("by")
   })
 
   it("waiting for seeders or inactivity, the date is only the earliest", () => {
-    const waiting = withRules(rules().map((r) => ({ ...r, minSeeders: 5 })))
+    const waiting = withRules(rules().map((rule) => ({ ...rule, minSeeders: 5 })))
     expect(run([torrent()], { settings: waiting })[0]?.timing).toBe("from")
-    const inactive = withRules(rules().map((r) => ({ ...r, maxInactiveDays: 7 })))
+    const inactive = withRules(rules().map((rule) => ({ ...rule, maxInactiveDays: 7 })))
     expect(run([torrent()], { settings: inactive })[0]?.timing).toBe("from")
   })
 
   it("a stopped torrent gets no closer to its limits: only what's due already goes", () => {
     expect(run([torrent({ state: "stoppedUP", seeding_time: 3600 })])).toEqual([])
     expect(run([torrent({ state: "pausedUP", seeding_time: 2160 * 3600 })])[0]?.at).toBe(now)
-    const stop = withRules(rules().map((r) => ({ ...r, action: "Stop" })))
+    const stop = withRules(rules().map((rule) => ({ ...rule, action: "Stop" })))
     expect(run([torrent({ state: "stoppedUP", seeding_time: 2160 * 3600 })], { settings: stop })).toEqual([])
     expect(run([torrent()], { settings: stop })[0]?.freesFiles).toBe(false)
   })

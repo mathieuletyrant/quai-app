@@ -11,13 +11,13 @@ const fromEnv = (env: Record<string, string>) =>
   PublicAccess.layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))))
 
 const failure = (text: string) =>
-  Effect.flip(parseAccessHeaders(text)).pipe(Effect.map((e) => e.message))
+  Effect.flip(parseAccessHeaders(text)).pipe(Effect.map((error) => error.message))
 
 describe("QUAI_CLOUD_PUBLIC_HEADERS", () => {
   it.effect("reads Name: value pairs separated by ; or line breaks", () =>
     Effect.gen(function*() {
       const headers = yield* parseAccessHeaders(`${cloudflare};\n X-Token :  a b  \n`)
-      expect(headers.map((h) => [h.name, Redacted.value(h.value)])).toEqual([
+      expect(headers.map((header) => [header.name, Redacted.value(header.value)])).toEqual([
         ["CF-Access-Client-Id", "abc123.access"],
         ["CF-Access-Client-Secret", "s3cr3t+/=="],
         ["X-Token", "a b"]

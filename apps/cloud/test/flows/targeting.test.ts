@@ -30,29 +30,29 @@ const push = (tag: Push["_tag"], over: Partial<Activity> = {}): Push => ({ _tag:
 
 describe("per-iPhone steps", () => {
   it("every step by default, the flow's look in the attributes", () => {
-    const d = deliveryFor(push("Start"), download, { ...fresh, preferences: { flows: {} } }, 0)
-    expect(d._tag).toBe("Start")
-    if (d._tag === "Start") {
-      expect(d.attributes).toMatchObject({ flowId: "download", color: "#FFC230", icon: "arrow.down", title: "Dune" })
-      expect(d.attributes.steps.map((s) => s.id)).toEqual(["searching", "downloading", "importing", "available"])
-      expect(d.content).toEqual({ step: 0, tone: "active" })
+    const delivery = deliveryFor(push("Start"), download, { ...fresh, preferences: { flows: {} } }, 0)
+    expect(delivery._tag).toBe("Start")
+    if (delivery._tag === "Start") {
+      expect(delivery.attributes).toMatchObject({ flowId: "download", color: "#FFC230", icon: "arrow.down", title: "Dune" })
+      expect(delivery.attributes.steps.map((step) => step.id)).toEqual(["searching", "downloading", "importing", "available"])
+      expect(delivery.content).toEqual({ step: 0, tone: "active" })
     }
   })
 
   it("hiding Searching: nothing at first, the start comes with Downloading, indexes shift", () => {
-    const p = prefs(["searching"])
-    expect(deliveryFor(push("Start"), download, { ...fresh, preferences: p }, 0)._tag).toBe("None")
-    const d = deliveryFor(push("Update", { stepIndex: 1, values: { progress: 0.4, bytesPerSecond: 9, remainingSeconds: 5 } }), download, { ...fresh, preferences: p }, 0)
-    expect(d._tag).toBe("Start")
-    if (d._tag === "Start") {
-      expect(d.attributes.steps.map((s) => s.id)).toEqual(["downloading", "importing", "available"])
-      expect(d.content).toEqual({ step: 0, tone: "active", progress: 0.4, bytesPerSecond: 9, remainingSeconds: 5 })
+    const preferences = prefs(["searching"])
+    expect(deliveryFor(push("Start"), download, { ...fresh, preferences }, 0)._tag).toBe("None")
+    const delivery = deliveryFor(push("Update", { stepIndex: 1, values: { progress: 0.4, bytesPerSecond: 9, remainingSeconds: 5 } }), download, { ...fresh, preferences }, 0)
+    expect(delivery._tag).toBe("Start")
+    if (delivery._tag === "Start") {
+      expect(delivery.attributes.steps.map((step) => step.id)).toEqual(["downloading", "importing", "available"])
+      expect(delivery.content).toEqual({ step: 0, tone: "active", progress: 0.4, bytesPerSecond: 9, remainingSeconds: 5 })
     }
   })
 
   it("values a step doesn't show are left out", () => {
-    const d = deliveryFor(push("Update", { stepIndex: 2, values: { progress: 1 } }), download, { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: prefs() }, 0)
-    expect(d._tag === "Update" && d.content).toEqual({ step: 2, tone: "active" })
+    const delivery = deliveryFor(push("Update", { stepIndex: 2, values: { progress: 1 } }), download, { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: prefs() }, 0)
+    expect(delivery._tag === "Update" && delivery.content).toEqual({ step: 2, tone: "active" })
   })
 
   it("the end stays the flow's linger; a turned-off flow gets nothing", () => {
@@ -62,37 +62,37 @@ describe("per-iPhone steps", () => {
   })
 
   it("playback: the timeline in seconds for the iPhone to animate, and the buttons in the attributes", () => {
-    const d = deliveryFor(
+    const delivery = deliveryFor(
       { _tag: "Start", activity: activity({ flowId: "playback", values: { paused: false, startsAt: 20_000, endsAt: 120_500, detail: "TV Salon" } }) },
       playback,
       { ...fresh, preferences: { flows: {} } },
       0
     )
-    expect(d._tag === "Start" && d.content).toEqual({ step: 0, tone: "active", endsAt: 120, startsAt: 20, paused: false, detail: "TV Salon" })
-    expect(d._tag === "Start" && d.attributes.steps).toEqual([
+    expect(delivery._tag === "Start" && delivery.content).toEqual({ step: 0, tone: "active", endsAt: 120, startsAt: 20, paused: false, detail: "TV Salon" })
+    expect(delivery._tag === "Start" && delivery.attributes.steps).toEqual([
       { id: "playing", label: "Playing", icon: "play.fill", actions: ["playback.playPause", "playback.stop"] }
     ])
   })
 
   it("playback paused: the bar holds at its fraction", () => {
-    const d = deliveryFor(
+    const delivery = deliveryFor(
       { _tag: "Update", activity: activity({ flowId: "playback", values: { paused: true, progress: 0.25 } }) },
       playback,
       { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: { flows: {} } },
       0
     )
-    expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", paused: true, progress: 0.25 })
+    expect(delivery._tag === "Update" && delivery.content).toEqual({ step: 0, tone: "active", paused: true, progress: 0.25 })
   })
 
   it("playback paused: sent even when the step doesn't show the countdown, for the label and the button", () => {
-    const withoutTimer = { ...playback, steps: playback.steps.map((s) => ({ ...s, show: {} })) }
-    const d = deliveryFor(
+    const withoutTimer = { ...playback, steps: playback.steps.map((step) => ({ ...step, show: {} })) }
+    const delivery = deliveryFor(
       { _tag: "Update", activity: activity({ flowId: "playback", values: { paused: true, progress: 0.25 } }) },
       withoutTimer,
       { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: { flows: {} } },
       0
     )
-    expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", paused: true })
+    expect(delivery._tag === "Update" && delivery.content).toEqual({ step: 0, tone: "active", paused: true })
   })
 
   it("swiped away: stays away while nothing changes, starts again on a pause, a resume or a step", () => {
@@ -106,13 +106,13 @@ describe("per-iPhone steps", () => {
   })
 
   it("playback ignores an old Progress setting: the countdown stays, with no stale fraction", () => {
-    const withProgress = { ...playback, steps: playback.steps.map((s) => ({ ...s, show: { ...s.show, progress: true } })) }
-    const d = deliveryFor(
+    const withProgress = { ...playback, steps: playback.steps.map((step) => ({ ...step, show: { ...step.show, progress: true } })) }
+    const delivery = deliveryFor(
       { _tag: "Update", activity: activity({ flowId: "playback", values: { paused: false, progress: 0, startsAt: 20_000, endsAt: 120_000 } }) },
       withProgress,
       { pushToStartToken: "pts", activityToken: "act", shown: true, preferences: { flows: {} } },
       0
     )
-    expect(d._tag === "Update" && d.content).toEqual({ step: 0, tone: "active", endsAt: 120, startsAt: 20, paused: false })
+    expect(delivery._tag === "Update" && delivery.content).toEqual({ step: 0, tone: "active", endsAt: 120, startsAt: 20, paused: false })
   })
 })

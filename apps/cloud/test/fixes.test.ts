@@ -87,13 +87,13 @@ const setUp = (options: FakeHomeOptions = {}) =>
   })
 
 const writes = (home: FakeHome) =>
-  home.calls.filter((c) => c.method !== "GET").map((c) => ({ service: c.service, method: c.method, path: c.path, body: c.body }))
+  home.calls.filter((call) => call.method !== "GET").map((call) => ({ service: call.service, method: call.method, path: call.path, body: call.body }))
 
 describe("To fix rules", () => {
   it("import blocked: Radarr's blocked and warning-pending downloads, with the *arr's reason", () => {
     const queue = decode(QueuePage, "radarr/queue.json").records
     const blocked = queue.filter(isImportBlocked).map(blockedMovie)
-    expect(blocked.map((d) => [d.fix.id, d.fix.title, d.fix.actions])).toEqual([
+    expect(blocked.map((detected) => [detected.fix.id, detected.fix.title, detected.fix.actions])).toEqual([
       ["blocked-radarr-41", "Dune: Part Two", ["remove"]],
       ["blocked-radarr-42", "Mouse", ["importAnyway", "remove"]],
       ["blocked-radarr-43", "Some.Removed.Movie.2019.1080p.BluRay.x264-SPARKS", ["remove"]]
@@ -125,29 +125,29 @@ describe("To fix rules", () => {
     const queue = decode(QueuePage, "radarr/queue.json").records
     const grabs = decode(RadarrGrabs, "radarr/history-since.json")
     // Arco: added an hour ago. Mickey 17: grabbed yesterday. Mouse, The Wild Robot: in the queue. Nero: not out yet.
-    expect(moviesWithoutSource(missing, queue, grabs, now).map((d) => [d.fix.id, d.fix.reason])).toEqual([
+    expect(moviesWithoutSource(missing, queue, grabs, now).map((detected) => [detected.fix.id, detected.fix.reason])).toEqual([
       ["missing-movie-48", "No release grabbed since it was added"]
     ])
-    const later = moviesWithoutSource(missing, queue, grabs, now + 3600_000).map((d) => d.fix.id)
+    const later = moviesWithoutSource(missing, queue, grabs, now + 3600_000).map((detected) => detected.fix.id)
     expect(later).toEqual(["missing-movie-52", "missing-movie-48"])
     // Exactly 2 hours after Arco was added: it's a problem from that instant.
     const arco = Date.parse("2026-11-19T11:00:00Z")
-    expect(moviesWithoutSource(missing, queue, grabs, arco + noSourceAfterMs - 1).map((d) => d.fix.id)).not.toContain("missing-movie-52")
-    expect(moviesWithoutSource(missing, queue, grabs, arco + noSourceAfterMs).map((d) => d.fix.id)).toContain("missing-movie-52")
+    expect(moviesWithoutSource(missing, queue, grabs, arco + noSourceAfterMs - 1).map((detected) => detected.fix.id)).not.toContain("missing-movie-52")
+    expect(moviesWithoutSource(missing, queue, grabs, arco + noSourceAfterMs).map((detected) => detected.fix.id)).toContain("missing-movie-52")
   })
 
   it("no source: never a title Radarr or Sonarr isn't monitoring", () => {
     const missing = decode(RadarrMissing, "radarr/wanted-missing.json").records
-    expect(moviesWithoutSource(missing, [], [], now + 3600_000).map((d) => d.fix.id)).toContain("missing-movie-48")
-    const unmonitored = missing.map((m) => ({ ...m, monitored: false }))
+    expect(moviesWithoutSource(missing, [], [], now + 3600_000).map((detected) => detected.fix.id)).toContain("missing-movie-48")
+    const unmonitored = missing.map((movie) => ({ ...movie, monitored: false }))
     expect(moviesWithoutSource(unmonitored, [], [], now + 3600_000)).toEqual([])
     const episodes = decode(SonarrMissing, "sonarr/wanted-missing.json").records
     expect(episodesWithoutSource(episodes, [], [], now)).not.toEqual([])
-    expect(episodesWithoutSource(episodes.map((e) => ({ ...e, monitored: false })), [], [], now)).toEqual([])
+    expect(episodesWithoutSource(episodes.map((episode) => ({ ...episode, monitored: false })), [], [], now)).toEqual([])
   })
 
   it("no source: a movie added before it came out waits from its release", () => {
-    const [runner] = decode(RadarrMissing, "radarr/wanted-missing.json").records.filter((m) => m.id === 48)
+    const [runner] = decode(RadarrMissing, "radarr/wanted-missing.json").records.filter((movie) => movie.id === 48)
     const early = { ...runner!, added: "2026-10-01T00:00:00Z", digitalRelease: "2026-11-19T10:30:00Z" }
     expect(moviesWithoutSource([early], [], [], now)).toEqual([])
     const [late] = moviesWithoutSource([early], [], [], now + 3600_000)
@@ -175,12 +175,12 @@ describe("To fix rules", () => {
   it("scheduled deletion: what Reclaimerr deletes on its own, soonest first, never what's protected", () => {
     const deletions = plannedDeletionFixes(plannedDeletions(decode(CandidatePage, "reclaimerr/candidates.json").items))
     // Lost: no rule deletes it on its own. Coco: protected. Brave: canceled.
-    expect(deletions.map((d) => [d.fix.title, d.fix.deletion])).toEqual([
+    expect(deletions.map((detected) => [detected.fix.title, detected.fix.deletion])).toEqual([
       ["Cars 2", { deletesAt: Date.parse("2026-11-18T03:00:00Z") / 1000, operation: "move" }],
       ["Up", { deletesAt: Date.parse("2026-11-24T03:00:00Z") / 1000, operation: "delete" }]
     ])
     expect(deletions[1]!.fix).toMatchObject({ id: "deletion-42", reason: "Unwatched for a year · Last watched more than 365 days ago", actions: ["keep", "letGo"] })
-    expect(deletions.every((d) => d.fix.posterUrl === undefined)).toBe(true)
+    expect(deletions.every((detected) => detected.fix.posterUrl === undefined)).toBe(true)
   })
 
   it("scheduled deletion: the poster of the Radarr movie it is, by TMDB id, else by title and year", () => {
@@ -188,7 +188,7 @@ describe("To fix rules", () => {
     const movies = Schema.decodeUnknownSync(RadarrMovies)(moviesWithCandidates())
     const deletions = plannedDeletionFixes(plannedDeletions(candidates), { movies })
     // Up: same TMDB id. Cars 2: Radarr has another TMDB id for it, its title and year match.
-    expect(deletions.map((d) => [d.fix.id, d.fix.posterUrl])).toEqual([["deletion-43", carsPoster], ["deletion-42", upPoster]])
+    expect(deletions.map((detected) => [detected.fix.id, detected.fix.posterUrl])).toEqual([["deletion-43", carsPoster], ["deletion-42", upPoster]])
   })
 
   it("scheduled deletion: no poster when the title can't be told apart", () => {
@@ -198,7 +198,7 @@ describe("To fix rules", () => {
     expect(candidatePoster(unknownId, { movies })).toBe(upPoster)
     // Another year, or two movies of that name: not this one.
     expect(candidatePoster({ ...unknownId, year: 1980 }, { movies })).toBeUndefined()
-    const twice = Schema.decodeUnknownSync(RadarrMovies)([...moviesWithCandidates(), { ...(moviesWithCandidates().find((m) => (m as { title: string }).title === "Up") as object), id: 999, tmdbId: 1 }])
+    const twice = Schema.decodeUnknownSync(RadarrMovies)([...moviesWithCandidates(), { ...(moviesWithCandidates().find((movie) => (movie as { title: string }).title === "Up") as object), id: 999, tmdbId: 1 }])
     expect(candidatePoster(unknownId, { movies: twice })).toBeUndefined()
     // A movie is never matched with a series, and nothing listed means no poster.
     expect(candidatePoster(unknownId, { series: Schema.decodeUnknownSync(SonarrSeries)(fixture("sonarr/series.json")) })).toBeUndefined()
@@ -206,7 +206,7 @@ describe("To fix rules", () => {
   })
 
   it("scheduled deletion: a series takes its poster from Sonarr, by TMDB id", () => {
-    const lost = decode(CandidatePage, "reclaimerr/candidates.json").items.find((c) => c.title === "Lost")!
+    const lost = decode(CandidatePage, "reclaimerr/candidates.json").items.find((candidate) => candidate.title === "Lost")!
     const recorded = fixture("sonarr/series.json") as Array<Record<string, unknown>>
     const series = Schema.decodeUnknownSync(SonarrSeries)([
       ...recorded,
@@ -222,7 +222,7 @@ describe("GET /api/fixes", () => {
     Effect.gen(function*() {
       const { api } = yield* setUp()
       const list = yield* api.list()
-      expect(list.items.map((f) => f.id)).toEqual([
+      expect(list.items.map((fix) => fix.id)).toEqual([
         "deletion-43",
         "deletion-42",
         "missing-season-3-2",
@@ -240,12 +240,12 @@ describe("GET /api/fixes", () => {
     Effect.gen(function*() {
       const { home, api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": () => ({ json: moviesWithCandidates() }) }) })
       const list = yield* api.list()
-      expect(list.items.filter((f) => f.kind === "plannedDeletion").map((f) => [f.id, f.posterUrl])).toEqual([
+      expect(list.items.filter((fix) => fix.kind === "plannedDeletion").map((fix) => [fix.id, fix.posterUrl])).toEqual([
         ["deletion-43", carsPoster],
         ["deletion-42", upPoster]
       ])
-      const paths = home.calls.map((c) => `${c.service} ${c.path.split("?")[0]}`)
-      expect(paths.filter((p) => p === "radarr /api/v3/movie")).toHaveLength(1)
+      const paths = home.calls.map((call) => `${call.service} ${call.path.split("?")[0]}`)
+      expect(paths.filter((path) => path === "radarr /api/v3/movie")).toHaveLength(1)
       // No series is going to be deleted: Sonarr's series aren't read.
       expect(paths).not.toContain("sonarr /api/v3/series")
     }).pipe(Effect.provide(TestApp)))
@@ -254,9 +254,9 @@ describe("GET /api/fixes", () => {
     Effect.gen(function*() {
       const { api } = yield* setUp({ answer: recorded({ "radarr GET /api/v3/movie": { failed: "unreachable" } }) })
       const list = yield* api.list()
-      const deletions = list.items.filter((f) => f.kind === "plannedDeletion")
-      expect(deletions.map((f) => f.id)).toEqual(["deletion-43", "deletion-42"])
-      expect(deletions.every((f) => f.posterUrl === undefined)).toBe(true)
+      const deletions = list.items.filter((fix) => fix.kind === "plannedDeletion")
+      expect(deletions.map((fix) => fix.id)).toEqual(["deletion-43", "deletion-42"])
+      expect(deletions.every((fix) => fix.posterUrl === undefined)).toBe(true)
       expect(list.unavailable).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
@@ -269,9 +269,9 @@ describe("GET /api/fixes", () => {
   it.effect("a title without a source shows up 2 hours after it was added", () =>
     Effect.gen(function*() {
       const { api } = yield* setUp()
-      expect((yield* api.list()).items.map((f) => f.id)).not.toContain("missing-movie-52")
+      expect((yield* api.list()).items.map((fix) => fix.id)).not.toContain("missing-movie-52")
       yield* TestClock.adjust("1 hour")
-      expect((yield* api.list()).items.map((f) => f.id)).toContain("missing-movie-52")
+      expect((yield* api.list()).items.map((fix) => fix.id)).toContain("missing-movie-52")
     }).pipe(Effect.provide(TestApp)))
 
   // What isn't reached or doesn't answer is HomeReads' (test/home/reads.test.ts): one smoke test here.
@@ -280,8 +280,8 @@ describe("GET /api/fixes", () => {
       const { api } = yield* setUp({ answer: recorded({ "sonarr GET /api/v3/wanted/missing": { failed: "unreachable" } }) })
       const list = yield* api.list()
       expect(list.unavailable).toEqual(["sonarr"])
-      expect(list.items.some((f) => f.service === "sonarr")).toBe(false)
-      expect(list.items.some((f) => f.service === "radarr")).toBe(true)
+      expect(list.items.some((fix) => fix.service === "sonarr")).toBe(false)
+      expect(list.items.some((fix) => fix.service === "radarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("needs the iPhone's token", () =>
@@ -307,7 +307,7 @@ describe("ignore and wait, let go", () => {
       yield* api.ignoreAndWait({ params: { id: "missing-movie-48" }, payload: {} })
       expect(home.documents.get("fixes/snoozed/missing-movie-48")).toEqual({ at: now })
       const hidden = yield* api.list()
-      expect(hidden.items.map((f) => f.id)).not.toContain("missing-movie-48")
+      expect(hidden.items.map((fix) => fix.id)).not.toContain("missing-movie-48")
       expect(hidden.hidden).toBe(1)
 
       grabbed = true
@@ -323,9 +323,9 @@ describe("ignore and wait, let go", () => {
       yield* api.ignoreAndWait({ params: { id: "missing-season-3-2" }, payload: { days: 3 } })
       expect(home.documents.get("fixes/snoozed/missing-season-3-2")).toEqual({ at: now, until: now + 3 * 86_400_000 })
       yield* TestClock.adjust("2 days")
-      expect((yield* api.list()).items.map((f) => f.id)).not.toContain("missing-season-3-2")
+      expect((yield* api.list()).items.map((fix) => fix.id)).not.toContain("missing-season-3-2")
       yield* TestClock.adjust("1 day")
-      expect((yield* api.list()).items.map((f) => f.id)).toContain("missing-season-3-2")
+      expect((yield* api.list()).items.map((fix) => fix.id)).toContain("missing-season-3-2")
       expect(home.documents.has("fixes/snoozed/missing-season-3-2")).toBe(false)
     }).pipe(Effect.provide(TestApp)))
 
@@ -346,7 +346,7 @@ describe("ignore and wait, let go", () => {
       const { home, api } = yield* setUp()
       yield* api.letGo({ params: { id: "deletion-42" } })
       expect(home.documents.get("fixes/dismissed/deletion-42")).toEqual({ at: now })
-      expect((yield* api.list()).items.map((f) => f.id)).not.toContain("deletion-42")
+      expect((yield* api.list()).items.map((fix) => fix.id)).not.toContain("deletion-42")
       expect(writes(home)).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
@@ -363,7 +363,7 @@ describe("ignore and wait, let go", () => {
       expect(nonsense._tag).toBe("NotFound")
       expect(writes(home)).toEqual([])
       expect(home.documents.size).toBeGreaterThan(0)
-      expect([...home.documents.keys()].some((k) => k.startsWith("fixes/"))).toBe(false)
+      expect([...home.documents.keys()].some((key) => key.startsWith("fixes/"))).toBe(false)
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -372,7 +372,7 @@ describe("fixes", () => {
     Effect.gen(function*() {
       const { home, api } = yield* setUp()
       yield* api.keep({ params: { id: "deletion-42" } })
-      expect(home.calls.some((c) => c.path.startsWith("/api/v3/movie"))).toBe(false)
+      expect(home.calls.some((call) => call.path.startsWith("/api/v3/movie"))).toBe(false)
       expect(writes(home)).toEqual([{ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: "Kept from Quai" } }])
     }).pipe(Effect.provide(TestApp)))
 
@@ -381,7 +381,7 @@ describe("fixes", () => {
       const { home, api } = yield* setUp()
       yield* api.remove({ params: { id: "blocked-radarr-41" }, payload: { blocklist: false } })
       yield* api.remove({ params: { id: "blocked-sonarr-7" }, payload: { blocklist: true } })
-      expect(writes(home).map((w) => `${w.service} ${w.method} ${w.path}`)).toEqual([
+      expect(writes(home).map((write) => `${write.service} ${write.method} ${write.path}`)).toEqual([
         "radarr DELETE /api/v3/queue/41?removeFromClient=true&blocklist=false&skipRedownload=true",
         "sonarr DELETE /api/v3/queue/7?removeFromClient=true&blocklist=true&skipRedownload=true"
       ])
@@ -400,14 +400,14 @@ describe("fixes", () => {
     Effect.gen(function*() {
       const { home, api } = yield* setUp()
       const releases = yield* api.releases({ params: { id: "missing-movie-48" } })
-      expect(releases.items.map((r) => [r.title, r.indexer, r.seeders, r.rejected])).toEqual([
+      expect(releases.items.map((release) => [release.title, release.indexer, release.seeders, release.rejected])).toEqual([
         ["Runner.2026.1080p.AMZN.WEB-DL.DDP5.1.H.264-FLUX", "TorrentLeech", 212, false],
         ["Runner.2026.MULTi.1080p.WEB.H264-SUPPLY", "YggTorrent", 57, false],
         ["Runner.2026.FRENCH.720p.WEB.H264-SLT", "YggTorrent", 4, true]
       ])
       expect(releases.items[1]).toMatchObject({ quality: "WEBDL-1080p", languages: ["English", "French"], sizeBytes: 4831838208, ageHours: 26, customFormatScore: 1500, protocol: "torrent" })
       expect(releases.items[2]!.rejections).toEqual(["Quality WEBDL-720p is not wanted in profile", "Language French is not wanted in profile"])
-      expect(home.calls.find((c) => c.path.startsWith("/api/v3/release"))?.path).toBe("/api/v3/release?movieId=48")
+      expect(home.calls.find((call) => call.path.startsWith("/api/v3/release"))?.path).toBe("/api/v3/release?movieId=48")
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("search releases: a season's, only those covering nothing but missing episodes", () =>
@@ -415,11 +415,11 @@ describe("fixes", () => {
       const { home, api } = yield* setUp()
       const releases = yield* api.releases({ params: { id: "missing-season-3-2" } })
       // The full season pack would replace S02E01–E08's files; the extras map no episode.
-      expect(releases.items.map((r) => r.title)).toEqual([
+      expect(releases.items.map((release) => release.title)).toEqual([
         "Severance.S02E09.1080p.ATVP.WEB-DL.DDP5.1.H.264-NTb",
         "Severance.S02E09E10.720p.ATVP.WEB-DL.DDP5.1.H.264-NTb"
       ])
-      expect(home.calls.find((c) => c.path.startsWith("/api/v3/release"))?.path).toBe("/api/v3/release?seriesId=3&seasonNumber=2")
+      expect(home.calls.find((call) => call.path.startsWith("/api/v3/release"))?.path).toBe("/api/v3/release?seriesId=3&seasonNumber=2")
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("grab: sends the release's guid and indexer, only while the title still has no file", () =>
@@ -448,7 +448,7 @@ describe("fixes", () => {
         }],
         episodes: []
       })
-      expect(home.calls.find((c) => c.path.startsWith("/api/v3/manualimport"))?.path)
+      expect(home.calls.find((call) => call.path.startsWith("/api/v3/manualimport"))?.path)
         .toBe("/api/v3/manualimport?downloadId=C3D4E5F60718293A4B5C6D7E8F90123456789012&filterExistingFiles=true")
       yield* api.import({ params: { id: "blocked-radarr-42" }, payload: { assignments: [] } })
       const [command] = writes(home)
@@ -476,9 +476,9 @@ describe("fixes", () => {
     Effect.gen(function*() {
       const { home, api } = yield* setUp()
       const preview = yield* api.importPreview({ params: { id: "blocked-sonarr-7" } })
-      expect(preview.files.map((f) => [f.file, f.needsEpisodes])).toEqual([["Amazing.Stories.Pilot.1080p.mkv", true]])
+      expect(preview.files.map((file) => [file.file, file.needsEpisodes])).toEqual([["Amazing.Stories.Pilot.1080p.mkv", true]])
       // S01E02 has its file; the special isn't offered.
-      expect(preview.episodes.map((e) => [e.id, e.seasonNumber, e.episodeNumber, e.title])).toEqual([
+      expect(preview.episodes.map((episode) => [episode.id, episode.seasonNumber, episode.episodeNumber, episode.title])).toEqual([
         [901, 1, 1, "The Cellar"],
         [903, 1, 3, "Dynoman and the Volt!!"]
       ])
@@ -503,7 +503,7 @@ describe("fixes", () => {
           releaseGroup: "NTb"
         }]
       })
-      expect(home.calls.find((c) => c.path.startsWith("/api/v3/manualimport"))?.path)
+      expect(home.calls.find((call) => call.path.startsWith("/api/v3/manualimport"))?.path)
         .toBe("/api/v3/manualimport?downloadId=0718293A4B5C6D7E8F901234567890123456789A&filterExistingFiles=true&seriesId=9")
     }).pipe(Effect.provide(TestApp)))
 })
@@ -518,9 +518,9 @@ describe("Cleanuparr's planned removals", () => {
     Effect.gen(function*() {
       const { api } = yield* setUp({ services: withCleanuparr })
       const list = yield* api.list()
-      const removals = list.items.filter((f) => f.kind === "stuckRemoval")
+      const removals = list.items.filter((fix) => fix.kind === "stuckRemoval")
       // Mouse has 1 strike of 3, Dune only dry-run ones, Night of the Living Dead left the queue, Old Movie is removed.
-      expect(removals.map((f) => f.id)).toEqual([amazingStories, wildRobot])
+      expect(removals.map((fix) => fix.id)).toEqual([amazingStories, wildRobot])
       expect(removals[1]).toEqual({
         id: wildRobot,
         kind: "stuckRemoval",
@@ -541,7 +541,7 @@ describe("Cleanuparr's planned removals", () => {
       })
       expect(removals[0]).toMatchObject({ title: expect.stringMatching(/^Amazing Stories/), removal: { reason: "failedImport", strikes: 2, maxStrikes: 3 } })
       // Listed after Reclaimerr's deletions, before the titles without a source.
-      expect(list.items.map((f) => f.kind).indexOf("stuckRemoval")).toBe(2)
+      expect(list.items.map((fix) => fix.kind).indexOf("stuckRemoval")).toBe(2)
       expect(list.unavailable).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
@@ -551,7 +551,7 @@ describe("Cleanuparr's planned removals", () => {
         services: withCleanuparr,
         answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: { ...settings(), ignoredDownloads: ["a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"] } }) })
       })
-      expect((yield* ignored.api.list()).items.filter((f) => f.kind === "stuckRemoval").map((f) => f.id)).toEqual([amazingStories])
+      expect((yield* ignored.api.list()).items.filter((fix) => fix.kind === "stuckRemoval").map((fix) => fix.id)).toEqual([amazingStories])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a queue cleaner turned off plans nothing, and the queues aren't read for it", () =>
@@ -561,8 +561,8 @@ describe("Cleanuparr's planned removals", () => {
         answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: { ...settings(), enabled: false } }) })
       })
       const list = yield* api.list()
-      expect(list.items.some((f) => f.kind === "stuckRemoval")).toBe(false)
-      expect(home.calls.filter((c) => c.service === "radarr" && c.path.startsWith("/api/v3/queue"))).toHaveLength(1)
+      expect(list.items.some((fix) => fix.kind === "stuckRemoval")).toBe(false)
+      expect(home.calls.filter((call) => call.service === "radarr" && call.path.startsWith("/api/v3/queue"))).toHaveLength(1)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("Cleanuparr not answering is unavailable; the others still show", () =>
@@ -570,15 +570,15 @@ describe("Cleanuparr's planned removals", () => {
       const { api } = yield* setUp({ services: withCleanuparr, answer: recorded({ "cleanuparr GET /api/strikes": { status: 401, body: "" } }) })
       const list = yield* api.list()
       expect(list.unavailable).toEqual(["cleanuparr"])
-      expect(list.items.some((f) => f.service === "cleanuparr")).toBe(false)
-      expect(list.items.some((f) => f.service === "radarr")).toBe(true)
+      expect(list.items.some((fix) => fix.service === "cleanuparr")).toBe(false)
+      expect(list.items.some((fix) => fix.service === "radarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("an older Quai Home doesn't reach Cleanuparr: nothing is asked of it", () =>
     Effect.gen(function*() {
       const { home, api } = yield* setUp({ services, protocol: 4 })
-      expect((yield* api.list()).items.some((f) => f.service === "cleanuparr")).toBe(false)
-      expect(home.calls.some((c) => c.service === "cleanuparr")).toBe(false)
+      expect((yield* api.list()).items.some((fix) => fix.service === "cleanuparr")).toBe(false)
+      expect(home.calls.some((call) => call.service === "cleanuparr")).toBe(false)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("keep: Cleanuparr's queue cleaner leaves the download alone, every other setting as it was", () =>
@@ -602,7 +602,7 @@ describe("Cleanuparr's planned removals", () => {
       const { home, api } = yield* setUp({ services: withCleanuparr, answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: answered }) }) })
       yield* api.keep({ params: { id: wildRobot } })
       // The fake Quai Home ran the real check against the same answer: it let it through.
-      expect(writes(home).map((w) => w.body)).toEqual([{ ...answered, ignoredDownloads: ["A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"] }])
+      expect(writes(home).map((write) => write.body)).toEqual([{ ...answered, ignoredDownloads: ["A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"] }])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("keep: settings changed since they were read are refused by Quai Home, a FixFailed", () =>
@@ -627,7 +627,7 @@ describe("Cleanuparr's planned removals", () => {
       yield* api.letGo({ params: { id: wildRobot } })
       expect(home.documents.get(`fixes/dismissed/${wildRobot}`)).toEqual({ at: now })
       const list = yield* api.list()
-      expect(list.items.map((f) => f.id)).not.toContain(wildRobot)
+      expect(list.items.map((fix) => fix.id)).not.toContain(wildRobot)
       expect(list.hidden).toBe(1)
       expect(writes(home)).toEqual([])
       const offered = yield* Effect.flip(api.ignoreAndWait({ params: { id: wildRobot }, payload: {} }))

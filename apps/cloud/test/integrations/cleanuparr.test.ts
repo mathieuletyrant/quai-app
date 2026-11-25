@@ -43,7 +43,7 @@ const input = (downloads: ReadonlyArray<StruckDownload>, overrides: Partial<Para
   slowRules: decode(slowRulesRead, "cleanuparr/slow-rules.json"),
   nextRunAt: undefined,
   queued: (downloadId: string) => {
-    const records = radarrQueue().filter((r) => r.downloadId?.toLowerCase() === downloadId.toLowerCase())
+    const records = radarrQueue().filter((record) => record.downloadId?.toLowerCase() === downloadId.toLowerCase())
     return records.length === 0 ? undefined : { media: queuedMovie(records), records }
   },
   ...overrides
@@ -53,13 +53,13 @@ const struck = (types: ReadonlyArray<string>, fields: Partial<StruckDownload> = 
   downloadItemId: "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09",
   downloadId: "C3D4E5F60718293A4B5C6D7E8F90123456789012",
   title: "Mouse.2025.MULTi.1080p.WEB.H264-SUPPLY",
-  strikes: types.map((type, i) => ({ type, createdAt: `2026-11-19T11:${String(10 + i * 5)}:00+00:00` })),
+  strikes: types.map((type, index) => ({ type, createdAt: `2026-11-19T11:${String(10 + index * 5)}:00+00:00` })),
   ...fields
 })
 
 describe("Cleanuparr: what it removes next", () => {
   it("reads its strikes, settings and rules as Cleanuparr 2.11 answers them", () => {
-    expect(strikes().map((d) => [d.title.split(".")[0], d.strikes.length])).toEqual([
+    expect(strikes().map((download) => [download.title.split(".")[0], download.strikes.length])).toEqual([
       ["The", 2],
       ["Amazing", 2],
       ["Mouse", 1],
@@ -87,7 +87,7 @@ describe("Cleanuparr: what it removes next", () => {
 
   it("one strike short of a limit, or at it and marked for removal; dry runs and turned-off checks never count", () => {
     const ids = (downloads: ReadonlyArray<StruckDownload>, overrides = {}) =>
-      stuckRemovals(input(downloads, overrides)).map((d) => `${d.fix.removal?.reason} ${d.fix.removal?.strikes}/${d.fix.removal?.maxStrikes}`)
+      stuckRemovals(input(downloads, overrides)).map((detected) => `${detected.fix.removal?.reason} ${detected.fix.removal?.strikes}/${detected.fix.removal?.maxStrikes}`)
     expect(ids([struck(["Stalled", "Stalled"])])).toEqual(["stalled 2/3"])
     expect(ids([struck(["Stalled"])])).toEqual([])
     expect(ids([struck(["Stalled", "Stalled", "Stalled"])])).toEqual([])
@@ -98,7 +98,7 @@ describe("Cleanuparr: what it removes next", () => {
     expect(ids([struck(["DownloadingMetadata", "DownloadingMetadata"])])).toEqual(["downloadingMetadata 2/3"])
     // Errored is off in the recorded settings (0 strikes).
     expect(ids([struck(["Errored", "Errored"])])).toEqual([])
-    expect(ids([struck(["Stalled", "Stalled"], { strikes: struck(["Stalled", "Stalled"]).strikes.map((s) => ({ ...s, isDryRun: true })) })])).toEqual([])
+    expect(ids([struck(["Stalled", "Stalled"], { strikes: struck(["Stalled", "Stalled"]).strikes.map((strike) => ({ ...strike, isDryRun: true })) })])).toEqual([])
     expect(ids([struck(["Stalled", "Stalled"], { isRemoved: true })])).toEqual([])
     expect(ids([struck(["DeadTorrent", "DeadTorrent"])])).toEqual([])
     // The closest to its limit wins: one strike left for the import, two for stalling.
@@ -184,13 +184,13 @@ describe("Cleanuparr: the journal of its removals", () => {
         title: "Some.Show.S03E04.1080p.WEB.h264-ETHEL"
       }
     ])
-    expect(newRemovals(events(), 0, new Set(events().map((e) => e.id)))).toEqual([])
+    expect(newRemovals(events(), 0, new Set(events().map((event) => event.id)))).toEqual([])
   })
 
   const layer = cloud(Layer.effect(Integrations, Effect.map(Effect.service(Journal), (journal) => [cleanuparr(journal)])))
     .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
-  const removedLines = Effect.map(Effect.flatMap(Effect.service(Journal), (j) => j.since(undefined)), (tail) =>
-    tail.entries.filter((e) => e.kind === "cleanuparr.removed").map((e) => e.title))
+  const removedLines = Effect.map(Effect.flatMap(Effect.service(Journal), (journal) => journal.since(undefined)), (tail) =>
+    tail.entries.filter((entry) => entry.kind === "cleanuparr.removed").map((entry) => entry.title))
 
   it.effect("watched every 5 minutes while Quai Home reaches it; each removal logged once, the last hour's on a first read", () =>
     Effect.gen(function*() {

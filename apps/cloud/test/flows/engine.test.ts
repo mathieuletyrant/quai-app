@@ -8,7 +8,7 @@ import { settle } from "../fakeHome.ts"
 import { type Subject, widenLookup } from "../../src/flows/Events.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 
-const tags = (pushes: ReadonlyArray<Push>) => pushes.map((p) => `${p._tag}:${p.activity.stepIndex}`)
+const tags = (pushes: ReadonlyArray<Push>) => pushes.map((push) => `${push._tag}:${push.activity.stepIndex}`)
 
 const run = <A, E>(effect: Effect.Effect<A, E, Activities>, flows?: ReadonlyArray<Flow>) =>
   effect.pipe(Effect.provide(engineWith(flows)))
@@ -39,17 +39,17 @@ describe("download flow", () => {
       const engine = yield* Activities
       yield* engine.handle(ev.grabbed())
       const sent: Array<Push> = []
-      for (let i = 1; i <= 12; i++) {
+      for (let second = 1; second <= 12; second++) {
         yield* TestClock.adjust("1 second")
-        sent.push(...(yield* engine.handle(ev.progress(i / 100))))
+        sent.push(...(yield* engine.handle(ev.progress(second / 100))))
       }
       // The grab went at 0 s: then 5 s, 10 s.
-      expect(sent.map((p) => p.activity.values.progress)).toEqual([0.05, 0.1])
+      expect(sent.map((push) => push.activity.values.progress)).toEqual([0.05, 0.1])
       yield* TestClock.adjust("2 seconds")
       expect(yield* engine.tick()).toEqual([])
       yield* TestClock.adjust("1 second")
       const flushed = yield* engine.tick()
-      expect(flushed.map((p) => p.activity.values.progress)).toEqual([0.12])
+      expect(flushed.map((push) => push.activity.values.progress)).toEqual([0.12])
       expect(yield* engine.tick()).toEqual([])
     })))
 
@@ -151,7 +151,7 @@ describe("download flow", () => {
       // Another download's removal leaves it alone, and so does a second one.
       expect(yield* engine.handle({ type: "download.removed", downloadId: "first" })).toEqual([])
       const regrab = yield* engine.handle(ev.grabbed("second"))
-      expect(regrab.map((p) => [p._tag, p.activity.downloadId])).toEqual([["Start", "second"]])
+      expect(regrab.map((push) => [push._tag, push.activity.downloadId])).toEqual([["Start", "second"]])
     })))
 
   it.effect("a download that trickles without gaining a percent turns grey after 2 h", () =>
@@ -164,9 +164,9 @@ describe("download flow", () => {
         yield* TestClock.adjust("10 minutes")
         yield* engine.handle(ev.progress(0.0001 + minute / 1_000_000))
       }
-      expect((yield* engine.tick()).map((p) => p.activity.tone)).toEqual(["stalled"])
+      expect((yield* engine.tick()).map((push) => push.activity.tone)).toEqual(["stalled"])
       yield* TestClock.adjust("5 seconds")
-      expect((yield* engine.handle(ev.progress(0.01))).map((p) => p.activity.tone)).toEqual(["active"])
+      expect((yield* engine.handle(ev.progress(0.01))).map((push) => push.activity.tone)).toEqual(["active"])
     })))
 
   it("moves on a new percent only", () => {
@@ -184,18 +184,18 @@ describe("download flow", () => {
       yield* TestClock.adjust("119 minutes")
       expect(yield* engine.tick()).toEqual([])
       yield* TestClock.adjust("1 minute")
-      expect((yield* engine.tick()).map((p) => p.activity.tone)).toEqual(["stalled"])
+      expect((yield* engine.tick()).map((push) => push.activity.tone)).toEqual(["stalled"])
       yield* TestClock.adjust("5 seconds")
-      expect((yield* engine.handle(ev.progress(0.01))).map((p) => p.activity.tone)).toEqual(["active"])
+      expect((yield* engine.handle(ev.progress(0.01))).map((push) => push.activity.tone)).toEqual(["active"])
     })))
 
   it.effect("a custom flow filtered to series ignores movies; both flows follow series", () => {
     const anime: Flow = { ...download, id: "anime", name: "Anime", builtIn: false, filter: { mediaType: "series" } }
     return run(Effect.gen(function*() {
       const engine = yield* Activities
-      expect((yield* engine.handle(ev.added())).map((p) => p.activity.flowId)).toEqual(["download"])
+      expect((yield* engine.handle(ev.added())).map((push) => push.activity.flowId)).toEqual(["download"])
       const show = { kind: "media" as const, key: "series:tvdb:9:dl:x", title: "Frieren · S01E01", mediaType: "series" as const }
-      expect((yield* engine.handle(ev.grabbed("x", show))).map((p) => p.activity.flowId)).toEqual(["download", "anime"])
+      expect((yield* engine.handle(ev.grabbed("x", show))).map((push) => push.activity.flowId)).toEqual(["download", "anime"])
     }), [download, anime])
   })
 
@@ -248,7 +248,7 @@ describe("playback flow", () => {
       expect(yield* engine.handle(position({ paused: false, startsAt: 3, endsAt: 3_600_004 }))).toEqual([])
       yield* TestClock.adjust("1 second")
       const paused = yield* engine.handle(position({ paused: true, progress: 0.25 }))
-      expect(paused.map((p) => p.activity.values.paused)).toEqual([true])
+      expect(paused.map((push) => push.activity.values.paused)).toEqual([true])
       yield* TestClock.adjust("1 second")
       expect((yield* engine.handle(position({ paused: false, startsAt: 0, endsAt: 3_000_000 }))).length).toBe(1)
     }), [playback]))

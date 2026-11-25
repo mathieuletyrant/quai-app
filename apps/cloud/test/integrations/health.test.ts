@@ -29,7 +29,7 @@ describe("health", () => {
     expect(state.observe("radarr", false, 0, fiveMinutes)).toEqual([])
     expect(state.due(fiveMinutes - 1, fiveMinutes)).toEqual([])
     const [down] = state.due(fiveMinutes, fiveMinutes)
-    expect(down?.raised.map((r) => [r.title, r.detail])).toEqual([["Radarr isn't answering", "No answer for 5 minutes"]])
+    expect(down?.raised.map((alert) => [alert.title, alert.detail])).toEqual([["Radarr isn't answering", "No answer for 5 minutes"]])
     expect(state.due(fiveMinutes + 60_000, fiveMinutes)).toEqual([])
     expect(raised(state.observe("radarr", true, fiveMinutes + 120_000, fiveMinutes))).toEqual(["radarr:up"])
     expect(state.observe("radarr", true, fiveMinutes + 180_000, fiveMinutes)).toEqual([])

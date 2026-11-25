@@ -76,10 +76,10 @@ describe("homes", () => {
       expect(DeviceToken.homeOf(mine.token)).toEqual(Option.some(first.homeId))
       expect(DeviceToken.homeOf(theirs.token)).toEqual(Option.some(second.homeId))
       // Each home keeps its own iPhone, on its own disk.
-      expect([...first.documents.keys()].filter((k) => k.startsWith("devices/"))).toEqual([`devices/${mine.deviceId}`])
-      expect([...second.documents.keys()].filter((k) => k.startsWith("devices/"))).toEqual([`devices/${theirs.deviceId}`])
-      expect(((yield* first.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((d) => d.name)).toEqual(["Mathieu"])
-      expect(((yield* second.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((d) => d.name)).toEqual(["Neighbour"])
+      expect([...first.documents.keys()].filter((key) => key.startsWith("devices/"))).toEqual([`devices/${mine.deviceId}`])
+      expect([...second.documents.keys()].filter((key) => key.startsWith("devices/"))).toEqual([`devices/${theirs.deviceId}`])
+      expect(((yield* first.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((device) => device.name)).toEqual(["Mathieu"])
+      expect(((yield* second.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((device) => device.name)).toEqual(["Neighbour"])
 
       expect((yield* request("GET", "/api/devices/me/preferences", { token: mine.token })).status).toBe(200)
       expect((yield* request("GET", "/api/devices/me/preferences", { token: theirs.token })).status).toBe(200)
@@ -89,8 +89,8 @@ describe("homes", () => {
       const flow = flows[0]!
       expect((yield* first.console({ method: "PUT", path: `/console-api/flows/${flow.id}`, body: JSON.stringify({ ...flow, enabled: !flow.enabled }) })).status).toBe(200)
       const enabled = (home: FakeHome) =>
-        Effect.map(request("GET", "/api/flows", { token: home === first ? mine.token : theirs.token }), (r) =>
-          (r.json as Array<{ id: string; enabled: boolean }>).find((f) => f.id === flow.id)?.enabled)
+        Effect.map(request("GET", "/api/flows", { token: home === first ? mine.token : theirs.token }), (response) =>
+          (response.json as Array<{ id: string; enabled: boolean }>).find((listedFlow) => listedFlow.id === flow.id)?.enabled)
       expect(yield* enabled(first)).toBe(!flow.enabled)
       expect(yield* enabled(second)).toBe(flow.enabled)
     }).pipe(Effect.provide(Cloud)))

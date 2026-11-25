@@ -58,7 +58,7 @@ describe("everything lives at home", () => {
         const phone = yield* signedIn(paired.token)
         yield* phone.devices.savePreferences({ payload: { flows: { download: { enabled: true, hiddenSteps: ["searching"] } } } })
         yield* phone.devices.activityToken({ payload: { mediaKey: "download|movie:tmdb:1", pushToken: "act-1" } })
-        const download = (yield* api.flows.list()).find((f) => f.id === "download")!
+        const download = (yield* api.flows.list()).find((flow) => flow.id === "download")!
         yield* api.flows.save({ params: { id: "download" }, payload: { ...download, color: "#123456" } })
         yield* api.flows.save({ params: { id: "anime" }, payload: { ...download, id: "anime", name: "Anime", filter: { mediaType: "series" } } })
         yield* (yield* Activities).handle({ type: "media.added", subject: { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" } })
@@ -83,12 +83,12 @@ describe("everything lives at home", () => {
         const api = yield* HttpApiTest.groups(QuaiApi, ["console", "devices", "flows"])
         const phone = yield* signedIn(token)
         expect((yield* phone.devices.preferences()).flows["download"]?.hiddenSteps).toEqual(["searching"])
-        expect((yield* api.console.devices()).map((d) => d.id)).toEqual([deviceId])
+        expect((yield* api.console.devices()).map((paired) => paired.id)).toEqual([deviceId])
         const flows = yield* api.flows.list()
-        expect(flows.find((f) => f.id === "download")?.color).toBe("#123456")
-        expect(flows.map((f) => f.id)).toEqual(["download", "playback", "request", "today", "anime"])
+        expect(flows.find((flow) => flow.id === "download")?.color).toBe("#123456")
+        expect(flows.map((flow) => flow.id)).toEqual(["download", "playback", "request", "today", "anime"])
         const { activities } = yield* (yield* Activities).snapshot
-        expect([...activities.values()].map((a) => [a.title, a.stepIndex])).toEqual([["Dune", 0]])
+        expect([...activities.values()].map((activity) => [activity.title, activity.stepIndex])).toEqual([["Dune", 0]])
         // The unused code still pairs, within its 10 minutes; then it is spent.
         yield* api.devices.pair({ payload: { ...iphone, code } })
         expect(Exit.isFailure(yield* Effect.exit(api.devices.pair({ payload: { ...iphone, code } })))).toBe(true)
@@ -108,7 +108,7 @@ describe("everything lives at home", () => {
       const old = yield* api.console.createPairingCode({ payload: { serverUrls: [] } })
       yield* TestClock.adjust("11 minutes")
       yield* api.console.createPairingCode({ payload: { serverUrls: [] } })
-      expect([...home.documents.keys()].filter((k) => k.startsWith("pairing/"))).toHaveLength(1)
+      expect([...home.documents.keys()].filter((key) => key.startsWith("pairing/"))).toHaveLength(1)
       expect((yield* Effect.flip(api.devices.pair({ payload: { ...iphone, code: old.code } })))._tag).toBe("InvalidPairingCode")
     }).pipe(Effect.provide(TestApp)))
 })

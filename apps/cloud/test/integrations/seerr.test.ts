@@ -33,7 +33,7 @@ const webhookEvents = (name: string) => Effect.map(decodeSeerrWebhook(fixture(`s
 const seerrAnswers = (state: { request12: "pending" | "approved" | "gone"; pending: ReadonlyArray<number> }) => {
   const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
   return recordedHome({
-    "seerr GET /api/v1/request": () => ({ json: { ...page, results: page.results.filter((r) => state.pending.includes(r.id)) } }),
+    "seerr GET /api/v1/request": () => ({ json: { ...page, results: page.results.filter((request) => state.pending.includes(request.id)) } }),
     "seerr GET /api/v1/request/12": () =>
       state.request12 === "gone"
         ? { status: 404, json: { message: "Request not found." } }
@@ -59,8 +59,8 @@ describe("Seerr requests", () => {
         subject: { kind: "request", key: "request:12", title: "Paddington in Peru", mediaType: "movie", requester: "Julie" },
         values: { detail: "Julie · Movie · 2024" }
       })
-      expect((yield* webhookEvents("webhook-approved")).map((e) => e.type)).toEqual(["request.approved"])
-      expect((yield* webhookEvents("webhook-declined")).map((e) => [e.type, e.values?.detail])).toEqual([["request.declined", "Declined"]])
+      expect((yield* webhookEvents("webhook-approved")).map((event) => event.type)).toEqual(["request.approved"])
+      expect((yield* webhookEvents("webhook-declined")).map((event) => [event.type, event.values?.detail])).toEqual([["request.declined", "Declined"]])
       expect(yield* webhookEvents("webhook-auto-approved")).toEqual([])
       expect(yield* webhookEvents("webhook-test")).toEqual([])
     }))
@@ -68,7 +68,7 @@ describe("Seerr requests", () => {
   it("lists only what waits, with its title, requester, seasons and poster", () => {
     const page = Schema.decodeUnknownSync(SeerrRequestPage)(fixture("seerr/requests-pending.json"))
     const autoApproved = { ...page.results[0]!, id: 14, status: 2 }
-    expect(waiting([...page.results, autoApproved]).map((r) => r.id)).toEqual([12, 13])
+    expect(waiting([...page.results, autoApproved]).map((request) => request.id)).toEqual([12, 13])
     expect(toMediaRequest(page.results[1]!, { title: "Severance", year: 2022, posterUrl: "https://image.tmdb.org/t/p/w342/p.jpg" })).toEqual({
       id: 13,
       kind: "series",
@@ -124,22 +124,22 @@ describe("Seerr requests", () => {
       yield* home.connect
       const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
       yield* home.snapshot(pendingWatchId, page)
-      expect((yield* running).map((a) => [a.subjectKey, a.title, a.values.detail])).toEqual([
+      expect((yield* running).map((activity) => [activity.subjectKey, activity.title, activity.values.detail])).toEqual([
         ["request:12", "Paddington in Peru", "Julie · Movie · 2024"],
         ["request:13", "Severance", "Julie · Series · 2022 · S1–2"]
       ])
       // The same list again (a restarted Cloud's first read): nothing new, nothing written.
-      const writes = home.received.filter((m) => m._tag === "StorePut").length
+      const writes = home.received.filter((message) => message._tag === "StorePut").length
       yield* home.snapshot(pendingWatchId, { ...page, pageInfo: { page: 1 } })
-      expect(home.received.filter((m) => m._tag === "StorePut").length).toBe(writes)
+      expect(home.received.filter((message) => message._tag === "StorePut").length).toBe(writes)
 
       // Request 12 approved in Seerr's own page, 13 deleted.
       state.request12 = "approved"
       yield* home.snapshot(pendingWatchId, { ...page, results: [] })
-      const calls = home.calls.map((c) => `${c.method} ${c.path}`)
+      const calls = home.calls.map((call) => `${call.method} ${call.path}`)
       expect(calls).toContain("GET /api/v1/request/12")
       expect(calls).toContain("GET /api/v1/request/13")
-      expect((yield* running).map((a) => [a.subjectKey, a.stepIndex, a.endedAt !== null, a.values.detail])).toEqual([
+      expect((yield* running).map((activity) => [activity.subjectKey, activity.stepIndex, activity.endedAt !== null, activity.values.detail])).toEqual([
         ["request:12", 1, true, "Julie"],
         ["request:13", 0, true, "Removed"]
       ])
@@ -153,7 +153,7 @@ describe("Seerr requests", () => {
       const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
       yield* home.snapshot(pendingWatchId, page)
       const before = yield* running
-      expect(before.map((a) => a.subjectKey)).toEqual(["request:12", "request:13"])
+      expect(before.map((activity) => activity.subjectKey)).toEqual(["request:12", "request:13"])
       const hub = yield* Hub
       for (let day = 0; day < 3; day++) {
         yield* TestClock.adjust("25 hours")
@@ -161,22 +161,22 @@ describe("Seerr requests", () => {
         yield* home.snapshot(pendingWatchId, { ...page, pageInfo: { page: day } })
       }
       const after = yield* running
-      expect(after.map((a) => [a.subjectKey, a.enteredAt, a.endedAt])).toEqual(before.map((a) => [a.subjectKey, a.enteredAt, null]))
+      expect(after.map((activity) => [activity.subjectKey, activity.enteredAt, activity.endedAt])).toEqual(before.map((activity) => [activity.subjectKey, activity.enteredAt, null]))
     }).pipe(Effect.provide(engine)))
 
   it.effect("only the requests a flow's filter takes start it, and the others aren't sent again at each poll", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
       yield* home.connect
-      const request = builtInFlows.find((f) => f.id === "request")!
+      const request = builtInFlows.find((flow) => flow.id === "request")!
       const series = { ...request, filter: { mediaType: "series" as const } }
-      const integration = (yield* Integrations).find((i) => i.service === "seerr")!
+      const integration = (yield* Integrations).find((candidate) => candidate.service === "seerr")!
       const watch = { id: pendingWatchId, service: "seerr" as const, path: "/api/v1/request", everySeconds: 60 }
       const events = yield* integration.watcher!.read(
         { watch, status: 200, body: JSON.stringify(fixture("seerr/requests-pending.json")) },
         { flows: [series], running: [], services, now, timeZone: "UTC", alerts: defaultAlertSettings }
       )
-      expect(events.map((e) => e.subject?.key)).toEqual(["request:13"])
+      expect(events.map((event) => event.subject?.key)).toEqual(["request:13"])
     }).pipe(Effect.provide(engine)))
 
   it.effect("Approve on the Live Activity approves it in Seerr, and has Quai Home read the requests again", () =>
@@ -184,11 +184,11 @@ describe("Seerr requests", () => {
       const home = yield* makeFakeHome({ services, answer: seerrAnswers({ request12: "pending", pending: [12] }) })
       yield* home.connect
       yield* home.webhook("seerr", fixture("seerr/webhook-pending.json"))
-      const before = home.received.filter((m) => m._tag === "SetWatches").length
+      const before = home.received.filter((message) => message._tag === "SetWatches").length
       yield* (yield* ActionRunner).run("request|request:12", "request.approve")
       yield* settle
-      expect(home.calls.filter((c) => c.method === "POST").map((c) => [c.path, c.body])).toEqual([["/api/v1/request/12/approve", undefined]])
-      expect(home.received.filter((m) => m._tag === "SetWatches").length).toBe(before + 1)
+      expect(home.calls.filter((call) => call.method === "POST").map((call) => [call.path, call.body])).toEqual([["/api/v1/request/12/approve", undefined]])
+      expect(home.received.filter((message) => message._tag === "SetWatches").length).toBe(before + 1)
       // Nothing to approve on an approved request.
       yield* home.webhook("seerr", fixture("seerr/webhook-approved.json"))
       const refused = yield* Effect.exit((yield* ActionRunner).run("request|request:12", "request.decline"))
@@ -208,7 +208,7 @@ describe("Seerr requests", () => {
       state.request12 = "gone"
       const deleted = yield* Effect.flip((yield* ActionRunner).run("request|request:12", "request.decline"))
       expect(deleted).toMatchObject({ _tag: "InvalidAction" })
-      expect(home.calls.filter((c) => c.method === "POST")).toEqual([])
+      expect(home.calls.filter((call) => call.method === "POST")).toEqual([])
     }).pipe(Effect.provide(ActionRunner.layer.pipe(Layer.provideMerge(engine)))))
 })
 
@@ -233,7 +233,7 @@ describe("requests routes", () => {
       const { api } = yield* setUp({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
       const list = yield* api.list()
       expect(list.status).toBe("ok")
-      expect(list.items.map((r) => [r.id, r.title, r.year, r.kind, r.posterUrl])).toEqual([
+      expect(list.items.map((request) => [request.id, request.title, request.year, request.kind, request.posterUrl])).toEqual([
         [12, "Paddington in Peru", 2024, "movie", "https://image.tmdb.org/t/p/w342/1ffZAucqfvQu36x1C49XfOdjuOG.jpg"],
         [13, "Severance", 2022, "series", "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg"]
       ])
@@ -245,14 +245,14 @@ describe("requests routes", () => {
       const { home, api } = yield* setUp({ services, answer: seerrAnswers(state) })
       yield* api.approve({ params: { id: "12" } })
       yield* api.decline({ params: { id: "12" } })
-      expect(home.calls.filter((c) => c.method === "POST").map((c) => c.path)).toEqual([
+      expect(home.calls.filter((call) => call.method === "POST").map((call) => call.path)).toEqual([
         "/api/v1/request/12/approve",
         "/api/v1/request/12/decline"
       ])
       state.request12 = "approved"
       expect((yield* Effect.flip(api.decline({ params: { id: "12" } })))._tag).toBe("NotFound")
       expect((yield* Effect.flip(api.approve({ params: { id: "x" } })))._tag).toBe("NotFound")
-      expect(home.calls.filter((c) => c.method === "POST")).toHaveLength(2)
+      expect(home.calls.filter((call) => call.method === "POST")).toHaveLength(2)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("says when Quai Home has no Seerr, or Seerr doesn't answer", () =>

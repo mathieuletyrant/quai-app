@@ -47,6 +47,6 @@ describe("console relay", () => {
       yield* home.connect
       yield* home.servicesChanged(["radarr", "sonarr"])
       const linked = yield* (yield* HomeLink).home
-      expect(Option.map(linked, (h) => h.services)).toEqual(Option.some(["radarr", "sonarr"]))
+      expect(Option.map(linked, (linkedHome) => linkedHome.services)).toEqual(Option.some(["radarr", "sonarr"]))
     }).pipe(Effect.provide(TestApp)))
 })

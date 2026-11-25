@@ -77,13 +77,13 @@ describe("Jellyfin sessions", () => {
   it("started with a timeline, then position, then stopped; paused holds the fraction", () => {
     const now = playingFrom(sessions)
     const first = playbackEvents(new Map(), now, 1_000)
-    expect(first.map((e) => e.type)).toEqual(["playback.started"])
+    expect(first.map((event) => event.type)).toEqual(["playback.started"])
     expect(first[0]!.values).toEqual({ paused: false, detail: "TV Salon", endsAt: 2_401_000, startsAt: -1_199_000 })
     const paused = playbackEvents(new Map(), [{ ...now[0]!, paused: true }], 1_000)
     expect(paused[0]!.values).toEqual({ paused: true, detail: "TV Salon", progress: 1 / 3 })
-    const before = new Map(now.map((p) => [p.key, p]))
-    expect(playbackEvents(before, now, 2_000).map((e) => e.type)).toEqual(["playback.progress"])
-    expect(playbackEvents(before, [], 3_000).map((e) => e.type)).toEqual(["playback.stopped"])
+    const before = new Map(now.map((playing) => [playing.key, playing]))
+    expect(playbackEvents(before, now, 2_000).map((event) => event.type)).toEqual(["playback.progress"])
+    expect(playbackEvents(before, [], 3_000).map((event) => event.type)).toEqual(["playback.stopped"])
   })
 
   it("reads the session from a playback subject", () => {
@@ -141,7 +141,7 @@ describe("Jellyfin integration", () => {
         const other = activity({ lookup: { _tag: "Movie", tmdbId: 1, title: "Sisters of Fate" } })
         expect(yield* watcher.read({ watch: watch!, status: 200, body }, ctx([download], [other]))).toEqual([])
         const events = yield* watcher.read({ watch: watch!, status: 200, body }, ctx([download], [waiting]))
-        expect(events.map((e) => [e.type, e.subject?.key])).toEqual([["media.available", "movie:tmdb:1"]])
+        expect(events.map((event) => [event.type, event.subject?.key])).toEqual([["media.available", "movie:tmdb:1"]])
       })))
 
   it.effect("availability of episodes: the series among the latest by id, then its episodes, counted once they have a file", () =>
@@ -156,7 +156,7 @@ describe("Jellyfin integration", () => {
         expect(find?.path).toBe(`/Items?userId=${admin}&Recursive=true&IncludeItemTypes=Series&SortBy=DateLastContentAdded&SortOrder=Descending&Limit=100&Fields=ProviderIds`)
         // Without a user, Jellyfin's answer has no "Notre maison": nothing found.
         expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/latest-series-no-user.json")) }, pack)).toEqual([])
-        expect(watcher.watches(pack).map((w) => w.id)).toEqual([watchIds.users, watchIds.find("series:tvdb:407046")])
+        expect(watcher.watches(pack).map((watch) => watch.id)).toEqual([watchIds.users, watchIds.find("series:tvdb:407046")])
         expect(yield* watcher.read({ watch: find!, status: 200, body: JSON.stringify(fixture("jellyfin/latest-series.json")) }, pack)).toEqual([])
         const [, episodes] = watcher.watches(pack)
         expect(episodes).toMatchObject({
@@ -164,7 +164,7 @@ describe("Jellyfin integration", () => {
           path: `/Items?userId=${admin}&ParentId=1d44f2954a4209050a6e45617780e347&IncludeItemTypes=Episode&Recursive=true&Fields=LocationType`
         })
         const body = JSON.stringify(fixture("jellyfin/episodes-notre-maison.json"))
-        expect((yield* watcher.read({ watch: episodes!, status: 200, body }, pack)).map((e) => e.type)).toEqual(["media.available"])
+        expect((yield* watcher.read({ watch: episodes!, status: 200, body }, pack)).map((event) => event.type)).toEqual(["media.available"])
         const later = ctx([download], [ourHouse([{ season: 1, episode: 5 }])])
         expect(yield* watcher.read({ watch: episodes!, status: 200, body }, later)).toEqual([])
       })))
@@ -176,7 +176,7 @@ describe("Jellyfin integration", () => {
         expect(watcher.watches(ctx([download], []))).toEqual([])
         const [watch] = watcher.watches(ctx([playback], []))
         expect(watch).toEqual({ id: watchIds.sessions, service: "jellyfin", path: "/Sessions?ActiveWithinSeconds=120", everySeconds: 15 })
-        const read = (body: unknown) => Effect.map(watcher.read({ watch: watch!, status: 200, body: JSON.stringify(body) }, ctx([playback], [])), (events) => events.map((e) => e.type))
+        const read = (body: unknown) => Effect.map(watcher.read({ watch: watch!, status: 200, body: JSON.stringify(body) }, ctx([playback], [])), (events) => events.map((event) => event.type))
         expect(yield* read(sessions)).toEqual(["playback.started"])
         expect(yield* read(sessions)).toEqual(["playback.progress"])
         expect(yield* read([])).toEqual(["playback.stopped"])
@@ -194,7 +194,7 @@ describe("Jellyfin integration", () => {
       const integration = yield* jellyfin
       yield* integration.actions["playback.playPause"]!(activity({ subjectKey: "playback:s1:i1" }))
       yield* integration.actions["playback.stop"]!(activity({ subjectKey: "playback:s1:i1" }))
-      expect(home.calls.map((c) => [c.method, c.service, c.path])).toEqual([
+      expect(home.calls.map((call) => [call.method, call.service, call.path])).toEqual([
         ["POST", "jellyfin", "/Sessions/s1/Playing/PlayPause"],
         ["POST", "jellyfin", "/Sessions/s1/Playing/Stop"]
       ])
