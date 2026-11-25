@@ -106,8 +106,9 @@ export const removalItems = (detected: ReadonlyArray<Detected>, now: number): Re
       service: "cleanuparr",
       title: d.fix.title,
       ...(d.fix.posterUrl === undefined ? {} : { posterUrl: d.fix.posterUrl }),
-      at: d.fix.removal.removesAt ?? Math.floor(now / 1000),
-      timed: d.fix.removal.removesAt !== undefined,
+      // A run Cleanuparr was due for already: the next one, soon.
+      at: Math.max(d.fix.removal.removesAt ?? 0, Math.floor(now / 1000)),
+      timed: d.fix.removal.removesAt !== undefined && d.fix.removal.removesAt * 1000 >= now,
       earliest: true,
       fixId: d.fix.id
     }]

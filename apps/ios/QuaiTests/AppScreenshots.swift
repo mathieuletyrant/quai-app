@@ -30,7 +30,7 @@ struct AppScreenshots {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .home), connection)
         try await Self.until("the Home's tiles") {
-            connection.fixes != nil && connection.requests != nil && connection.releases != nil
+            connection.fixes != nil && connection.requests != nil && connection.upcoming != nil
         }
         try await Self.settle()
         Self.screenshot(window, "01-home")
@@ -41,7 +41,7 @@ struct AppScreenshots {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .home), connection)
         try await Self.until("the Home's tiles and the library") {
-            connection.fixes != nil && connection.requests != nil && connection.releases != nil && connection.library != nil
+            connection.fixes != nil && connection.requests != nil && connection.upcoming != nil && connection.library != nil
         }
         try await Self.settle()
         // Nothing to scroll when the Home fits the screen: the tiles are already in view.
@@ -53,35 +53,15 @@ struct AppScreenshots {
         Self.screenshot(window, "01-home-bottom")
     }
 
-    @Test func releases() async throws {
+    @Test func upcoming() async throws {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(
-            NavigationStack { ReleasesView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            NavigationStack { UpcomingView() }.tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
-        // The chevrons show once the Library is loaded: each release opens its title there.
-        try await Self.until("today's releases and the library") { connection.releases != nil && connection.library != nil }
+        try await Self.until("what's coming and going") { connection.upcoming != nil }
         try await Self.settle()
-        Self.screenshot(window, "01-home-releases")
-
-        // A release opened: its title's detail, as from the Library.
-        let opened = try #require(
-            connection.releases?.items.lazy.compactMap { release in connection.library?.items.first { $0.id == release.libraryId } }.first,
-            "No release of the preview is in its library"
-        )
-        let detail = try Self.show(
-            NavigationStack { ReleasesView() }.sheet(isPresented: .constant(true)) {
-                TitleDetailView(item: opened)
-                    .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
-            }
-            .tint(.quaiAccent)
-            .preferredColorScheme(.dark),
-            connection
-        )
-        // The sheet slides up while the screen under it loads: longer than the usual settle.
-        try await Self.settle(4)
-        Self.screenshot(detail, "01-home-releases-title")
+        Self.screenshot(window, "01-home-upcoming")
     }
 
     @Test func library() async throws {

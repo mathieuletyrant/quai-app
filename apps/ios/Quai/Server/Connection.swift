@@ -69,9 +69,9 @@ final class Connection {
     /// Seerr's requests waiting for approval, once loaded.
     private(set) var requests: Components.Schemas.MediaRequests?
     private(set) var requestsError: String?
-    /// Today's releases, once loaded.
-    private(set) var releases: Components.Schemas.DayReleases?
-    private(set) var releasesError: String?
+    /// What's coming and going, once loaded.
+    private(set) var upcoming: Components.Schemas.Upcoming?
+    private(set) var upcomingError: String?
     /// The alerts going on, and the kinds turned on.
     private(set) var alerts: Components.Schemas.ActiveAlerts?
     /// The journal, newest first: the first page, then the older ones the Activity tab asked for.
@@ -183,8 +183,8 @@ final class Connection {
         fixesError = nil
         requests = nil
         requestsError = nil
-        releases = nil
-        releasesError = nil
+        upcoming = nil
+        upcomingError = nil
         alerts = nil
         journal = []
         journalHasMore = false
@@ -327,14 +327,14 @@ final class Connection {
         await didFix(fix)
     }
 
-    // MARK: Releases
+    // MARK: Upcoming
 
-    func loadReleases() async {
+    func loadUpcoming() async {
         do {
-            releases = try await requiredClient().getTodayReleases().ok.body.json
-            releasesError = nil
+            upcoming = try await requiredClient().getUpcoming().ok.body.json
+            upcomingError = nil
         } catch {
-            releasesError = error.quaiMessage
+            upcomingError = error.quaiMessage
         }
     }
 

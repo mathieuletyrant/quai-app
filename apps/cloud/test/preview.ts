@@ -63,6 +63,12 @@ const previewRoutes = (days: number): Readonly<Record<string, Recording>> => ({
   "cleanuparr GET /api/queue-rules/slow": "cleanuparr/slow-rules.json",
   "cleanuparr GET /api/jobs/QueueCleaner": shifted("cleanuparr/job-queue-cleaner.json", days),
   "cleanuparr GET /api/events": shifted("cleanuparr/events-removed.json", days),
+  "cleanuparr GET /api/configuration/download_cleaner": "cleanuparr/download-cleaner.json",
+  "cleanuparr GET /api/jobs/DownloadCleaner": shifted("cleanuparr/job-download-cleaner.json", days),
+  "radarr GET /api/v3/config/mediamanagement": "radarr/mediamanagement.json",
+  "sonarr GET /api/v3/config/mediamanagement": "radarr/mediamanagement.json",
+  // Upcoming's finished torrents; the download's progress comes from the watch's snapshots below.
+  "qbittorrent GET /api/v2/torrents/info": "real/qbittorrent/torrents-info.json",
   "jellyfin GET /Items": "jellyfin/items-movie.json",
   "jellyfin GET /Users": "jellyfin/users.json"
 })

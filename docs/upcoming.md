@@ -15,7 +15,7 @@ shows: acting on a row happens where it already can (To fix). No console page.
   never wraps. Nothing about the download's progress.
 - On the right, **+74 GB** in green, only when the space really comes back at that row's moment (see
   Space back). Otherwise nothing.
-- A deletion or a stuck removal opens its To fix card. A seed cleanup opens nothing.
+- A deletion or a stuck removal opens To fix, where its card is. A seed cleanup opens nothing.
 
 ## Coming
 

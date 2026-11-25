@@ -7,7 +7,7 @@ import { TestClock } from "effect/testing"
 import { DownloadCleanerSettings, type SeedingTorrent, seedCleanups } from "../src/integrations/cleanuparr.ts"
 import { seasonOfRelease } from "../src/integrations/arr.ts"
 import { spaceBack, type SpaceBackInput, type TorrentInput } from "../src/upcoming/SpaceBack.ts"
-import { episodeRange, grabKey, mondayOf, releaseItems, seedItems } from "../src/upcoming/Upcoming.ts"
+import { episodeRange, grabKey, mondayOf, releaseItems, removalItems, seedItems } from "../src/upcoming/Upcoming.ts"
 import { makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp, testAppDroppingOn } from "./testApp.ts"
@@ -57,6 +57,27 @@ describe("upcoming releases", () => {
       { id: "release-episode-1", kind: "release", service: "sonarr", title: "Severance", episode: "S02E07–E08", at: 1795600000, timed: true, earliest: false },
       { id: "release-movie-9", kind: "release", service: "radarr", title: "Dune", at: Date.parse("2026-11-26T23:00:00Z") / 1000, timed: false, earliest: false }
     ])
+  })
+})
+
+describe("stuck removals", () => {
+  it("one whose run is past goes at the next, soon: now, with no time", () => {
+    const now = Date.parse("2026-11-25T10:00:00Z")
+    const detected = (removesAt: number | undefined) => ({
+      fix: {
+        id: "removal-1",
+        kind: "removalPlanned" as const,
+        service: "cleanuparr" as const,
+        title: "Lost",
+        reason: "Stalled, no progress",
+        actions: ["dismiss" as const],
+        removal: { release: "Lost.S01", reason: "stalled" as const, strikes: 2, maxStrikes: 3, ...(removesAt === undefined ? {} : { removesAt }) }
+      },
+      target: { kind: "removal" as const, downloadItemId: "1", downloadId: "abc" }
+    })
+    expect(removalItems([detected(now / 1000 + 600)], now)[0]).toMatchObject({ at: now / 1000 + 600, timed: true, earliest: true, fixId: "removal-1" })
+    expect(removalItems([detected(now / 1000 - 600)], now)[0]).toMatchObject({ at: now / 1000, timed: false })
+    expect(removalItems([detected(undefined)], now)[0]).toMatchObject({ at: now / 1000, timed: false })
   })
 })
 
