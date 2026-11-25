@@ -96,6 +96,16 @@ const forget = (activities: Map<string, Activity>, pushes: Array<Push>, activity
   if (activity.endedAt === null) pushes.push({ _tag: "End", activity: { ...activity, endedAt: now } })
 }
 
+/** A download's progress in whole percent, as the iPhone shows it; -1 before any reading. */
+const percent = (progress: number | undefined) => progress === undefined ? -1 : Math.floor(progress * 100)
+
+/**
+ * Whether a progress reading moves the download forward: one more percent on screen. A torrent
+ * without seeders trickles in a few bytes at a time and stays at 0 %: that's stalled, not moving.
+ */
+export const movedOn = (before: number | undefined, after: number | undefined): boolean =>
+  after !== undefined && percent(after) > percent(before)
+
 const pushed = (activity: Activity, now: number): Activity => ({
   ...activity,
   pushedAt: now,
@@ -137,7 +147,7 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       // no peers) is left out of the event and must not keep the last one on screen.
       const { remainingSeconds: _, ...kept } = activity.values
       const values = { ...(event.type === "download.progress" ? kept : activity.values), ...event.values }
-      const moved = (event.values?.progress ?? -1) > (activity.values.progress ?? -1)
+      const moved = movedOn(activity.values.progress, event.values?.progress)
       // Radarr or Sonarr waits for someone to import it: grey, saying so, until the next step.
       const blocked = event.type === "media.importBlocked"
       const next: Activity = {

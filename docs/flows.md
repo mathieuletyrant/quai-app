@@ -27,7 +27,7 @@ Flow
                 (playback stopped, request declined). Reaching the last step ends the activity
                 too, except in a one-step flow with endOn: it runs until that event.
   lingerMinutes how long the end stays on screen (0 to 60)
-  stalledAfterMinutes   a step showing progress with no progress for this long turns grey (optional)
+  stalledAfterMinutes   a step showing progress without a new percent of progress for this long turns grey (optional)
   expireAfterMinutes    no event at all for this long ends the activity (optional)
 
 Step
@@ -193,7 +193,7 @@ actions to the catalog in `packages/api`.
    activity. Step changes, a pause or a resume, and a stalled download moving again go at once.
    Times are compared to 10 s: a playback's end drifting by milliseconds between polls is not news,
    since the iPhone animates the timeline itself.
-6. `stalledAfterMinutes` without progress turns the activity grey; progress turns it back.
+6. `stalledAfterMinutes` without a new percent of progress turns the activity grey (a torrent that trickles in a few bytes at 0 % is stalled); a new percent turns it back.
 7. `expireAfterMinutes` without any event ends the activity where it is.
 8. The engine is pure and its state is saved after every change, so a restart loses nothing.
 
