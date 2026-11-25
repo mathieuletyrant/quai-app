@@ -12,6 +12,8 @@ enum QuaiFont {
     static let bodyEmphasized = Font.system(size: 16, weight: .semibold)
     static let subheadline = Font.system(size: 15)
     static let caption = Font.system(size: 13)
+    /// A service's name over a title, in small capitals.
+    static let tag = Font.system(size: 11, weight: .bold)
 }
 
 enum Metrics {
@@ -516,6 +518,26 @@ private struct Shimmer: ViewModifier {
 
 extension View {
     func shimmering() -> some View { modifier(Shimmer()) }
+}
+
+/// A filter of a screen: its title in a capsule, the accent when selected.
+struct Chip: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(QuaiFont.eyebrow)
+                .padding(.horizontal, 12)
+                .frame(height: 34)
+                .foregroundStyle(selected ? Palette.accent : Color(hex: "#D1D1D6"))
+                .overlay(Capsule().strokeBorder(selected ? Palette.accent : Color.white.opacity(0.12), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
 }
 
 // MARK: Grouped lists

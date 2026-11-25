@@ -84,3 +84,20 @@ space (*disk low*), a problem Radarr, Sonarr or Prowlarr report on their System 
 health*). Not a Live Activity: one notification when it starts, one when it's over. Set up in the
 console's Alerts page, muted per iPhone in the app; the ones going on show on the app's Home. See
 [docs/alerts.md](docs/alerts.md).
+
+**Upcoming**. What the stack will do on its own, by date, read in the app. It shows two kinds of
+things: what is *coming* (the releases Radarr and Sonarr will grab) and what is *going* (deletions,
+stuck removals, seed cleanups). It only shows; acting on one of them happens where it already can
+(To fix). Not the queue: what downloads now is an activity.
+
+**Deletion**. Reclaimerr removes a title from the library, on its own, at a date it planned.
+
+**Stuck removal**. Cleanuparr's queue cleaner takes a download that doesn't move out of an *arr
+queue once it has enough strikes.
+
+**Seed cleanup**. Cleanuparr's download cleaner takes a finished torrent out of qBittorrent once it
+has seeded long enough (or reached its ratio), with its files.
+
+**Space back**. When a title's room on the disk really comes back: once its copy in the library and
+every torrent seeding the same files (cross-seeds too) are gone. With hardlinks, a deletion or a
+seed cleanup alone may give nothing back.

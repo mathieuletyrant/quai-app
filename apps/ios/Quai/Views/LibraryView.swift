@@ -159,25 +159,6 @@ struct LibraryView: View {
     }
 }
 
-private struct Chip: View {
-    let title: String
-    let selected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(QuaiFont.eyebrow)
-                .padding(.horizontal, 12)
-                .frame(height: 34)
-                .foregroundStyle(selected ? Palette.accent : Color(hex: "#D1D1D6"))
-                .overlay(Capsule().strokeBorder(selected ? Palette.accent : Color.white.opacity(0.12), lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
-}
-
 /// One poster of the grid, 2:3, with its title and caption under it.
 struct PosterCell: View {
     let item: LibraryItem

@@ -270,6 +270,184 @@ export const excluding = (answered: string, downloadId: string): Option.Option<R
     return isStrings(ignored) ? Option.some({ ...settings, ignoredDownloads: [...ignored, downloadId] }) : Option.none()
   })
 
+// Upcoming: what Cleanuparr's download cleaner takes out of qBittorrent once it seeded enough.
+
+/** `SeedingRuleResponse` (Features/DownloadCleaner/Contracts/Responses): when a finished torrent goes. */
+const SeedingRule = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  categories: Schema.Array(Schema.String),
+  trackerPatterns: Schema.optional(Schema.Array(Schema.String)),
+  tagsAny: Schema.optional(Schema.Array(Schema.String)),
+  tagsAll: Schema.optional(Schema.Array(Schema.String)),
+  /** Rules are tried from the lowest number: the first that matches is the torrent's. */
+  priority: Schema.Number,
+  /** Public, Private or Both. */
+  privacyType: Schema.String,
+  /** -1 turns the ratio check off. */
+  maxRatio: Schema.Number,
+  /** Hours the ratio check waits for. */
+  minSeedTime: Schema.Number,
+  /** Hours; -1 turns the seed time check off, 0 takes the torrent at once. */
+  maxSeedTime: Schema.Number,
+  minSeeders: Schema.optional(Schema.NullOr(Schema.Number)),
+  maxInactiveDays: Schema.optional(Schema.NullOr(Schema.Number)),
+  deleteSourceFiles: Schema.Boolean,
+  /** Delete, or Stop (the torrent stays in the client, paused). */
+  action: Schema.String
+})
+export type SeedingRule = typeof SeedingRule.Type
+
+/** `GET /api/configuration/download_cleaner`: the fields Quai reads, no secret in them. */
+export const DownloadCleanerSettings = Schema.Struct({
+  enabled: Schema.Boolean,
+  /** Download ids, categories or tags the download cleaner leaves alone. */
+  ignoredDownloads: Schema.optional(Schema.NullOr(Schema.Array(Schema.String))),
+  clients: Schema.Array(Schema.Struct({
+    downloadClientName: Schema.String,
+    downloadClientEnabled: Schema.Boolean,
+    /** "qBittorrent", "Transmission"… */
+    downloadClientTypeName: Schema.String,
+    seedingRules: Schema.Array(SeedingRule),
+    /** Torrents no hardlink holds go to `targetCategory`: their files aren't in the library. */
+    unlinkedConfig: Schema.optional(Schema.NullOr(Schema.Struct({
+      enabled: Schema.Boolean,
+      targetCategory: Schema.String
+    })))
+  }))
+})
+export type DownloadCleanerSettings = typeof DownloadCleanerSettings.Type
+
+export const downloadCleanerRead: Read<DownloadCleanerSettings> = {
+  service: "cleanuparr",
+  path: "/api/configuration/download_cleaner",
+  schema: DownloadCleanerSettings
+}
+
+/** `JobInfo`: when the download cleaner runs next. */
+export const downloadCleanerJobRead: Read<{ readonly nextRunTime?: string | null | undefined }> = {
+  service: "cleanuparr",
+  path: "/api/jobs/DownloadCleaner",
+  schema: Schema.Struct({ nextRunTime: Schema.optional(Schema.NullOr(Schema.String)) })
+}
+
+/** A finished torrent as the download cleaner looks at it (qBittorrent's `/api/v2/torrents/info`). */
+export interface SeedingTorrent {
+  readonly hash: string
+  readonly name: string
+  readonly category?: string | undefined
+  readonly tags?: string | undefined
+  readonly progress: number
+  readonly ratio: number
+  /** Seconds it has seeded. */
+  readonly seeding_time: number
+  /** qBittorrent 5: from a private tracker. */
+  readonly private?: boolean | null | undefined
+  readonly state: string
+}
+
+/**
+ * When the download cleaner takes a torrent: `at` that moment; `by` then at the latest (a ratio
+ * may take it sooner); `from` then at the earliest (it waits for seeders or inactivity too, maybe
+ * forever).
+ */
+export type CleanupTiming = "at" | "by" | "from"
+
+/** When the download cleaner takes a torrent, and what that does to its files. */
+export interface SeedCleanup<T extends SeedingTorrent = SeedingTorrent> {
+  readonly torrent: T
+  readonly rule: SeedingRule
+  /** Epoch milliseconds it goes; undefined when only a ratio takes it (no date can be known). */
+  readonly at: number | undefined
+  readonly timing: CleanupTiming
+  /** The rule takes it at once, at the next run: nothing to plan. */
+  readonly atOnce: boolean
+  /** Its files go with it (Delete, with the source files); otherwise they stay on the disk. */
+  readonly freesFiles: boolean
+}
+
+const tagsOf = (torrent: SeedingTorrent) => (torrent.tags ?? "").split(",").map((t) => t.trim()).filter((t) => t !== "")
+
+/** Whether a rule covers the torrent: true, false, or undefined when Quai can't tell (trackers, privacy unknown). */
+const ruleCovers = (rule: SeedingRule, torrent: SeedingTorrent, tags: ReadonlyArray<string>): boolean | undefined => {
+  if (!rule.categories.some((c) => sameId(c, torrent.category ?? ""))) return false
+  if ((rule.tagsAny ?? []).length > 0 && !rule.tagsAny!.some((t) => tags.some((tag) => sameId(tag, t)))) return false
+  if ((rule.tagsAll ?? []).length > 0 && !rule.tagsAll!.every((t) => tags.some((tag) => sameId(tag, t)))) return false
+  // Quai doesn't read the trackers.
+  if ((rule.trackerPatterns ?? []).length > 0) return undefined
+  if (rule.privacyType === "Both") return true
+  if (torrent.private === undefined || torrent.private === null) return undefined
+  return rule.privacyType === "Public" ? !torrent.private : torrent.private
+}
+
+/**
+ * The rule Cleanuparr applies to the torrent (`SeedingRuleEvaluator`): the first by priority that
+ * covers it. None when no rule does, or when one before it may: Quai can't tell which applies.
+ */
+export const seedingRuleOf = (rules: ReadonlyArray<SeedingRule>, torrent: SeedingTorrent): SeedingRule | undefined => {
+  const tags = tagsOf(torrent)
+  for (const rule of [...rules].sort((a, b) => a.priority - b.priority)) {
+    const covered = ruleCovers(rule, torrent, tags)
+    if (covered === undefined) return undefined
+    if (covered) return rule
+  }
+  return undefined
+}
+
+/** qBittorrent counts seeding time, and the ratio grows, only while the torrent seeds. */
+const isStopped = (torrent: SeedingTorrent) => /^(paused|stopped)/i.test(torrent.state)
+
+/**
+ * When Cleanuparr's download cleaner takes each finished torrent (`ShouldCleanDownload`): once its
+ * ratio is reached (after the minimum seed time), or its maximum seed time, at the first run after
+ * that. A torrent it leaves alone (ignored, no rule Quai can be sure of, Stop on a stopped one, a
+ * stopped one not due yet) isn't listed. The date assumes the torrent keeps seeding.
+ */
+export const seedCleanups = <T extends SeedingTorrent>(input: {
+  readonly settings: DownloadCleanerSettings
+  readonly torrents: ReadonlyArray<T>
+  /** Epoch milliseconds of the download cleaner's next run, when scheduled. */
+  readonly nextRunAt: number | undefined
+  readonly now: number
+}): ReadonlyArray<SeedCleanup<T>> => {
+  if (!input.settings.enabled) return []
+  const client = input.settings.clients.find((c) => c.downloadClientEnabled && sameId(c.downloadClientTypeName, "qBittorrent"))
+  if (client === undefined) return []
+  const ignored = input.settings.ignoredDownloads ?? []
+  const firstRun = (at: number) => input.nextRunAt !== undefined && at <= input.nextRunAt ? input.nextRunAt : Math.max(at, input.now)
+  return input.torrents.flatMap((torrent): ReadonlyArray<SeedCleanup<T>> => {
+    if (torrent.progress < 1) return []
+    if (ignored.some((entry) => sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") || tagsOf(torrent).some((t) => sameId(t, entry)))) return []
+    const rule = seedingRuleOf(client.seedingRules, torrent)
+    if (rule === undefined || (rule.action !== "Delete" && rule.action !== "Stop")) return []
+    if (rule.action === "Stop" && isStopped(torrent)) return []
+    const byRatio = rule.maxRatio >= 0
+    const ratioReached = byRatio && torrent.ratio >= rule.maxRatio
+    const ratioDue = ratioReached ? input.now + Math.max(0, rule.minSeedTime * 3600 - torrent.seeding_time) * 1000 : undefined
+    const timeDue = rule.maxSeedTime >= 0 ? input.now + Math.max(0, rule.maxSeedTime * 3600 - torrent.seeding_time) * 1000 : undefined
+    const due = [ratioDue, timeDue].filter((d): d is number => d !== undefined)
+    const dueNow = due.some((d) => d <= input.now)
+    // Stopped, it gets no closer to its limits: only what's due already goes.
+    if (isStopped(torrent) && !dueNow) return []
+    if (due.length === 0 && !byRatio) return []
+    const waits = (rule.minSeeders ?? 0) > 0 || (rule.maxInactiveDays ?? -1) >= 0
+    return [{
+      torrent,
+      rule,
+      at: due.length === 0 ? undefined : firstRun(Math.min(...due)),
+      timing: waits ? "from" : byRatio && !ratioReached ? "by" : "at",
+      atOnce: rule.maxSeedTime === 0 || (rule.maxRatio === 0 && rule.minSeedTime <= 0),
+      freesFiles: rule.action === "Delete" && rule.deleteSourceFiles
+    }]
+  })
+}
+
+/** The category Cleanuparr gives torrents no hardlink holds, when it does: their files aren't in the library. */
+export const unlinkedCategory = (settings: DownloadCleanerSettings): string | undefined => {
+  const config = settings.clients.find((c) => c.downloadClientEnabled && sameId(c.downloadClientTypeName, "qBittorrent"))?.unlinkedConfig
+  return config?.enabled === true ? config.targetCategory : undefined
+}
+
 // The journal: what Cleanuparr removed.
 
 /** Why Cleanuparr removed a download (`DeleteReason`), in words. */

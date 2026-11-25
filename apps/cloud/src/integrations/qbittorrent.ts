@@ -1,6 +1,7 @@
 import { Clock, Effect, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
+import type { Read } from "../home/HomeReads.ts"
 import { type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
 
 const Torrent = Schema.Struct({
@@ -12,6 +13,31 @@ const Torrent = Schema.Struct({
 })
 export const Torrents = Schema.Array(Torrent)
 export type Torrent = typeof Torrent.Type
+
+/** A finished torrent, as Upcoming reads it: what Cleanuparr's download cleaner looks at, and its size. */
+const FinishedTorrent = Schema.Struct({
+  hash: Schema.String,
+  name: Schema.String,
+  category: Schema.optional(Schema.String),
+  tags: Schema.optional(Schema.String),
+  progress: Schema.Number,
+  ratio: Schema.Number,
+  seeding_time: Schema.Number,
+  private: Schema.optional(Schema.NullOr(Schema.Boolean)),
+  state: Schema.String,
+  /** Bytes of the files it holds (those selected). */
+  size: Schema.Number,
+  /** Epoch seconds it was added. */
+  added_on: Schema.optional(Schema.Number)
+})
+export type FinishedTorrent = typeof FinishedTorrent.Type
+
+/** Every finished torrent. */
+export const finishedTorrentsRead: Read<ReadonlyArray<FinishedTorrent>> = {
+  service: "qbittorrent",
+  path: "/api/v2/torrents/info?filter=completed",
+  schema: Schema.Array(FinishedTorrent)
+}
 
 /** qBittorrent's "unknown" ETA (100 days). */
 const infiniteEta = 8_640_000

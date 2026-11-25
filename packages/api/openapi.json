@@ -1693,12 +1693,12 @@
         }
       }
     },
-    "/api/releases/today": {
+    "/api/upcoming": {
       "get": {
         "tags": [
-          "releases"
+          "upcoming"
         ],
-        "operationId": "getTodayReleases",
+        "operationId": "getUpcoming",
         "parameters": [],
         "security": [
           {
@@ -1707,11 +1707,11 @@
         ],
         "responses": {
           "200": {
-            "description": "DayReleases",
+            "description": "Upcoming",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DayReleases"
+                  "$ref": "#/components/schemas/Upcoming"
                 }
               }
             }
@@ -3228,58 +3228,57 @@
         ],
         "additionalProperties": false
       },
-      "DayReleases": {
+      "Upcoming": {
         "type": "object",
         "properties": {
-          "day": {
-            "type": "string"
-          },
           "timeZone": {
             "type": "string"
           },
           "items": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/DayRelease"
+              "$ref": "#/components/schemas/UpcomingItem"
             }
           },
           "unavailable": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/LibraryService"
+              "$ref": "#/components/schemas/UpcomingService"
             }
+          },
+          "homeOutdated": {
+            "type": "boolean"
           }
         },
         "required": [
-          "day",
           "timeZone",
           "items",
-          "unavailable"
+          "unavailable",
+          "homeOutdated"
         ],
         "additionalProperties": false
       },
-      "LibraryService": {
+      "UpcomingService": {
         "type": "string",
         "enum": [
           "radarr",
-          "sonarr"
+          "sonarr",
+          "reclaimerr",
+          "cleanuparr",
+          "qbittorrent"
         ]
       },
-      "DayRelease": {
+      "UpcomingItem": {
         "type": "object",
         "properties": {
           "id": {
             "type": "string"
           },
           "kind": {
-            "type": "string",
-            "enum": [
-              "episode",
-              "movie"
-            ]
+            "$ref": "#/components/schemas/UpcomingKind"
           },
-          "libraryId": {
-            "type": "string"
+          "service": {
+            "$ref": "#/components/schemas/UpcomingService"
           },
           "title": {
             "type": "string"
@@ -3287,35 +3286,50 @@
           "episode": {
             "type": "string"
           },
-          "episodeTitle": {
-            "type": "string"
-          },
-          "airsAt": {
-            "type": "number"
-          },
           "posterUrl": {
             "type": "string"
           },
-          "status": {
-            "$ref": "#/components/schemas/DayReleaseStatus"
+          "at": {
+            "type": "number"
+          },
+          "timed": {
+            "type": "boolean"
+          },
+          "until": {
+            "type": "number"
+          },
+          "earliest": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "freesBytes": {
+            "type": "number"
+          },
+          "fixId": {
+            "type": "string"
           }
         },
         "required": [
           "id",
           "kind",
-          "libraryId",
+          "service",
           "title",
-          "status"
+          "timed",
+          "earliest"
         ],
         "additionalProperties": false
       },
-      "DayReleaseStatus": {
+      "UpcomingKind": {
         "type": "string",
         "enum": [
-          "missing",
-          "grabbed",
-          "downloading",
-          "available"
+          "release",
+          "deletion",
+          "stuckRemoval",
+          "seedCleanup"
         ]
       },
       "RequestFailedEncoded": {
@@ -4148,6 +4162,13 @@
         ],
         "additionalProperties": false
       },
+      "LibraryService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr"
+        ]
+      },
       "DiskSpace": {
         "type": "object",
         "properties": {
@@ -4713,7 +4734,7 @@
       "name": "requests"
     },
     {
-      "name": "releases"
+      "name": "upcoming"
     },
     {
       "name": "console"

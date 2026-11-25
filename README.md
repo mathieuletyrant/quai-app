@@ -30,6 +30,7 @@ ready to watch.
 - ⬇️ **Download**: from the request to "ready to watch", with live progress from qBittorrent.
 - ▶️ **Playback**: what's playing on Jellyfin, time left, and Play/Pause from the Lock Screen.
 - 🙋 **Requests**: a Seerr request waiting for your approval, with Approve and Decline buttons.
+- 🗓️ **Upcoming**: what your stack will do on its own, by date: the releases Radarr and Sonarr will grab, the deletions Reclaimerr plans, what Cleanuparr will remove, and the space that really comes back.
 - 📅 **Today**: one activity for the day, ticking off today's episodes and movies as they arrive.
 
 You choose which ones run, and what each step shows, in a small flow editor in the web console.
@@ -40,7 +41,7 @@ You choose which ones run, and what each step shows, in a small flow editor in t
 The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the alerts and the journal of what Quai did.
 
 **The app**
-- 🏠 **Home**: what to fix, requests waiting for you, today's releases, the alerts and how full the disk is. What plays and downloads follows you in a bar above the tabs, like Music's mini player.
+- 🏠 **Home**: what to fix, requests waiting for you, what's coming, the alerts and how full the disk is. What plays and downloads follows you in a bar above the tabs, like Music's mini player.
 - 🎞️ **Library**: your movies and series with their posters, and what's still missing.
 - 🛠️ **To fix**: blocked imports (remove or import anyway), titles with no release (search and pick
   one), what Reclaimerr is about to delete and what Cleanuparr is about to take out of the queue

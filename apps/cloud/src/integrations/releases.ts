@@ -1,4 +1,4 @@
-import type { DayRelease, HomeProtocol } from "@quai/api"
+import type { HomeProtocol } from "@quai/api"
 import { Effect, Option } from "effect"
 import type { FlowEvent, Subject } from "../flows/Events.ts"
 import { dayOf } from "../releases/Day.ts"
@@ -11,7 +11,8 @@ import {
   dayReleases,
   type DayValue,
   startsAt,
-  summary
+  summary,
+  type DayRelease
 } from "../releases/Today.ts"
 import { anyEnabledFlow, type Integration, readSnapshot, type WatchContext, watchOf } from "./Integration.ts"
 

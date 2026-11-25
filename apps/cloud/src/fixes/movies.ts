@@ -16,6 +16,7 @@ import {
 import {
   type MissingMovie,
   RadarrGrabs,
+  radarrGrabsRead,
   RadarrMissing,
   radarrMissingPath,
   radarrQueuePath
@@ -157,7 +158,7 @@ export const movies: MediaFixes<MovieTarget> = {
       reads.all({
         queue: radarrQueue,
         missing: { service: "radarr", path: radarrMissingPath, schema: RadarrMissing },
-        grabs: { service: "radarr", path: grabsSincePath(nowMs - grabLookbackMs), schema: RadarrGrabs }
+        grabs: radarrGrabsRead(nowMs - grabLookbackMs)
       }),
       ({ values }) =>
         // The rules need all three reads.

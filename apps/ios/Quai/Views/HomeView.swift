@@ -23,7 +23,7 @@ struct Today {
             case .playback:
                 if !done { playing.append(activity) }
             case .request, .day:
-                // Requests and today's releases have their own tiles, read when the screen opens.
+                // Requests and Upcoming have their own tiles, read when the screen opens.
                 break
             case .media:
                 if done {
@@ -63,7 +63,13 @@ struct HomeView: View {
     private var alerts: [Components.Schemas.ActiveAlert] { connection.alerts?.items ?? [] }
     private var fixes: [Fix] { connection.fixes?.items ?? [] }
     private var requests: [Components.Schemas.MediaRequest] { connection.requests?.items ?? [] }
-    private var releases: [DayRelease] { connection.releases?.items ?? [] }
+    private var upcoming: Components.Schemas.Upcoming? { connection.upcoming }
+    /// What's out or going today: the Home isn't quiet while there's some.
+    private var upcomingToday: [UpcomingItem] {
+        guard let upcoming else { return [] }
+        let schedule = UpcomingSchedule(timeZone: upcoming.timeZone)
+        return upcoming.items.filter { schedule.period($0) == .today }
+    }
     private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
 
     /// A spinner while a search for the server takes a while, a green dot once it answered.
@@ -75,7 +81,7 @@ struct HomeView: View {
 
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
-        fixes.isEmpty && requests.isEmpty && releases.isEmpty && alerts.isEmpty
+        fixes.isEmpty && requests.isEmpty && upcomingToday.isEmpty && alerts.isEmpty
     }
 
     /// The first reads haven't answered yet (a failed one counts as answered): the Home shows the
@@ -83,7 +89,7 @@ struct HomeView: View {
     private var isLoading: Bool {
         (connection.fixes == nil && connection.fixesError == nil)
             || (connection.requests == nil && connection.requestsError == nil)
-            || (connection.releases == nil && connection.releasesError == nil)
+            || (connection.upcoming == nil && connection.upcomingError == nil)
     }
 
     var body: some View {
@@ -116,14 +122,14 @@ struct HomeView: View {
                 await connection.refresh()
                 await connection.loadFixes()
                 await connection.loadRequests()
-                await connection.loadReleases()
+                await connection.loadUpcoming()
                 await connection.loadLibrary()
                 await connection.loadAlerts()
             }
             // The To fix list asks Radarr, Sonarr, Reclaimerr and Cleanuparr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
             .task { await connection.loadRequests() }
-            .task { await connection.loadReleases() }
+            .task { await connection.loadUpcoming() }
             // The disk comes with the library; the Library tab keeps it current once open.
             .task {
                 guard connection.library == nil else { return }
@@ -152,8 +158,8 @@ struct HomeView: View {
             NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
                 .buttonStyle(.plain)
         }
-        if !releases.isEmpty {
-            NavigationLink { ReleasesView() } label: { TodayReleasesTile(releases: releases) }
+        if let upcoming, !upcoming.items.isEmpty {
+            NavigationLink { UpcomingView() } label: { UpcomingTile(upcoming: upcoming) }
                 .buttonStyle(.plain)
         }
         if !alerts.isEmpty {
@@ -328,72 +334,6 @@ private struct WantedTile: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens what's wanted in the Library")
-    }
-}
-
-/// Today's releases: each with its poster, the episodes and time under the title, and where it stands.
-/// Hidden when nothing comes out today.
-private struct TodayReleasesTile: View {
-    let releases: [DayRelease]
-
-    private var here: Int { releases.filter { $0.status == .available }.count }
-    private var lines: [TodayLine] { TodayLine.lines(releases) }
-    /// Releases on the lines past the fourth.
-    private var hiddenCount: Int { lines.dropFirst(4).reduce(0) { $0 + $1.releaseCount } }
-
-    var body: some View {
-        Tile {
-            HStack {
-                TileLabel(title: "Out today", systemImage: "calendar", color: Palette.releases)
-                Spacer(minLength: 8)
-                Text("\(here) of \(releases.count) here")
-                    .font(QuaiFont.caption)
-                    .foregroundStyle(Palette.secondaryText)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.tertiaryText)
-            }
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(lines.prefix(4), id: \.id) { line in
-                    TodayReleaseRow(line: line)
-                }
-                if hiddenCount > 0 {
-                    Text("and \(hiddenCount) more")
-                        .font(QuaiFont.caption)
-                        .foregroundStyle(Palette.secondaryText)
-                        .padding(.leading, 44)
-                }
-            }
-        }
-        .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens today's releases")
-    }
-}
-
-/// Its poster, "Percy Jackson and the Olympians" with "S03E01–E02 · 18:00" under it, and where it stands.
-private struct TodayReleaseRow: View {
-    let line: TodayLine
-
-    var body: some View {
-        HStack(spacing: 12) {
-            PosterThumbnail(url: PosterSize.small.url(line.posterUrl), width: 32, cornerRadius: 7) {
-                SymbolSquare(systemImage: line.isMovie ? "film" : "tv", color: Palette.releases, size: 32)
-            }
-            .frame(width: 32, height: 48)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(line.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Palette.primaryText)
-                    .lineLimit(1)
-                Text(line.detail)
-                    .font(QuaiFont.caption.monospacedDigit())
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            ReleaseStatusLabel(status: line.status)
-        }
     }
 }
 
