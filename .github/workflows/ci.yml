@@ -155,9 +155,7 @@ jobs:
   # in apps/ios/tools.env), so its answer comes in under a minute, and a style fix never holds back the macOS build.
   # TypeScript's lint runs in `lint` (pnpm check: tsc, then ESLint).
   swift-lint:
-    needs: changes
-    # Only when the app or its contract changes: skipped with `changes` on release PRs.
-    if: needs.changes.outputs.ios == 'true'
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -171,9 +169,7 @@ jobs:
         run: apps/ios/scripts/lint.sh --strict --reporter github-actions-logging
 
   ios-client:
-    needs: changes
-    # Only when the app or its contract changes: skipped with `changes` on release PRs.
-    if: needs.changes.outputs.ios == 'true'
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
