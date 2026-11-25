@@ -91,8 +91,9 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 **A PR you open is yours until it merges.** Right after opening it, subscribe to its activity (in Claude Code on the
 web, `subscribe_pr_activity`) and see it through: fix a failing CI job, and answer every AI review finding, fixed in a
-commit or, when it is wrong, a reply saying why (the review's tuning reads the replies). Unsubscribe once it is merged
-or closed.
+commit or, when it is wrong, a reply saying why (the review's tuning reads the replies). Then resolve its thread: `main`
+merges nothing with an open conversation. A finding left for the user to decide (a security one, a design choice)
+stays open, and the user hears why. Unsubscribe once it is merged or closed.
 
 ## Commands
 
