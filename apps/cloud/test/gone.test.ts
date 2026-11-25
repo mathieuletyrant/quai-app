@@ -287,7 +287,7 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
       })
     ))
 
-  it.effect("each movie version Reclaimerr deletes is one event: notified once for its candidate", () =>
+  it.effect("each movie version Reclaimerr deletes is one event: notified once for its candidate, read once or later", () =>
     withApple((apple) =>
       Effect.gen(function*() {
         yield* TestClock.setTime(now)
@@ -297,6 +297,15 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
         yield* (yield* Hub).sync
         yield* home.snapshot(deletedWatch, { items: [up, { ...up, id: "second-version" }] })
         expect(pushed(apple)).toEqual([["Up is gone", "Deleted by Reclaimerr", "gone.plannedDeletion"]])
+        // A third version, in a later read: still the same candidate, gone already.
+        yield* home.snapshot(deletedWatch, {
+          items: [up, { ...up, id: "second-version" }, {
+            ...up,
+            id: "third-version",
+            occurred_at: "2026-11-25T10:01:00Z"
+          }]
+        })
+        expect(pushed(apple)).toHaveLength(1)
       })
     ))
 

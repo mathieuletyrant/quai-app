@@ -92,16 +92,21 @@ export const carriedOutNote = (title: string, event: FileEvent, spaceBack: numbe
   }
 }
 
-/** One event per candidate: Reclaimerr tells each version of a movie it deletes apart. */
-const oncePerCandidate = (events: ReadonlyArray<FileEvent & FeedEvent>) => {
-  const taken = new Set<number>()
-  return events.filter((event) => {
+/**
+ * One event per candidate, across reads: Reclaimerr tells each version of a movie it deletes apart,
+ * and they may come in different reads. `taken` keeps the candidates already gone, the oldest
+ * forgotten past `knownAtMost`.
+ */
+export const oncePerCandidate = (events: ReadonlyArray<FileEvent & FeedEvent>, taken: Set<number>) => {
+  const once = events.filter((event) => {
     const id = event.payload.candidate_id ?? undefined
     if (id === undefined) return true
     if (taken.has(id)) return false
     taken.add(id)
     return true
   })
+  if (taken.size > knownAtMost) { for (const id of [...taken].slice(0, taken.size - knownAtMost)) taken.delete(id) }
+  return once
 }
 
 /** How many candidates are remembered for their size and name, more than Reclaimerr lists. */
@@ -118,6 +123,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
   const journal = yield* Journal
   const feed = eventFeed(journal, { source: "reclaimerr", kinds: ["reclaimerr.deleted", "reclaimerr.moved"] })
   const known = new Map<number, Candidate>()
+  const carriedOutIds = new Set<number>()
 
   const remember = (candidates: ReadonlyArray<Candidate>) => {
     for (const candidate of candidates) {
@@ -198,7 +204,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
           const page = yield* readSnapshot(fileEventsRead(type, context.now), snapshot)
           if (Option.isNone(page)) return []
           const dated = page.value.items.map((event) => ({ ...event, at: Date.parse(event.occurred_at) }))
-          const fresh = oncePerCandidate(yield* feed.fresh(dated))
+          const fresh = oncePerCandidate(yield* feed.fresh(dated), carriedOutIds)
           return yield* Effect.forEach(fresh, (event) => carriedOutGone(event, context))
         })
     },
