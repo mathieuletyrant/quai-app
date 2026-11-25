@@ -7,6 +7,13 @@ on:
     branches: ["claude/**"]
   workflow_dispatch:
 
+# A newer commit of the same branch cancels the run still going, the whole of it, when it starts. Not per job: a job
+# that waits on others (ios on ios-client) can join a per-job queue after an older commit's, which then cancels the
+# newer one, and the PR's `required` fails on a cancelled job.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   typescript:
     runs-on: ubuntu-latest
@@ -176,10 +183,6 @@ jobs:
       (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
     runs-on: macos-26
     timeout-minutes: 30
-    # A newer commit of the same branch replaces a run still going.
-    concurrency:
-      group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
-      cancel-in-progress: true
     permissions:
       contents: write
       pull-requests: write
