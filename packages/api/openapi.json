@@ -4541,6 +4541,12 @@
               "$ref": "#/components/schemas/AlertKind"
             }
           },
+          "gone": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoneKind"
+            }
+          },
           "seerrUserId": {
             "type": "integer",
             "minimum": -9007199254740991,
@@ -4551,6 +4557,14 @@
           "flows"
         ],
         "additionalProperties": false
+      },
+      "GoneKind": {
+        "type": "string",
+        "enum": [
+          "plannedDeletion",
+          "stuckRemoval",
+          "seedCleanup"
+        ]
       },
       "FlowPreference": {
         "type": "object",

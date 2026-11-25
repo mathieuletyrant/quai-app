@@ -106,15 +106,18 @@ const nextRunOf = (job: StackReads["job"]): number | undefined => {
   return seconds === undefined ? undefined : seconds * 1000
 }
 
-export const plansOf = (stack: StackReads, now: number): Plans => {
-  const { candidates, cleaner, finished } = stack
-  return {
-    planned: Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) }),
-    cleanups: Option.isSome(cleaner) && Option.isSome(finished)
-      ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunOf(stack.job), now })
-      : []
-  }
+/** What the download cleaner plans for the finished torrents. */
+const cleanupsOf = (stack: Pick<StackReads, "cleaner" | "finished" | "job">, now: number) => {
+  const { cleaner, finished } = stack
+  return Option.isSome(cleaner) && Option.isSome(finished)
+    ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunOf(stack.job), now })
+    : []
 }
+
+export const plansOf = (stack: StackReads, now: number): Plans => ({
+  planned: Option.match(stack.candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) }),
+  cleanups: cleanupsOf(stack, now)
+})
 
 /** Space back is only decided when something plans to free space: the library is read for it. */
 const freesSpace = (plans: Plans) => plans.planned.length > 0 || plans.cleanups.length > 0
@@ -140,8 +143,17 @@ const hardlinksOf = (library: LibraryReads) => ({
   series: Option.getOrUndefined(Option.map(library.sonarrSettings, (settings) => settings.copyUsingHardlinks))
 })
 
+/** What space back is decided on: the plans, the torrents and the download cleaner's settings, the library. */
+interface SpaceSources {
+  readonly reach: Reach
+  readonly now: number
+  readonly plans: Plans
+  readonly stack: Pick<StackReads, "finished" | "cleaner">
+  readonly library: LibraryReads | undefined
+}
+
 /** The space each planned deletion and seed cleanup gives back. */
-export const spaceFreed = ({ library, now, plans, reach, stack }: Gathered): SpaceBack => {
+export const spaceFreed = ({ library, now, plans, reach, stack }: SpaceSources): SpaceBack => {
   if (library === undefined) return nothingBack
   return spaceBack(spaceInputs({
     now,
@@ -195,6 +207,29 @@ export const upcomingOf = (gathered: Gathered): UpcomingList => {
     homeOutdated: !reach.recent && (reach.has("cleanuparr") || reach.has("reclaimerr"))
   }
 }
+
+/**
+ * The space a deletion Reclaimerr has just carried out gave back (Gone), read now: as Upcoming would
+ * have said it, with the deletion due now. Undefined when not sure: a torrent still seeds the files,
+ * the title isn't found anymore, its size was never read.
+ */
+export const spaceBackOfCarriedOut = (
+  reads: HomeReads["Service"],
+  reach: Reach,
+  planned: PlannedCandidate,
+  now: number
+): Effect.Effect<number | undefined, HomeOffline> =>
+  Effect.gen(function*() {
+    const none = Effect.succeed(Option.none<never>())
+    const stack = yield* Effect.all({
+      cleaner: reach.cleaning ? reads.read(downloadCleanerRead) : none,
+      job: reach.cleaning ? reads.read(downloadCleanerJobRead) : none,
+      finished: reach.has("qbittorrent") ? reads.read(finishedTorrentsRead) : none
+    }, { concurrency: "unbounded" })
+    const library = yield* readLibrary(reads, reach, grabsSince(addedOnOf(stack.finished), now))
+    const plans = { planned: [planned], cleanups: cleanupsOf(stack, now) }
+    return spaceFreed({ reach, now, plans, stack, library }).deletions.get(planned.candidate.id)
+  })
 
 /**
  * Upcoming (docs/upcoming.md): what the stack will do on its own, read when the app asks, nothing

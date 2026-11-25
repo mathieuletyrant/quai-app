@@ -34,6 +34,7 @@ const consoleServer = (options: {
   const config = configLayer({
     radarr: null,
     sonarr: null,
+    reclaimerr: null,
     suggestedUrls: { sonarr: "http://sonarr_server_1:8989" },
     password: options.password === undefined ? null : Redacted.make(options.password)
   })
@@ -47,11 +48,20 @@ const consoleServer = (options: {
           Effect.fail(new CloudUnreachable({ message: "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home" }))
       )
   })
-  const radarr = fakeHttp((incoming) =>
-    incoming.headers["x-api-key"] === "good"
+  const radarr = fakeHttp((incoming) => {
+    // Reclaimerr: a bearer token, with the events:read scope ("scoped") or without it ("unscoped").
+    if (incoming.url.pathname.startsWith("/api/v1/")) {
+      const token = incoming.headers["authorization"]
+      if (token !== "Bearer scoped" && token !== "Bearer unscoped") return { status: 401, json: {} }
+      if (incoming.url.pathname === "/api/v1/events") {
+        return token === "Bearer scoped" ? { json: { items: [] } } : { status: 403, json: {} }
+      }
+      return { json: { status: "ok", version: "0.6.17" } }
+    }
+    return incoming.headers["x-api-key"] === "good"
       ? { json: { appName: "Radarr", version: "6.0.4.10291" } }
       : { status: 401, json: {} }
-  )
+  })
   const files = Layer.mergeAll(
     Layer.effect(ServiceSettings, Effect.flatMap(tempDir, (dir) => ServiceSettings.make(join(dir, "services.json")))),
     Layer.effect(
@@ -195,6 +205,32 @@ describe("services page", () => {
       url: "http://radarr:7878",
       secret: "k"
     })
+  })
+
+  it.effect("Reclaimerr's key without events:read passes its check, which says what it leaves out", () => {
+    const { layer } = consoleServer({ password: "pw" })
+    return Effect.gen(function*() {
+      const cookie = yield* signIn("pw")
+      const unscoped = yield* request("PUT", "/home-api/services/reclaimerr", {
+        cookie,
+        body: { url: "http://reclaimerr:8000", secret: "unscoped" }
+      })
+      expect(unscoped.json.check).toEqual({
+        outcome: "ok",
+        message: "Reclaimerr 0.6.17 · the key lacks events:read: nothing it deletes is said to be gone",
+        version: "0.6.17"
+      })
+      const scoped = yield* request("PUT", "/home-api/services/reclaimerr", {
+        cookie,
+        body: { url: "http://reclaimerr:8000", secret: "scoped" }
+      })
+      expect(scoped.json.check).toEqual({ outcome: "ok", message: "Reclaimerr 0.6.17", version: "0.6.17" })
+      const refused = yield* request("PUT", "/home-api/services/reclaimerr", {
+        cookie,
+        body: { url: "http://reclaimerr:8000", secret: "wrong" }
+      })
+      expect(refused.json.check.outcome).toBe("refused")
+    }).pipe(Effect.provide(layer))
   })
 
   it("reads what a check got back", () => {

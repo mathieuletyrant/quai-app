@@ -140,7 +140,8 @@ describe("today's releases", () => {
       services: ["sonarr" as const],
       now: Date.parse("2026-11-20T17:00:00Z"),
       timeZone: paris,
-      alerts: defaultAlertSettings
+      alerts: defaultAlertSettings,
+      gone: []
     }
     const [start] = dayEvents(context, many)
     expect(start!.values?.items).toHaveLength(4)
@@ -206,7 +207,8 @@ describe("Today's releases flow", () => {
       services: ["radarr", "sonarr"] as const,
       now: Date.parse("2026-11-20T12:00:00Z"),
       timeZone: paris,
-      alerts: defaultAlertSettings
+      alerts: defaultAlertSettings,
+      gone: []
     }
     const watched = calendarWatches({ ...context, services: [...context.services] }).map((watch) =>
       `${watch.service} ${watch.path}`

@@ -6,6 +6,7 @@ import { ActionRunner } from "./flows/ActionRunner.ts"
 import { Activities } from "./flows/Activities.ts"
 import { FlowStore } from "./flows/FlowStore.ts"
 import { TestRunner } from "./flows/TestRunner.ts"
+import { Gone } from "./gone/Gone.ts"
 import { ConsoleOnlyThroughHome, ConsoleRelayLive } from "./home/ConsoleRelay.ts"
 import { Devices } from "./home/Devices.ts"
 import { HomeLink } from "./home/HomeLink.ts"
@@ -30,7 +31,7 @@ const HomeData = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
  */
 export const HomeServices = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
   Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Upcoming.layer)),
-  Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
+  Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer, Gone.layer)),
   Layer.provideMerge(Activities.layer),
   Layer.provideMerge(Layer.mergeAll(IntegrationsLive, HomeTime.layer)),
   Layer.provideMerge(HomeData)

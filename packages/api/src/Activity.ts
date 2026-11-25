@@ -8,6 +8,16 @@ export const AlertKind = Schema.Literals(["serviceDown", "diskLow", "arrHealth",
 })
 export type AlertKind = typeof AlertKind.Type
 
+/**
+ * What can be gone (GLOSSARY): what Upcoming showed as going, done by the stack on its own. A
+ * planned deletion Reclaimerr carried out (or moved), a stuck removal or a seed cleanup Cleanuparr made.
+ */
+export const GoneKind = Schema.Literals(["plannedDeletion", "stuckRemoval", "seedCleanup"]).annotate({
+  identifier: "GoneKind"
+})
+export type GoneKind = typeof GoneKind.Type
+export const goneKinds: ReadonlyArray<GoneKind> = GoneKind.literals
+
 export const FlowSubject = Schema.Literals(["media", "playback", "request", "day"]).annotate({
   identifier: "FlowSubject"
 })

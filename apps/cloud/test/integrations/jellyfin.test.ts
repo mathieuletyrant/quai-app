@@ -128,7 +128,8 @@ describe("Jellyfin integration", () => {
     services: ["jellyfin"],
     now: 0,
     timeZone: "UTC",
-    alerts: defaultAlertSettings
+    alerts: defaultAlertSettings,
+    gone: []
   })
 
   // Recorded from a real Jellyfin 12.4: users anonymized, the rest as it answered.

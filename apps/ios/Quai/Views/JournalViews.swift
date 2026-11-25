@@ -15,6 +15,8 @@ extension JournalEntry {
         case "playback.started", "playback.stopped": ("play.fill", Palette.playback)
         case "alert.raised": ("exclamationmark.triangle.fill", Palette.alert)
         case "alert.over": ("checkmark.circle.fill", Palette.ok)
+        case "reclaimerr.deleted", "reclaimerr.moved", "cleanuparr.removed", "cleanuparr.cleaned":
+            ("trash.circle.fill", Palette.secondaryText)
         case "request.pending", "request.approved", "request.declined": ("person.fill.questionmark", Palette.requests)
         case "releases.available": ("calendar", Palette.releases)
         default: ("circle.fill", Palette.secondaryText)

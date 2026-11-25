@@ -4,6 +4,7 @@ import { Alerts } from "../alerts/Alerts.ts"
 import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
+import { Gone } from "../gone/Gone.ts"
 import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
 import { HomeTime } from "../home/HomeTime.ts"
 import { eventNote, type From } from "../journal/describe.ts"
@@ -13,6 +14,7 @@ import {
   type Integration,
   Integrations,
   isAlertState,
+  isGone,
   type Signal,
   type WatchContext,
   type Watcher
@@ -71,9 +73,9 @@ interface Sent {
   readonly owners: ReadonlyMap<string, Owner>
 }
 
-/** An integration's watchers: its flow events', then its alerts'. */
+/** An integration's watchers: its flow events', its alerts', then what it says is gone. */
 const watchersOf = (integration: Integration): ReadonlyArray<Watcher<Signal>> =>
-  [integration.watcher, integration.alertWatcher].filter((watcher) => watcher !== undefined)
+  [integration.watcher, integration.alertWatcher, integration.goneWatcher].filter((watcher) => watcher !== undefined)
 
 /** A watch's owner, for the watches of the services Quai Home reaches; the first integration to ask wins. */
 const watchOwners = (integrations: ReadonlyArray<Integration>, ctx: WatchContext): Map<string, Owner> => {
@@ -115,6 +117,7 @@ export class Hub extends Context.Service<Hub, {
     const time = yield* HomeTime
     const journal = yield* Journal
     const alerts = yield* Alerts
+    const goneNotes = yield* Gone
     /** What Quai Home polls; null until sent to the home connected now. */
     let sent: Sent | null = null
     const repeated = makeRepeats()
@@ -145,8 +148,14 @@ export class Hub extends Context.Service<Hub, {
     /** Alert states go to the alerts; flow events are logged, then applied. */
     const applyFrom = (service: From, signals: ReadonlyArray<Signal>) =>
       Effect.andThen(
-        Effect.forEach(signals.filter(isAlertState), alerts.apply, { discard: true }),
-        applyEvents(service, signals.filter((signal): signal is FlowEvent => !isAlertState(signal)))
+        Effect.andThen(
+          Effect.forEach(signals.filter(isAlertState), alerts.apply, { discard: true }),
+          Effect.forEach(signals.filter(isGone), goneNotes.notify, { discard: true })
+        ),
+        applyEvents(
+          service,
+          signals.filter((signal): signal is FlowEvent => !isAlertState(signal) && !isGone(signal))
+        )
       )
 
     /** Logs what the events of one service mean, then applies them. */
@@ -171,6 +180,7 @@ export class Hub extends Context.Service<Hub, {
         now: yield* Clock.currentTimeMillis,
         timeZone: yield* time.zone,
         alerts: yield* alerts.settings.pipe(Effect.orElseSucceed(() => defaultAlertSettings)),
+        gone: yield* goneNotes.wanted.pipe(Effect.orElseSucceed(() => [])),
         protocol: home.value.protocol
       })
     }).pipe(Effect.orElseSucceed(() => Option.none()))

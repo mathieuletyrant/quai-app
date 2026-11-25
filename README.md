@@ -37,6 +37,7 @@ You choose which ones run, and what each step shows, in a small flow editor in t
 
 **Alerts**
 - 🚨 **Notifications** for what may last: a service that stops answering, the media disk running low, a problem Radarr, Sonarr or Prowlarr report. One when it starts, one when it's over; set up in the console, muted per iPhone.
+- 🧹 **Gone**: a notification once Reclaimerr deleted a title, or Cleanuparr removed a stuck download or cleaned a torrent after seeding, with the space that came back. Off until turned on, per iPhone.
 
 The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the alerts and the journal of what Quai did.
 
@@ -136,7 +137,7 @@ your own account.
 | `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | qBittorrent Web UI |
 | `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General) |
 | `QUAI_PROWLARR_URL`, `QUAI_PROWLARR_API_KEY` | Prowlarr (Settings → General), for the alerts only |
-| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations) |
+| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations; scopes `candidates:manage`, `system:read`, and `events:read` for Gone) |
 | `QUAI_CLEANUPARR_URL`, `QUAI_CLEANUPARR_API_KEY` | Cleanuparr (Settings → Account); on Umbrel `http://mathieu-cleanuparr_server_1:11011` |
 
 A service set neither here nor in the console's Services page is skipped.
