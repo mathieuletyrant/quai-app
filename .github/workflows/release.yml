@@ -9,6 +9,7 @@ permissions:
   contents: write
   pull-requests: write
   packages: write
+  actions: write
 
 jobs:
   release:
@@ -23,6 +24,14 @@ jobs:
           target-branch: main
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+      # The release PR is opened and updated with GITHUB_TOKEN, which starts no pull_request run: dispatch ci on its
+      # branch so the PR gets its checks, `required` among them, and can merge.
+      - name: CI on the release PR
+        if: steps.release.outputs.pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
 
   # Same workflow on purpose: a release created with GITHUB_TOKEN does not trigger other workflows.
   # Two images per release: Quai Cloud (ghcr.io/…/quai) and Quai Home (ghcr.io/…/quai-home).
