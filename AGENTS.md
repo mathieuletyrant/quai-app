@@ -31,6 +31,8 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 ## Code
 
+- **The glossary's words, everywhere**: code, types, wire values, UI text, docs, commits. A concept it doesn't name yet, or a word that could mean two of its terms: ask the user which word, then add it to `GLOSSARY.md` before using it.
+- **Reuse before writing.** Look for the module that already owns the concept (a `Read`, an integration, a `ui/` component, a helper in `integrations/arr.ts`) and extend it. Each rule lives in one module, behind a small interface, with its test there; callers stay short and read top to bottom. A second copy of a rule, or a helper that only passes through, means the code belongs in the existing module.
 - Names say what a value is, in loops and callbacks too: `movie`, `candidate`, `index`, `entry`. One letter is never a name.
 - Comments carry what the code can't: why, a service's quirk, a gotcha. A doc comment on an export says what it is in a line; the names tell the rest.
 
