@@ -137,6 +137,22 @@ jobs:
 
   # The app's client isn't committed: generated here, outside the Xcode build, and handed to the
   # ios job. The generator comes from the cache that swift-tools.yml keeps on main.
+  # Swift's format and lint, on its own: it starts with the other jobs and needs nothing built (static binaries pinned
+  # in apps/ios/tools.env), so its answer comes in under a minute, and a style fix never holds back the macOS build.
+  # TypeScript's lint runs in `typescript` (pnpm check: tsc, then ESLint).
+  swift-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The app's Swift against apps/ios/.swiftformat, on Linux: each change SwiftFormat would make
+      # is an annotation on its line, and fails the job. `apps/ios/scripts/format.sh` applies them.
+      - name: SwiftFormat
+        run: apps/ios/scripts/format.sh --lint --reporter github-actions-log
+      # The rules in apps/ios/.swiftlint.yml (crashes, complexity, names, dead code): each
+      # violation is an annotation on its line, and `--strict` makes a warning fail the job too.
+      - name: SwiftLint
+        run: apps/ios/scripts/lint.sh --strict --reporter github-actions-logging
+
   ios-client:
     runs-on: ubuntu-latest
     steps:
@@ -146,14 +162,6 @@ jobs:
           path: apps/ios/Tools/.build
           key: swift-tools-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
       - run: apps/ios/scripts/gen-client.sh
-      # The app's Swift against apps/ios/.swiftformat, on Linux: each change SwiftFormat would make
-      # is an annotation on its line, and fails the job. `apps/ios/scripts/format.sh` applies them.
-      - name: SwiftFormat
-        run: apps/ios/scripts/format.sh --lint --reporter github-actions-log
-      # The rules in apps/ios/.swiftlint.yml (crashes, complexity, names, dead code): each
-      # violation is an annotation on its line, and `--strict` makes a warning fail the job too.
-      - name: SwiftLint
-        run: apps/ios/scripts/lint.sh --strict --reporter github-actions-logging
       - uses: actions/upload-artifact@v4
         with:
           name: ios-client
@@ -276,7 +284,7 @@ jobs:
   # This job runs on the PR only and passes when every job passed or was skipped (a PR that doesn't touch its files).
   required:
     if: always() && github.event_name == 'pull_request'
-    needs: [typescript, docker, changes, live-activity-pushes, ios-client, ios]
+    needs: [typescript, swift-lint, docker, changes, live-activity-pushes, ios-client, ios]
     runs-on: ubuntu-latest
     steps:
       - name: Every job passed or was skipped
