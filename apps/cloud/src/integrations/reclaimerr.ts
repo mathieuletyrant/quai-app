@@ -192,7 +192,7 @@ export const candidateTitleKey = ({ candidate, operation }: PlannedCandidate, so
 }
 
 /** The candidate's poster, from the Radarr movie or Sonarr series it is. */
-export const candidatePoster = (candidate: Candidate, sources: PosterSources): LibraryId.LibraryId | undefined => {
+export const candidatePoster = (candidate: Candidate, sources: PosterSources): string | undefined => {
   const listed = isMovie(candidate) ? sources.movies : sources.series
   return listed === undefined ? undefined : posterOf(matching(candidate, listed)?.images)
 }
