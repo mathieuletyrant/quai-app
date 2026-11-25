@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.2](https://github.com/mathieuletyrant/quai-app/compare/v0.28.1...v0.28.2) (2026-11-25)
+
+
+### 🐛 Fixes
+
+* **ios:** freed space on the date line, no request flash in the live bar, a red dot when offline ([#120](https://github.com/mathieuletyrant/quai-app/issues/120)) ([93f4527](https://github.com/mathieuletyrant/quai-app/commit/93f45276008515a467883f2fa6fbb38e4d881bf4))
+
 ## [0.28.1](https://github.com/mathieuletyrant/quai-app/compare/v0.28.0...v0.28.1) (2026-11-25)
 
 
