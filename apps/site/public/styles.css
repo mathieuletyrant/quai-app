@@ -124,6 +124,11 @@ q-if[hidden] { display: none; }
 .q-app-bar { height: 4px; border-radius: 2px; background: #34343C; overflow: hidden; }
 .q-app-bar i { display: block; height: 100%; border-radius: 2px; background: var(--c, #6FD3C2); }
 .q-app-status { font-size: 9.5px; font-weight: 600; color: #8E8E93; flex-shrink: 0; }
+.q-app-svc { display: block; font-style: normal; font-size: 7.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #4FC3F7; }
+.q-app-svc.is-going { color: #FF8A3D; }
+.q-app-group { font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #A1A1A6; margin: 2px 0 -3px 4px; }
+.q-app-free { font-size: 10px; font-weight: 700; color: #30D158; flex-shrink: 0; }
+.q-app-symbol { display: grid; place-items: center; background: #24242B; color: #FF8A3D; font-size: 13px; }
 .q-app-chevron { color: #8E8E93; font-size: 13px; flex-shrink: 0; }
 .q-app-segment { display: grid; grid-template-columns: repeat(3, 1fr); background: #1F1F25; border-radius: 9px; padding: 2px; font-size: 10px; font-weight: 600; text-align: center; }
 .q-app-segment span { padding: 4px 0; border-radius: 7px; color: #D1D1D6; }
