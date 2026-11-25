@@ -10,8 +10,14 @@ import { apnsBody } from "./ApnsPayload.ts"
 
 const iphones = (count: number) => `${count} iPhone${count === 1 ? "" : "s"}`
 
+/** Where an activity's change went: to how many iPhones, and whether Quai Cloud has an APNs key at all. */
+export interface Reach {
+  readonly pushed: number
+  readonly configured: boolean
+}
+
 /** "· pushed to 2 iPhones": where an activity's change went. */
-const reach = (pushed: number, configured: boolean) =>
+const reach = ({ configured, pushed }: Reach) =>
   !configured
     ? " · not pushed: no APNs key"
     : pushed === 0
@@ -26,8 +32,7 @@ export const activityNote = (
   push: Push,
   flow: Flow,
   previousStep: number | undefined,
-  pushed: number,
-  configured: boolean
+  reached: Reach
 ) => {
   const { activity } = push
   const step = flow.steps[activity.stepIndex]?.label ?? "?"
@@ -43,7 +48,7 @@ export const activityNote = (
     level: "info" as const,
     source: "cloud" as const,
     kind: what.kind,
-    text: what.text + reach(pushed, configured),
+    text: what.text + reach(reached),
     subject: activity.subjectKey,
     title: activity.title,
     flowId: flow.id
@@ -70,10 +75,10 @@ export class Notifier extends Context.Service<Notifier, {
       const shown = new Set<string>()
       const key = (deviceId: string, activityKey: string) => `${deviceId}\u0000${activityKey}`
 
-      const logged = (push: Push, flow: Flow, pushed: number, configured: boolean) =>
+      const logged = (push: Push, flow: Flow, reached: Reach) =>
         Effect.suspend(() => {
           const key = push.activity.key
-          const note = activityNote(push, flow, loggedStep.get(key), pushed, configured)
+          const note = activityNote(push, flow, loggedStep.get(key), reached)
           if (push._tag === "End") loggedStep.delete(key)
           else loggedStep.set(key, push.activity.stepIndex)
           return note === null ? Effect.void : journal.log(note)
@@ -83,7 +88,7 @@ export class Notifier extends Context.Service<Notifier, {
         Effect.gen(function*() {
           const flow = (yield* flowStore.all).find((candidate) => candidate.id === push.activity.flowId)
           if (flow === undefined) return
-          if (!(yield* apns.configured)) return yield* logged(push, flow, 0, false)
+          if (!(yield* apns.configured)) return yield* logged(push, flow, { pushed: 0, configured: false })
           const activityKey = push.activity.key
           const now = yield* Clock.currentTimeMillis
           const targets = (yield* devices.targets(activityKey)).filter((target) =>
@@ -148,7 +153,7 @@ export class Notifier extends Context.Service<Notifier, {
                   }))
               )
             }), { concurrency: 4, discard: true })
-          yield* logged(push, flow, pushed, true)
+          yield* logged(push, flow, { pushed, configured: true })
         }).pipe(
           // No home, no iPhone to push to: the activities live there too.
           Effect.catchTag("HomeOffline", (error) => Effect.logDebug(`push skipped: ${error.message}`))
