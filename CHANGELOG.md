@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.6](https://github.com/mathieuletyrant/quai-app/compare/v0.27.5...v0.27.6) (2026-11-25)
+
+
+### 🐛 Fixes
+
+* **flows:** end a download's activity when its release leaves the client ([#109](https://github.com/mathieuletyrant/quai-app/issues/109)) ([40cb9ef](https://github.com/mathieuletyrant/quai-app/commit/40cb9efd10cd760ef90afa0a5908d350254a3977))
+* **link:** a few seconds without the Cloud lose nothing and log nothing ([#110](https://github.com/mathieuletyrant/quai-app/issues/110)) ([61cc18c](https://github.com/mathieuletyrant/quai-app/commit/61cc18c826257bce0976ec308467d99412ef5cc6))
+
 ## [0.27.5](https://github.com/mathieuletyrant/quai-app/compare/v0.27.4...v0.27.5) (2026-11-24)
 
 
