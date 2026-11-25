@@ -66,7 +66,7 @@ struct UpcomingSchedule {
             }
         }
 
-        static func < (a: Period, b: Period) -> Bool { a.rawValue < b.rawValue }
+        static func < (lhs: Period, rhs: Period) -> Bool { lhs.rawValue < rhs.rawValue }
     }
 
     init(now: Date = .now, timeZone identifier: String) {

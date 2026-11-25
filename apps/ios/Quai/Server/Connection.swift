@@ -63,7 +63,6 @@ final class Connection {
     /// The home's movies and series, once loaded.
     private(set) var library: Components.Schemas.Library?
     private(set) var libraryError: String?
-    /// The To fix list, once loaded.
     private(set) var fixes: Components.Schemas.Fixes?
     private(set) var fixesError: String?
     /// Seerr's requests waiting for approval, once loaded.
@@ -359,7 +358,6 @@ final class Connection {
         }
     }
 
-    /// The next page, older than what's loaded.
     func loadOlderJournal() async {
         guard journalHasMore, let oldest = journal.last else { return }
         do {
