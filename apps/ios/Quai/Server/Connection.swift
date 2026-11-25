@@ -446,6 +446,7 @@ final class Connection {
         #if DEBUG
         if let readDelay { try await Task.sleep(for: readDelay) }
         #endif
+        // swiftlint:disable:next unhandled_throwing_task - its error is thrown by `search.value` below
         let search = connecting ?? Task { try await session.connect() }
         connecting = search
         defer { if connecting == search { connecting = nil } }

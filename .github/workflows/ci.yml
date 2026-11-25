@@ -150,6 +150,10 @@ jobs:
       # is an annotation on its line, and fails the job. `apps/ios/scripts/format.sh` applies them.
       - name: SwiftFormat
         run: apps/ios/scripts/format.sh --lint --reporter github-actions-log
+      # The rules in apps/ios/.swiftlint.yml (crashes, complexity, names, dead code): each
+      # violation is an annotation on its line, and `--strict` makes a warning fail the job too.
+      - name: SwiftLint
+        run: apps/ios/scripts/lint.sh --strict --reporter github-actions-logging
       - uses: actions/upload-artifact@v4
         with:
           name: ios-client

@@ -1,6 +1,6 @@
-# Builds the Swift tools (apps/ios/Tools: the OpenAPI generator and SwiftFormat) into a cache on
-# main, where every branch's ios-client job can read it: a branch's own cache isn't shared, and an
-# unused one expires after 7 days, hence the weekly run.
+# Builds the Swift tools (apps/ios/Tools: the OpenAPI generator, SwiftFormat and SwiftLint) into a
+# cache on main, where every branch's ios-client job can read it: a branch's own cache isn't shared,
+# and an unused one expires after 7 days, hence the weekly run.
 name: swift-tools
 
 on:
@@ -23,3 +23,4 @@ jobs:
       - run: |
           swift build --package-path apps/ios/Tools -c release --product swift-openapi-generator
           swift build --package-path apps/ios/Tools -c release --product swiftformat
+          swift build --package-path apps/ios/Tools -c release --product swiftlint
