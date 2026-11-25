@@ -84,3 +84,8 @@ space (*disk low*), a problem Radarr, Sonarr or Prowlarr report on their System 
 health*). Not a Live Activity: one notification when it starts, one when it's over. Set up in the
 console's Alerts page, muted per iPhone in the app; the ones going on show on the app's Home. See
 [docs/alerts.md](docs/alerts.md).
+
+**Upcoming**. What the stack will do on its own, in date order, read in the app: the releases
+Radarr and Sonarr will grab, the deletions Reclaimerr plans, the removals Cleanuparr plans. It only
+shows; acting on one of them happens where it already can (To fix). Not the queue: what downloads
+now is an activity.
