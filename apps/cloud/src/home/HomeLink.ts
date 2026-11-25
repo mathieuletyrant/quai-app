@@ -13,6 +13,17 @@ type Answer = Extract<
   { readonly _tag: "CallResponse" | "Failed" | "StoreDocuments" | "StoreDone" | "JournalPage" }
 >
 
+const answerTags: ReadonlySet<HomeMessage["_tag"]> = new Set<Answer["_tag"]>([
+  "CallResponse",
+  "Failed",
+  "StoreDocuments",
+  "StoreDone",
+  "JournalPage"
+])
+
+/** An answer to one of the Cloud's requests, or a watch's failure (a `Failed` nobody waits for). */
+const isAnswer = (message: HomeMessage): message is Answer => answerTags.has(message._tag)
+
 const HomeJson = Schema.fromJsonString(HomeProtocol.HomeMessage)
 const CloudJson = Schema.fromJsonString(HomeProtocol.CloudMessage)
 const decodeHomeMessage = Schema.decodeUnknownOption(HomeJson)
@@ -145,6 +156,14 @@ interface Connection {
   /** Completed to close this connection: another one of the same home replaced it. */
   readonly replaced: Deferred.Deferred<void>
 }
+
+/** The home as its events describe it, from its connection now. */
+const linkedHomeOf = (homeId: string, connection: Connection): LinkedHome => ({
+  homeId,
+  services: connection.services,
+  protocol: connection.protocol,
+  webUrls: connection.webUrls
+})
 
 /** One home as the links know it: its connection while there is one, its events, its console. */
 interface Slot {
@@ -346,12 +365,7 @@ export class HomeLinks extends Context.Service<HomeLinks, {
             const connection = ready()
             return connection === null
               ? Option.none()
-              : Option.some({
-                homeId,
-                services: connection.services,
-                protocol: connection.protocol,
-                webUrls: connection.webUrls
-              })
+              : Option.some(linkedHomeOf(homeId, connection))
           }),
           call: (call, options) =>
             Effect.gen(function*() {
@@ -511,15 +525,7 @@ export class HomeLinks extends Context.Service<HomeLinks, {
               return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
             }
             connection.documents = new Map(answer.documents.map((document) => [document.key, document.value]))
-            yield* Queue.offer(events, {
-              _tag: "Ready",
-              home: {
-                homeId,
-                services: connection.services,
-                protocol: connection.protocol,
-                webUrls: connection.webUrls
-              }
-            })
+            yield* Queue.offer(events, { _tag: "Ready", home: linkedHomeOf(homeId, connection) })
             yield* Queue.offer(readyHomes, homeId)
             yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))
           }).pipe(
@@ -531,72 +537,70 @@ export class HomeLinks extends Context.Service<HomeLinks, {
           )
         )
 
+        /** An answer goes to the request waiting for it; a `Failed` nobody waits for is a watch's. */
+        const answered = (message: Answer) =>
+          Effect.gen(function*() {
+            const answer = connection.pending.get(message.id)
+            if (answer !== undefined) {
+              connection.pending.delete(message.id)
+              return yield* Deferred.succeed(answer, message)
+            }
+            if (message._tag === "Failed") {
+              yield* Queue.offer(inbox, { _tag: "WatchFailed", watchId: message.id, reason: message.reason })
+            }
+          })
+
+        const received = (message: HomeMessage) =>
+          Effect.gen(function*() {
+            if (isAnswer(message)) return yield* answered(message)
+            switch (message._tag) {
+              case "WatchSnapshot":
+                return yield* Queue.offer(inbox, {
+                  _tag: "Snapshot",
+                  watchId: message.watchId,
+                  status: message.status,
+                  body: message.body
+                })
+              case "WebhookReceived":
+                return yield* Queue.offer(inbox, {
+                  _tag: "Webhook",
+                  service: message.service,
+                  receivedAt: message.receivedAt,
+                  body: message.body
+                })
+              case "JournalNoted":
+                return yield* Queue.offer(inbox, { _tag: "Journal", entries: message.entries })
+              case "ConsoleRequest": {
+                const { id, _tag, ...request } = message
+                return yield* Effect.forkScoped(
+                  Effect.flatMap(
+                    answerConsole(slot, request),
+                    (answer) =>
+                      send(HomeProtocol.ConsoleResponse.make({ id, status: answer.status, body: answer.body }))
+                  )
+                )
+              }
+              case "ServicesChanged":
+                connection.services = message.services
+                return yield* Queue.offer(inbox, { _tag: "Services", home: linkedHomeOf(homeId, connection) })
+              case "Pong":
+              case "Hello":
+              case "Proof":
+                return
+            }
+          })
+
         const read = Effect.forever(Effect.gen(function*() {
           const decoded = yield* next
           if (Option.isNone(decoded)) {
             return yield* Effect.logWarning("ignored a message from Quai Home that isn't part of the protocol")
           }
-          const message = decoded.value
-          switch (message._tag) {
-            case "CallResponse":
-            case "StoreDocuments":
-            case "StoreDone":
-            case "JournalPage":
-            case "Failed": {
-              const answer = connection.pending.get(message.id)
-              if (answer !== undefined) {
-                connection.pending.delete(message.id)
-                return yield* Deferred.succeed(answer, message)
-              }
-              // Not a request of ours: one of the watches failed.
-              if (message._tag === "Failed") {
-                yield* Queue.offer(inbox, { _tag: "WatchFailed", watchId: message.id, reason: message.reason })
-              }
-              return
-            }
-            case "WatchSnapshot":
-              return yield* Queue.offer(inbox, {
-                _tag: "Snapshot",
-                watchId: message.watchId,
-                status: message.status,
-                body: message.body
-              })
-            case "WebhookReceived":
-              return yield* Queue.offer(inbox, {
-                _tag: "Webhook",
-                service: message.service,
-                receivedAt: message.receivedAt,
-                body: message.body
-              })
-            case "JournalNoted":
-              return yield* Queue.offer(inbox, { _tag: "Journal", entries: message.entries })
-            case "ConsoleRequest": {
-              const { id, _tag, ...request } = message
-              return yield* Effect.forkScoped(Effect.flatMap(answerConsole(slot, request), (answer) =>
-                send(HomeProtocol.ConsoleResponse.make({ id, status: answer.status, body: answer.body }))))
-            }
-            case "ServicesChanged":
-              connection.services = message.services
-              return yield* Queue.offer(inbox, {
-                _tag: "Services",
-                home: {
-                  homeId,
-                  services: connection.services,
-                  protocol: connection.protocol,
-                  webUrls: connection.webUrls
-                }
-              })
-            case "Pong":
-            case "Hello":
-            case "Proof":
-              return
-          }
+          return yield* received(decoded.value)
         }))
 
         const ping = Effect.forever(Effect.andThen(
           Effect.sleep(Timing.pingMs),
-          Effect.flatMap(Clock.currentTimeMillis, (at) =>
-            send(HomeProtocol.Ping.make({ at })))
+          Effect.flatMap(Clock.currentTimeMillis, (at) => send(HomeProtocol.Ping.make({ at })))
         ))
 
         const silence = Effect.gen(function*() {

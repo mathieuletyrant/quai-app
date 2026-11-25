@@ -176,6 +176,37 @@ const matching = (candidate: Candidate, listed: ReadonlyArray<Listed>): Listed |
 /** A movie version and the Radarr movie are the same files when their sizes are within this share. */
 const sameSizeShare = 0.02
 
+/** One version among those the media server has is Radarr's whole file only when it weighs the same. */
+const isRadarrFile = (candidate: Candidate, movie: RadarrMovie) => {
+  const size = candidate.size_bytes ?? 0
+  const onDisk = movie.sizeOnDisk ?? 0
+  return size > 0 && Math.abs(size - onDisk) <= onDisk * sameSizeShare
+}
+
+const movieTitleKey = (
+  candidate: Candidate,
+  scope: string,
+  movies: ReadonlyArray<RadarrMovie> | undefined
+): LibraryId.LibraryId | undefined => {
+  const movie = movies === undefined ? undefined : matching(candidate, movies) as RadarrMovie | undefined
+  if (movie === undefined) return undefined
+  if (scope === "movie") return LibraryId.movie(movie.id)
+  return scope === "version" && isRadarrFile(candidate, movie) ? LibraryId.movie(movie.id) : undefined
+}
+
+const seriesTitleKey = (
+  candidate: Candidate,
+  scope: string,
+  series: ReadonlyArray<SonarrSeries> | undefined
+): LibraryId.LibraryId | undefined => {
+  const found = series === undefined ? undefined : matching(candidate, series)
+  if (found === undefined) return undefined
+  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) {
+    return LibraryId.season(found.id, candidate.season_number)
+  }
+  return ["series", "show", "tv"].includes(scope) ? LibraryId.series(found.id) : undefined
+}
+
 /**
  * The library title a candidate deletes whole, as Upcoming's space back keys it: `movie:<radarr id>`,
  * `series:<sonarr id>`, a season `series:<id>:s<n>`. Undefined when it isn't found, when only part
@@ -188,25 +219,9 @@ export const candidateTitleKey = (
 ): LibraryId.LibraryId | undefined => {
   if (operation === "move") return undefined
   const scope = candidate.scope ?? (isMovie(candidate) ? "movie" : "series")
-  if (isMovie(candidate)) {
-    const movie = sources.movies === undefined
-      ? undefined
-      : matching(candidate, sources.movies) as RadarrMovie | undefined
-    if (movie === undefined) return undefined
-    if (scope === "movie") return LibraryId.movie(movie.id)
-    // One version among those the media server has: Radarr's file only when it weighs the same.
-    const size = candidate.size_bytes ?? 0
-    const onDisk = movie.sizeOnDisk ?? 0
-    return scope === "version" && size > 0 && Math.abs(size - onDisk) <= onDisk * sameSizeShare
-      ? LibraryId.movie(movie.id)
-      : undefined
-  }
-  const series = sources.series === undefined ? undefined : matching(candidate, sources.series)
-  if (series === undefined) return undefined
-  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) {
-    return LibraryId.season(series.id, candidate.season_number)
-  }
-  return ["series", "show", "tv"].includes(scope) ? LibraryId.series(series.id) : undefined
+  return isMovie(candidate)
+    ? movieTitleKey(candidate, scope, sources.movies)
+    : seriesTitleKey(candidate, scope, sources.series)
 }
 
 /** The candidate's poster, from the Radarr movie or Sonarr series it is. */

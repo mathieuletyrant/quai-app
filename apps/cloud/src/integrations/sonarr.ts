@@ -152,13 +152,18 @@ const seriesStatus = (series: SonarrSeries, have: number, total: number): Librar
 export const seriesWebUrls = (series: SonarrSeries, bases: ReadonlyArray<string>) =>
   series.titleSlug === undefined ? [] : bases.map((base) => `${base}/series/${encodeURIComponent(series.titleSlug!)}`)
 
+/** The episodes that have their file, of Sonarr's own count (`seriesStatus` says what it counts). */
+const episodeCounts = (series: SonarrSeries) => ({
+  have: Math.trunc(series.statistics?.episodeFileCount ?? 0),
+  total: Math.trunc(series.statistics?.episodeCount ?? 0)
+})
+
 export const librarySeries = (series: SonarrSeries, webBases: ReadonlyArray<string> = []): LibraryItem => {
   const webUrls = seriesWebUrls(series, webBases)
   const year = knownYear(series.year)
   const posterUrl = posterOf(series.images)
   const addedAt = epochSeconds(series.added)
-  const have = Math.trunc(series.statistics?.episodeFileCount ?? 0)
-  const total = Math.trunc(series.statistics?.episodeCount ?? 0)
+  const { have, total } = episodeCounts(series)
   return {
     id: LibraryId.series(series.id),
     kind: "series",

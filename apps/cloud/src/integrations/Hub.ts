@@ -57,6 +57,8 @@ const makeRepeats = () => {
   }
 }
 
+type EventOf<Tag extends HomeEvent["_tag"]> = Extract<HomeEvent, { readonly _tag: Tag }>
+
 interface Owner {
   readonly integration: Integration
   readonly watcher: Watcher<Signal>
@@ -72,6 +74,21 @@ interface Sent {
 /** An integration's watchers: its flow events', then its alerts'. */
 const watchersOf = (integration: Integration): ReadonlyArray<Watcher<Signal>> =>
   [integration.watcher, integration.alertWatcher].filter((watcher) => watcher !== undefined)
+
+/** A watch's owner, for the watches of the services Quai Home reaches; the first integration to ask wins. */
+const watchOwners = (integrations: ReadonlyArray<Integration>, ctx: WatchContext): Map<string, Owner> => {
+  const asked = integrations.flatMap((integration) =>
+    watchersOf(integration).flatMap((watcher) => watcher.watches(ctx).map((watch) => ({ integration, watcher, watch })))
+  )
+  const owners = new Map<string, Owner>()
+  for (const owner of asked) {
+    if (ctx.services.includes(owner.watch.service) && !owners.has(owner.watch.id)) owners.set(owner.watch.id, owner)
+  }
+  return owners
+}
+
+const byId = (left: HomeProtocol.Watch, right: HomeProtocol.Watch) =>
+  left.id < right.id ? -1 : left.id > right.id ? 1 : 0
 
 /**
  * Where what Quai Home sends meets the engine. Webhooks and watch snapshots go to their
@@ -162,18 +179,8 @@ export class Hub extends Context.Service<Hub, {
       Effect.gen(function*() {
         const ctx = yield* context
         if (Option.isNone(ctx)) return
-        const owners = new Map<string, Owner>()
-        for (const integration of integrations) {
-          for (const watcher of watchersOf(integration)) {
-            for (const watch of watcher.watches(ctx.value)) {
-              if (!ctx.value.services.includes(watch.service) || owners.has(watch.id)) continue
-              owners.set(watch.id, { integration, watcher, watch })
-            }
-          }
-        }
-        const watches = [...owners.values()].map((owner) => owner.watch).sort((left, right) =>
-          left.id < right.id ? -1 : left.id > right.id ? 1 : 0
-        )
+        const owners = watchOwners(integrations, ctx.value)
+        const watches = [...owners.values()].map((owner) => owner.watch).sort(byId)
         const fingerprint = JSON.stringify(watches)
         if (!force && sent?.fingerprint === fingerprint) return
         yield* link.setWatches(watches).pipe(
@@ -192,77 +199,99 @@ export class Hub extends Context.Service<Hub, {
         yield* sync
       })
 
+    const linked = (event: EventOf<"Ready">) => {
+      // A new connection: Quai Home starts with no watch.
+      sent = null
+      const dropped = gone
+      gone = null
+      // Back before the outage was logged: a reconnection, not news.
+      if (dropped !== null && !dropped.logged) {
+        return Effect.andThen(Effect.logInfo("Quai Home reconnected"), sync)
+      }
+      const { level, text } = linkedNote(event.home)
+      return Effect.andThen(journal.log({ level, source: "home", kind: "home.linked", text }), sync)
+    }
+
+    const servicesChanged = (event: EventOf<"Services">) => {
+      // Quai Home reaches other services now: the watches follow.
+      sent = null
+      return Effect.andThen(
+        journal.log({
+          level: "info",
+          source: "home",
+          kind: "home.services",
+          text: `Quai Home's services changed: ${servicesText(event.home.services)}`
+        }),
+        sync
+      )
+    }
+
+    const wentAway = () => {
+      sent = null
+      return Effect.suspend(() => {
+        gone = { logged: false }
+        return noteOutage(gone)
+      })
+    }
+
+    const snapshot = (event: EventOf<"Snapshot">) => {
+      const owner = sent?.owners.get(event.watchId)
+      if (owner === undefined) return Effect.void
+      return fromHome(
+        owner.integration.service,
+        (ctx) => owner.watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx)
+      )
+    }
+
+    const watchFailed = (event: EventOf<"WatchFailed">) => {
+      const owner = sent?.owners.get(event.watchId)
+      const failed = owner?.watcher.failed
+      if (owner === undefined || failed === undefined) {
+        return Effect.logDebug(`Quai Home could not read ${event.watchId}: ${event.reason}`)
+      }
+      return fromHome(owner.integration.service, (ctx) => failed(owner.watch, event.reason, ctx))
+    }
+
+    /** A webhook Quai can't read is logged and means nothing. */
+    const unreadableWebhook = (service: EventOf<"Webhook">["service"]) =>
+      Effect.as(
+        Effect.andThen(
+          Effect.logWarning(`${service} sent a webhook Quai can't read`),
+          journal.log({
+            level: "warn",
+            source: service,
+            kind: "webhook.unreadable",
+            text: `${journalSourceNames[service]} sent a webhook Quai can't read`
+          })
+        ),
+        []
+      )
+
+    const webhook = (event: EventOf<"Webhook">) => {
+      const reader = integrations.find((integration) => integration.service === event.service)?.webhook
+      if (reader === undefined) return Effect.void
+      return fromHome(event.service, () =>
+        reader.read(event.body).pipe(
+          Effect.catchTag("SchemaError", () => unreadableWebhook(event.service))
+        ))
+    }
+
     const handle = (event: HomeEvent): Effect.Effect<void> => {
       switch (event._tag) {
-        case "Ready": {
-          // A new connection: Quai Home starts with no watch.
-          sent = null
-          const dropped = gone
-          gone = null
-          // Back before the outage was logged: a reconnection, not news.
-          if (dropped !== null && !dropped.logged) {
-            return Effect.andThen(Effect.logInfo("Quai Home reconnected"), sync)
-          }
-          const { level, text } = linkedNote(event.home)
-          return Effect.andThen(journal.log({ level, source: "home", kind: "home.linked", text }), sync)
-        }
-        case "Services": {
-          // Quai Home reaches other services now: the watches follow.
-          sent = null
-          return Effect.andThen(
-            journal.log({
-              level: "info",
-              source: "home",
-              kind: "home.services",
-              text: `Quai Home's services changed: ${servicesText(event.home.services)}`
-            }),
-            sync
-          )
-        }
+        case "Ready":
+          return linked(event)
+        case "Services":
+          return servicesChanged(event)
         case "Gone":
-          sent = null
-          return Effect.suspend(() => {
-            gone = { logged: false }
-            return noteOutage(gone)
-          })
+          return wentAway()
         case "Journal":
           return journal.noted(event.entries)
-        case "Snapshot": {
-          const owner = sent?.owners.get(event.watchId)
-          if (owner === undefined) return Effect.void
-          return fromHome(
-            owner.integration.service,
-            (ctx) => owner.watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx)
-          )
-        }
-        case "WatchFailed": {
-          const owner = sent?.owners.get(event.watchId)
-          const failed = owner?.watcher.failed
-          if (owner === undefined || failed === undefined) {
-            return Effect.logDebug(`Quai Home could not read ${event.watchId}: ${event.reason}`)
-          }
-          return fromHome(owner.integration.service, (ctx) => failed(owner.watch, event.reason, ctx))
-        }
-        case "Webhook": {
-          const webhook = integrations.find((integration) => integration.service === event.service)?.webhook
-          if (webhook === undefined) return Effect.void
-          return fromHome(event.service, () =>
-            webhook.read(event.body).pipe(
-              Effect.catchTag("SchemaError", () =>
-                Effect.as(
-                  Effect.andThen(
-                    Effect.logWarning(`${event.service} sent a webhook Quai can't read`),
-                    journal.log({
-                      level: "warn",
-                      source: event.service,
-                      kind: "webhook.unreadable",
-                      text: `${journalSourceNames[event.service]} sent a webhook Quai can't read`
-                    })
-                  ),
-                  []
-                ))
-            ))
-        }
+        case "Snapshot":
+          return snapshot(event)
+        case "WatchFailed":
+          return watchFailed(event)
+        case "Webhook":
+          return webhook(event)
       }
     }
 

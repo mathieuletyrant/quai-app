@@ -424,6 +424,49 @@ export const seedingRuleOf = (rules: ReadonlyArray<SeedingRule>, torrent: Seedin
 /** qBittorrent counts seeding time, and the ratio grows, only while the torrent seeds. */
 const isStopped = (torrent: SeedingTorrent) => /^(paused|stopped)/i.test(torrent.state)
 
+/** The qBittorrent client of the download cleaner's settings: the only download client Quai reads. */
+const qbittorrentClient = (settings: DownloadCleanerSettings) =>
+  settings.clients.find((candidate) =>
+    candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent")
+  )
+
+/** The download cleaner leaves alone what its ignored list names: a hash, a category or a tag. */
+const isIgnoredByDownloadCleaner = (ignored: ReadonlyArray<string>, torrent: SeedingTorrent) =>
+  ignored.some((entry) =>
+    sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") ||
+    tagsOf(torrent).some((tag) => sameId(tag, entry))
+  )
+
+/** The rule that takes the torrent, when Quai is sure one does: Delete, or Stop on one still seeding. */
+const cleaningRule = (rules: ReadonlyArray<SeedingRule>, torrent: SeedingTorrent): SeedingRule | undefined => {
+  const rule = seedingRuleOf(rules, torrent)
+  if (rule === undefined || (rule.action !== "Delete" && rule.action !== "Stop")) return undefined
+  if (rule.action === "Stop" && isStopped(torrent)) return undefined
+  return rule
+}
+
+/**
+ * When the torrent reaches the rule's limits if it keeps seeding: its ratio (once reached, after the
+ * minimum seed time) and its maximum seed time. A limit the rule doesn't set has no date.
+ */
+const limitsDue = (rule: SeedingRule, torrent: SeedingTorrent, now: number) => {
+  const byRatio = rule.maxRatio >= 0
+  const ratioReached = byRatio && torrent.ratio >= rule.maxRatio
+  const afterSeeding = (hours: number) => now + Math.max(0, hours * 3600 - torrent.seeding_time) * 1000
+  const ratioDue = ratioReached ? afterSeeding(rule.minSeedTime) : undefined
+  const timeDue = rule.maxSeedTime >= 0 ? afterSeeding(rule.maxSeedTime) : undefined
+  const due = [ratioDue, timeDue].filter((instant): instant is number => instant !== undefined)
+  return { byRatio, ratioReached, due }
+}
+
+/** "from" when the rule also waits on seeders or inactivity, "by" while the ratio isn't reached, else "at". */
+const cleanupTiming = (rule: SeedingRule, byRatio: boolean, ratioReached: boolean): CleanupTiming => {
+  const waits = (rule.minSeeders ?? 0) > 0 || (rule.maxInactiveDays ?? -1) >= 0
+  return waits ? "from" : byRatio && !ratioReached ? "by" : "at"
+}
+
+const takesAtOnce = (rule: SeedingRule) => rule.maxSeedTime === 0 || (rule.maxRatio === 0 && rule.minSeedTime <= 0)
+
 /**
  * When Cleanuparr's download cleaner takes each finished torrent (`ShouldCleanDownload`): once its
  * ratio is reached (after the minimum seed time), or its maximum seed time, at the first run after
@@ -438,44 +481,25 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
   readonly now: number
 }): ReadonlyArray<SeedCleanup<T>> => {
   if (!input.settings.enabled) return []
-  const client = input.settings.clients.find((candidate) =>
-    candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent")
-  )
+  const client = qbittorrentClient(input.settings)
   if (client === undefined) return []
   const ignored = input.settings.ignoredDownloads ?? []
   const firstRun = (at: number) =>
     input.nextRunAt !== undefined && at <= input.nextRunAt ? input.nextRunAt : Math.max(at, input.now)
   return input.torrents.flatMap((torrent): ReadonlyArray<SeedCleanup<T>> => {
-    if (torrent.progress < 1) return []
-    if (
-      ignored.some((entry) =>
-        sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") ||
-        tagsOf(torrent).some((tag) => sameId(tag, entry))
-      )
-    ) return []
-    const rule = seedingRuleOf(client.seedingRules, torrent)
-    if (rule === undefined || (rule.action !== "Delete" && rule.action !== "Stop")) return []
-    if (rule.action === "Stop" && isStopped(torrent)) return []
-    const byRatio = rule.maxRatio >= 0
-    const ratioReached = byRatio && torrent.ratio >= rule.maxRatio
-    const ratioDue = ratioReached
-      ? input.now + Math.max(0, rule.minSeedTime * 3600 - torrent.seeding_time) * 1000
-      : undefined
-    const timeDue = rule.maxSeedTime >= 0
-      ? input.now + Math.max(0, rule.maxSeedTime * 3600 - torrent.seeding_time) * 1000
-      : undefined
-    const due = [ratioDue, timeDue].filter((instant): instant is number => instant !== undefined)
-    const dueNow = due.some((instant) => instant <= input.now)
+    if (torrent.progress < 1 || isIgnoredByDownloadCleaner(ignored, torrent)) return []
+    const rule = cleaningRule(client.seedingRules, torrent)
+    if (rule === undefined) return []
+    const { byRatio, ratioReached, due } = limitsDue(rule, torrent, input.now)
     // Stopped, it gets no closer to its limits: only what's due already goes.
-    if (isStopped(torrent) && !dueNow) return []
+    if (isStopped(torrent) && !due.some((instant) => instant <= input.now)) return []
     if (due.length === 0 && !byRatio) return []
-    const waits = (rule.minSeeders ?? 0) > 0 || (rule.maxInactiveDays ?? -1) >= 0
     return [{
       torrent,
       rule,
       at: due.length === 0 ? undefined : firstRun(Math.min(...due)),
-      timing: waits ? "from" : byRatio && !ratioReached ? "by" : "at",
-      atOnce: rule.maxSeedTime === 0 || (rule.maxRatio === 0 && rule.minSeedTime <= 0),
+      timing: cleanupTiming(rule, byRatio, ratioReached),
+      atOnce: takesAtOnce(rule),
       freesFiles: rule.action === "Delete" && rule.deleteSourceFiles
     }]
   })
@@ -483,9 +507,7 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
 
 /** The category Cleanuparr gives torrents no hardlink holds, when it does: their files aren't in the library. */
 export const unlinkedCategory = (settings: DownloadCleanerSettings): string | undefined => {
-  const config = settings.clients.find((candidate) =>
-    candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent")
-  )?.unlinkedConfig
+  const config = qbittorrentClient(settings)?.unlinkedConfig
   return config?.enabled === true ? config.targetCategory : undefined
 }
 
