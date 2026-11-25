@@ -72,11 +72,8 @@ struct HomeView: View {
     }
     private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
 
-    /// A spinner while a search for the server takes a while, a green dot once it answered.
     private var serverMark: ServerMark? {
-        if showsSearching { return .searching }
-        if connection.status == .connected { return .connected }
-        return nil
+        ServerMark.of(status: connection.status, searching: showsSearching, error: connection.lastError)
     }
 
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
@@ -147,9 +144,6 @@ struct HomeView: View {
 
     /// The tiles once the first reads have answered: each one only when it has something to show.
     @ViewBuilder private var tiles: some View {
-        if let error = connection.lastError {
-            MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
-        }
         if !fixes.isEmpty {
             NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
                 .buttonStyle(.plain)

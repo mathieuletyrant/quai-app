@@ -123,11 +123,26 @@ struct TabHeader: View {
 /// What a title shows of the link to the server.
 enum ServerMark: Equatable {
     case searching, connected
+    /// The last refresh failed, and why.
+    case unreachable(String)
+
+    /// A spinner while a search for the server takes a while, a green dot once it answered, a red
+    /// one once it failed.
+    static func of(status: ServerStatus, searching: Bool, error: String?) -> ServerMark? {
+        if searching { return .searching }
+        switch status {
+        case .connected: return .connected
+        case .unreachable: return .unreachable(error ?? ServerStatus.unreachable.label)
+        case .connecting: return nil
+        }
+    }
 }
 
-/// A spinner while the server is sought, a green dot once it answered.
+/// A spinner while the server is sought, a green dot once it answered, a red one when it doesn't:
+/// a tap says why.
 struct ServerMarkView: View {
     let mark: ServerMark
+    @State private var explains = false
 
     var body: some View {
         switch mark {
@@ -136,11 +151,27 @@ struct ServerMarkView: View {
                 .tint(Palette.secondaryText)
                 .accessibilityLabel("Reaching the server")
         case .connected:
-            Circle()
-                .fill(Palette.ok)
-                .frame(width: 10, height: 10)
+            dot(Palette.ok)
                 .accessibilityLabel(ServerStatus.connected.label)
+        case let .unreachable(reason):
+            Button { explains = true } label: {
+                dot(Palette.incident)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(-17)
+            .accessibilityLabel(ServerStatus.unreachable.label)
+            .alert("Can't refresh", isPresented: $explains) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(reason)
+            }
         }
+    }
+
+    private func dot(_ color: Color) -> some View {
+        Circle().fill(color).frame(width: 10, height: 10)
     }
 }
 

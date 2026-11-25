@@ -229,10 +229,12 @@ final class Connection {
 
     private func readActivities() async throws {
         let client = try await requiredClient()
-        activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        let read = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        let shown = await Self.shown(read, known: flowSubjects) { try? await self.flows() }
+        flowSubjects = shown.subjects
+        activities = shown.activities
         lastError = nil
         hasAnswered = true
-        await learnSubjects()
     }
 
     /// The app is back in front: a search started before it was suspended has had its requests
@@ -251,12 +253,25 @@ final class Connection {
         await refresh()
     }
 
-    /// A flow seen for the first time (a new custom one, or the first refresh): learn what it follows.
-    private func learnSubjects() async {
-        guard activities.contains(where: { flowSubjects[$0.attributes.flowId] == nil }),
-              let all = try? await flows()
-        else { return }
-        flowSubjects = Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
+    /// The activities read, with what their flows follow: both set together, so none shows before
+    /// its flow's subject is known.
+    static func shown(
+        _ activities: [RunningActivity],
+        known: [String: Components.Schemas.FlowSubject],
+        load: () async -> [Components.Schemas.FlowSummary]?
+    ) async -> (activities: [RunningActivity], subjects: [String: Components.Schemas.FlowSubject]) {
+        (activities, await subjects(for: activities, known: known, load: load))
+    }
+
+    /// What each flow follows, by flow id: read again when an activity's flow is new (a new custom
+    /// one, or the first refresh). A failed read keeps what was known.
+    static func subjects(
+        for activities: [RunningActivity],
+        known: [String: Components.Schemas.FlowSubject],
+        load: () async -> [Components.Schemas.FlowSummary]?
+    ) async -> [String: Components.Schemas.FlowSubject] {
+        guard activities.contains(where: { known[$0.attributes.flowId] == nil }), let all = await load() else { return known }
+        return Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
     }
 
     // MARK: Library

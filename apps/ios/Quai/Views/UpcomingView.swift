@@ -27,6 +27,9 @@ extension Components.Schemas.UpcomingItem {
     /// A deletion or a stuck removal opens its To fix card.
     var opensFix: Bool { fixId != nil }
 
+    /// After the date: "· +24.49 GB", when the space surely comes back.
+    var freedText: String? { freesBytes.map { "· +" + Format.bytes($0) } }
+
     /// A row opens something: To fix, or the title of a release.
     var opens: Bool { opensFix || libraryId != nil }
 }
@@ -308,18 +311,20 @@ struct UpcomingRow: View {
                 }
                 .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
                 .foregroundStyle(Palette.primaryText)
-                Text(when)
-                    .font(QuaiFont.caption.monospacedDigit())
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(when)
+                        .foregroundStyle(Palette.secondaryText)
+                    if let freesBytes = item.freesBytes, let freedText = item.freedText {
+                        Text(freedText)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Palette.ok)
+                            .accessibilityLabel("frees \(Format.bytes(freesBytes))")
+                    }
+                }
+                .font(QuaiFont.caption.monospacedDigit())
+                .lineLimit(1)
             }
             Spacer(minLength: 8)
-            if let freesBytes = item.freesBytes {
-                Text("+" + Format.bytes(freesBytes))
-                    .font(QuaiFont.subheadline.weight(.semibold))
-                    .foregroundStyle(Palette.ok)
-                    .accessibilityLabel("Frees \(Format.bytes(freesBytes))")
-            }
             if item.opens && opens && !compact {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
