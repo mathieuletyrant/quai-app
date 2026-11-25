@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { Deferred, Effect, Fiber } from "effect"
 import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
-import { emptyState, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
+import { emptyState, movedOn, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
 import { settle } from "../fakeHome.ts"
 import { type Subject, widenLookup } from "../../src/flows/Events.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
@@ -153,6 +153,29 @@ describe("download flow", () => {
       const regrab = yield* engine.handle(ev.grabbed("second"))
       expect(regrab.map((p) => [p._tag, p.activity.downloadId])).toEqual([["Start", "second"]])
     })))
+
+  it.effect("a download that trickles without gaining a percent turns grey after 2 h", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(ev.grabbed())
+      yield* engine.handle(ev.progress(0.0001))
+      // The Rings of Power without seeders: a few bytes now and then, 0 % on screen.
+      for (let minute = 0; minute < 120; minute += 10) {
+        yield* TestClock.adjust("10 minutes")
+        yield* engine.handle(ev.progress(0.0001 + minute / 1_000_000))
+      }
+      expect((yield* engine.tick()).map((p) => p.activity.tone)).toEqual(["stalled"])
+      yield* TestClock.adjust("5 seconds")
+      expect((yield* engine.handle(ev.progress(0.01))).map((p) => p.activity.tone)).toEqual(["active"])
+    })))
+
+  it("moves on a new percent only", () => {
+    expect(movedOn(undefined, 0)).toBe(true)
+    expect(movedOn(0, 0.0099)).toBe(false)
+    expect(movedOn(0.0099, 0.01)).toBe(true)
+    expect(movedOn(0.5, 0.5)).toBe(false)
+    expect(movedOn(0.5, undefined)).toBe(false)
+  })
 
   it.effect("grey after 2 h without progress, back when it moves", () =>
     run(Effect.gen(function*() {
