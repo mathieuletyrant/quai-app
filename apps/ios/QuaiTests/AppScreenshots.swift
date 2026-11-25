@@ -16,7 +16,6 @@ private let previewURL = ProcessInfo.processInfo.environment["QUAI_PREVIEW_URL"]
 @MainActor
 @Suite(.serialized, .enabled(if: previewURL != nil, "needs the preview server"))
 struct AppScreenshots {
-
     @Test func homeLoading() async throws {
         let connection = try await Self.pairedConnection()
         // Long enough for the Home to show its skeleton before any read answers.
@@ -131,7 +130,7 @@ struct AppScreenshots {
         // A series' Request: its seasons, the first one checked.
         let prophecy = SearchResult(
             kind: .series,
-            tmdbId: 90228,
+            tmdbId: 90_228,
             title: "Dune: Prophecy",
             year: 2024,
             posterUrl: "https://image.tmdb.org/t/p/w342/A3aTsF6NqT6zsc4rVc1fuUUSnoV.jpg",

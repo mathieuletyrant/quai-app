@@ -89,7 +89,7 @@ struct QuaiLiveActivity: Widget {
                         } else {
                             ItemList(model: model, limit: 3)
                         }
-                        if model.attributes.showsSteps && model.items.isEmpty { Stepper(model: model) }
+                        if model.attributes.showsSteps, model.items.isEmpty { Stepper(model: model) }
                         if !model.actions.isEmpty { ActionButtons(model: model) }
                     }
                     .padding(.horizontal, 4)
@@ -128,7 +128,7 @@ struct LockScreenBanner: View {
             } else {
                 ItemList(model: model, limit: 4)
             }
-            if model.attributes.showsSteps && model.items.isEmpty { Stepper(model: model) }
+            if model.attributes.showsSteps, model.items.isEmpty { Stepper(model: model) }
             if !model.actions.isEmpty { ActionButtons(model: model) }
         }
         .foregroundStyle(.white)

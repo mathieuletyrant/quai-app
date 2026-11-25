@@ -228,7 +228,7 @@ final class Connection {
 
     private func readActivities() async throws {
         let client = try await requiredClient()
-        let read = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        let read = try await pendingPlayback.apply(to: client.listActivities().ok.body.json)
         let shown = await Self.shown(read, known: flowSubjects) { try? await self.flows() }
         flowSubjects = shown.subjects
         activities = shown.activities
@@ -259,7 +259,7 @@ final class Connection {
         known: [String: Components.Schemas.FlowSubject],
         load: () async -> [Components.Schemas.FlowSummary]?
     ) async -> (activities: [RunningActivity], subjects: [String: Components.Schemas.FlowSubject]) {
-        (activities, await subjects(for: activities, known: known, load: load))
+        await (activities, subjects(for: activities, known: known, load: load))
     }
 
     /// What each flow follows, by flow id: read again when an activity's flow is new (a new custom

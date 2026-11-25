@@ -71,7 +71,7 @@ struct UpcomingSchedule {
 
     init(now: Date = .now, timeZone identifier: String) {
         self.now = now
-        self.timeZone = TimeZone(identifier: identifier) ?? .current
+        timeZone = TimeZone(identifier: identifier) ?? .current
     }
 
     private var calendar: Calendar {
@@ -198,9 +198,9 @@ struct UpcomingView: View {
                     Chip(title: "Going", selected: filter == .going) { filter = .going }
                 }
             }
-            if connection.upcoming == nil && connection.upcomingError == nil {
+            if connection.upcoming == nil, connection.upcomingError == nil {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
-            } else if connection.upcoming != nil && shown.isEmpty {
+            } else if connection.upcoming != nil, shown.isEmpty {
                 MessageTile(title: "Nothing planned", message: emptyMessage, systemImage: "calendar", color: Palette.releases)
             }
             ForEach(schedule.periods(shown)) { group in
@@ -259,7 +259,7 @@ struct UpcomingView: View {
             notes.append("\(silent.joined(separator: " and ")) didn't answer: \(silent.count == 1 ? "its" : "their") plans are missing. Pull to try again.")
         }
         if upcoming.unavailable.contains(.qbittorrent) {
-            notes.append("qBittorrent didn't answer: some freed space is unknown.")
+            notes.append("qBittorrent didn't answer: some of the space back is unknown.")
         }
         if upcoming.homeOutdated {
             notes.append("Update Quai Home to see Cleanuparr's seed cleanups and the space that comes back.")
@@ -325,7 +325,7 @@ struct UpcomingRow: View {
                 .lineLimit(1)
             }
             Spacer(minLength: 8)
-            if item.opens && opens && !compact {
+            if item.opens, opens, !compact {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.tertiaryText)

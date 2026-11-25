@@ -25,7 +25,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 enum Notifications {
     /// Asks for notifications (iOS only asks once), then registers with APNs when they're allowed.
     @MainActor static func register() async {
-        let allowed = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
+        let allowed = await (try? UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
         if allowed { UIApplication.shared.registerForRemoteNotifications() }
     }
 }

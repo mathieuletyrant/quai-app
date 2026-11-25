@@ -8,7 +8,7 @@ struct LibraryHighlightsTests {
     }
 
     /// 2026-11-24 12:00 UTC.
-    private let now = Date(timeIntervalSince1970: 1795521600)
+    private let now = Date(timeIntervalSince1970: 1_795_521_600)
 
     @Test func keepsTheThreeLatestAndCountsTheWeek() throws {
         let library = try items(#"""

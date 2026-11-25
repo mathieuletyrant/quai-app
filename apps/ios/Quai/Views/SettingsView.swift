@@ -64,7 +64,7 @@ struct SettingsView: View {
                         NavigationLink {
                             NotificationSettingsView()
                         } label: {
-                            ListRow(title: "Notifications", systemImage: "bell.badge.fill", iconColor: Palette.incident, chevron: true)
+                            ListRow(title: "Notifications", systemImage: "bell.badge.fill", iconColor: Palette.alert, chevron: true)
                         }
                         .buttonStyle(.plain)
                         NavigationLink {
@@ -106,7 +106,7 @@ struct SettingsView: View {
                     GroupedSection(footer: "To stop receiving Live Activities for good, also remove this iPhone in the console.") {
                         Button { confirmDisconnect = true } label: {
                             HStack {
-                                Text("Disconnect this iPhone").font(QuaiFont.body).foregroundStyle(Palette.incident)
+                                Text("Disconnect this iPhone").font(QuaiFont.body).foregroundStyle(Palette.alert)
                                 Spacer()
                             }
                             .padding(.horizontal, 14)

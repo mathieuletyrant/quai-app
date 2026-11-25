@@ -144,8 +144,12 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: apps/ios/Tools/.build
-          key: swift-openapi-generator-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
+          key: swift-tools-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
       - run: apps/ios/scripts/gen-client.sh
+      # The app's Swift against apps/ios/.swiftformat, on Linux: each change SwiftFormat would make
+      # is an annotation on its line, and fails the job. `apps/ios/scripts/format.sh` applies them.
+      - name: SwiftFormat
+        run: apps/ios/scripts/format.sh --lint --reporter github-actions-log
       - uses: actions/upload-artifact@v4
         with:
           name: ios-client

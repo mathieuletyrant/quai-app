@@ -7,7 +7,7 @@ struct FirstReachableTests {
     let publicURL = URL(string: "https://quai.example.com")!
 
     @Test func awayFromHomeThePublicAddressWinsWithoutWaitingForTheLocalOne() async throws {
-        let local = self.local
+        let local = local
         let started = ContinuousClock.now
         let url = try await ServerSession.firstReachable([local, publicURL]) { url in
             if url == local {
@@ -21,7 +21,7 @@ struct FirstReachableTests {
     }
 
     @Test func atHomeTheLocalAddressAnswersFirst() async throws {
-        let publicURL = self.publicURL
+        let publicURL = publicURL
         let url = try await ServerSession.firstReachable([local, publicURL]) { url in
             if url == publicURL { try? await Task.sleep(for: .milliseconds(200)) }
             return .reachable
@@ -36,15 +36,15 @@ struct FirstReachableTests {
     }
 
     @Test func aProxyRefusalIsSaidWhenNothingElseAnswered() async {
-        let publicURL = self.publicURL
+        let publicURL = publicURL
         await #expect(throws: ConnectionError.blockedByProxy) {
             try await ServerSession.firstReachable([local, publicURL]) { url in url == publicURL ? .blocked : .unreachable }
         }
     }
 
-    @Test func pairingKeepsTheCodesOrderAtHomeFirstWhicheverAnswered() {
+    @Test func pairingKeepsTheCodesOrderAtHomeFirstWhicheverAnswered() throws {
         #expect(ServerSession.pairedURLs([local, publicURL], answered: publicURL) == [local, publicURL])
-        let typed = URL(string: "http://192.168.1.10:3078")!
+        let typed = try #require(URL(string: "http://192.168.1.10:3078"))
         #expect(ServerSession.pairedURLs([local, publicURL], answered: typed) == [typed, local, publicURL])
     }
 
@@ -66,7 +66,7 @@ struct ConsoleToOpenTests {
     }
 
     @Test func awayFromHomeThePublicConsoleOpens() async {
-        let local = self.local
+        let local = local
         let url = await ServerSession.consoleToOpen([local, publicURL]) { $0 != local }
         #expect(url == publicURL)
     }

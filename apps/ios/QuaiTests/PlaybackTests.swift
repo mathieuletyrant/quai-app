@@ -17,25 +17,25 @@ struct PendingPlaybackTests {
     @Test func aTapShowsAtOnceAndHoldsUntilTheServerAgrees() throws {
         var pending = PendingPlayback()
         let now = Date(timeIntervalSince1970: 1500)
-        pending.toggle(try playing(paused: nil), now: now)
+        try pending.toggle(playing(paused: nil), now: now)
 
         // The server hasn't seen the pause yet: the app still shows it, frozen where it was.
-        let early = pending.apply(to: [try playing(paused: false)], now: now.addingTimeInterval(2))
+        let early = try pending.apply(to: [playing(paused: false)], now: now.addingTimeInterval(2))
         #expect(early[0].content.paused == true)
         #expect(early[0].content.progress == 0.5)
 
         // The server agrees: its state is shown, and the tap is forgotten.
-        let agreed = pending.apply(to: [try playing(paused: true, progress: 0.51)], now: now.addingTimeInterval(4))
+        let agreed = try pending.apply(to: [playing(paused: true, progress: 0.51)], now: now.addingTimeInterval(4))
         #expect(agreed[0].content.progress == 0.51)
-        let later = pending.apply(to: [try playing(paused: false)], now: now.addingTimeInterval(5))
+        let later = try pending.apply(to: [playing(paused: false)], now: now.addingTimeInterval(5))
         #expect(later[0].content.paused == false)
     }
 
     @Test func aTapTheServerNeverConfirmsWearsOff() throws {
         var pending = PendingPlayback()
         let now = Date(timeIntervalSince1970: 1500)
-        pending.toggle(try playing(paused: nil), now: now)
-        let shown = pending.apply(to: [try playing(paused: false)], now: now.addingTimeInterval(PendingPlayback.hold + 1))
+        try pending.toggle(playing(paused: nil), now: now)
+        let shown = try pending.apply(to: [playing(paused: false)], now: now.addingTimeInterval(PendingPlayback.hold + 1))
         #expect(shown[0].content.paused == false)
     }
 

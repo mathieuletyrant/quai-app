@@ -20,10 +20,10 @@ struct SearchMatchTests {
           {"id":"movie:9","kind":"movie","title":"No id","status":"available","sizeBytes":1}
         ],"unavailable":[]}
         """#)
-        #expect(result(.movie, 1461490).match(in: home)?.id == "movie:228")
-        #expect(result(.series, 1461490).match(in: home)?.id == "series:7")
+        #expect(result(.movie, 1_461_490).match(in: home)?.id == "movie:228")
+        #expect(result(.series, 1_461_490).match(in: home)?.id == "series:7")
         #expect(result(.movie, 1).match(in: home) == nil)
-        #expect(result(.movie, 1461490).match(in: nil) == nil)
+        #expect(result(.movie, 1_461_490).match(in: nil) == nil)
     }
 
     /// Recorded from a real Sonarr and Seerr: Sonarr gives "Our House" a TMDB id of 0, Seerr's
@@ -32,9 +32,9 @@ struct SearchMatchTests {
         let home = try library(#"""
         {"items":[{"id":"series:233","kind":"series","title":"Our House (2022)","tvdbId":407046,"status":"available","sizeBytes":3069933130}],"unavailable":[]}
         """#)
-        let notreMaison = SearchResult(kind: .series, tmdbId: 157014, tvdbId: 407046, title: "Notre maison", year: 2022, posterUrl: nil, overview: nil, state: .available)
+        let notreMaison = SearchResult(kind: .series, tmdbId: 157_014, tvdbId: 407_046, title: "Notre maison", year: 2022, posterUrl: nil, overview: nil, state: .available)
         #expect(notreMaison.match(in: home)?.id == "series:233")
-        let namesake = SearchResult(kind: .series, tmdbId: 10625, title: "Our House", year: 1986, posterUrl: nil, overview: nil, state: .requestable)
+        let namesake = SearchResult(kind: .series, tmdbId: 10_625, title: "Our House", year: 1986, posterUrl: nil, overview: nil, state: .requestable)
         #expect(namesake.match(in: home) == nil)
     }
 }

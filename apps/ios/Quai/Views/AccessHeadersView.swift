@@ -26,7 +26,7 @@ struct AccessHeadersView: View {
                                     } label: {
                                         Image(systemName: "minus.circle.fill")
                                             .font(.system(size: 18))
-                                            .foregroundStyle(Palette.incident)
+                                            .foregroundStyle(Palette.alert)
                                     }
                                     .buttonStyle(.plain)
                                     .accessibilityLabel("Remove \(header.name)")
@@ -54,7 +54,7 @@ struct AccessHeadersView: View {
                         .opacity(saving || name.isEmpty || value.isEmpty ? 0.5 : 1)
                     Text(problem ?? "Only if a proxy in front of Quai Cloud asks for them. Showing a new QR code in the console brings them too.")
                         .font(QuaiFont.caption)
-                        .foregroundStyle(problem == nil ? Palette.secondaryText : Palette.incident)
+                        .foregroundStyle(problem == nil ? Palette.secondaryText : Palette.alert)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }

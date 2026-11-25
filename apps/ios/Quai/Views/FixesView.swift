@@ -16,7 +16,7 @@ extension Components.Schemas.Fix {
         case .plannedDeletion: ("trash", Palette.toFix)
         case .stuckRemoval: ("xmark.bin", Palette.downloads)
         case .noSource: ("magnifyingglass", Palette.downloads)
-        case .importBlocked: ("exclamationmark.triangle", Palette.incident)
+        case .importBlocked: ("exclamationmark.triangle", Palette.alert)
         }
     }
 
@@ -135,9 +135,9 @@ struct FixesView: View {
                     .foregroundStyle(Palette.secondaryText)
                     .padding(.horizontal, 4)
             }
-            if connection.fixes == nil && connection.fixesError == nil {
+            if connection.fixes == nil, connection.fixesError == nil {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
-            } else if connection.fixes != nil && items.isEmpty {
+            } else if connection.fixes != nil, items.isEmpty {
                 MessageTile(
                     title: "All clear",
                     message: "No blocked import, every title has a source, and nothing is about to be deleted or removed from the queue.",
