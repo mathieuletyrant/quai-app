@@ -150,12 +150,6 @@ const reasonsOf = (rejections: ReadonlyArray<string | { readonly reason?: string
     reason
   ) => reason !== "")
 
-/** The release's seeders and leechers, as whole numbers, when the indexer gave them. */
-const peersOf = (record: ReleaseRecord) => ({
-  ...(record.seeders === undefined || record.seeders === null ? {} : { seeders: Math.trunc(record.seeders) }),
-  ...(record.leechers === undefined || record.leechers === null ? {} : { leechers: Math.trunc(record.leechers) })
-})
-
 export const toRelease = (record: ReleaseRecord): Release => {
   const rejections = reasonsOf(record.rejections)
   return {
@@ -165,7 +159,8 @@ export const toRelease = (record: ReleaseRecord): Release => {
     title: record.title ?? "",
     sizeBytes: record.size ?? 0,
     protocol: record.protocol ?? "unknown",
-    ...peersOf(record),
+    ...(record.seeders === undefined || record.seeders === null ? {} : { seeders: Math.trunc(record.seeders) }),
+    ...(record.leechers === undefined || record.leechers === null ? {} : { leechers: Math.trunc(record.leechers) }),
     quality: record.quality?.quality?.name ?? "Unknown",
     languages: (record.languages ?? []).flatMap((language) => language.name === undefined ? [] : [language.name]),
     ageHours: record.ageHours ?? (record.age ?? 0) * 24,

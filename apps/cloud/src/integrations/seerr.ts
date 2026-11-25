@@ -208,47 +208,27 @@ export const splitSubject = (subject: string): { readonly title: string; readonl
   return match === null ? { title: subject.trim() } : { title: match[1]!, year: knownYear(Number(match[2])) }
 }
 
-/** The request a notification is about, as the webhook names it. */
-interface Notified {
-  readonly subject: Subject
-  readonly requester: string
-  readonly kind: TitleKind
-  readonly year: number | undefined
-}
-
-/** The notifications Quai follows, and the catalog event each one is. */
-const notificationEvents = new Map<string, (notified: Notified) => FlowEvent>([
-  ["MEDIA_PENDING", ({ kind, requester, subject, year }) => ({
-    type: "request.pending",
-    subject,
-    values: { detail: requestDetail(requester, kind, { year }) }
-  })],
-  [
-    "MEDIA_APPROVED",
-    ({ requester, subject }) => ({ type: "request.approved", subject, values: { detail: requester } })
-  ],
-  ["MEDIA_DECLINED", ({ subject }) => ({ type: "request.declined", subject, values: { detail: "Declined" } })]
-])
-
-/** The request of a notification, when it names one: its id and its title. */
-const notifiedRequest = (payload: SeerrWebhook): Notified | undefined => {
-  const id = Number(payload.request?.request_id ?? "")
-  if (!Number.isInteger(id) || id <= 0 || payload.subject === undefined || payload.subject === "") return undefined
-  const { title, year } = splitSubject(payload.subject)
-  const kind = payload.media?.media_type === "tv" ? "series" as const : "movie" as const
-  const requester = payload.request?.requestedBy_username || "Someone"
-  return { subject: subjectOf({ id, title, kind, requester }), requester, kind, year }
-}
-
 /**
  * Seerr's notifications in the catalog's terms. Only `MEDIA_PENDING` starts something; approved
  * and declined move or end it. `MEDIA_AUTO_APPROVED`, a test, an issue: nothing.
  */
 export const seerrEvents = (payload: SeerrWebhook): ReadonlyArray<FlowEvent> => {
-  const event = notificationEvents.get(payload.notification_type)
-  if (event === undefined) return []
-  const notified = notifiedRequest(payload)
-  return notified === undefined ? [] : [event(notified)]
+  const type = payload.notification_type
+  if (type !== "MEDIA_PENDING" && type !== "MEDIA_APPROVED" && type !== "MEDIA_DECLINED") return []
+  const id = Number(payload.request?.request_id ?? "")
+  if (!Number.isInteger(id) || id <= 0 || payload.subject === undefined || payload.subject === "") return []
+  const { title, year } = splitSubject(payload.subject)
+  const kind = payload.media?.media_type === "tv" ? "series" as const : "movie" as const
+  const requester = payload.request?.requestedBy_username || "Someone"
+  const subject = subjectOf({ id, title, kind, requester })
+  switch (type) {
+    case "MEDIA_PENDING":
+      return [{ type: "request.pending", subject, values: { detail: requestDetail(requester, kind, { year }) } }]
+    case "MEDIA_APPROVED":
+      return [{ type: "request.approved", subject, values: { detail: requester } }]
+    case "MEDIA_DECLINED":
+      return [{ type: "request.declined", subject, values: { detail: "Declined" } }]
+  }
 }
 
 export const decodeSeerrWebhook = Schema.decodeUnknownEffect(SeerrWebhook)
@@ -320,48 +300,25 @@ export const SeerrSearchResult = Schema.Struct({
 
 export const SeerrSearchPage = Schema.Struct({ results: Schema.Array(SeerrSearchResult) })
 
-type SeerrSearchResult = typeof SeerrSearchResult.Type
-
-/** A movie's title or a series' name, else whichever of the two Seerr gave. */
-const resultTitle = (result: SeerrSearchResult) =>
-  (result.mediaType === "movie" ? result.title : result.name) ?? result.title ?? result.name
-
-/** The year of a movie's release or a series' first airing. */
-const resultYear = (result: SeerrSearchResult) => {
-  const date = result.mediaType === "movie" ? result.releaseDate : result.firstAirDate
-  return knownYear(date === undefined || date === null || date === "" ? undefined : Number(date.slice(0, 4)))
-}
-
-/** A series' TVDB id, when Seerr knows it. */
-const resultTvdbId = (result: SeerrSearchResult) => {
-  const tvdbId = result.mediaType === "tv" ? result.mediaInfo?.tvdbId : undefined
-  return tvdbId === undefined || tvdbId === null || tvdbId === 0 ? {} : { tvdbId }
-}
-
-/** The year, poster and overview, those Seerr gave. */
-const resultFacts = (result: SeerrSearchResult) => {
-  const year = resultYear(result)
-  const poster = posterUrl(result.posterPath)
-  const overview = result.overview?.trim()
-  return {
-    ...(year === undefined ? {} : { year }),
-    ...(poster === undefined ? {} : { posterUrl: poster }),
-    ...(overview === undefined || overview === "" ? {} : { overview })
-  }
-}
-
 /** Movies and series only, in Seerr's order (the most relevant first). */
 export const searchResults = (page: typeof SeerrSearchPage.Type): ReadonlyArray<SearchResult> =>
   page.results.flatMap((result): ReadonlyArray<SearchResult> => {
     if (result.mediaType !== "movie" && result.mediaType !== "tv") return []
-    const title = resultTitle(result)
+    const title = (result.mediaType === "movie" ? result.title : result.name) ?? result.title ?? result.name
     if (title === undefined || title === null || title === "") return []
+    const date = result.mediaType === "movie" ? result.releaseDate : result.firstAirDate
+    const year = knownYear(date === undefined || date === null || date === "" ? undefined : Number(date.slice(0, 4)))
+    const poster = posterUrl(result.posterPath)
+    const overview = result.overview?.trim()
+    const tvdbId = result.mediaType === "tv" ? result.mediaInfo?.tvdbId : undefined
     return [{
       kind: result.mediaType === "movie" ? "movie" : "series",
       tmdbId: result.id,
-      ...resultTvdbId(result),
+      ...(tvdbId === undefined || tvdbId === null || tvdbId === 0 ? {} : { tvdbId }),
       title,
-      ...resultFacts(result),
+      ...(year === undefined ? {} : { year }),
+      ...(poster === undefined ? {} : { posterUrl: poster }),
+      ...(overview === undefined || overview === "" ? {} : { overview }),
       state: titleState(result.mediaInfo?.status)
     }]
   })

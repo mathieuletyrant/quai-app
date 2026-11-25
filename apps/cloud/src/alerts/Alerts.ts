@@ -85,45 +85,34 @@ const decodeActive = (doc: unknown) => decodeStoredAlerts(Array.isArray(doc) ? d
 
 export const alertId = (kind: AlertKind, scope: string, what: string) => `${kind}:${scope}:${what}`
 
+/** What a reading says of one alert: its texts, and whether it ends without a notification. */
+const textsOf = (raised: Raised) => ({
+  title: raised.title,
+  over: raised.over,
+  ...(raised.detail === undefined ? {} : { detail: raised.detail }),
+  ...(raised.silentOver === true ? { silentOver: true } : {})
+})
+
+/** An alert still going: its text follows the reading (the disk's free space), no new notification. */
+const stillGoing = (alert: StoredAlert, raised: Raised): StoredAlert => {
+  const { detail: _, silentOver: __, ...rest } = alert
+  return { ...rest, ...textsOf(raised) }
+}
+
 /** What changes when a reading comes in: the alerts that start, those over, and the new list. */
 export const reconcile = (stored: ReadonlyArray<StoredAlert>, state: AlertState, now: number) => {
   const mine = (alert: StoredAlert) => alert.kind === state.kind && alert.scope === state.scope
   const raisedIds = new Map(state.raised.map((raised) => [alertId(state.kind, state.scope, raised.what), raised]))
   const over = stored.filter((alert) => mine(alert) && !raisedIds.has(alert.id))
-  const started: Array<StoredAlert> = []
-  const next: Array<StoredAlert> = []
-  for (const alert of stored) {
-    if (!mine(alert)) {
-      next.push(alert)
-      continue
-    }
+  const next: Array<StoredAlert> = stored.flatMap((alert) => {
+    if (!mine(alert)) return [alert]
     const raised = raisedIds.get(alert.id)
-    if (raised === undefined) continue
-    // Still going: its text follows the reading (the disk's free space), no new notification.
-    const { detail: _, silentOver: __, ...rest } = alert
-    next.push({
-      ...rest,
-      title: raised.title,
-      over: raised.over,
-      ...(raised.detail === undefined ? {} : { detail: raised.detail }),
-      ...(raised.silentOver === true ? { silentOver: true } : {})
-    })
-  }
-  for (const [id, raised] of raisedIds) {
-    if (stored.some((alert) => alert.id === id)) continue
-    const alert: StoredAlert = {
-      id,
-      kind: state.kind,
-      scope: state.scope,
-      title: raised.title,
-      over: raised.over,
-      since: now,
-      ...(raised.detail === undefined ? {} : { detail: raised.detail }),
-      ...(raised.silentOver === true ? { silentOver: true } : {})
-    }
-    started.push(alert)
-    next.push(alert)
-  }
+    return raised === undefined ? [] : [stillGoing(alert, raised)]
+  })
+  const started: Array<StoredAlert> = [...raisedIds]
+    .filter(([id]) => !stored.some((alert) => alert.id === id))
+    .map(([id, raised]) => ({ id, kind: state.kind, scope: state.scope, since: now, ...textsOf(raised) }))
+  next.push(...started)
   return { started, over, next, changed: JSON.stringify(next) !== JSON.stringify(stored) }
 }
 

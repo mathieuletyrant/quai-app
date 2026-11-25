@@ -54,6 +54,25 @@ type Outcome =
   | { readonly _tag: "Answered"; readonly status: number; readonly body: string }
   | { readonly _tag: "Failed"; readonly message: string }
 
+const isSuccess = (status: number) => status >= 200 && status < 300
+
+/** What a read's outcome holds: its value, the read's `notFound` for a 404 that has one, else None. */
+const valueOf = <A>(spec: Read<A>, outcome: Outcome): Option.Option<A> => {
+  if (outcome._tag === "Failed") return Option.none()
+  if (outcome.status === 404 && spec.notFound !== undefined) return Option.some(spec.notFound)
+  return isSuccess(outcome.status) ? readJson(spec.schema, outcome.body) : Option.none()
+}
+
+/** Why a read gave nothing, in words for the log and the service's health. */
+const whyUnread = (outcome: Outcome) => {
+  if (outcome._tag === "Failed") return outcome.message
+  return isSuccess(outcome.status) ? "an answer Quai can't read" : `HTTP ${outcome.status}`
+}
+
+/** A 4xx says the service is there: what was asked isn't. Anything else counts against its health. */
+const countsAgainstService = (outcome: Outcome) =>
+  outcome._tag === "Failed" || outcome.status >= 500 || outcome.status < 300
+
 /**
  * The calls Quai Cloud makes to the home's services through Quai Home, one policy for all: Quai
  * Home gone, or never there, is `HomeOffline` (503); a service that didn't answer as expected is
@@ -154,28 +173,15 @@ export class HomeReads extends Context.Service<HomeReads, {
       const read = <A>(spec: Read<A>) =>
         Effect.gen(function*() {
           const answer = yield* call({ service: spec.service, method: "GET", path: spec.path })
-          const value = answer._tag === "Failed"
-            ? Option.none<A>()
-            : answer.status === 404 && spec.notFound !== undefined
-            ? Option.some(spec.notFound)
-            : answer.status >= 200 && answer.status < 300
-            ? readJson(spec.schema, answer.body)
-            : Option.none<A>()
-          const path = spec.path.split("?")[0]!
-          if (Option.isNone(value)) {
-            const why = answer._tag === "Failed"
-              ? answer.message
-              : answer.status >= 200 && answer.status < 300
-              ? "an answer Quai can't read"
-              : `HTTP ${answer.status}`
-            yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
-            // A 4xx says the service is there: what was asked isn't.
-            if (answer._tag === "Failed" || answer.status >= 500 || answer.status < 300) {
-              yield* observed(spec.service, { why, path })
-            }
-          } else {
+          const value = valueOf(spec, answer)
+          if (Option.isSome(value)) {
             yield* observed(spec.service, null)
+            return value
           }
+          const path = spec.path.split("?")[0]!
+          const why = whyUnread(answer)
+          yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
+          if (countsAgainstService(answer)) yield* observed(spec.service, { why, path })
           return value
         })
 

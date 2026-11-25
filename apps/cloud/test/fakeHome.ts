@@ -110,24 +110,27 @@ export const recordedHome = (
  * checks, protocol 8 Seerr's search, users and new requests, protocol 9 Cleanuparr's download
  * cleaner and the *arr media management setting.
  */
-const allowedSince = (call: Pick<Call, "service" | "method" | "path">): number =>
-  /^\/api\/(v3\/config\/mediamanagement|configuration\/download_cleaner|jobs\/DownloadCleaner)$/.test(
-      call.path.split("?")[0]!
-    )
-    ? 9
-    : call.service === "seerr" &&
-        (/^\/api\/v1\/(search|user)$/.test(call.path.split("?")[0]!) ||
-          (call.method === "POST" && call.path === "/api/v1/request"))
-    ? 8
-    : call.service === "prowlarr" || /\/health$/.test(call.path.split("?")[0]!)
-    ? 6
-    : call.service === "cleanuparr" || call.method === "PUT"
-    ? 5
-    : call.service === "seerr" || /\/calendar$/.test(call.path.split("?")[0]!)
-    ? 3
-    : call.service === "reclaimerr" || call.method === "DELETE"
-    ? 2
-    : 1
+type Allowed = Pick<Call, "service" | "method" | "path">
+
+const pathOf = (call: Allowed) => call.path.split("?")[0]!
+
+/** Newest first: the first protocol whose rule matches the call. */
+const protocolRules: ReadonlyArray<readonly [number, (call: Allowed) => boolean]> = [
+  [
+    9,
+    (call) =>
+      /^\/api\/(v3\/config\/mediamanagement|configuration\/download_cleaner|jobs\/DownloadCleaner)$/.test(pathOf(call))
+  ],
+  [8, (call) =>
+    call.service === "seerr" &&
+    (/^\/api\/v1\/(search|user)$/.test(pathOf(call)) || (call.method === "POST" && call.path === "/api/v1/request"))],
+  [6, (call) => call.service === "prowlarr" || /\/health$/.test(pathOf(call))],
+  [5, (call) => call.service === "cleanuparr" || call.method === "PUT"],
+  [3, (call) => call.service === "seerr" || /\/calendar$/.test(pathOf(call))],
+  [2, (call) => call.service === "reclaimerr" || call.method === "DELETE"]
+]
+
+const allowedSince = (call: Allowed): number => protocolRules.find(([, matches]) => matches(call))?.[0] ?? 1
 
 /**
  * Quai Home, in memory: it says Hello with a real Ed25519 key and proves it, lets through only what

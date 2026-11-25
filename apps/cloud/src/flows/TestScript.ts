@@ -31,16 +31,13 @@ const sampleItems = (at: number, done: number): Values => {
 }
 
 /** What a step shows in the test, with values like a real run's. */
-const sampleValues = (flow: Flow, step: Flow["steps"][number], at: number, last: boolean): Values =>
-  step.show.timer
-    ? { paused: false, startsAt: at, endsAt: at + 40_000, detail: "TV Salon" }
-    : step.show.since
-    ? { since: at, detail: "Not answering" }
-    : step.show.list
-    ? sampleItems(at, last ? 4 : 1)
-    : flow.subject === "request"
-    ? { detail: last ? "Julie" : "Julie · Movie · 2008" }
-    : {}
+const sampleValues = (flow: Flow, step: Flow["steps"][number], at: number, last: boolean): Values => {
+  if (step.show.timer) return { paused: false, startsAt: at, endsAt: at + 40_000, detail: "TV Salon" }
+  if (step.show.since) return { since: at, detail: "Not answering" }
+  if (step.show.list) return sampleItems(at, last ? 4 : 1)
+  if (flow.subject === "request") return { detail: last ? "Julie" : "Julie · Movie · 2008" }
+  return {}
+}
 
 export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<Beat> => {
   const subjectKey = `test:${id}`

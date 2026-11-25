@@ -38,13 +38,6 @@ const sampleFacts = (step: DraftStep, paused: boolean, detail: string | null) =>
 const wallpaper = (color: string) =>
   `radial-gradient(120% 90% at 15% 0%, ${color}38 0%, var(--color-wallpaper) 52%, var(--color-bg) 100%)`
 
-/** How full the sample bar is: a timer's elapsed share, or a progress; none when the step shows neither. */
-const sampleShare = (show: DraftStep["show"]) => show.timer ? "34%" : show.progress ? "63%" : null
-
-/** Whether the preview shows the flow finished: it ends at its last step, and that step is shown. */
-const isFinished = (flow: Draft, step: number) =>
-  endsAtLastStep(flow) && flow.steps.length > 1 && step === flow.steps.length - 1
-
 /**
  * The Lock Screen and Dynamic Island as the iPhone draws this flow at one step, with sample values.
  * The app draws the real thing from the same description. Playback flows can be previewed paused:
@@ -56,8 +49,11 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
   if (current === undefined) return null
   const canPause = flow.subject === "playback"
   const isPaused = canPause && paused
-  const done = isFinished(flow, step)
+  const done = endsAtLastStep(flow) && flow.steps.length > 1 && step === flow.steps.length - 1
   const tint = done ? doneColor : flow.color
+  const value = sampleValue(current.show)
+  const { title, detail } = sample[flow.subject]
+  const actions = current.actions ?? []
 
   return (
     <InspectorSection
@@ -69,81 +65,49 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
         className="relative overflow-hidden rounded-phone border border-line px-4 pt-4 pb-5 shadow-sheen"
         style={{ background: wallpaper(flow.color) }}
       >
-        <DynamicIsland icon={current.icon} tint={tint} paused={isPaused} value={sampleValue(current.show)} />
+        <DynamicIsland icon={current.icon} tint={tint} paused={isPaused} value={value} />
         <p className="mt-3 text-center text-5xl font-bold tracking-tight text-white/90">9:41</p>
-        <LockScreenActivity flow={flow} current={current} step={step} paused={isPaused} done={done} tint={tint} />
+
+        <div className="mt-4 flex flex-col gap-3 rounded-3xl bg-black/70 p-4 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-black">
+              <Glyph name={current.icon} color={tint} size={20} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-semibold">{title}</p>
+              <p className="text-body leading-snug text-white/60">{sampleFacts(current, isPaused, detail)}</p>
+            </div>
+            {isPaused
+              ? (
+                <span
+                  aria-label="Paused"
+                  className="grid size-7 place-items-center rounded-full"
+                  style={{ background: tint }}
+                >
+                  <Glyph name="pause.fill" color="black" size={13} />
+                </span>
+              )
+              : value && <span className="text-xl font-bold tabular-nums" style={{ color: tint }}>{value}</span>}
+          </div>
+          {(current.show.progress || current.show.timer) && (
+            <ProgressBar share={current.show.timer ? "34%" : "63%"} tint={tint} />
+          )}
+          {current.show.list && <SampleList done={done} step={step} />}
+          {actions.length > 0 && (
+            <div className="flex gap-2">
+              {actions.map((action) => (
+                <span key={action} className="grid h-9 flex-1 place-items-center rounded-xl bg-white/10">
+                  <Glyph name={actionGlyph(action, isPaused)} color={tint} size={16} />
+                </span>
+              ))}
+            </div>
+          )}
+          {showsSteps(flow) && <StepTrack steps={flow.steps} current={step} tint={tint} />}
+        </div>
       </div>
 
       {flow.steps.length > 1 && <StepSlider count={flow.steps.length} step={step} onStep={onStep} />}
     </InspectorSection>
-  )
-}
-
-/** The Live Activity on the Lock Screen at one step: what it follows, its bar, list, buttons and steps. */
-function LockScreenActivity({ flow, current, step, paused, done, tint }: {
-  flow: Draft
-  current: DraftStep
-  step: number
-  paused: boolean
-  done: boolean
-  tint: string
-}) {
-  const share = sampleShare(current.show)
-  return (
-    <div className="mt-4 flex flex-col gap-3 rounded-3xl bg-black/70 p-4 backdrop-blur">
-      <ActivityHeader flow={flow} current={current} paused={paused} tint={tint} />
-      {share && <ProgressBar share={share} tint={tint} />}
-      {current.show.list && <SampleList done={done} step={step} />}
-      <ActionButtons actions={current.actions ?? []} paused={paused} tint={tint} />
-      {showsSteps(flow) && <StepTrack steps={flow.steps} current={step} tint={tint} />}
-    </div>
-  )
-}
-
-/** The step's glyph, the sample title and facts, and its value or a pause sign. */
-function ActivityHeader(
-  { flow, current, paused, tint }: { flow: Draft; current: DraftStep; paused: boolean; tint: string }
-) {
-  const { title, detail } = sample[flow.subject]
-  return (
-    <div className="flex items-center gap-3">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-black">
-        <Glyph name={current.icon} color={tint} size={20} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{title}</p>
-        <p className="text-body leading-snug text-white/60">{sampleFacts(current, paused, detail)}</p>
-      </div>
-      <ActivityValue value={sampleValue(current.show)} paused={paused} tint={tint} />
-    </div>
-  )
-}
-
-/** On the right of the activity: a pause sign while paused, else the step's big number. */
-function ActivityValue({ value, paused, tint }: { value: string | null; paused: boolean; tint: string }) {
-  if (paused) {
-    return (
-      <span aria-label="Paused" className="grid size-7 place-items-center rounded-full" style={{ background: tint }}>
-        <Glyph name="pause.fill" color="black" size={13} />
-      </span>
-    )
-  }
-  return value && <span className="text-xl font-bold tabular-nums" style={{ color: tint }}>{value}</span>
-}
-
-/** The step's action buttons, as glyphs. */
-function ActionButtons(
-  { actions, paused, tint }: { actions: NonNullable<DraftStep["actions"]>; paused: boolean; tint: string }
-) {
-  if (actions.length === 0) return null
-  return (
-    <div className="flex gap-2">
-      {actions.map((action) => (
-        <span key={action} className="grid h-9 flex-1 place-items-center rounded-xl bg-white/10">
-          <Glyph name={actionGlyph(action, paused)} color={tint} size={16} />
-        </span>
-      ))}
-    </div>
   )
 }
 

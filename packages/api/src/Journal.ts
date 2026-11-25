@@ -95,31 +95,18 @@ export const JournalQuery = Schema.Struct({
 }).annotate({ identifier: "JournalQuery" })
 export type JournalQuery = typeof JournalQuery.Type
 
-type JournalFilters = Omit<JournalQuery, "before" | "limit">
-
-/** No sources, or none picked, is every source. */
-const fromSources = (entry: JournalEntry, sources: JournalFilters["sources"]) =>
-  sources === undefined || sources.length === 0 || sources.includes(entry.source)
-
-const atLevel = (entry: JournalEntry, level: JournalFilters["level"]) =>
-  level === undefined || levelRank[entry.level] >= levelRank[level]
-
-const aboutSubject = (entry: JournalEntry, subject: JournalFilters["subject"]) =>
-  subject === undefined || entry.subject === subject
-
-const ofKinds = (entry: JournalEntry, kinds: JournalFilters["kinds"]) =>
-  kinds === undefined || kinds.includes(entry.kind)
-
-/** The words in the text, the title or the iPhone's name, any case; blank is any entry. */
-const hasWords = (entry: JournalEntry, search: JournalFilters["search"]) => {
-  const words = search?.trim().toLowerCase() ?? ""
-  return words === "" || `${entry.text} ${entry.title ?? ""} ${entry.deviceName ?? ""}`.toLowerCase().includes(words)
-}
-
 /** Whether an entry passes a query's filters (not its paging). */
-export const journalMatches = (entry: JournalEntry, query: JournalFilters): boolean =>
-  fromSources(entry, query.sources) && atLevel(entry, query.level) && aboutSubject(entry, query.subject) &&
-  ofKinds(entry, query.kinds) && hasWords(entry, query.search)
+export const journalMatches = (entry: JournalEntry, query: Omit<JournalQuery, "before" | "limit">): boolean => {
+  if (query.sources !== undefined && query.sources.length > 0 && !query.sources.includes(entry.source)) return false
+  if (query.level !== undefined && levelRank[entry.level] < levelRank[query.level]) return false
+  if (query.subject !== undefined && entry.subject !== query.subject) return false
+  if (query.kinds !== undefined && !query.kinds.includes(entry.kind)) return false
+  const search = query.search?.trim().toLowerCase() ?? ""
+  if (search !== "" && !`${entry.text} ${entry.title ?? ""} ${entry.deviceName ?? ""}`.toLowerCase().includes(search)) {
+    return false
+  }
+  return true
+}
 
 /**
  * One page of entries, newest first: those older than `before` that pass the filters, at most

@@ -1,6 +1,7 @@
 import effect from "@effect/eslint-plugin"
 import js from "@eslint/js"
 import reactHooks from "eslint-plugin-react-hooks"
+import sonarjs from "eslint-plugin-sonarjs"
 import globals from "globals"
 import tseslint from "typescript-eslint"
 
@@ -43,9 +44,11 @@ export default tseslint.config(
   },
   {
     files: ["**/*.{ts,tsx}"],
-    // A function a reader takes in at once: few branches, shallow, few parameters.
+    // A function a reader takes in at once: cognitive complexity counts what makes code hard to follow (nesting,
+    // breaks in the flow), not each `case` of a flat switch.
+    plugins: { sonarjs },
     rules: {
-      complexity: ["error", 15],
+      "sonarjs/cognitive-complexity": ["error", 15],
       "max-depth": ["error", 3],
       "max-params": ["error", 4],
       "max-nested-callbacks": ["error", 5]
