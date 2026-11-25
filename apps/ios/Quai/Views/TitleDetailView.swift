@@ -14,7 +14,7 @@ struct TitleDetailView: View {
             }
             return ("Available", Palette.ok)
         case .downloading:
-            return (["Downloading", item.progress.map(Format.percent)].compactMap { $0 }.joined(separator: " · "), Palette.downloads)
+            return (["Downloading", item.progress.map(Format.percent)].compactMap(\.self).joined(separator: " · "), Palette.downloads)
         case .wanted:
             return (item.kind == .movie ? "Wanted · no file yet" : "Wanted · episodes missing", Palette.wantedText)
         case .notAvailable:

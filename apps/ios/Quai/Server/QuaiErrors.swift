@@ -19,7 +19,7 @@ struct QuaiErrorsMiddleware: ClientMiddleware {
         }
         var data = Data()
         if let responseBody {
-            data = (try? await Data(collecting: responseBody, upTo: 64 * 1024)) ?? Data()
+            data = await (try? Data(collecting: responseBody, upTo: 64 * 1024)) ?? Data()
         }
         throw ConnectionError(status: response.status.code, body: data)
     }

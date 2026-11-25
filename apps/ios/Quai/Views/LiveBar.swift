@@ -23,19 +23,19 @@ enum LiveItem: Identifiable {
 
     var activity: RunningActivity {
         switch self {
-        case .playing(let activity), .media(let activity): activity
+        case let .playing(activity), let .media(activity): activity
         }
     }
 
     var id: String { activity.attributes.key }
 
     var playing: RunningActivity? {
-        guard case .playing(let activity) = self else { return nil }
+        guard case let .playing(activity) = self else { return nil }
         return activity
     }
 
     var media: RunningActivity? {
-        guard case .media(let activity) = self else { return nil }
+        guard case let .media(activity) = self else { return nil }
         return activity
     }
 
@@ -149,9 +149,9 @@ private struct LiveBarTrailing: View {
 
     var body: some View {
         switch item {
-        case .playing(let activity):
+        case let .playing(activity):
             PlaybackButtons(activity: activity, only: [.playPause], size: 34)
-        case .media(let activity):
+        case let .media(activity):
             if let progress = activity.content.progress {
                 Text(Format.percent(progress))
                     .font(.system(size: 15, weight: .bold))
@@ -183,7 +183,7 @@ private struct PageDots: View {
 struct PlaybackButtons: View {
     @Environment(Connection.self) private var connection
     let activity: RunningActivity
-    var only: Set<ActivityAction>? = nil
+    var only: Set<ActivityAction>?
     var size: CGFloat = 44
 
     private var actions: [ActivityAction] {

@@ -49,6 +49,37 @@ export default tseslint.config(
     plugins: { sonarjs },
     rules: {
       "sonarjs/cognitive-complexity": ["error", 15],
+      // Bugs and dead code only (a copy-pasted branch or condition, a value written and never read, an error never
+      // thrown, a test left on `.only`): no style rule, and none that needs type information, which this config has not.
+      ...Object.fromEntries(
+        [
+          "no-all-duplicated-branches",
+          "no-duplicated-branches",
+          "no-identical-conditions",
+          "no-identical-expressions",
+          "no-identical-functions",
+          "no-gratuitous-expressions",
+          "no-invariant-returns",
+          "no-redundant-jump",
+          "no-unused-collection",
+          "no-empty-collection",
+          "no-element-overwrite",
+          "no-dead-store",
+          "no-redundant-assignments",
+          "no-useless-increment",
+          "non-existent-operator",
+          "no-unthrown-error",
+          "no-unenclosed-multiline-block",
+          "no-same-line-conditional",
+          "no-collection-size-mischeck",
+          "prefer-single-boolean-return",
+          "no-redundant-boolean",
+          "no-inverted-boolean-check",
+          "no-globals-shadowing",
+          "no-exclusive-tests",
+          "no-incomplete-assertions"
+        ].map((rule) => [`sonarjs/${rule}`, "error"])
+      ),
       "max-depth": ["error", 3],
       "max-params": ["error", 4],
       "max-nested-callbacks": ["error", 5]

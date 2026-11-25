@@ -8,7 +8,7 @@ extension Components.Schemas.LibraryItem {
     var kindLabel: String { kind == .movie ? "Movie" : "Series" }
 
     /// "Movie · 2024"
-    var caption: String { [kindLabel, year.map { String($0) }].compactMap { $0 }.joined(separator: " · ") }
+    var caption: String { [kindLabel, year.map { String($0) }].compactMap(\.self).joined(separator: " · ") }
 
     /// The grid's poster, 342 px wide.
     var posterThumbnail: URL? { PosterSize.grid.url(posterUrl) }
@@ -131,7 +131,7 @@ struct LibraryView: View {
     }
 
     @ViewBuilder private var grid: some View {
-        if connection.library != nil && shown.isEmpty {
+        if connection.library != nil, shown.isEmpty {
             MessageTile(
                 title: filter == .recent ? "Nothing here yet" : "Nothing to show",
                 message: filter == .recent
@@ -140,7 +140,7 @@ struct LibraryView: View {
                 systemImage: "film.stack",
                 color: Palette.accent
             )
-        } else if connection.library == nil && connection.libraryError == nil {
+        } else if connection.library == nil, connection.libraryError == nil {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
         } else {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {

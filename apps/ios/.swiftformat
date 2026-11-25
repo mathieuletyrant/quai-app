@@ -1,0 +1,23 @@
+# SwiftFormat (apps/ios/Tools pins the version): `scripts/format.sh` formats, the CI's ios-client
+# job runs `swiftformat --lint apps/ios` and fails on any change it would make.
+# The default rules, minus the ones listed below, with options matching the code's style.
+
+--swiftversion 6.0
+--exclude Quai/Generated,Tools/.build,build,DerivedData
+
+# Kept on one line as the code writes them: `if done { return }`, `var id: String { key }`,
+# one-line functions and loops, and one-line properties without blank lines between them.
+--disable wrapIfStatementBodies,wrapIfExpressionBodies,wrapPropertyBodies,wrapFunctionBodies,wrapLoopBodies,blankLinesBetweenScopes
+# Would turn section comments (`// Surfaces`) over a declaration into doc comments.
+--disable docComments
+
+# No line width: long lines are left as they are, never wrapped.
+--maxwidth none
+# A top-level `#if DEBUG` doesn't indent its file; one inside a body is indented as it is.
+--ifdef preserve
+--ranges no-space
+--importgrouping testable-last
+# Delegate and protocol methods keep their parameter names.
+--stripunusedargs closure-only
+# Five digits and more are grouped (86_400, 1_795_521_600), shorter ones not (1024).
+--decimalgrouping 3,5

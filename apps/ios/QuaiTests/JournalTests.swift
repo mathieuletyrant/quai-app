@@ -15,7 +15,7 @@ struct JournalTests {
 struct DiskReadingTests {
     @Test func readsHowFullTheDiskIs() throws {
         let json = #"{"freeBytes":300000000000,"totalBytes":2000000000000}"#
-        let disk = DiskReading(try JSONDecoder().decode(Components.Schemas.DiskSpace.self, from: Data(json.utf8)))
+        let disk = try DiskReading(JSONDecoder().decode(Components.Schemas.DiskSpace.self, from: Data(json.utf8)))
         #expect(disk.usedShare == 0.85)
     }
 }

@@ -45,7 +45,7 @@ struct AccessHeader: Codable, Hashable, Sendable {
         }
         if reserved.contains(lowered) { return "Quai sets \(name) itself." }
         if others.contains(where: { $0.name.lowercased() == lowered }) { return "\(name) is already set." }
-        let visibleASCII = value.unicodeScalars.allSatisfy { $0 == "\t" || (0x20 ... 0x7E).contains($0.value) }
+        let visibleASCII = value.unicodeScalars.allSatisfy { $0 == "\t" || (0x20...0x7E).contains($0.value) }
         if value.isEmpty || !visibleASCII { return "The value is empty or has characters a header can't carry." }
         return nil
     }

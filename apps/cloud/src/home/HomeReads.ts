@@ -176,12 +176,12 @@ export class HomeReads extends Context.Service<HomeReads, {
           const value = valueOf(spec, answer)
           if (Option.isSome(value)) {
             yield* observed(spec.service, null)
-            return value
+          } else {
+            const path = spec.path.split("?")[0]!
+            const why = whyUnread(answer)
+            yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
+            if (countsAgainstService(answer)) yield* observed(spec.service, { why, path })
           }
-          const path = spec.path.split("?")[0]!
-          const why = whyUnread(answer)
-          yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
-          if (countsAgainstService(answer)) yield* observed(spec.service, { why, path })
           return value
         })
 

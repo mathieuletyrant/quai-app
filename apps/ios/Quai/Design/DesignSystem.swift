@@ -155,7 +155,7 @@ struct ServerMarkView: View {
                 .accessibilityLabel(ServerStatus.connected.label)
         case let .unreachable(reason):
             Button { explains = true } label: {
-                dot(Palette.incident)
+                dot(Palette.alert)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }

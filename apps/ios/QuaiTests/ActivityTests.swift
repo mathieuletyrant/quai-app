@@ -58,8 +58,8 @@ struct PairingLinkTests {
     }
 
     @Test func ignoresOtherLinks() throws {
-        #expect(PairingLink(try #require(URL(string: "quai://other?code=X"))) == nil)
-        #expect(PairingLink(try #require(URL(string: "quai://pair"))) == nil)
+        #expect(try PairingLink(#require(URL(string: "quai://other?code=X"))) == nil)
+        #expect(try PairingLink(#require(URL(string: "quai://pair"))) == nil)
     }
 }
 
@@ -101,12 +101,12 @@ struct TodayTests {
         #expect(live.playing.map(\.attributes.title) == ["The Bear"])
         #expect(live.media.map(\.attributes.title) == ["Runner", "Dune", "Nero"])
         // Searching or importing, with no progress: still on its way, still in the bar.
-        #expect(!LiveNow(try Today([activity("download", "Nero")], subjects: [:])).isEmpty)
-        #expect(LiveNow(try Today([activity("download", "Severance", tone: "done")], subjects: [:])).isEmpty)
+        #expect(try !LiveNow(Today([activity("download", "Nero")], subjects: [:])).isEmpty)
+        #expect(try LiveNow(Today([activity("download", "Severance", tone: "done")], subjects: [:])).isEmpty)
     }
 
     @Test func aDownloadWithoutSpeedShowsItsStep() throws {
-        let item = LiveItem.media(try activity("download", "Dune", progress: 0.2))
+        let item = try LiveItem.media(activity("download", "Dune", progress: 0.2))
         #expect(item.subtitle == "Searching")
     }
 

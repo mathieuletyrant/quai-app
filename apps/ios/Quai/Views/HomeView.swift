@@ -159,7 +159,7 @@ struct HomeView: View {
         if !alerts.isEmpty {
             AlertsTile(alerts: alerts)
         }
-        if isQuiet && connection.lastError == nil {
+        if isQuiet, connection.lastError == nil {
             MessageTile(
                 title: "All quiet",
                 message: "Nothing to fix, approve or wait for right now.",
@@ -180,7 +180,7 @@ struct HomeView: View {
     }
 
     /// A tile that opens the Library tab on one of its filters.
-    private func openLibrary<Content: View>(_ filter: LibraryFilter, @ViewBuilder _ content: () -> Content) -> some View {
+    private func openLibrary(_ filter: LibraryFilter, @ViewBuilder _ content: () -> some View) -> some View {
         let tile = content()
         return Button {
             libraryFilter = filter
@@ -342,7 +342,7 @@ private struct AlertsTile: View {
                 Text(alerts.count, format: .number)
                     .font(QuaiFont.value)
                     .monospacedDigit()
-                    .foregroundStyle(Palette.incident)
+                    .foregroundStyle(Palette.alert)
                 Text(alerts.count == 1 ? "alert" : "alerts")
                     .font(QuaiFont.headline)
                     .foregroundStyle(Palette.primaryText)

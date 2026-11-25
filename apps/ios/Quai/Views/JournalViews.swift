@@ -13,7 +13,7 @@ extension JournalEntry {
         case "download.removed": ("xmark.circle.fill", Palette.stalled)
         case "media.available": ("checkmark.circle.fill", Palette.ok)
         case "playback.started", "playback.stopped": ("play.fill", Palette.playback)
-        case "alert.raised": ("exclamationmark.triangle.fill", Palette.incident)
+        case "alert.raised": ("exclamationmark.triangle.fill", Palette.alert)
         case "alert.over": ("checkmark.circle.fill", Palette.ok)
         case "request.pending", "request.approved", "request.declined": ("person.fill.questionmark", Palette.requests)
         case "releases.available": ("calendar", Palette.releases)

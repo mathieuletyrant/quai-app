@@ -32,7 +32,7 @@ enum Palette {
     static let releases = Color(hex: "#4FC3F7")
     static let toFix = Color(hex: "#FF8A3D")
     static let playback = Color(hex: "#B57EDC")
-    static let incident = Color(hex: "#FF6B5B")
+    static let alert = Color(hex: "#FF6B5B")
     static let ok = Color(hex: "#30D158")
 
     /// The "wanted" badge on a poster.

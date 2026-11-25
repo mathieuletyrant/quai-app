@@ -1,6 +1,6 @@
-# Builds the OpenAPI generator (apps/ios/Tools) into a cache on main, where every branch's
-# ios-client job can read it: a branch's own cache isn't shared, and an unused one expires
-# after 7 days, hence the weekly run.
+# Builds the Swift tools (apps/ios/Tools: the OpenAPI generator and SwiftFormat) into a cache on
+# main, where every branch's ios-client job can read it: a branch's own cache isn't shared, and an
+# unused one expires after 7 days, hence the weekly run.
 name: swift-tools
 
 on:
@@ -12,12 +12,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  generator:
+  tools:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v4
         with:
           path: apps/ios/Tools/.build
-          key: swift-openapi-generator-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
-      - run: swift build --package-path apps/ios/Tools -c release --product swift-openapi-generator
+          key: swift-tools-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
+      - run: |
+          swift build --package-path apps/ios/Tools -c release --product swift-openapi-generator
+          swift build --package-path apps/ios/Tools -c release --product swiftformat

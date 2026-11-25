@@ -63,7 +63,7 @@ struct PairingView: View {
                     if let error {
                         Text(error)
                             .font(QuaiFont.caption)
-                            .foregroundStyle(Palette.incident)
+                            .foregroundStyle(Palette.alert)
                             .multilineTextAlignment(.center)
                             .frame(maxWidth: .infinity)
                     } else {

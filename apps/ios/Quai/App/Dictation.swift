@@ -120,13 +120,13 @@ final class Dictation {
     // The audio tap and the recognizer call back on their own threads: their closures are made
     // outside the main actor, or Swift 6 would check they run on it, and stop the app.
 
-    nonisolated private static func tap(_ input: AVAudioInputNode, into request: SFSpeechAudioBufferRecognitionRequest) {
+    private nonisolated static func tap(_ input: AVAudioInputNode, into request: SFSpeechAudioBufferRecognitionRequest) {
         input.installTap(onBus: 0, bufferSize: 1024, format: input.outputFormat(forBus: 0)) { buffer, _ in
             request.append(buffer)
         }
     }
 
-    nonisolated private static func recognize(
+    private nonisolated static func recognize(
         _ request: SFSpeechAudioBufferRecognitionRequest,
         with recognizer: SFSpeechRecognizer,
         _ update: @escaping @Sendable (String?, Bool, Bool) -> Void
@@ -136,7 +136,7 @@ final class Dictation {
         }
     }
 
-    nonisolated private static func speechAuthorized() async -> Bool {
+    private nonisolated static func speechAuthorized() async -> Bool {
         await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status == .authorized)

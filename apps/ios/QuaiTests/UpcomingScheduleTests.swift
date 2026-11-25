@@ -4,7 +4,7 @@ import Testing
 
 struct UpcomingScheduleTests {
     /// Wednesday Nov 25, 2026, 11:00 in Paris.
-    private let schedule = UpcomingSchedule(now: Date(timeIntervalSince1970: 1795600800), timeZone: "Europe/Paris")
+    private let schedule = UpcomingSchedule(now: Date(timeIntervalSince1970: 1_795_600_800), timeZone: "Europe/Paris")
 
     private func item(_ json: String) throws -> UpcomingItem {
         try JSONDecoder().decode(UpcomingItem.self, from: Data(json.utf8))
@@ -35,11 +35,11 @@ struct UpcomingScheduleTests {
     }
 
     @Test func periodsCountDaysFromToday() throws {
-        let at = { (seconds: Int) in try self.item(#"{"id":"\#(seconds)","kind":"plannedDeletion","service":"reclaimerr","title":"T","at":\#(seconds),"timed":false,"earliest":false}"#) }
-        #expect(schedule.period(try at(1795683600)) == .thisWeek)
-        #expect(schedule.period(try at(1797415200)) == .thisMonth)
-        #expect(schedule.period(try at(1802426400)) == .later)
-        let groups = schedule.periods([try at(1802426400), try at(1795683600), try at(1797415200)])
+        let at = { (seconds: Int) in try item(#"{"id":"\#(seconds)","kind":"plannedDeletion","service":"reclaimerr","title":"T","at":\#(seconds),"timed":false,"earliest":false}"#) }
+        #expect(try schedule.period(at(1_795_683_600)) == .thisWeek)
+        #expect(try schedule.period(at(1_797_415_200)) == .thisMonth)
+        #expect(try schedule.period(at(1_802_426_400)) == .later)
+        let groups = try schedule.periods([at(1_802_426_400), at(1_795_683_600), at(1_797_415_200)])
         #expect(groups.map(\.period) == [.thisWeek, .thisMonth, .later])
     }
 

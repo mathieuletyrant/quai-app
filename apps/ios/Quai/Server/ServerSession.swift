@@ -80,7 +80,7 @@ struct ServerSession: Sendable, Equatable {
     static func firstReachable(_ urls: [URL], probe: @escaping @Sendable (URL) async -> Probe) async throws -> URL {
         let (reached, blocked) = await withTaskGroup(of: (URL, Probe).self) { group in
             for url in urls {
-                group.addTask { (url, await probe(url)) }
+                group.addTask { await (url, probe(url)) }
             }
             var blocked = false
             for await (url, answer) in group {
