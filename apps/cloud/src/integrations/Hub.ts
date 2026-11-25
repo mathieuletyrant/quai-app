@@ -14,6 +14,13 @@ import { type Integration, Integrations, isAlertState, type Signal, type Watcher
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
 export const heartbeat = "5 seconds"
 
+/**
+ * A link that comes back within this is a reconnection, not an outage: the hosted Cloud's
+ * WebSocket drops a few times a day when Cloudflare moves the Durable Object in front of it, and
+ * Quai Home is back within seconds.
+ */
+export const offlineGraceMs = 60_000
+
 /** "Radarr, Sonarr", or "no service". */
 const servicesText = (services: LinkedHome["services"]) =>
   services.length === 0 ? "no service" : services.map((s) => journalSourceNames[s]).join(", ")
@@ -84,6 +91,21 @@ export class Hub extends Context.Service<Hub, {
     /** What Quai Home polls; null until sent to the home connected now. */
     let sent: Sent | null = null
     const repeated = makeRepeats()
+    const scope = yield* Effect.scope
+    /** Set while Quai Home is away; `logged` once the journal said so. Null while linked. */
+    let gone: { logged: boolean } | null = null
+
+    /** Logs the outage once Quai Home has been away longer than a reconnection takes. */
+    const noteOutage = (drop: { logged: boolean }) =>
+      Effect.sleep(offlineGraceMs).pipe(
+        Effect.andThen(Effect.suspend(() => {
+          if (gone !== drop) return Effect.void
+          drop.logged = true
+          return journal.log({ level: "warn", source: "home", kind: "home.offline", text: "Quai Home went offline: nothing can be read or pushed until it's back" })
+        })),
+        Effect.forkIn(scope),
+        Effect.asVoid
+      )
 
     const apply = (events: ReadonlyArray<FlowEvent>) =>
       Effect.forEach(events, (event) => engine.handle(event, notifier.send), { discard: true })
@@ -158,6 +180,12 @@ export class Hub extends Context.Service<Hub, {
         case "Ready": {
           // A new connection: Quai Home starts with no watch.
           sent = null
+          const dropped = gone
+          gone = null
+          // Back before the outage was logged: a reconnection, not news.
+          if (dropped !== null && !dropped.logged) {
+            return Effect.andThen(Effect.logInfo("Quai Home reconnected"), sync)
+          }
           const { level, text } = linkedNote(event.home)
           return Effect.andThen(journal.log({ level, source: "home", kind: "home.linked", text }), sync)
         }
@@ -171,7 +199,10 @@ export class Hub extends Context.Service<Hub, {
         }
         case "Gone":
           sent = null
-          return journal.log({ level: "warn", source: "home", kind: "home.offline", text: "Quai Home went offline: nothing can be read or pushed until it's back" })
+          return Effect.suspend(() => {
+            gone = { logged: false }
+            return noteOutage(gone)
+          })
         case "Journal":
           return journal.noted(event.entries)
         case "Snapshot": {

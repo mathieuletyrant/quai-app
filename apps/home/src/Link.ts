@@ -37,6 +37,9 @@ export const notLinkedMessage = "Quai Cloud isn't reachable"
 /** A console request, as Quai Home relays it. */
 export type ConsoleRequest = Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">
 
+/** At most this many webhooks wait for the link to come back; past it, the oldest go. */
+export const heldWebhooksLimit = 100
+
 /** How many calls run at once. */
 const callConcurrency = 8
 
@@ -49,7 +52,10 @@ type Outcome =
  * watches and store operations, and reconnects on its own.
  */
 export class Link extends Context.Service<Link, {
-  /** Sends a message to the cloud. Best effort: dropped while disconnected (the cloud also polls). */
+  /**
+   * Sends a message to the cloud. While the link is down (the hosted Cloud's drops a few times a day,
+   * for seconds) it waits, up to `heldWebhooksLimit`, and goes once the Cloud welcomes this home again.
+   */
   readonly send: (message: HomeMessage) => Effect.Effect<void>
   /** Whether the cloud welcomed this connection. */
   readonly linked: Effect.Effect<boolean>
@@ -79,6 +85,9 @@ export class Link extends Context.Service<Link, {
       const linked = yield* Ref.make(false)
       const failures = yield* Ref.make(0)
       const consoleCount = yield* Ref.make(0)
+      /** What came while the link was down. Sends and the flush on Welcome take turns. */
+      const held: Array<HomeMessage> = []
+      const gate = yield* Semaphore.make(1)
       /** The console's requests waiting for the Cloud's answer, on the current connection. */
       const consolePending = new Map<string, Deferred.Deferred<HomeProtocol.ConsoleResponse, CloudUnreachable>>()
 
@@ -154,7 +163,11 @@ export class Link extends Context.Service<Link, {
                   if (message.homeId !== key.homeId) yield* Effect.logWarning(`the cloud welcomed home ${message.homeId}, this is ${key.homeId}`)
                   yield* Effect.logInfo(`linked as home ${key.homeId}`)
                   yield* Ref.set(failures, 0)
-                  yield* Ref.set(linked, true)
+                  yield* gate.withPermit(Effect.gen(function*() {
+                    yield* Ref.set(linked, true)
+                    if (held.length > 0) yield* Effect.logInfo(`sending ${held.length} message(s) held while the link was down`)
+                    for (const message of held.splice(0)) yield* write(message)
+                  }))
                   // On disk, without holding up the link.
                   yield* Effect.forkDetach(cloudSeen.linked)
                   yield* watcher.reset
@@ -252,8 +265,13 @@ export class Link extends Context.Service<Link, {
             return { status: response.status, body: response.body }
           }),
         send: (message) =>
-          Effect.flatMap(Ref.get(current), (write) =>
-            write === null ? Effect.logDebug(`not linked: dropped ${message._tag}`) : write(message))
+          gate.withPermit(Effect.gen(function*() {
+            const write = yield* Ref.get(current)
+            if (write !== null && (yield* Ref.get(linked))) return yield* write(message)
+            held.push(message)
+            if (held.length > heldWebhooksLimit) held.shift()
+            yield* Effect.logDebug(`not linked: holding ${message._tag}`)
+          }))
       }
     })
   )
