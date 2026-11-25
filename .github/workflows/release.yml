@@ -24,30 +24,18 @@ jobs:
           target-branch: main
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      # The release PR is opened and updated with GITHUB_TOKEN, which starts no pull_request run, and when the commits
-      # pushed to main change nothing in its changelog, release-please leaves it alone: its branch keeps an older main.
-      # So at each push to main, the open release PR's branch takes main in (a merge, when it isn't up to date) and ci
-      # is dispatched on it: the PR gets its checks, `required` among them, from the current workflow. Its changes are
-      # the changelog and the versions, so the iOS build and the push model, which run on what changed, stay skipped.
+      # The release PR is opened and updated with GITHUB_TOKEN, which starts no pull_request run: at each push to main,
+      # ci is dispatched on the open release PR's branch, so the PR gets its checks, `required` among them. ci skips its
+      # jobs on a release-please branch (changelog and versions only), so `required` passes in seconds.
       - name: CI on the release PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "autorelease: pending" --state open \
-            --json number,headRefName,headRefOid --jq '.[0] // empty')
-          [ -z "$pr" ] && { echo "No open release PR."; exit 0; }
-          number=$(jq -r .number <<< "$pr")
-          branch=$(jq -r .headRefName <<< "$pr")
-          head=$(jq -r .headRefOid <<< "$pr")
-          # GitHub merges main in asynchronously (202); it answers 422 when the branch is already up to date.
-          if gh api -X PUT "repos/$GITHUB_REPOSITORY/pulls/$number/update-branch" > /dev/null 2>&1; then
-            for attempt in $(seq 1 30); do
-              [ "$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)" != "$head" ] && break
-              sleep 2
-            done
-          fi
+          branch=$(gh pr list --repo "$GITHUB_REPOSITORY" --label "autorelease: pending" --state open \
+            --json headRefName --jq '.[0].headRefName // empty')
+          [ -z "$branch" ] && { echo "No open release PR."; exit 0; }
           gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"
-          echo "ci dispatched on $branch (#$number)"
+          echo "ci dispatched on $branch"
 
   # Same workflow on purpose: a release created with GITHUB_TOKEN does not trigger other workflows.
   # Two images per release: Quai Cloud (ghcr.io/…/quai) and Quai Home (ghcr.io/…/quai-home).
