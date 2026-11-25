@@ -12,6 +12,7 @@
     "build": "pnpm -r build",
     "check": "pnpm -r check && pnpm lint",
     "test": "pnpm -r test",
+    "bench": "pnpm --filter @quai/cloud bench",
     "dev:cloud": "pnpm --filter @quai/cloud dev",
     "dev:home": "pnpm --filter @quai/home dev",
     "dev:console": "pnpm --filter @quai/console dev",

@@ -127,7 +127,9 @@ export const seedItems = (
   for (const cleanup of cleanups) {
     if (cleanup.atOnce) continue
     const key = cleanup.at === undefined ? "ratio" : mondayOf(dayOf(cleanup.at, zone))
-    weeks.set(key, [...weeks.get(key) ?? [], cleanup])
+    const week = weeks.get(key)
+    if (week === undefined) weeks.set(key, [cleanup])
+    else week.push(cleanup)
   }
   return [...weeks].map(([week, members]): UpcomingItem => {
     const dates = members.flatMap((member) => member.at === undefined ? [] : [member.at])

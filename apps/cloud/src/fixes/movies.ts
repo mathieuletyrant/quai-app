@@ -5,9 +5,11 @@ import {
   echoed,
   epochSeconds,
   fileOf,
+  grabbedSince,
   grabLookbackMs,
   isImportBlocked,
   knownYear,
+  latestGrabs,
   posterOf,
   queueMessages,
   QueuePage,
@@ -112,17 +114,14 @@ export const moviesWithoutSource = (
   const queued = new Set(
     queue.flatMap((record) => record.movieId === undefined || record.movieId === null ? [] : [record.movieId])
   )
+  const grabbed = latestGrabs(grabs, (grab) => grab.movieId)
   return missing.flatMap((movie): ReadonlyArray<Detected<MovieTarget>> => {
     if (movie.hasFile === true || movie.monitored === false || movie.isAvailable !== true || queued.has(movie.id)) {
       return []
     }
     const since = availableSince(movie)
     if (since === undefined || nowMs - since * 1000 < noSourceAfterMs) return []
-    const grabbed = grabs.some((grab) =>
-      grab.movieId === movie.id && (grab.eventType ?? "grabbed") === "grabbed" &&
-      (epochSeconds(grab.date) ?? 0) >= since
-    )
-    if (grabbed) return []
+    if (grabbedSince(grabbed, movie.id, since)) return []
     const year = knownYear(movie.year)
     const posterUrl = posterOf(movie.images)
     const added = epochSeconds(movie.added)

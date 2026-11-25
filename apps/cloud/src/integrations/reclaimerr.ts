@@ -159,14 +159,40 @@ interface Listed {
   readonly images?: RadarrMovie["images"]
 }
 
+/** A list of titles by TMDB id (the first with it) and by normalized title, in the list's order. */
+interface Titles {
+  readonly byTmdbId: ReadonlyMap<number, Listed>
+  readonly byTitle: ReadonlyMap<string, ReadonlyArray<Listed>>
+}
+
+/** Each list's index, made once however many candidates look it up. */
+const indexes = new WeakMap<ReadonlyArray<Listed>, Titles>()
+
+const titlesOf = (listed: ReadonlyArray<Listed>): Titles => {
+  const known = indexes.get(listed)
+  if (known !== undefined) return known
+  const byTmdbId = new Map<number, Listed>()
+  const byTitle = new Map<string, Array<Listed>>()
+  for (const entry of listed) {
+    if (entry.tmdbId !== undefined && !byTmdbId.has(entry.tmdbId)) byTmdbId.set(entry.tmdbId, entry)
+    const title = normalized(entry.title)
+    const named = byTitle.get(title)
+    if (named === undefined) byTitle.set(title, [entry])
+    else named.push(entry)
+  }
+  const titles = { byTmdbId, byTitle }
+  indexes.set(listed, titles)
+  return titles
+}
+
 /** By TMDB id first; else by title, and year when both know it. None when it's ambiguous. */
 const matching = (candidate: Candidate, listed: ReadonlyArray<Listed>): Listed | undefined => {
+  const titles = titlesOf(listed)
   const tmdbId = candidate.tmdb_id ?? 0
-  const byId = tmdbId <= 0 ? undefined : listed.find((entry) => entry.tmdbId === tmdbId)
+  const byId = tmdbId <= 0 ? undefined : titles.byTmdbId.get(tmdbId)
   if (byId !== undefined) return byId
-  const title = normalized(candidate.title)
   const year = knownYear(candidate.year ?? undefined)
-  const named = listed.filter((entry) => normalized(entry.title) === title)
+  const named = titles.byTitle.get(normalized(candidate.title)) ?? []
   const dated = year === undefined
     ? named
     : named.filter((entry) => knownYear(entry.year) === undefined || knownYear(entry.year) === year)

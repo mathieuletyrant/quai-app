@@ -69,12 +69,8 @@ const titleOf = LibraryId.titleOf
 export const covers = (deleted: TitleKey, files: TitleKey) =>
   deleted === files || (deleted === titleOf(deleted) && titleOf(files) === deleted)
 
-/** Whether two titles may share files: one covers the other. */
-const overlap = (left: TitleKey, right: TitleKey) => covers(left, right) || covers(right, left)
-
-/** Torrents with the same name and size hold the same files: a cross-seed of the other. */
-const sameFiles = (left: TorrentInput, right: TorrentInput) =>
-  left.size === right.size && left.name.toLowerCase() === right.name.toLowerCase()
+/** Torrents with the same name (any case) and size hold the same files: a cross-seed of the other. */
+const filesOf = (torrent: TorrentInput) => `${torrent.size}:${torrent.name.toLowerCase()}`
 
 /** Torrents holding the same files, and the title they are in the library. */
 export interface FileSet {
@@ -88,13 +84,14 @@ export const fileSets = (
   input: Pick<SpaceBackInput, "grabs" | "unlinkedCategory">,
   torrents: ReadonlyArray<TorrentInput>
 ): ReadonlyArray<FileSet> => {
-  const sets: Array<Array<TorrentInput>> = []
+  const sets = new Map<string, Array<TorrentInput>>()
   for (const torrent of torrents) {
-    const set = sets.find((candidate) => candidate.some((member) => sameFiles(member, torrent)))
-    if (set === undefined) sets.push([torrent])
+    const files = filesOf(torrent)
+    const set = sets.get(files)
+    if (set === undefined) sets.set(files, [torrent])
     else set.push(torrent)
   }
-  return sets.map((members): FileSet => {
+  return [...sets.values()].map((members): FileSet => {
     const keys = new Set(members.flatMap((member) => {
       const key = input.grabs.get(member.hash.toLowerCase())
       return key === undefined ? [] : [key]
@@ -149,40 +146,134 @@ const titleWords = (title: string) => {
   return new Set(telling.length > 0 ? telling : tokens)
 }
 
+/** The index of the first of the sorted `values` that is `atLeast` or more (their length when none is). */
+const lowerBound = (values: ReadonlyArray<number>, atLeast: number) => {
+  let low = 0
+  let high = values.length
+  while (low < high) {
+    const middle = (low + high) >> 1
+    if (values[middle]! < atLeast) low = middle + 1
+    else high = middle
+  }
+  return low
+}
+
+/** Whether one of the sorted sizes is about `size` (within `sameSizeShare`). */
+const aboutTheSize = (sizes: ReadonlyArray<number>, size: number) => {
+  const share = size * sameSizeShare
+  // A byte of margin each side of the search, then the exact test.
+  for (let index = lowerBound(sizes, Math.floor(size - share) - 1); index < sizes.length; index++) {
+    const other = sizes[index]!
+    if (other > size + share + 1) return false
+    if (Math.abs(other - size) <= share) return true
+  }
+  return false
+}
+
+/** Whether one of the names (each a set of words) has every word of `title`: looked up from the rarest word. */
+const namedAfter = (
+  names: ReadonlyArray<ReadonlySet<string>>,
+  withWord: ReadonlyMap<string, ReadonlyArray<number>>,
+  title: ReadonlySet<string>
+) => {
+  const words = [...title]
+  const postings = words.map((word) => withWord.get(word) ?? [])
+  const rarest = postings.reduce((fewest, posting) => posting.length < fewest.length ? posting : fewest)
+  return rarest.some((index) => words.every((word) => names[index]!.has(word)))
+}
+
 /**
- * Whether torrents Quai couldn't place may hold a deletion's files: about the same size, or every
- * word of its title in their name. Reclaimerr's title may be translated: the size still tells.
+ * Whether torrents Quai couldn't place may hold a deletion's files: one about the same size, or
+ * with every word of its title in its name. Reclaimerr's title may be translated: the size still
+ * tells. Their sizes and words are indexed once, on the first deletion asked about.
  */
-export const mayHold = (set: FileSet, deletion: DeletionInput): boolean => {
-  const size = deletion.sizeBytes ?? 0
-  if (set.torrents.some((member) => size > 0 && Math.abs(member.size - size) <= size * sameSizeShare)) return true
-  const title = titleWords(deletion.title)
-  return title.size > 0 && set.torrents.some((member) => {
-    const name = new Set(tokensOf(member.name))
-    return [...title].every((word) => name.has(word))
-  })
+export const mayHold = (unplaced: ReadonlyArray<FileSet>) => {
+  let index:
+    | {
+      readonly sizes: ReadonlyArray<number>
+      readonly names: ReadonlyArray<ReadonlySet<string>>
+      readonly withWord: ReadonlyMap<string, ReadonlyArray<number>>
+    }
+    | undefined
+  const indexed = () => {
+    if (index !== undefined) return index
+    const members = unplaced.flatMap((set) => set.torrents)
+    const names = members.map((member) => new Set(tokensOf(member.name)))
+    const withWord = new Map<string, Array<number>>()
+    names.forEach((name, position) => {
+      for (const word of name) {
+        const posting = withWord.get(word)
+        if (posting === undefined) withWord.set(word, [position])
+        else posting.push(position)
+      }
+    })
+    index = { sizes: members.map((member) => member.size).sort((left, right) => left - right), names, withWord }
+    return index
+  }
+  return (deletion: DeletionInput): boolean => {
+    if (unplaced.length === 0) return false
+    const { names, sizes, withWord } = indexed()
+    const size = deletion.sizeBytes ?? 0
+    if (size > 0 && aboutTheSize(sizes, size)) return true
+    const title = titleWords(deletion.title)
+    return title.size > 0 && namedAfter(names, withWord, title)
+  }
 }
 
 const add = <K>(map: Map<K, number>, key: K, bytes: number) => map.set(key, (map.get(key) ?? 0) + bytes)
 
-/** The first deletion Reclaimerr plans that takes the files of `key`. */
-const firstDeletionOf = (deletions: ReadonlyArray<DeletionInput>, key: TitleKey) =>
-  deletions.filter((deletion) => deletion.key !== undefined && covers(deletion.key, key)).sort((left, right) =>
-    left.at - right.at
-  )[0]
+/** The titles whose deletion takes the files of `key` (`covers`): itself, and the series of a season. */
+const coveringKeys = (key: TitleKey) => {
+  const title = titleOf(key)
+  return title === key ? [key] : [key, title]
+}
+
+/**
+ * The first deletion Reclaimerr plans that takes the files of a title: the soonest, the first
+ * listed of those as soon. Indexed by the title each deletes once, then looked up.
+ */
+const firstDeletions = (deletions: ReadonlyArray<DeletionInput>) => {
+  const first = new Map<TitleKey, { readonly deletion: DeletionInput; readonly index: number }>()
+  deletions.forEach((deletion, index) => {
+    if (deletion.key === undefined) return
+    const known = first.get(deletion.key)
+    if (known === undefined || deletion.at < known.deletion.at) first.set(deletion.key, { deletion, index })
+  })
+  return (key: TitleKey): DeletionInput | undefined =>
+    coveringKeys(key)
+      .flatMap((covering) => first.get(covering) ?? [])
+      .sort((left, right) => left.deletion.at - right.deletion.at || left.index - right.index)[0]?.deletion
+}
+
+/** Whether a set placed in the library may share files with `key`, one covering the other: indexed once, then looked up. */
+const placedOverlap = (sets: ReadonlyArray<FileSet>) => {
+  const placed = new Set<TitleKey>()
+  const titles = new Set<TitleKey>()
+  for (const set of sets) {
+    if (typeof set.key !== "string") continue
+    placed.add(set.key)
+    titles.add(titleOf(set.key))
+  }
+  // A set of the title or of its series covers it; a whole title covers the sets of its seasons.
+  return (key: TitleKey) => placed.has(key) || placed.has(titleOf(key)) || (key === titleOf(key) && titles.has(key))
+}
 
 /**
  * Every copy of a set's files and when it goes: its torrents, and with hardlinks the library's copy
  * when a deletion takes it. Undefined when Quai can't be sure: the set can't be placed, the kind's
  * hardlinks are unknown, or the library keeps the files with no deletion planned.
  */
-const copiesOf = (input: SpaceBackInput, set: FileSet): ReadonlyArray<Going> | undefined => {
+const copiesOf = (
+  input: SpaceBackInput,
+  set: FileSet,
+  firstDeletionOf: (key: TitleKey) => DeletionInput | undefined
+): ReadonlyArray<Going> | undefined => {
   if (set.key === undefined) return undefined
   const hardlinked = set.key === null ? false : input.hardlinks[kindOf(set.key)]
   if (hardlinked === undefined) return undefined
   const torrents = set.torrents.map(torrentGoing)
   if (!hardlinked || set.key === null) return torrents
-  const deletion = firstDeletionOf(input.deletions, set.key)
+  const deletion = firstDeletionOf(set.key)
   if (deletion !== undefined) {
     return [...torrents, { row: { deletion: deletion.candidateId }, earliest: deletion.at, latest: deletion.at }]
   }
@@ -195,15 +286,14 @@ const copiesOf = (input: SpaceBackInput, set: FileSet): ReadonlyArray<Going> | u
  */
 const deletionAlone = (
   input: SpaceBackInput,
-  sets: ReadonlyArray<FileSet>,
-  deletion: DeletionInput
+  deletion: DeletionInput,
+  held: (key: TitleKey) => boolean,
+  mightBeHeld: (deletion: DeletionInput) => boolean
 ): number | undefined => {
   const key = deletion.key
   if (key === undefined || deletion.sizeBytes === undefined) return undefined
   if (input.hardlinks[kindOf(key)] === false) return deletion.sizeBytes
-  const held = sets.some((candidate) => typeof candidate.key === "string" && overlap(key, candidate.key))
-  const mightBeHeld = sets.some((candidate) => candidate.key === undefined && mayHold(candidate, deletion))
-  return held || mightBeHeld ? undefined : deletion.sizeBytes
+  return held(key) || mightBeHeld(deletion) ? undefined : deletion.sizeBytes
 }
 
 /**
@@ -217,9 +307,10 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
   const torrents = new Map<string, number>()
   if (input.torrents === undefined) return { deletions, torrents }
   const sets = fileSets(input, input.torrents)
+  const firstDeletionOf = firstDeletions(input.deletions)
 
   for (const set of sets) {
-    const copies = copiesOf(input, set)
+    const copies = copiesOf(input, set, firstDeletionOf)
     const last = copies === undefined ? undefined : surelyLast(copies)
     if (last === undefined) continue
     const size = Math.max(...set.torrents.map((member) => member.size))
@@ -227,9 +318,11 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
     else add(torrents, last.row.torrent, size)
   }
 
+  const held = placedOverlap(sets)
+  const mightBeHeld = mayHold(sets.filter((set) => set.key === undefined))
   for (const deletion of input.deletions) {
     if (deletions.has(deletion.candidateId)) continue
-    const bytes = deletionAlone(input, sets, deletion)
+    const bytes = deletionAlone(input, deletion, held, mightBeHeld)
     if (bytes !== undefined) deletions.set(deletion.candidateId, bytes)
   }
   return { deletions, torrents }
