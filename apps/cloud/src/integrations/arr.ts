@@ -206,8 +206,6 @@ export const echoed = (row: ManualImportRow) => ({
 })
 
 
-// Upcoming's space coming back: whether imports are hardlinks, and which season a release is.
-
 /** `GET /api/v3/config/mediamanagement`: whether imports are hardlinks (the same files) or copies. */
 export const MediaManagement = Schema.Struct({ copyUsingHardlinks: Schema.Boolean })
 

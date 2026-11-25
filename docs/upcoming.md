@@ -50,7 +50,8 @@ deletion whose torrent still seeds shows nothing, and its size shows on the week
   moment is surely the last copy going.
 - A Cleanuparr rule Quai can't evaluate (trackers, privacy unknown) before the one that matches: the
   torrent has no plan. A stopped torrent gets no closer to its limits.
-- qBittorrent didn't answer: every row stays, the "+X GB" go, and a line says so.
+- qBittorrent didn't answer: the releases, deletions and stuck removals stay; the seed cleanups (made
+  from its torrents) and the "+X GB" go, and a line says so.
 
 ## States
 

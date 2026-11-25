@@ -56,7 +56,6 @@ export class Upcoming extends Context.Service<Upcoming, {
         const cleaning = recent && has("cleanuparr") && has("qbittorrent")
         const none = Effect.succeed(Option.none<never>())
 
-        // What's planned.
         const calendar = rangeReads(today, upcomingReleaseDays, zone)
         const [calendars, candidates, removals, cleaner, job, finished] = yield* Effect.all([
           reads.all({ episodes: calendar.episodes, movies: calendar.movies }),
@@ -72,7 +71,6 @@ export class Upcoming extends Context.Service<Upcoming, {
           ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunAt === undefined ? undefined : nextRunAt * 1000, now })
           : []
 
-        // What space back needs (and the deletions' posters), read only when something goes.
         const addedOn = Option.match(finished, { onNone: () => [], onSome: (list) => list.flatMap((t) => t.added_on ?? []) })
         const since = grabsSince(addedOn, now)
         const library = planned.length > 0 || cleanups.length > 0
