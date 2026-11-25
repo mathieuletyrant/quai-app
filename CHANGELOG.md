@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.30.0](https://github.com/mathieuletyrant/quai-app/compare/v0.29.1...v0.30.0) (2026-11-25)
+
+
+### ✨ Features
+
+* Gone, a notification once the stack removed something on its own ([#140](https://github.com/mathieuletyrant/quai-app/issues/140)) ([4b7c431](https://github.com/mathieuletyrant/quai-app/commit/4b7c4318a4218542eb84e5c2cb5efb84a5020fc3))
+
 ## [0.29.1](https://github.com/mathieuletyrant/quai-app/compare/v0.29.0...v0.29.1) (2026-11-25)
 
 
