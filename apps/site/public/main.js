@@ -118,12 +118,12 @@ if (phone && !reduceMotion) {
   lockStory.stop = () => { cancelAnimationFrame(frame); frame = 0; };
 }
 
-// "App": the app's Home, Today and Library, one after the other, or the one a dot picks.
+// "App": the app's Home, Upcoming and Library, one after the other, or the one a dot picks.
 const appLayer = phone?.querySelector("[data-app-layer]");
-const appScreens = ["home", "today", "library"];
+const appScreens = ["home", "upcoming", "library"];
 const appLabels = {
-  home: "The Quai app's Home: what to fix, today's releases, the titles recently added, how many are wanted, the disk",
-  today: "Today's releases in the Quai app, each with its air time and where it stands",
+  home: "The Quai app's Home: what to fix, what's coming and going, the titles recently added, how many are wanted, the disk",
+  upcoming: "Upcoming in the Quai app: the releases on their way, what Reclaimerr and Cleanuparr will delete, and the space that comes back",
   library: "The Quai app's Library: posters of movies and series, one downloading, two wanted",
 };
 const lockLabel = phone?.getAttribute("aria-label") ?? "";
