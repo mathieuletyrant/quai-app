@@ -45,7 +45,7 @@ export const availableSince = (movie: MissingMovie): number | undefined => {
     : movie.minimumAvailability === "inCinemas"
     ? [movie.inCinemas]
     : [movie.digitalRelease, movie.physicalRelease]
-  const released = dates.map(epochSeconds).filter((d): d is number => d !== undefined)
+  const released = dates.map(epochSeconds).filter((date): date is number => date !== undefined)
   const availableAt = released.length === 0 ? undefined : Math.min(...released)
   if (added === undefined) return availableAt
   return availableAt === undefined ? added : Math.max(added, availableAt)
@@ -104,12 +104,12 @@ export const moviesWithoutSource = (
   grabs: typeof RadarrGrabs.Type,
   nowMs: number
 ): ReadonlyArray<Detected<MovieTarget>> => {
-  const queued = new Set(queue.flatMap((r) => r.movieId === undefined || r.movieId === null ? [] : [r.movieId]))
+  const queued = new Set(queue.flatMap((record) => record.movieId === undefined || record.movieId === null ? [] : [record.movieId]))
   return missing.flatMap((movie): ReadonlyArray<Detected<MovieTarget>> => {
     if (movie.hasFile === true || movie.monitored === false || movie.isAvailable !== true || queued.has(movie.id)) return []
     const since = availableSince(movie)
     if (since === undefined || nowMs - since * 1000 < noSourceAfterMs) return []
-    const grabbed = grabs.some((g) => g.movieId === movie.id && (g.eventType ?? "grabbed") === "grabbed" && (epochSeconds(g.date) ?? 0) >= since)
+    const grabbed = grabs.some((grab) => grab.movieId === movie.id && (grab.eventType ?? "grabbed") === "grabbed" && (epochSeconds(grab.date) ?? 0) >= since)
     if (grabbed) return []
     const year = knownYear(movie.year)
     const posterUrl = posterOf(movie.images)

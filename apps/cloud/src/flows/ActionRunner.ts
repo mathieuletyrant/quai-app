@@ -29,12 +29,12 @@ export class ActionRunner extends Context.Service<ActionRunner, {
           Effect.gen(function*() {
             const activity = (yield* activities.snapshot).activities.get(key)
             if (activity === undefined || activity.endedAt !== null) return yield* Effect.fail(new HttpApiError.NotFound())
-            const flow = (yield* flows.all).find((f) => f.id === activity.flowId)
+            const flow = (yield* flows.all).find((candidate) => candidate.id === activity.flowId)
             if (!(flow?.steps[activity.stepIndex]?.actions ?? []).includes(action)) {
               return yield* Effect.fail(new InvalidAction({ message: "This activity doesn't offer that button now." }))
             }
-            const { service, label } = actionCatalog.find((a) => a.type === action)!
-            const handler = integrations.find((i) => i.service === service)?.actions[action]
+            const { service, label } = actionCatalog.find((entry) => entry.type === action)!
+            const handler = integrations.find((integration) => integration.service === service)?.actions[action]
             if (handler === undefined) return yield* Effect.fail(new InvalidAction({ message: `${service} can't do that.` }))
             yield* journal.outcome({
               level: "info",

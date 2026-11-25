@@ -40,8 +40,8 @@ const consoleServer = (options: {
         options.cloud?.(request) ?? Effect.fail(new CloudUnreachable({ message: "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home" }))
       )
   })
-  const radarr = fakeHttp((r) =>
-    r.headers["x-api-key"] === "good" ? { json: { appName: "Radarr", version: "6.0.4.10291" } } : { status: 401, json: {} })
+  const radarr = fakeHttp((incoming) =>
+    incoming.headers["x-api-key"] === "good" ? { json: { appName: "Radarr", version: "6.0.4.10291" } } : { status: 401, json: {} })
   const files = Layer.mergeAll(
     Layer.effect(ServiceSettings, Effect.flatMap(tempDir, (dir) => ServiceSettings.make(join(dir, "services.json")))),
     Layer.effect(CloudSeen, Effect.flatMap(tempDir, (dir) => CloudSeen.make(join(dir, "cloud.json"), "ws://cloud:8787/home")))
@@ -60,10 +60,10 @@ const consoleServer = (options: {
 const request = (method: "GET" | "POST" | "PUT" | "DELETE", path: string, options: { body?: unknown; cookie?: string } = {}) =>
   Effect.gen(function*() {
     const client = yield* HttpClient.HttpClient
-    let r = HttpClientRequest.make(method)(path)
-    if (options.body !== undefined) r = HttpClientRequest.bodyJsonUnsafe(r, options.body)
-    if (options.cookie !== undefined) r = HttpClientRequest.setHeader(r, "Cookie", options.cookie)
-    const response = yield* client.execute(r)
+    let outgoing = HttpClientRequest.make(method)(path)
+    if (options.body !== undefined) outgoing = HttpClientRequest.bodyJsonUnsafe(outgoing, options.body)
+    if (options.cookie !== undefined) outgoing = HttpClientRequest.setHeader(outgoing, "Cookie", options.cookie)
+    const response = yield* client.execute(outgoing)
     const text = yield* response.text
     return { status: response.status, json: text === "" ? undefined : JSON.parse(text), setCookie: response.headers["set-cookie"] }
   })
@@ -118,7 +118,7 @@ describe("console relay", () => {
   it.effect("relays /console-api and /api/health to the Cloud, signed in only", () => {
     const { layer, relayed } = consoleServer({
       password: "pw",
-      cloud: (r) => Effect.succeed(r.method === "DELETE" ? { status: 204, body: "" } : { status: 200, body: JSON.stringify({ path: r.path }) })
+      cloud: (relayed) => Effect.succeed(relayed.method === "DELETE" ? { status: 204, body: "" } : { status: 200, body: JSON.stringify({ path: relayed.path }) })
     })
     return Effect.gen(function*() {
       expect((yield* request("GET", "/console-api/devices")).status).toBe(401)
@@ -184,9 +184,9 @@ describe("services page", () => {
 
       const list = (yield* request("GET", "/home-api/services", { cookie })).json as ReadonlyArray<{ service: string; source: string }>
       expect(JSON.stringify(list)).not.toContain("good")
-      expect(list.find((s) => s.service === "radarr")?.source).toBe("saved")
-      expect(list.find((s) => s.service === "sonarr")).toEqual({ service: "sonarr", source: "none", hasSecret: false, suggestedUrl: "http://sonarr_server_1:8989" })
-      expect(list.find((s) => s.service === "jellyfin")?.source).toBe("environment")
+      expect(list.find((setup) => setup.service === "radarr")?.source).toBe("saved")
+      expect(list.find((setup) => setup.service === "sonarr")).toEqual({ service: "sonarr", source: "none", hasSecret: false, suggestedUrl: "http://sonarr_server_1:8989" })
+      expect(list.find((setup) => setup.service === "jellyfin")?.source).toBe("environment")
 
       expect((yield* request("PUT", "/home-api/services/jellyfin", { cookie, body: { url: "http://j:8096", secret: "k" } })).status).toBe(409)
       expect((yield* request("DELETE", "/home-api/services/jellyfin", { cookie })).status).toBe(409)

@@ -71,7 +71,7 @@ describe("qBittorrent", () => {
       yield* TestClock.adjust("1 minute")
       const [watch] = watcher.watches(ctx(running))
       const events = yield* watcher.read({ watch: watch!, status: 200, body: JSON.stringify(fixture("qbittorrent/torrents-info.json")) }, ctx(running))
-      expect(events.map((e) => [e.type, e.downloadId])).toEqual([
+      expect(events.map((event) => [event.type, event.downloadId])).toEqual([
         ["download.progress", "8f1c0e3a9b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e"],
         ["download.progress", "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"],
         ["download.removed", "deadbeef"]

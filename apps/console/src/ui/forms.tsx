@@ -105,19 +105,19 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
 }) {
   return (
     <div role="radiogroup" aria-label={label} className="inline-flex w-fit flex-wrap gap-0.5 rounded-control border border-line-strong bg-field p-0.5">
-      {options.map((o) => (
+      {options.map((option) => (
         <button
-          key={o.value}
+          key={option.value}
           type="button"
           role="radio"
-          aria-checked={value === o.value}
-          onClick={() => onChange(o.value)}
+          aria-checked={value === option.value}
+          onClick={() => onChange(option.value)}
           className={cx(
             "inline-flex h-7 items-center gap-1.5 rounded-item px-2.5 text-small font-semibold transition-colors",
-            value === o.value ? "bg-hover text-text shadow-sm" : "text-muted hover:text-text"
+            value === option.value ? "bg-hover text-text shadow-sm" : "text-muted hover:text-text"
           )}
         >
-          {o.label}
+          {option.label}
         </button>
       ))}
     </div>

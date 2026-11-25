@@ -22,10 +22,10 @@ const titles: Record<Flow["subject"], string> = {
 /** Sample lines of a list, `done` of them here: today's releases, airing from `at`. */
 const sampleItems = (at: number, done: number): Values => {
   const titles = ["Big Buck Bunny S01E01", "Sintel S01E02", "Tears of Steel", "Elephants Dream S02E01"]
-  const items = titles.map((title, i): ActivityItem => ({
+  const items = titles.map((title, index): ActivityItem => ({
     title,
-    ...(i < 3 ? { at: Math.floor(at / 1000) + 3600 * (i + 1) } : {}),
-    state: i < done ? "done" : i === done ? "active" : "waiting"
+    ...(index < 3 ? { at: Math.floor(at / 1000) + 3600 * (index + 1) } : {}),
+    state: index < done ? "done" : index === done ? "active" : "waiting"
   }))
   return { items, here: done, total: titles.length, detail: `${done} of ${titles.length} here` }
 }
@@ -81,8 +81,8 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
       values
     })
     if (step.show.progress && !ends) {
-      for (const p of [0.12, 0.31, 0.52, 0.74, 0.93, 1]) {
-        beat(4_000, "Update", { values: { progress: p, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - p) * 24) } })
+      for (const progress of [0.12, 0.31, 0.52, 0.74, 0.93, 1]) {
+        beat(4_000, "Update", { values: { progress, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - progress) * 24) } })
       }
     }
     if (step.show.list && !ends) {

@@ -364,12 +364,12 @@ const isIds = (value: unknown) => Array.isArray(value) && value.every(isId)
 const isAny = () => true
 
 /** The same JSON value: what two answers parsed from JSON hold, keys in any order. */
-const sameJson = (a: unknown, b: unknown): boolean => {
-  if (a === b) return true
-  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((value, i) => sameJson(value, b[i]))
-  if (!isRecord(a) || !isRecord(b)) return false
-  const keys = Object.keys(a)
-  return keys.length === Object.keys(b).length && keys.every((key) => Object.hasOwn(b, key) && sameJson(a[key], b[key]))
+const sameJson = (left: unknown, right: unknown): boolean => {
+  if (left === right) return true
+  if (Array.isArray(left)) return Array.isArray(right) && left.length === right.length && left.every((value, index) => sameJson(value, right[index]))
+  if (!isRecord(left) || !isRecord(right)) return false
+  const keys = Object.keys(left)
+  return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && sameJson(left[key], right[key]))
 }
 
 /**
@@ -395,7 +395,7 @@ export const ignoresOneMoreDownload = (current: unknown, body: unknown): boolean
   if (!isStrings(before) || !isStrings(after)) return false
   const added = after.at(-1)
   return after.length === before.length + 1 &&
-    before.every((entry, i) => after[i] === entry) &&
+    before.every((entry, index) => after[index] === entry) &&
     isDownloadId(added) &&
     !before.some((entry) => entry.toLowerCase() === added!.toLowerCase()) &&
     sameJson({ ...current, ignoredDownloads: null }, { ...body, ignoredDownloads: null })
@@ -416,7 +416,7 @@ const manualImportBody = (media: TitleKind) =>
     files: (value) =>
       Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(shape(
         { path: isString, downloadId: isString, ...(media === "movie" ? { movieId: isId } : { seriesId: isId, episodeIds: isIds }) },
-        { ...(media === "series" ? { seasonNumber: (n: unknown) => typeof n === "number" } : {}), quality: isAny, languages: isAny, releaseGroup: isString, indexerFlags: isAny }
+        { ...(media === "series" ? { seasonNumber: (value: unknown) => typeof value === "number" } : {}), quality: isAny, languages: isAny, releaseGroup: isString, indexerFlags: isAny }
       ))
   })
 

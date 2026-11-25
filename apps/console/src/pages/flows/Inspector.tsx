@@ -4,28 +4,28 @@ import { Callout, Chip, Field, FieldGroup, FieldNote, IconButton, Input, Inspect
 import { type Draft, type DraftStep, eventName, eventOption, type EventType, palette, showLabels, skippedFor } from "./draft.ts"
 import { IconPicker } from "./IconPicker.tsx"
 
-type Change = (change: (d: Draft) => void) => void
+type Change = (change: (draft: Draft) => void) => void
 
 /** A length to choose, or Never. */
-const minutesOption = (m: number) => m === 0 ? "Never" : shortMinutes(m)
+const minutesOption = (minutes: number) => minutes === 0 ? "Never" : shortMinutes(minutes)
 
 const mediaTypeOptions = [{ value: "any", label: "All" }, { value: "movie", label: "Movies" }, { value: "series", label: "Series" }] as const
 
 /** "TV Salon, iPad" → ["TV Salon", "iPad"] */
-const deviceList = (text: string) => text.split(",").map((s) => s.trim()).filter(Boolean)
+const deviceList = (text: string) => text.split(",").map((name) => name.trim()).filter(Boolean)
 
 /** The flow's look and which activities it follows. */
 export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: Change }) {
   return (
     <Section title="Flow">
       <Field label="Name">
-        <Input className="font-semibold" value={flow.name} maxLength={40} onChange={(e) => onChange((d) => { d.name = e.target.value })} />
+        <Input className="font-semibold" value={flow.name} maxLength={40} onChange={(event) => onChange((draft) => { draft.name = event.target.value })} />
       </Field>
       <Field label="Color">
-        <ColorSwatches value={flow.color} onChange={(c) => onChange((d) => { d.color = c })} />
+        <ColorSwatches value={flow.color} onChange={(color) => onChange((draft) => { draft.color = color })} />
       </Field>
       <FieldGroup label="Icon">
-        <IconPicker label="Flow icon" value={flow.icon} color={flow.color} onChange={(icon) => onChange((d) => { d.icon = icon })} />
+        <IconPicker label="Flow icon" value={flow.icon} color={flow.color} onChange={(icon) => onChange((draft) => { draft.icon = icon })} />
       </FieldGroup>
       <FilterFields flow={flow} onChange={onChange} />
     </Section>
@@ -36,15 +36,15 @@ export function FlowPanel({ flow, onChange }: { flow: Draft; onChange: Change })
 function ColorSwatches({ value, onChange }: { value: string; onChange: (color: string) => void }) {
   return (
     <div className="flex flex-wrap gap-2.5">
-      {palette.map((c) => (
+      {palette.map((color) => (
         <button
-          key={c}
+          key={color}
           type="button"
-          aria-label={c}
-          aria-pressed={value === c}
-          onClick={() => onChange(c)}
+          aria-label={color}
+          aria-pressed={value === color}
+          onClick={() => onChange(color)}
           className="size-7 rounded-full ring-offset-2 ring-offset-panel transition hover:scale-110 aria-pressed:ring-2 aria-pressed:ring-white"
-          style={{ background: c }}
+          style={{ background: color }}
         />
       ))}
     </div>
@@ -62,7 +62,7 @@ function FilterFields({ flow, onChange }: { flow: Draft; onChange: Change }) {
             label="Titles"
             value={flow.filter.mediaType ?? "any"}
             options={mediaTypeOptions}
-            onChange={(v) => onChange((d) => { d.filter.mediaType = v })}
+            onChange={(mediaType) => onChange((draft) => { draft.filter.mediaType = mediaType })}
           />
         </FieldGroup>
       )
@@ -72,7 +72,7 @@ function FilterFields({ flow, onChange }: { flow: Draft; onChange: Change }) {
           <Input
             type="time"
             value={flow.filter.startsAt ?? defaultStartsAt}
-            onChange={(e) => onChange((d) => { if (/^\d{2}:\d{2}$/.test(e.target.value)) d.filter.startsAt = e.target.value })}
+            onChange={(event) => onChange((draft) => { if (/^\d{2}:\d{2}$/.test(event.target.value)) draft.filter.startsAt = event.target.value })}
           />
         </Field>
       )
@@ -82,7 +82,7 @@ function FilterFields({ flow, onChange }: { flow: Draft; onChange: Change }) {
           <Input
             value={(flow.filter.devices ?? []).join(", ")}
             placeholder="TV Salon, iPad"
-            onChange={(e) => onChange((d) => { d.filter.devices = deviceList(e.target.value) })}
+            onChange={(event) => onChange((draft) => { draft.filter.devices = deviceList(event.target.value) })}
           />
         </Field>
       )
@@ -101,12 +101,12 @@ export function StepPanel(props: {
 }) {
   const { flow, index, events } = props
   const step = flow.steps[index]!
-  const usedBy = (type: EventType) => flow.steps.findIndex((s, i) => i !== index && s.on === type)
+  const usedBy = (type: EventType) => flow.steps.findIndex((other, position) => position !== index && other.on === type)
   const clash = usedBy(step.on)
-  const skipped = skippedFor(flow, events.find((e) => e.type === step.on))
+  const skipped = skippedFor(flow, events.find((event) => event.type === step.on))
   const stepActions = step.actions ?? []
   const toggleAction = (type: CatalogAction["type"]) =>
-    props.onChange({ ...step, actions: stepActions.includes(type) ? stepActions.filter((a) => a !== type) : [...stepActions, type] })
+    props.onChange({ ...step, actions: stepActions.includes(type) ? stepActions.filter((action) => action !== type) : [...stepActions, type] })
   const toggleShow = (key: keyof DraftStep["show"]) => props.onChange({ ...step, show: { ...step.show, [key]: !step.show[key] } })
 
   return (
@@ -121,13 +121,13 @@ export function StepPanel(props: {
       }
     >
       <Field label="Name">
-        <Input className="font-semibold" value={step.label} maxLength={24} onChange={(e) => props.onChange({ ...step, label: e.target.value })} />
+        <Input className="font-semibold" value={step.label} maxLength={24} onChange={(event) => props.onChange({ ...step, label: event.target.value })} />
       </Field>
       <Field label="Starts when">
-        <Select invalid={clash >= 0} value={step.on} onChange={(e) => props.onChange({ ...step, on: e.target.value as EventType })}>
-          {events.map((e) => {
-            const other = usedBy(e.type)
-            return <option key={e.type} value={e.type}>{eventOption(e)}{other >= 0 ? ` (step ${other + 1})` : ""}</option>
+        <Select invalid={clash >= 0} value={step.on} onChange={(event) => props.onChange({ ...step, on: event.target.value as EventType })}>
+          {events.map((event) => {
+            const other = usedBy(event.type)
+            return <option key={event.type} value={event.type}>{eventOption(event)}{other >= 0 ? ` (step ${other + 1})` : ""}</option>
           })}
         </Select>
       </Field>
@@ -151,8 +151,8 @@ export function StepPanel(props: {
       {props.actions.length > 0 && (
         <FieldGroup label="Buttons">
           <div className="flex flex-wrap gap-2">
-            {props.actions.map((a) => (
-              <Chip key={a.type} pressed={stepActions.includes(a.type)} color={flow.color} onClick={() => toggleAction(a.type)}>{a.label}</Chip>
+            {props.actions.map((action) => (
+              <Chip key={action.type} pressed={stepActions.includes(action.type)} color={flow.color} onClick={() => toggleAction(action.type)}>{action.label}</Chip>
             ))}
           </div>
         </FieldGroup>
@@ -166,43 +166,43 @@ export function StepPanel(props: {
 
 /** How the activity ends and how long it stays. */
 export function EndPanel({ flow, events, onChange }: { flow: Draft; events: ReadonlyArray<CatalogEvent>; onChange: Change }) {
-  const optional = (key: "stalledAfterMinutes" | "expireAfterMinutes") => (e: React.ChangeEvent<HTMLSelectElement>) =>
-    onChange((d) => {
-      const v = Number(e.target.value)
-      if (v === 0) delete d[key]
-      else d[key] = v
+  const optional = (key: "stalledAfterMinutes" | "expireAfterMinutes") => (event: React.ChangeEvent<HTMLSelectElement>) =>
+    onChange((draft) => {
+      const minutes = Number(event.target.value)
+      if (minutes === 0) delete draft[key]
+      else draft[key] = minutes
     })
-  const setEndOn = (e: React.ChangeEvent<HTMLSelectElement>) =>
-    onChange((d) => {
-      if (e.target.value === "") delete d.endOn
-      else d.endOn = e.target.value as EventType
+  const setEndOn = (event: React.ChangeEvent<HTMLSelectElement>) =>
+    onChange((draft) => {
+      if (event.target.value === "") delete draft.endOn
+      else draft.endOn = event.target.value as EventType
     })
   const several = flow.steps.length > 1
-  const endEvents = events.filter((e) => !flow.steps.some((s) => s.on === e.type))
+  const endEvents = events.filter((event) => !flow.steps.some((step) => step.on === event.type))
   return (
     <Section title="Ends">
       <Field label={several ? "Ends at the last step, or when" : "Ends when"}>
         <Select value={flow.endOn ?? ""} onChange={setEndOn}>
           <option value="">{several ? "Nothing else" : "The last step is reached"}</option>
-          {endEvents.map((e) => <option key={e.type} value={e.type}>{eventOption(e)}</option>)}
+          {endEvents.map((event) => <option key={event.type} value={event.type}>{eventOption(event)}</option>)}
         </Select>
       </Field>
       <Field label="Stays on screen after the end">
-        <Select value={flow.lingerMinutes} onChange={(e) => onChange((d) => { d.lingerMinutes = Number(e.target.value) })}>
-          {[0, 1, 5, 15, 30, 60].map((m) => <option key={m} value={m}>{m === 0 ? "No" : `${m} min`}</option>)}
+        <Select value={flow.lingerMinutes} onChange={(event) => onChange((draft) => { draft.lingerMinutes = Number(event.target.value) })}>
+          {[0, 1, 5, 15, 30, 60].map((minutes) => <option key={minutes} value={minutes}>{minutes === 0 ? "No" : `${minutes} min`}</option>)}
         </Select>
       </Field>
       {flow.subject === "media" && (
         <Field label="Turns grey with no progress for">
           <Select value={flow.stalledAfterMinutes ?? 0} onChange={optional("stalledAfterMinutes")}>
-            {[0, 30, 60, 120, 240].map((m) => <option key={m} value={m}>{minutesOption(m)}</option>)}
+            {[0, 30, 60, 120, 240].map((minutes) => <option key={minutes} value={minutes}>{minutesOption(minutes)}</option>)}
           </Select>
         </Field>
       )}
       {flow.subject !== "request" && (
         <Field label="Ends anyway with no news for">
           <Select value={flow.expireAfterMinutes ?? 0} onChange={optional("expireAfterMinutes")}>
-            {[0, 15, 60, 240, 1440].map((m) => <option key={m} value={m}>{minutesOption(m)}</option>)}
+            {[0, 15, 60, 240, 1440].map((minutes) => <option key={minutes} value={minutes}>{minutesOption(minutes)}</option>)}
           </Select>
         </Field>
       )}

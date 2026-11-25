@@ -53,7 +53,7 @@ export type SeriesTarget =
 export const queuedEpisodes = (records: ReadonlyArray<QueueRecord>): QueuedMedia => {
   const record = records[0]
   const series = record?.series
-  const episodes = records.flatMap((r) => r.episode === undefined ? [] : [r.episode])
+  const episodes = records.flatMap((entry) => entry.episode === undefined ? [] : [entry.episode])
   return {
     title: series === undefined ? record?.title ?? "Unknown download" : episodeLabel(series.title, episodes),
     year: knownYear(series?.year),
@@ -110,7 +110,7 @@ export const episodesWithoutSource = (
   grabs: typeof SonarrGrabs.Type,
   nowMs: number
 ): ReadonlyArray<Detected<SeriesTarget>> => {
-  const queued = new Set(queue.flatMap((r) => r.episodeId === undefined || r.episodeId === null ? [] : [r.episodeId]))
+  const queued = new Set(queue.flatMap((record) => record.episodeId === undefined || record.episodeId === null ? [] : [record.episodeId]))
   const seasons = new Map<string, { since: number; aired: boolean; episodes: Array<MissingEpisode> }>()
   for (const episode of missing) {
     if (episode.hasFile === true || episode.monitored === false || episode.series === undefined || queued.has(episode.id)) continue
@@ -119,7 +119,7 @@ export const episodesWithoutSource = (
     if (aired === undefined) continue
     const since = added === undefined ? aired : Math.max(added, aired)
     if (nowMs - since * 1000 < noSourceAfterMs) continue
-    const grabbed = grabs.some((g) => g.episodeId === episode.id && (g.eventType ?? "grabbed") === "grabbed" && (epochSeconds(g.date) ?? 0) >= since)
+    const grabbed = grabs.some((grab) => grab.episodeId === episode.id && (grab.eventType ?? "grabbed") === "grabbed" && (epochSeconds(grab.date) ?? 0) >= since)
     if (grabbed) continue
     const key = `${episode.seriesId}-${episode.seasonNumber}`
     const season = seasons.get(key) ?? { since, aired: since === aired, episodes: [] }
@@ -128,7 +128,7 @@ export const episodesWithoutSource = (
     else seasons.set(key, season)
   }
   return [...seasons.values()].map(({ since, aired, episodes }): Detected<SeriesTarget> => {
-    const sorted = [...episodes].sort((a, b) => a.episodeNumber - b.episodeNumber)
+    const sorted = [...episodes].sort((left, right) => left.episodeNumber - right.episodeNumber)
     const first = sorted[0]!
     const series = first.series!
     const year = knownYear(series.year)
@@ -144,9 +144,9 @@ export const episodesWithoutSource = (
         reason: aired ? "No release grabbed since it aired" : "No release grabbed since the series was added",
         since,
         actions: ["searchReleases", "ignoreAndWait"],
-        missing: { episodes: sorted.map((e) => episodeCode(e.seasonNumber, e.episodeNumber)) }
+        missing: { episodes: sorted.map((episode) => episodeCode(episode.seasonNumber, episode.episodeNumber)) }
       },
-      target: { kind: "series", _tag: "Missing", seriesId: first.seriesId, seasonNumber: first.seasonNumber, episodeIds: sorted.map((e) => e.id) }
+      target: { kind: "series", _tag: "Missing", seriesId: first.seriesId, seasonNumber: first.seasonNumber, episodeIds: sorted.map((episode) => episode.id) }
     }
   })
 }
@@ -160,30 +160,30 @@ export const episodeImportFiles = (
 ): Result.Result<ReadonlyArray<ImportCommandFile>, InvalidFix> => {
   const seriesId = target.seriesId
   if (seriesId === undefined) return Result.fail(new InvalidFix({ message: "Sonarr doesn't know which series this is" }))
-  const chosen = new Map(assignments.map((a) => [a.file, a.episodeIds]))
-  const freeById = new Map(choices.map((e) => [e.id, e]))
+  const chosen = new Map(assignments.map((assignment) => [assignment.file, assignment.episodeIds]))
+  const freeById = new Map(choices.map((episode) => [episode.id, episode]))
   const files: Array<ImportCommandFile> = []
   for (const row of rows) {
     const file = fileOf(row)
     const picked = chosen.get(file)
     if (picked !== undefined) {
       const episodes = picked.map((episodeId) => freeById.get(episodeId))
-      if (episodes.some((e) => e === undefined)) {
+      if (episodes.some((episode) => episode === undefined)) {
         return Result.fail(new InvalidFix({ message: `Choose episodes of this series that have no file yet for ${file}` }))
       }
-      const seasons = new Set(episodes.map((e) => e!.seasonNumber))
+      const seasons = new Set(episodes.map((episode) => episode!.seasonNumber))
       if (seasons.size !== 1) return Result.fail(new InvalidFix({ message: `The episodes chosen for ${file} must be in one season` }))
       files.push({ path: row.path!, seriesId, seasonNumber: [...seasons][0]!, episodeIds: [...picked], downloadId, ...echoed(row) })
       continue
     }
     const matched = row.episodes ?? []
     if (matched.length === 0) return Result.fail(new InvalidFix({ message: `Choose the episode for ${file}` }))
-    if (matched.some((e) => e.hasFile === true)) return Result.fail(new InvalidFix({ message: `${file} matches an episode that already has a file` }))
+    if (matched.some((episode) => episode.hasFile === true)) return Result.fail(new InvalidFix({ message: `${file} matches an episode that already has a file` }))
     files.push({
       path: row.path!,
       seriesId: row.series?.id ?? seriesId,
       seasonNumber: matched[0]!.seasonNumber,
-      episodeIds: matched.map((e) => e.id),
+      episodeIds: matched.map((episode) => episode.id),
       downloadId,
       ...echoed(row)
     })
@@ -217,7 +217,7 @@ export const series: MediaFixes<SeriesTarget> = {
       : `&seriesId=${target.seriesId}${target.seasonNumber === undefined ? "" : `&seasonNumber=${target.seasonNumber}`}`,
   importFile: (row) => {
     const episodes = row.episodes ?? []
-    return importFileOf(row, episodes.map((e) => episodeCode(e.seasonNumber, e.episodeNumber)), episodes.length === 0)
+    return importFileOf(row, episodes.map((episode) => episodeCode(episode.seasonNumber, episode.episodeNumber)), episodes.length === 0)
   },
   // The series' episodes without a file: the only ones a file may be imported as.
   choices: (reads, target) =>
@@ -227,13 +227,13 @@ export const series: MediaFixes<SeriesTarget> = {
         reads.write({ service: "sonarr", method: "GET", path: episodesPath(target.seriesId) }, (message) => new FixFailed({ message })),
         (body): ReadonlyArray<EpisodeChoice> =>
           Option.getOrElse(readJson(SonarrEpisodes, body), () => [])
-            .filter((e) => e.hasFile !== true && e.seasonNumber > 0)
-            .sort((a, b) => a.seasonNumber - b.seasonNumber || a.episodeNumber - b.episodeNumber)
-            .map((e) => ({
-              id: e.id,
-              seasonNumber: e.seasonNumber,
-              episodeNumber: e.episodeNumber,
-              ...(e.title === undefined ? {} : { title: e.title })
+            .filter((episode) => episode.hasFile !== true && episode.seasonNumber > 0)
+            .sort((left, right) => left.seasonNumber - right.seasonNumber || left.episodeNumber - right.episodeNumber)
+            .map((episode) => ({
+              id: episode.id,
+              seasonNumber: episode.seasonNumber,
+              episodeNumber: episode.episodeNumber,
+              ...(episode.title === undefined ? {} : { title: episode.title })
             }))
       ),
   importFiles: episodeImportFiles,
@@ -244,7 +244,7 @@ export const series: MediaFixes<SeriesTarget> = {
   // A season search also finds packs of episodes that have their file: only the releases that
   // cover nothing but missing episodes are offered, so grabbing never replaces a file.
   usable: (target, release) => {
-    const ids = (release.mappedEpisodeInfo ?? []).map((e) => e.id)
+    const ids = (release.mappedEpisodeInfo ?? []).map((info) => info.id)
     return ids.length > 0 && ids.every((episodeId) => episodeId !== undefined && target.episodeIds.includes(episodeId))
   }
 }

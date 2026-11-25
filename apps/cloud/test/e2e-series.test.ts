@@ -14,7 +14,7 @@ const keyPem = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKe
   .export({ type: "pkcs8", format: "pem" }).toString()
 
 const series = { id: 233, title: "Our House (2022)", tvdbId: 407046, tmdbId: 157014, imdbId: "tt10098728", year: 2022 }
-const episode = (n: number) => ({ id: 9000 + n, seasonNumber: 1, episodeNumber: n, title: `Episode ${n}` })
+const episode = (episodeNumber: number) => ({ id: 9000 + episodeNumber, seasonNumber: 1, episodeNumber, title: `Episode ${episodeNumber}` })
 const downloadId = "ABCDEF0123456789ABCDEF0123456789ABCDEF01"
 const subjectKey = "series:tvdb:407046:dl:abcdef0123456789abcdef0123456789abcdef01"
 
@@ -39,7 +39,7 @@ describe("end to end, a series", () => {
         const deviceId = paired._tag === "Some" ? paired.value.deviceId : yield* Effect.die("no pairing")
         const sonarr = (eventType: string, episodes: ReadonlyArray<number>) =>
           home.webhook("sonarr", { eventType, series, episodes: episodes.map(episode), downloadId })
-        const activity = () => Effect.map(Effect.flatMap(Activities, (a) => a.snapshot), (s) => [...s.activities.values()][0])
+        const activity = () => Effect.map(Effect.flatMap(Activities, (activities) => activities.snapshot), (state) => [...state.activities.values()][0])
 
         yield* sonarr("Grab", [1, 2, 3, 4])
         yield* devices.setActivityToken(deviceId, `download|${subjectKey}`, "act")
@@ -50,7 +50,7 @@ describe("end to end, a series", () => {
         expect((yield* activity())?.tone).toBe("stalled")
 
         yield* TestClock.adjust("2 minutes")
-        for (const n of [3, 4, 2, 1]) yield* sonarr("Download", [n])
+        for (const episodeNumber of [3, 4, 2, 1]) yield* sonarr("Download", [episodeNumber])
         const importing = yield* activity()
         expect(importing).toMatchObject({ title: "Our House (2022) · S01", stepIndex: 2, tone: "active" })
 

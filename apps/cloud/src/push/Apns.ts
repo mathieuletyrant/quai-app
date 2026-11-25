@@ -114,7 +114,7 @@ const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvir
       /** When each session last sent a push, epoch milliseconds. */
       const lastUsed = new Map<http2.ClientHttp2Session, number>()
       const jwt = yield* Ref.make<{ token: string; issuedAt: number } | null>(null)
-      yield* Effect.addFinalizer(() => Effect.sync(() => sessions.forEach((s) => s.close())))
+      yield* Effect.addFinalizer(() => Effect.sync(() => sessions.forEach((connection) => connection.close())))
 
       const session = (environment: ApnsEnvironment, now: number) => {
         const existing = sessions.get(environment)

@@ -27,7 +27,7 @@ const journalOnly = Journal.layer.pipe(Layer.provideMerge(testLink))
 /** The Cloud with no integration and no APNs key: its Hub hands the journal what Quai Home notes. */
 const quietCloud = cloud(Layer.succeed(Integrations, [])).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
 
-const texts = (entries: ReadonlyArray<JournalEntry>) => entries.map((e) => `${e.level} ${e.source} ${e.text}`)
+const texts = (entries: ReadonlyArray<JournalEntry>) => entries.map((entry) => `${entry.level} ${entry.source} ${entry.text}`)
 
 describe("Cloud journal", () => {
   it.effect("hands Quai Home its lines in one batch, 1.5 s after the first", () =>
@@ -38,7 +38,7 @@ describe("Cloud journal", () => {
       yield* journal.log({ level: "info", source: "radarr", kind: "a", text: "one" })
       yield* TestClock.adjust(500)
       yield* journal.log({ level: "warn", source: "sonarr", kind: "b", text: "two" })
-      const appends = () => home.received.filter((m) => m._tag === "JournalAppend")
+      const appends = () => home.received.filter((message) => message._tag === "JournalAppend")
       expect(appends()).toHaveLength(0)
       yield* TestClock.adjust(Timing.batchMs - 500)
       expect(appends()).toHaveLength(1)
@@ -87,7 +87,7 @@ describe("Cloud journal", () => {
         expect(texts((yield* journal.history({ limit: 10, subject: "movie:tmdb:1" })).entries)).toEqual(["info radarr Radarr grabbed a release of Dune"])
         // What waits goes first: a read sees a line logged just before.
         yield* journal.log({ level: "info", source: "cloud", kind: "x", text: "just now" })
-        expect((yield* journal.history({ limit: 1 })).entries.map((e) => e.text)).toEqual(["just now"])
+        expect((yield* journal.history({ limit: 1 })).entries.map((entry) => entry.text)).toEqual(["just now"])
       }).pipe(Effect.scoped, Effect.provide(journalOnly))
     }))
 
@@ -100,8 +100,8 @@ describe("Cloud journal", () => {
       yield* TestClock.adjust(Timing.batchMs)
       const page = yield* journal.history({ limit: 10 })
       expect(page).toMatchObject({ kept: "memory", more: false })
-      expect(page.entries.map((e) => e.text)).toEqual(["one"])
-      expect(home.received.some((m) => m._tag === "JournalAppend" || m._tag === "JournalRead")).toBe(false)
+      expect(page.entries.map((entry) => entry.text)).toEqual(["one"])
+      expect(home.received.some((message) => message._tag === "JournalAppend" || message._tag === "JournalRead")).toBe(false)
     }).pipe(Effect.provide(journalOnly)))
 
   it.effect("the live tail: what came after a cursor, Quai Home's own lines too; a cursor from another run starts over", () =>
@@ -111,18 +111,18 @@ describe("Cloud journal", () => {
       const journal = yield* Journal
       yield* journal.log({ level: "info", source: "cloud", kind: "a", text: "one" })
       const first = yield* journal.since(undefined)
-      expect(first.entries.map((e) => e.text)).toEqual(["Quai Home linked (Radarr, Sonarr, qBittorrent, Jellyfin)", "one"])
+      expect(first.entries.map((entry) => entry.text)).toEqual(["Quai Home linked (Radarr, Sonarr, qBittorrent, Jellyfin)", "one"])
       yield* home.note({ id: journalId(5, "h", 0), at: 5, level: "warn", source: "radarr", kind: "call.refused", text: "refused" })
       yield* journal.log({ level: "info", source: "cloud", kind: "b", text: "two" })
       const next = yield* journal.since(first.cursor)
-      expect(next.entries.map((e) => e.text)).toEqual(["refused", "two"])
+      expect(next.entries.map((entry) => entry.text)).toEqual(["refused", "two"])
       expect((yield* journal.since(next.cursor)).entries).toEqual([])
       expect((yield* journal.since("0000.3")).entries).toHaveLength(4)
       // Quai Home's own line is already at home: not handed back.
       yield* TestClock.adjust(Timing.batchMs)
       expect(texts(home.journal)).toEqual(["warn radarr refused", "info home Quai Home linked (Radarr, Sonarr, qBittorrent, Jellyfin)", "info cloud one", "info cloud two"])
       // The memory holds the last 200.
-      for (let i = 0; i < Timing.tail + 5; i++) yield* journal.log({ level: "info", source: "cloud", kind: "n", text: `n${i}` })
+      for (let index = 0; index < Timing.tail + 5; index++) yield* journal.log({ level: "info", source: "cloud", kind: "n", text: `n${index}` })
       expect((yield* journal.since(undefined)).entries).toHaveLength(Timing.tail)
     }).pipe(Effect.provide(quietCloud)))
 
@@ -135,7 +135,7 @@ describe("Cloud journal", () => {
       yield* journal.outcome(note, Effect.void).pipe(Effect.provideService(CurrentDevice, { id: "d1" as DeviceId, name: "Julie's iPhone" }))
       yield* Effect.flip(journal.outcome(note, Effect.fail(new InvalidAction({ message: "Seerr: HTTP 500" }))))
       const lines = (yield* journal.since(undefined)).entries
-      expect(lines.map((e) => [e.level, e.kind, e.text, e.deviceName])).toEqual([
+      expect(lines.map((entry) => [entry.level, entry.kind, entry.text, entry.deviceName])).toEqual([
         ["info", "request.approve", "Approved Julie's request for Dune", "Julie's iPhone"],
         ["warn", "request.approve.failed", "Approved Julie's request for Dune: failed, Seerr: HTTP 500", undefined]
       ])
@@ -215,7 +215,7 @@ describe("what the Cloud logs", () => {
         expect(JSON.stringify(lines)).not.toMatch(/dead-julie|"pts"/)
 
         // Everything but the last line reached Quai Home before it dropped.
-        expect(home.journal.map((e) => e.text)).toEqual(lines.slice(0, -1).map((e) => e.text))
+        expect(home.journal.map((entry) => entry.text)).toEqual(lines.slice(0, -1).map((entry) => entry.text))
       }).pipe(Effect.provide(cloudLive.pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))
 
@@ -224,7 +224,7 @@ describe("what the Cloud logs", () => {
       const home = yield* makeFakeHome()
       yield* home.connect
       const journal = yield* Journal
-      const kinds = () => journal.since(undefined).pipe(Effect.map((page) => page.entries.map((e) => e.kind)))
+      const kinds = () => journal.since(undefined).pipe(Effect.map((page) => page.entries.map((entry) => entry.kind)))
       expect(yield* kinds()).toEqual(["home.linked"])
       yield* home.disconnect
       yield* TestClock.adjust("3 seconds")
@@ -262,15 +262,15 @@ describe("journal routes", () => {
       expect(all.more).toBe(true)
       const older = yield* client.history({ query: { limit: 2, before: all.entries.at(-1)!.id } })
       // Then Radarr's, and the Cloud's own lines from before (at 0, handed over when Quai Home linked).
-      expect(older.entries.map((e) => e.source)).toEqual(["radarr", "home"])
-      expect((yield* client.history({ query: { source: "radarr,apple,nope", level: "error" } })).entries.map((e) => e.source)).toEqual(["apple"])
-      expect((yield* client.history({ query: { subject: "movie:tmdb:1" } })).entries.map((e) => e.title)).toEqual(["Dune"])
+      expect(older.entries.map((entry) => entry.source)).toEqual(["radarr", "home"])
+      expect((yield* client.history({ query: { source: "radarr,apple,nope", level: "error" } })).entries.map((entry) => entry.source)).toEqual(["apple"])
+      expect((yield* client.history({ query: { subject: "movie:tmdb:1" } })).entries.map((entry) => entry.title)).toEqual(["Dune"])
       expect((yield* client.history({ query: { search: "REFUSED" } })).entries).toHaveLength(2)
 
       const tail = yield* client.since({ query: {} })
-      expect(tail.entries.map((e) => e.text)).toEqual(["offline", "Quai Home linked (Radarr, Sonarr, qBittorrent, Jellyfin)"])
+      expect(tail.entries.map((entry) => entry.text)).toEqual(["offline", "Quai Home linked (Radarr, Sonarr, qBittorrent, Jellyfin)"])
       yield* journal.log({ level: "info", source: "cloud", kind: "x", text: "next" })
-      expect((yield* client.since({ query: { cursor: tail.cursor } })).entries.map((e) => e.text)).toEqual(["next"])
+      expect((yield* client.since({ query: { cursor: tail.cursor } })).entries.map((entry) => entry.text)).toEqual(["next"])
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -310,9 +310,9 @@ describe("what an event means", () => {
         Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
       )).journal
       const page = yield* phone.recent({ query: { limit: 1 } })
-      expect(page.entries.map((e) => e.kind)).toEqual(["alert.raised"])
+      expect(page.entries.map((entry) => entry.kind)).toEqual(["alert.raised"])
       expect(page.more).toBe(true)
       const older = yield* phone.recent({ query: { before: page.entries[0]!.id } })
-      expect(older.entries.map((e) => e.kind)).toEqual(["media.grabbed"])
+      expect(older.entries.map((entry) => entry.kind)).toEqual(["media.grabbed"])
     }).pipe(Effect.provide(TestApp)))
 })

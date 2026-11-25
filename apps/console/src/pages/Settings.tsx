@@ -7,16 +7,15 @@ import { CloudChanged, loadOverview, SetupChecklist } from "./setup.tsx"
 
 /** "Less than a minute", "42 min", "5 h 12 min", "3 days" */
 const uptime = (seconds: number) => {
-  const m = Math.floor(seconds / 60)
-  if (m < 1) return "Less than a minute"
-  if (m < 60) return `${m} min`
-  if (m < 2880) return `${Math.floor(m / 60)} h ${m % 60} min`
-  return `${Math.floor(m / 1440)} days`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 1) return "Less than a minute"
+  if (minutes < 60) return `${minutes} min`
+  if (minutes < 2880) return `${Math.floor(minutes / 60)} h ${minutes % 60} min`
+  return `${Math.floor(minutes / 1440)} days`
 }
 
-/** Rows while their values load. */
 function LoadingRows({ labels }: { labels: ReadonlyArray<string> }) {
-  return <Rows>{labels.map((l) => <Row key={l} label={l}><Skeleton className="ml-auto h-4 w-28" /></Row>)}</Rows>
+  return <Rows>{labels.map((label) => <Row key={label} label={label}><Skeleton className="ml-auto h-4 w-28" /></Row>)}</Rows>
 }
 
 const failed = (error: unknown) => <ErrorCallout error={error} />
@@ -44,7 +43,7 @@ const pushOffline = "Without an Apple push key, your iPhones get no Live Activit
 /** The hosted Cloud says nothing about its key, unless pushes can't go out. */
 function HostedPushWarning() {
   const { epoch } = useLink()
-  const push = useLoad<PushSettings>(() => call((c) => c.push.pushSettings()), [epoch])
+  const push = useLoad<PushSettings>(() => call((api) => api.push.pushSettings()), [epoch])
   if (push.data === null || push.data.configured) return null
   return <Callout tone="warn" icon="alert" title="Notifications are off on Quai's Cloud">{pushOffline} It's on our side: write to us.</Callout>
 }
@@ -86,20 +85,20 @@ const ownDescription = <>Your own Quai Cloud runs the flows and sends the pushes
 function CloudPanel() {
   const { status, epoch } = useLink()
   const overview = useLoad(loadOverview, [epoch])
-  const health = useLoad<Health>(() => call((c) => c.system.health()), [epoch])
+  const health = useLoad<Health>(() => call((api) => api.system.health()), [epoch])
   return (
     <Async state={overview} loading={<Panel title="Quai Cloud"><LoadingRows labels={["Link", "Version"]} /></Panel>} failed={failed}>
-      {(o) => {
-        const hosted = isHostedCloud(o.cloud)
+      {(home) => {
+        const hosted = isHostedCloud(home.cloud)
         return (
           <>
             <Panel title="Quai Cloud" description={hosted ? hostedDescription : ownDescription}>
               <div className="flex flex-col gap-4">
-                {hosted ? <HostedCloud cloud={o.cloud} status={status} health={health.data} /> : <OwnCloud cloud={o.cloud} status={status} health={health.data} />}
-                <CloudChanged cloud={o.cloud} onDone={overview.refresh} />
+                {hosted ? <HostedCloud cloud={home.cloud} status={status} health={health.data} /> : <OwnCloud cloud={home.cloud} status={status} health={health.data} />}
+                <CloudChanged cloud={home.cloud} onDone={overview.refresh} />
               </div>
             </Panel>
-            {!hosted && o.cloud.configured && <OwnCloudSettingsPanel />}
+            {!hosted && home.cloud.configured && <OwnCloudSettingsPanel />}
           </>
         )
       }}
@@ -136,7 +135,7 @@ function AwayRows({ access }: { access: ConnectionSettings }) {
 }
 
 const loadCloudSettings = () =>
-  Promise.all([call((c) => c.push.pushSettings()), call((c) => c.connection.connectionSettings())]).then(([push, access]) => ({ push, access }))
+  Promise.all([call((api) => api.push.pushSettings()), call((api) => api.connection.connectionSettings())]).then(([push, access]) => ({ push, access }))
 
 const cloudSettingsOffline = <p className="text-body text-muted">Shown once Quai Home is connected to your Quai Cloud.</p>
 

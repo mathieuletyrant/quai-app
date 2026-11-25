@@ -12,7 +12,6 @@ const status = { service: "radarr", path: "/api/v3/system/status?secret=x", sche
 const route = "radarr GET /api/v3/system/status"
 
 const logs: Array<string> = []
-/** The warnings logged. */
 const captured = Logger.layer([Logger.make(({ logLevel, message }) => {
   if (logLevel === "Warn") logs.push((Array.isArray(message) ? message : [message]).map(String).join(" "))
 })])
@@ -108,7 +107,7 @@ describe("HomeReads.all", () => {
       }, { optional: ["radarrDisk"] })
       expect(values).toEqual({ radarr: Option.some({ version: "5" }), radarrDisk: Option.none(), sonarr: Option.none(), jellyfin: Option.none(), skipped: Option.none() })
       expect(unavailable).toEqual(["sonarr"])
-      expect(home.calls.map((c) => c.service).sort()).toEqual(["radarr", "radarr", "sonarr"])
+      expect(home.calls.map((call) => call.service).sort()).toEqual(["radarr", "radarr", "sonarr"])
     }).pipe(Effect.provide(reads)))
 })
 

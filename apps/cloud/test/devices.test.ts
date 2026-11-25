@@ -49,7 +49,7 @@ describe("pairing", () => {
       expect(Exit.isFailure(yield* Effect.exit(api.devices.pair({ payload: { ...iphone, code: late.code } })))).toBe(true)
 
       const devices = yield* api.console.devices()
-      expect(devices.map((d) => [d.name, d.canStartActivities])).toEqual([["iPhone de Mathieu", true]])
+      expect(devices.map((device) => [device.name, device.canStartActivities])).toEqual([["iPhone de Mathieu", true]])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("the iPhone routes need its token; a removed iPhone is locked out", () =>
@@ -80,7 +80,7 @@ describe("pairing", () => {
       const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
       const api = yield* signedIn(token)
       const list = yield* api.devices.activities()
-      expect(list.map((a) => [a.attributes.title, a.attributes.steps[a.content.step]?.id])).toEqual([["Dune", "searching"]])
+      expect(list.map((activity) => [activity.attributes.title, activity.attributes.steps[activity.content.step]?.id])).toEqual([["Dune", "searching"]])
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -97,7 +97,7 @@ describe("preferences", () => {
       })
       expect(saved.flows["incident"]?.enabled).toBe(false)
       expect((yield* phone.devices.preferences()).flows["download"]?.hiddenSteps).toEqual(["searching"])
-      expect((yield* phone.devices.flows()).map((f) => f.id)).toEqual(["download", "playback", "request", "today"])
+      expect((yield* phone.devices.flows()).map((flow) => flow.id)).toEqual(["download", "playback", "request", "today"])
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -106,13 +106,13 @@ describe("flows from the console", () => {
     Effect.gen(function*() {
       yield* connectedHome
       const api = yield* HttpApiTest.groups(QuaiApi, ["flows"])
-      const download = (yield* api.flows.list()).find((f) => f.id === "download")!
+      const download = (yield* api.flows.list()).find((flow) => flow.id === "download")!
       const anime = yield* api.flows.save({
         params: { id: "anime" },
         payload: { ...download, id: "anime", name: "Anime", builtIn: true, filter: { mediaType: "series" } }
       })
       expect(anime.builtIn).toBe(false)
-      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "request", "today", "anime"])
+      expect((yield* api.flows.list()).map((flow) => flow.id)).toEqual(["download", "playback", "request", "today", "anime"])
 
       const bad = yield* Effect.exit(api.flows.save({
         params: { id: "bad" },
@@ -128,14 +128,14 @@ describe("flows from the console", () => {
       expect(Exit.isFailure(oneStepNoEnd)).toBe(true)
 
       yield* api.flows.save({ params: { id: "download" }, payload: { ...download, color: "#123456" } })
-      expect((yield* api.flows.list()).find((f) => f.id === "download")?.color).toBe("#123456")
+      expect((yield* api.flows.list()).find((flow) => flow.id === "download")?.color).toBe("#123456")
       expect((yield* api.flows.reset({ params: { id: "download" } })).color).toBe("#FFC230")
 
       expect(Exit.isFailure(yield* Effect.exit(api.flows.remove({ params: { id: "download" } })))).toBe(true)
       yield* api.flows.remove({ params: { id: "anime" } })
-      expect((yield* api.flows.list()).map((f) => f.id)).toEqual(["download", "playback", "request", "today"])
+      expect((yield* api.flows.list()).map((flow) => flow.id)).toEqual(["download", "playback", "request", "today"])
       expect((yield* api.flows.catalog()).length).toBeGreaterThan(5)
-      expect((yield* api.flows.actions()).map((a) => a.type)).toEqual(["playback.playPause", "playback.stop", "request.approve", "request.decline"])
+      expect((yield* api.flows.actions()).map((activity) => activity.type)).toEqual(["playback.playPause", "playback.stop", "request.approve", "request.decline"])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("an activity swiped away is forgotten with where it was, until the iPhone shows it again", () =>
@@ -149,7 +149,7 @@ describe("flows from the console", () => {
       const key = "playback|playback:s1:i1"
       yield* phone.devices.activityToken({ payload: { mediaKey: key, pushToken: "act-1" } })
       const store = yield* Devices
-      const target = () => Effect.map(store.targets(key), (all) => all.find((t) => t.deviceId === deviceId)!)
+      const target = () => Effect.map(store.targets(key), (all) => all.find((pushTarget) => pushTarget.deviceId === deviceId)!)
 
       yield* phone.devices.shownActivities({ payload: { keys: [key] } })
       expect((yield* target()).activityToken).toBe("act-1")

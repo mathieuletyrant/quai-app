@@ -83,7 +83,7 @@ export class PublicAccess extends Context.Service<PublicAccess, {
     headers,
     settings: {
       ...Option.match(url, { onNone: () => ({}), onSome: (publicUrl) => ({ publicUrl }) }),
-      accessHeaderNames: headers.map((h) => h.name)
+      accessHeaderNames: headers.map((header) => header.name)
     }
   })
 
@@ -94,7 +94,7 @@ export class PublicAccess extends Context.Service<PublicAccess, {
       const url = yield* Config.option(Config.String("QUAI_CLOUD_PUBLIC_URL"))
       const text = yield* Config.option(Config.String("QUAI_CLOUD_PUBLIC_HEADERS"))
       const headers = Option.isSome(text) ? yield* parseAccessHeaders(text.value) : []
-      if (headers.length > 0) yield* Effect.logInfo(`Access headers for the pairing: ${headers.map((h) => h.name).join(", ")}`)
+      if (headers.length > 0) yield* Effect.logInfo(`Access headers for the pairing: ${headers.map((header) => header.name).join(", ")}`)
       return PublicAccess.make(url, headers)
     })
   )

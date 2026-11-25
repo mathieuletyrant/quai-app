@@ -23,21 +23,21 @@ export class FlowStore extends Context.Service<FlowStore, {
     FlowStore,
     Effect.gen(function*() {
       const store = yield* HomeDocuments
-      const isBuiltIn = (id: string) => builtInFlows.some((b) => b.id === id)
+      const isBuiltIn = (id: string) => builtInFlows.some((shipped) => shipped.id === id)
       const all = Effect.gen(function*() {
         const stored = new Map<string, Flow>()
         for (const doc of yield* store.list("flows/")) {
           const flow = decode(doc.value)
           if (Option.isSome(flow)) stored.set(flow.value.id, flow.value)
         }
-        const builtIn = builtInFlows.map((f) => stored.get(f.id) ?? f)
-        const custom = [...stored.values()].filter((f) => !isBuiltIn(f.id))
+        const builtIn = builtInFlows.map((shipped) => stored.get(shipped.id) ?? shipped)
+        const custom = [...stored.values()].filter((saved) => !isBuiltIn(saved.id))
         return [...builtIn, ...custom]
       }).pipe(Effect.mapError(toOffline))
 
       return {
         all,
-        get: (id) => Effect.map(all, (flows) => Option.fromNullishOr(flows.find((f) => f.id === id))),
+        get: (id) => Effect.map(all, (flows) => Option.fromNullishOr(flows.find((candidate) => candidate.id === id))),
         save: (input) =>
           Effect.gen(function*() {
             const flow: Flow = { ...input, builtIn: isBuiltIn(input.id) }
@@ -62,7 +62,7 @@ export class FlowStore extends Context.Service<FlowStore, {
           }),
         reset: (id) =>
           Effect.gen(function*() {
-            const shipped = builtInFlows.find((b) => b.id === id)
+            const shipped = builtInFlows.find((builtIn) => builtIn.id === id)
             if (shipped === undefined) return Option.none()
             yield* Effect.mapError(store.delete(flowKey(id)), toOffline)
             return Option.some(shipped)

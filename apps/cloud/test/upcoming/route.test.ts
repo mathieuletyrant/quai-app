@@ -44,7 +44,7 @@ const pairedApi = Effect.gen(function*() {
   )
 })
 
-const kinds = (items: ReadonlyArray<UpcomingItem>) => items.map((i) => `${i.kind} ${i.title}${i.episode === undefined ? "" : ` ${i.episode}`}`)
+const kinds = (items: ReadonlyArray<UpcomingItem>) => items.map((item) => `${item.kind} ${item.title}${item.episode === undefined ? "" : ` ${item.episode}`}`)
 
 describe("upcoming route", () => {
   const now = Date.parse("2026-11-24T21:00:00Z")
@@ -67,13 +67,13 @@ describe("upcoming route", () => {
         "plannedDeletion Runner",
         "seedCleanup 2 torrents"
       ])
-      const seed = upcoming.items.find((i) => i.kind === "seedCleanup")!
+      const seed = upcoming.items.find((item) => item.kind === "seedCleanup")!
       // Our House is still in the library; Phony's series isn't listed in Sonarr, which doesn't
       // mean its files are gone: neither seed is said to free anything.
       expect(seed.count).toBe(2)
       expect(seed.freesBytes).toBeUndefined()
       expect(seed.at).toBe(Math.floor((now + (2160 * 3600 - 41034) * 1000) / 1000))
-      const deletion = upcoming.items.find((i) => i.kind === "plannedDeletion" && i.title === "Runner")!
+      const deletion = upcoming.items.find((item) => item.kind === "plannedDeletion" && item.title === "Runner")!
       expect(deletion.fixId).toBe("deletion-9")
       expect(deletion.at).toBe(Date.parse("2026-11-30T10:00:05Z") / 1000)
     }).pipe(Effect.provide(TestApp)))
@@ -85,9 +85,9 @@ describe("upcoming route", () => {
       yield* home.connect
       const upcoming = yield* (yield* pairedApi).upcoming.list()
       expect(upcoming.homeOutdated).toBe(true)
-      expect(upcoming.items.filter((i) => i.kind === "seedCleanup")).toEqual([])
-      expect(upcoming.items.filter((i) => i.freesBytes !== undefined)).toEqual([])
-      expect(upcoming.items.some((i) => i.kind === "plannedDeletion")).toBe(true)
+      expect(upcoming.items.filter((item) => item.kind === "seedCleanup")).toEqual([])
+      expect(upcoming.items.filter((item) => item.freesBytes !== undefined)).toEqual([])
+      expect(upcoming.items.some((item) => item.kind === "plannedDeletion")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service that didn't answer is unavailable, the rest still shows", () =>
@@ -100,9 +100,9 @@ describe("upcoming route", () => {
       yield* home.connect
       const upcoming = yield* (yield* pairedApi).upcoming.list()
       expect(upcoming.unavailable).toEqual(["reclaimerr", "qbittorrent"])
-      expect(upcoming.items.some((i) => i.kind === "releaseDay")).toBe(true)
-      expect(upcoming.items.filter((i) => i.kind === "seedCleanup" || i.kind === "plannedDeletion")).toEqual([])
-      expect(upcoming.items.filter((i) => i.freesBytes !== undefined)).toEqual([])
+      expect(upcoming.items.some((item) => item.kind === "releaseDay")).toBe(true)
+      expect(upcoming.items.filter((item) => item.kind === "seedCleanup" || item.kind === "plannedDeletion")).toEqual([])
+      expect(upcoming.items.filter((item) => item.freesBytes !== undefined)).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service Quai Home doesn't reach is never mentioned", () =>
@@ -112,7 +112,7 @@ describe("upcoming route", () => {
       yield* home.connect
       const upcoming = yield* (yield* pairedApi).upcoming.list()
       expect(upcoming.unavailable).toEqual([])
-      expect(upcoming.items.map((i) => i.kind)).toEqual(["releaseDay"])
+      expect(upcoming.items.map((item) => item.kind)).toEqual(["releaseDay"])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("Quai Home dropping while reading is 503 HomeOffline", () =>

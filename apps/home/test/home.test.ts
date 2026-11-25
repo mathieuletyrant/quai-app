@@ -68,17 +68,17 @@ describe("home store", () => {
           { key: "flows/download", value: { steps: 4 } },
           { key: "flows/playback", value: { steps: 2 } }
         ])
-        expect((yield* store.list("")).map((d) => d.key)).toEqual(["devices/iphone/prefs", "flows/download", "flows/playback", "settings"])
+        expect((yield* store.list("")).map((document) => document.key)).toEqual(["devices/iphone/prefs", "flows/download", "flows/playback", "settings"])
         expect(yield* store.list("devices/iphone")).toEqual([{ key: "devices/iphone/prefs", value: { quiet: true } }])
 
         yield* store.delete("flows/download")
         yield* store.delete("flows/download")
-        expect((yield* store.list("flows")).map((d) => d.key)).toEqual(["flows/playback"])
+        expect((yield* store.list("flows")).map((document) => document.key)).toEqual(["flows/playback"])
 
         const fs = yield* FileSystem.FileSystem
         expect(yield* fs.readFileString(join(dir, "home", "flows", "playback.json"))).toBe("{\"steps\":2}")
         // No temp file left behind by the atomic writes.
-        expect((yield* fs.readDirectory(join(dir, "home"), { recursive: true })).filter((f) => f.endsWith(".tmp"))).toEqual([])
+        expect((yield* fs.readDirectory(join(dir, "home"), { recursive: true })).filter((name) => name.endsWith(".tmp"))).toEqual([])
       })))
 
   it.effect("refuses keys that would escape the store or aren't keys", () =>

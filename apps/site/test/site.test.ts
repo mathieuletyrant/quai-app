@@ -3,13 +3,13 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = join(import.meta.dirname, "..", "public");
-const pages = readdirSync(root).filter((f) => f.endsWith(".html"));
+const pages = readdirSync(root).filter((file) => file.endsWith(".html"));
 const read = (page: string) => readFileSync(join(root, page), "utf8");
-const ids = (html: string) => new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
+const ids = (html: string) => new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]));
 const sourcesOf = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
     entry.isDirectory() ? sourcesOf(join(dir, entry.name)) : entry.name.endsWith(".ts") ? [join(dir, entry.name)] : []);
-const links = (html: string) => [...html.matchAll(/\s(?:href|src)="([^"]+)"/g)].map((m) => m[1] ?? "");
+const links = (html: string) => [...html.matchAll(/\s(?:href|src)="([^"]+)"/g)].map((match) => match[1] ?? "");
 
 describe("site", () => {
   it("has the landing, the privacy policy and the support page", () => {
@@ -62,7 +62,7 @@ describe("site", () => {
   it("documents in llms.txt every QUAI_* variable Quai Home and Quai Cloud read", () => {
     const text = read("llms.txt");
     const sources = ["home", "cloud"].flatMap((app) => sourcesOf(join(import.meta.dirname, "..", "..", app, "src")));
-    const variables = new Set(sources.flatMap((file) => [...readFileSync(file, "utf8").matchAll(/"(QUAI_[A-Z_]+)"/g)].map((m) => m[1] ?? "")));
+    const variables = new Set(sources.flatMap((file) => [...readFileSync(file, "utf8").matchAll(/"(QUAI_[A-Z_]+)"/g)].map((match) => match[1] ?? "")));
     variables.delete("QUAI_CONSOLE_DIR"); // set by the Dockerfile, never by the user
     expect([...variables].filter((name) => !text.includes(name))).toEqual([]);
   });

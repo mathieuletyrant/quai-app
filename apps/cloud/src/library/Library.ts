@@ -12,7 +12,7 @@ import { librarySeries, sonarrSeriesRead } from "../integrations/sonarr.ts"
 const downloadsOf = (running: ReadonlyArray<Activity>, flows: ReadonlyArray<Flow>) => {
   const progress = new Map<string, number | undefined>()
   for (const activity of running) {
-    const flow = flows.find((f) => f.id === activity.flowId)
+    const flow = flows.find((candidate) => candidate.id === activity.flowId)
     if (flow?.steps[activity.stepIndex]?.on !== "media.grabbed") continue
     // Series activities are one per torrent (`series:tvdb:1:dl:<hash>`): the series is the prefix.
     const subject = activity.subjectKey.split(":dl:")[0]!
@@ -28,7 +28,7 @@ const downloading = (item: LibraryItem, progress: number | undefined): LibraryIt
   ...(progress === undefined ? {} : { progress })
 })
 
-const newestFirst = (a: LibraryItem, b: LibraryItem) => (b.addedAt ?? 0) - (a.addedAt ?? 0) || a.title.localeCompare(b.title)
+const newestFirst = (left: LibraryItem, right: LibraryItem) => (right.addedAt ?? 0) - (left.addedAt ?? 0) || left.title.localeCompare(right.title)
 
 /**
  * The home's movies and series, read through Quai Home when the app asks (nothing is kept): one
@@ -58,15 +58,15 @@ export class Library extends Context.Service<Library, {
 
         const webUrls = yield* reads.webUrls
         const flows = yield* flowStore.all
-        const running = [...(yield* activities.snapshot).activities.values()].filter((a) => a.endedAt === null)
+        const running = [...(yield* activities.snapshot).activities.values()].filter((activity) => activity.endedAt === null)
         const progress = downloadsOf(running, flows)
         const withDownload = (key: string, item: LibraryItem) => progress.has(key) ? downloading(item, progress.get(key)) : item
 
         const items = [
-          ...Option.getOrElse(movies, () => []).map((m) => withDownload(movieKey(m.tmdbId), libraryMovie(m, webUrls.radarr))),
-          ...Option.getOrElse(series, () => []).map((s) => withDownload(seriesKey(s.tvdbId), librarySeries(s, webUrls.sonarr)))
+          ...Option.getOrElse(movies, () => []).map((movie) => withDownload(movieKey(movie.tmdbId), libraryMovie(movie, webUrls.radarr))),
+          ...Option.getOrElse(series, () => []).map((show) => withDownload(seriesKey(show.tvdbId), librarySeries(show, webUrls.sonarr)))
         ].sort(newestFirst)
-        const disk: DiskSpace | undefined = Option.getOrUndefined(Option.flatMap(disks, (d) => Option.fromNullishOr(mediaDisk(d))))
+        const disk: DiskSpace | undefined = Option.getOrUndefined(Option.flatMap(disks, (found) => Option.fromNullishOr(mediaDisk(found))))
         return { items, ...(disk === undefined ? {} : { disk }), unavailable }
       })
 

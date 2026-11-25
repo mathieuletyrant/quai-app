@@ -10,8 +10,8 @@ import { Link } from "./Link.ts"
 export const webhookUrl = (internalUrl: string, service: string, token: string) =>
   `${internalUrl}/webhooks/${service}?token=${encodeURIComponent(token)}`
 
-const sameToken = (a: string, b: string) =>
-  a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b))
+const sameToken = (given: string, expected: string) =>
+  given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected))
 
 /**
  * `POST /webhooks/<service>` forwards the payload to the cloud as it is; `GET /health` says

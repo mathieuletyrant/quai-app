@@ -40,7 +40,6 @@ export type ConsoleRequest = Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">
 /** At most this many webhooks wait for the link to come back; past it, the oldest go. */
 export const heldWebhooksLimit = 100
 
-/** How many calls run at once. */
 const callConcurrency = 8
 
 type Outcome =
@@ -124,7 +123,7 @@ export class Link extends Context.Service<Link, {
         const watcher = yield* watches.make(write)
         // Store operations run one at a time, in the order the cloud sent them.
         const storeQueue = yield* Queue.unbounded<StoreRequest>()
-        yield* Effect.forkScoped(Effect.forever(Effect.flatMap(Queue.take(storeQueue), (r) => Effect.flatMap(runStore(r), write))))
+        yield* Effect.forkScoped(Effect.forever(Effect.flatMap(Queue.take(storeQueue), (storeRequest) => Effect.flatMap(runStore(storeRequest), write))))
         const lastPing = yield* Ref.make(yield* Clock.currentTimeMillis)
 
         yield* write(yield* hello)
@@ -239,7 +238,7 @@ export class Link extends Context.Service<Link, {
             yield* Effect.sleep(`${seconds} seconds`)
           } else {
             yield* Effect.logInfo(`link to the cloud down: ${outcome.reason}`)
-            yield* Effect.sleep(reconnectDelayMs(yield* Ref.getAndUpdate(failures, (n) => n + 1)))
+            yield* Effect.sleep(reconnectDelayMs(yield* Ref.getAndUpdate(failures, (count) => count + 1)))
           }
         }
       })
@@ -251,7 +250,7 @@ export class Link extends Context.Service<Link, {
           Effect.gen(function*() {
             const write = yield* Ref.get(current)
             if (write === null || !(yield* Ref.get(linked))) return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
-            const id = `c${yield* Ref.updateAndGet(consoleCount, (n) => n + 1)}`
+            const id = `c${yield* Ref.updateAndGet(consoleCount, (count) => count + 1)}`
             const answer = yield* Deferred.make<HomeProtocol.ConsoleResponse, CloudUnreachable>()
             consolePending.set(id, answer)
             yield* write(HomeProtocol.ConsoleRequest.make({ ...request, id }))

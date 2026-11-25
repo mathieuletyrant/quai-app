@@ -24,7 +24,7 @@ const seerrAnswers = (created: () => { status?: number; json: unknown } = () => 
 describe("Seerr's search, read", () => {
   it("keeps the movies and series, in Seerr's order, with where each stands", () => {
     const results = searchResults(Schema.decodeUnknownSync(SeerrSearchPage)(fixture("seerr/search-dune.json")))
-    expect(results.map((r) => [r.kind, r.tmdbId, r.title, r.year, r.state])).toEqual([
+    expect(results.map((result) => [result.kind, result.tmdbId, result.title, result.year, result.state])).toEqual([
       ["movie", 438631, "Dune", 2021, "available"],
       ["movie", 693134, "Dune: Part Two", 2024, "requested"],
       ["series", 90228, "Dune: Prophecy", 2024, "requestable"],
@@ -62,7 +62,7 @@ describe("search and request routes", () => {
       const api = yield* HttpApiTest.groups(QuaiApi, ["requests", "devices"]).pipe(
         Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
       )
-      const posts = () => home.calls.filter((c) => c.method === "POST")
+      const posts = () => home.calls.filter((call) => call.method === "POST")
       return { home, api: api.requests, devices: api.devices, posts }
     })
 
@@ -71,8 +71,8 @@ describe("search and request routes", () => {
       const { home, api } = yield* setUp({ services, answer: seerrAnswers() })
       const found = yield* api.search({ query: { query: "  dune  " } })
       expect(found.status).toBe("ok")
-      expect(found.items.map((r) => r.title)).toEqual(["Dune", "Dune: Part Two", "Dune: Prophecy", "Dune", "Dune: Part Three"])
-      expect(home.calls.map((c) => c.path)).toContain("/api/v1/search?query=dune&page=1")
+      expect(found.items.map((result) => result.title)).toEqual(["Dune", "Dune: Part Two", "Dune: Prophecy", "Dune", "Dune: Part Three"])
+      expect(home.calls.map((call) => call.path)).toContain("/api/v1/search?query=dune&page=1")
       const calls = home.calls.length
       expect(yield* api.search({ query: { query: "   " } })).toEqual({ items: [], status: "ok" })
       expect(home.calls).toHaveLength(calls)
@@ -82,7 +82,7 @@ describe("search and request routes", () => {
     Effect.gen(function*() {
       const { api } = yield* setUp({ services, answer: seerrAnswers() })
       const { seasons } = yield* api.seasons({ params: { tmdbId: "95396" } })
-      expect(seasons.map((s) => [s.number, s.state])).toEqual([[1, "available"], [2, "requested"], [3, "requestable"]])
+      expect(seasons.map((season) => [season.number, season.state])).toEqual([[1, "available"], [2, "requested"], [3, "requestable"]])
       expect((yield* Effect.flip(api.seasons({ params: { tmdbId: "dune" } })))._tag).toBe("NotFound")
     }).pipe(Effect.provide(TestApp)))
 
@@ -92,7 +92,7 @@ describe("search and request routes", () => {
       expect(yield* api.create({ payload: { kind: "movie", tmdbId: 841 } })).toEqual({ status: "approved" })
       yield* devices.savePreferences({ payload: { flows: {}, seerrUserId: 2 } })
       yield* api.create({ payload: { kind: "movie", tmdbId: 841 } })
-      expect(posts().map((c) => [c.path, c.body])).toEqual([
+      expect(posts().map((call) => [call.path, call.body])).toEqual([
         ["/api/v1/request", { mediaType: "movie", mediaId: 841 }],
         ["/api/v1/request", { mediaType: "movie", mediaId: 841, userId: 2 }]
       ])
@@ -105,7 +105,7 @@ describe("search and request routes", () => {
         answer: seerrAnswers(() => ({ status: 201, json: { ...(fixture("seerr/request-created.json") as object), status: 1 } }))
       })
       expect(yield* api.create({ payload: { kind: "series", tmdbId: 90228, seasons: [2, 1, 2] } })).toEqual({ status: "pending" })
-      expect(posts().map((c) => c.body)).toEqual([{ mediaType: "tv", mediaId: 90228, seasons: [1, 2] }])
+      expect(posts().map((call) => call.body)).toEqual([{ mediaType: "tv", mediaId: 90228, seasons: [1, 2] }])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("refuses a series with no season, or a movie with some, before asking Seerr", () =>
@@ -137,7 +137,7 @@ describe("search and request routes", () => {
       expect(yield* api.users()).toEqual({ items: [], status: "outdated" })
       const refused = yield* Effect.flip(api.create({ payload: { kind: "movie", tmdbId: 841 } }))
       expect(refused).toMatchObject({ _tag: "RequestFailed", message: "Update Quai Home to request from the app." })
-      expect(home.calls.filter((c) => c.service === "seerr")).toEqual([])
+      expect(home.calls.filter((call) => call.service === "seerr")).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("without Seerr: not configured, and nothing to request", () =>

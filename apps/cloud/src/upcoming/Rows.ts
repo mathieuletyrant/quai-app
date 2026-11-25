@@ -36,7 +36,7 @@ export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease
   }
   return [...rows.values()].map(({ day, releases }): UpcomingItem => {
     const first = releases[0]!
-    const episode = episodeRange(releases.flatMap((r) => r.episode === undefined ? [] : [r.episode]))
+    const episode = episodeRange(releases.flatMap((release) => release.episode === undefined ? [] : [release.episode]))
     const at = first.airsAt ?? instantOf(day, "00:00", zone) / 1000
     return {
       id: `release-${first.id.replace(":", "-")}`,
@@ -63,44 +63,44 @@ export const dueAt = (atSeconds: number, now: number): number => Math.max(atSeco
 
 /** Reclaimerr's planned deletions; one whose date passed goes at its next run, shown now. */
 export const plannedDeletionItems = (detected: ReadonlyArray<Detected>, now: number, frees: ReadonlyMap<number, number>): ReadonlyArray<UpcomingItem> =>
-  detected.flatMap((d): ReadonlyArray<UpcomingItem> => {
-    if (d.fix.deletion === undefined || d.target.kind !== "candidate") return []
-    const freesBytes = frees.get(d.target.candidateId)
+  detected.flatMap((found): ReadonlyArray<UpcomingItem> => {
+    if (found.fix.deletion === undefined || found.target.kind !== "candidate") return []
+    const freesBytes = frees.get(found.target.candidateId)
     return [{
-      id: d.fix.id,
+      id: found.fix.id,
       kind: "plannedDeletion",
       service: "reclaimerr",
-      title: d.fix.title,
-      ...(d.fix.posterUrl === undefined ? {} : { posterUrl: d.fix.posterUrl }),
-      at: dueAt(d.fix.deletion.deletesAt, now),
+      title: found.fix.title,
+      ...(found.fix.posterUrl === undefined ? {} : { posterUrl: found.fix.posterUrl }),
+      at: dueAt(found.fix.deletion.deletesAt, now),
       timed: false,
       earliest: false,
       ...(freesBytes === undefined ? {} : { freesBytes }),
-      fixId: d.fix.id
+      fixId: found.fix.id
     }]
   })
 
 /** Cleanuparr's stuck removals: at its next queue cleaning, if the download is still stuck then. */
 export const stuckRemovalItems = (detected: ReadonlyArray<Detected>, now: number): ReadonlyArray<UpcomingItem> =>
-  detected.flatMap((d): ReadonlyArray<UpcomingItem> =>
-    d.fix.removal === undefined ? [] : [{
-      id: d.fix.id,
+  detected.flatMap((found): ReadonlyArray<UpcomingItem> =>
+    found.fix.removal === undefined ? [] : [{
+      id: found.fix.id,
       kind: "stuckRemoval",
       service: "cleanuparr",
-      title: d.fix.title,
-      ...(d.fix.posterUrl === undefined ? {} : { posterUrl: d.fix.posterUrl }),
+      title: found.fix.title,
+      ...(found.fix.posterUrl === undefined ? {} : { posterUrl: found.fix.posterUrl }),
       // A run Cleanuparr was due for already: the next one, soon.
-      at: dueAt(d.fix.removal.removesAt ?? 0, now),
-      timed: d.fix.removal.removesAt !== undefined && d.fix.removal.removesAt * 1000 >= now,
+      at: dueAt(found.fix.removal.removesAt ?? 0, now),
+      timed: found.fix.removal.removesAt !== undefined && found.fix.removal.removesAt * 1000 >= now,
       earliest: true,
-      fixId: d.fix.id
+      fixId: found.fix.id
     }]
   )
 
 /** The Monday of the home's week a day is in ("2026-11-30" for "2026-12-03"). */
 export const mondayOf = (day: string): string => {
-  const [y, m, d] = day.split("-").map(Number) as [number, number, number]
-  const date = new Date(Date.UTC(y, m - 1, d))
+  const [year, month, dayOfMonth] = day.split("-").map(Number) as [number, number, number]
+  const date = new Date(Date.UTC(year, month - 1, dayOfMonth))
   date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7))
   return date.toISOString().slice(0, 10)
 }
@@ -123,8 +123,8 @@ export const seedItems = (
     weeks.set(key, [...weeks.get(key) ?? [], cleanup])
   }
   return [...weeks].map(([week, members]): UpcomingItem => {
-    const dates = members.flatMap((m) => m.at === undefined ? [] : [m.at])
-    const freed = members.reduce((sum, m) => sum + (frees.get(m.torrent.hash.toLowerCase()) ?? 0), 0)
+    const dates = members.flatMap((member) => member.at === undefined ? [] : [member.at])
+    const freed = members.reduce((sum, member) => sum + (frees.get(member.torrent.hash.toLowerCase()) ?? 0), 0)
     return {
       id: `seed-${week}`,
       kind: "seedCleanup",
@@ -132,7 +132,7 @@ export const seedItems = (
       title: torrents(members.length),
       ...(dates.length === 0 ? {} : { at: Math.floor(Math.min(...dates) / 1000), until: Math.floor(Math.max(...dates) / 1000) }),
       timed: false,
-      earliest: members.some((m) => m.timing === "from"),
+      earliest: members.some((member) => member.timing === "from"),
       count: members.length,
       ...(freed > 0 ? { freesBytes: freed } : {})
     }
@@ -140,5 +140,5 @@ export const seedItems = (
 }
 
 /** By date, a movie (its day's midnight) before the episodes of its day; undated last. */
-export const byDate = (a: UpcomingItem, b: UpcomingItem) =>
-  (a.at ?? Infinity) - (b.at ?? Infinity) || a.title.localeCompare(b.title)
+export const byDate = (left: UpcomingItem, right: UpcomingItem) =>
+  (left.at ?? Infinity) - (right.at ?? Infinity) || left.title.localeCompare(right.title)

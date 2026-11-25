@@ -130,7 +130,7 @@ export const plannedDeletions = (candidates: ReadonlyArray<Candidate>): Readonly
       if (!deleting.has(candidate.auto_delete_state) || deletesAt === undefined || candidate.blockers?.includes("protected") === true) return []
       return [{ candidate, deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }]
     })
-    .sort((a, b) => a.deletesAt - b.deletesAt)
+    .sort((left, right) => left.deletesAt - right.deletesAt)
 
 /** A movie candidate is Radarr's; a series, a season or an episode is Sonarr's. */
 export const isMovie = (candidate: Candidate) => candidate.media_type === "movie"
@@ -155,12 +155,12 @@ interface Listed {
 /** By TMDB id first; else by title, and year when both know it. None when it's ambiguous. */
 const matching = (candidate: Candidate, listed: ReadonlyArray<Listed>): Listed | undefined => {
   const tmdbId = candidate.tmdb_id ?? 0
-  const byId = tmdbId <= 0 ? undefined : listed.find((l) => l.tmdbId === tmdbId)
+  const byId = tmdbId <= 0 ? undefined : listed.find((entry) => entry.tmdbId === tmdbId)
   if (byId !== undefined) return byId
   const title = normalized(candidate.title)
   const year = knownYear(candidate.year ?? undefined)
-  const named = listed.filter((l) => normalized(l.title) === title)
-  const dated = year === undefined ? named : named.filter((l) => knownYear(l.year) === undefined || knownYear(l.year) === year)
+  const named = listed.filter((entry) => normalized(entry.title) === title)
+  const dated = year === undefined ? named : named.filter((entry) => knownYear(entry.year) === undefined || knownYear(entry.year) === year)
   return dated.length === 1 ? dated[0] : undefined
 }
 

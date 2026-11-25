@@ -12,7 +12,7 @@ describe("flow tests", () => {
     fixedFlows(),
     Layer.succeed(Notifier, {
       send: () => Effect.void,
-      sendTo: (deviceId, pushes) => Effect.sync(() => pushes.forEach((p) => sent.push(`${deviceId}:${p._tag}`)))
+      sendTo: (deviceId, pushes) => Effect.sync(() => pushes.forEach((push) => sent.push(`${deviceId}:${push._tag}`)))
     })
   ]))
   const phone = "phone" as DeviceId
@@ -23,8 +23,8 @@ describe("flow tests", () => {
       const runner = yield* TestRunner
       expect(Option.isSome(yield* runner.play("download", [phone, ipad]))).toBe(true)
       yield* TestClock.adjust("2 minutes")
-      const on = (device: string) => sent.filter((s) => s.startsWith(`${device}:`)).map((s) => s.split(":")[1])
-      expect(new Set(sent.map((s) => s.split(":")[0]))).toEqual(new Set(["phone", "ipad"]))
+      const on = (device: string) => sent.filter((line) => line.startsWith(`${device}:`)).map((line) => line.split(":")[1])
+      expect(new Set(sent.map((line) => line.split(":")[0]))).toEqual(new Set(["phone", "ipad"]))
       expect(on("phone")).toEqual(on("ipad"))
       expect(on("phone")[0]).toBe("Start")
       expect(on("phone").at(-1)).toBe("End")

@@ -25,7 +25,7 @@ const withWatcher = <A, E>(test: (watcher: Effect.Success<ReturnType<Watches["Se
     answers = {}
     polls.length = 0
     const sent: Array<HomeProtocol.HomeMessage> = []
-    const watcher = yield* (yield* Watches).make((m) => Effect.sync(() => void sent.push(m)))
+    const watcher = yield* (yield* Watches).make((message) => Effect.sync(() => void sent.push(message)))
     return yield* test(watcher, sent)
   }).pipe(Effect.scoped, Effect.provide(Watches.layer.pipe(Layer.provide([fakeCalls, journalLayer]))))
 
@@ -90,7 +90,7 @@ describe("watches", () => {
         expect(sent).toHaveLength(2)
         polls.length = 0
         yield* after(15)
-        expect(polls.every((p) => p !== "/Sessions")).toBe(true)
+        expect(polls.every((path) => path !== "/Sessions")).toBe(true)
         expect(polls.length).toBe(3)
       })))
 
@@ -129,7 +129,7 @@ describe("watches", () => {
 
         answers["/Sessions"] = null
         yield* after(15)
-        expect(sent.filter((m) => m._tag === "Failed")).toHaveLength(2)
+        expect(sent.filter((message) => message._tag === "Failed")).toHaveLength(2)
         expect(polls).toHaveLength(6)
       })))
 })

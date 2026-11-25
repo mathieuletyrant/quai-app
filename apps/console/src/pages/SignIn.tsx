@@ -13,10 +13,10 @@ export function SignInPage() {
     setSigningIn(true)
     setError(null)
     try {
-      await callHome((c) => c.session.signIn({ payload: { password } }))
+      await callHome((api) => api.session.signIn({ payload: { password } }))
       await refreshSession()
-    } catch (e) {
-      setError(e)
+    } catch (failure) {
+      setError(failure)
     } finally {
       setSigningIn(false)
     }
@@ -27,7 +27,7 @@ export function SignInPage() {
       <form onSubmit={signIn} className="flex flex-col gap-4">
         <ErrorCallout error={error} />
         <Field label="Password" hint={<>Quai Home's <Code>QUAI_HOME_PASSWORD</Code>.</>}>
-          <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" autoFocus required />
+          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" autoFocus required />
         </Field>
         <Button type="submit" disabled={signingIn}>{signingIn ? "Signing in…" : "Sign in"}</Button>
       </form>

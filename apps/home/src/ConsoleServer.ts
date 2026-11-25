@@ -87,7 +87,7 @@ const ServicesHandlers = HttpApiBuilder.group(HomeConsoleApi, "services", (handl
       .handle("save", ({ params, payload }) =>
         Effect.gen(function*() {
           yield* settings.save(params.service, payload).pipe(Effect.catchTag("StoreError", storeFailed))
-          const setup = (yield* settings.list).find((s) => s.service === params.service)!
+          const setup = (yield* settings.list).find((entry) => entry.service === params.service)!
           return { setup, check: yield* check(params.service) }
         }))
       .handle("remove", ({ params }) => settings.remove(params.service).pipe(Effect.catchTag("StoreError", storeFailed)))

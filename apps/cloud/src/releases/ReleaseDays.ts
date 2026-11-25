@@ -73,7 +73,7 @@ export const dayReads = (day: string, zone: string): DayReads => rangeReads(day,
 /** The day `days - 1` after `firstDay`. */
 const lastDayOf = (firstDay: string, days: number) => {
   let day = firstDay
-  for (let i = 1; i < days; i++) day = nextDay(day)
+  for (let index = 1; index < days; index++) day = nextDay(day)
   return day
 }
 
@@ -85,10 +85,10 @@ export const dayInputs = (read: { readonly [K in keyof DayReads]?: DayValue<K> |
   radarrQueue: read.radarrQueue?.records
 })
 
-const queued = (queue: ReadonlyArray<QueueRecord> | undefined, matches: (r: QueueRecord) => boolean): DayRelease["status"] | null => {
+const queued = (queue: ReadonlyArray<QueueRecord> | undefined, matches: (record: QueueRecord) => boolean): DayRelease["status"] | null => {
   const rows = (queue ?? []).filter(matches)
   if (rows.length === 0) return null
-  return rows.some((r) => r.status === "downloading") ? "downloading" : "grabbed"
+  return rows.some((record) => record.status === "downloading") ? "downloading" : "grabbed"
 }
 
 /** A release and the home's day it's out on. */
@@ -106,49 +106,49 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
   const { start } = dayRange(firstDay, zone)
   const { end } = dayRange(lastDayOf(firstDay, days), zone)
   const covered: Array<string> = [firstDay]
-  for (let i = 1; i < days; i++) covered.push(nextDay(covered[i - 1]!))
-  const episodes = (inputs.episodes ?? []).flatMap((e): ReadonlyArray<DatedRelease> => {
-    const airs = epochSeconds(e.airDateUtc)
-    if (e.monitored === false || airs === undefined || airs * 1000 < start || airs * 1000 >= end) return []
-    const status = e.hasFile === true ? "available" : queued(inputs.sonarrQueue, (r) => r.episodeId === e.id) ?? "missing"
-    const posterUrl = posterOf(e.series?.images)
+  for (let index = 1; index < days; index++) covered.push(nextDay(covered[index - 1]!))
+  const episodes = (inputs.episodes ?? []).flatMap((episode): ReadonlyArray<DatedRelease> => {
+    const airs = epochSeconds(episode.airDateUtc)
+    if (episode.monitored === false || airs === undefined || airs * 1000 < start || airs * 1000 >= end) return []
+    const status = episode.hasFile === true ? "available" : queued(inputs.sonarrQueue, (record) => record.episodeId === episode.id) ?? "missing"
+    const posterUrl = posterOf(episode.series?.images)
     return [{
       day: dayOf(airs * 1000, zone),
       release: {
-        id: `episode:${e.id}`,
+        id: `episode:${episode.id}`,
         kind: "episode",
-        libraryId: LibraryId.series(e.seriesId),
-        title: e.series?.title ?? "Unknown series",
-        episode: episodeCode(e.seasonNumber, e.episodeNumber),
-        ...(e.title === undefined || e.title === "" || e.title === "TBA" ? {} : { episodeTitle: e.title }),
+        libraryId: LibraryId.series(episode.seriesId),
+        title: episode.series?.title ?? "Unknown series",
+        episode: episodeCode(episode.seasonNumber, episode.episodeNumber),
+        ...(episode.title === undefined || episode.title === "" || episode.title === "TBA" ? {} : { episodeTitle: episode.title }),
         airsAt: airs,
         ...(posterUrl === undefined ? {} : { posterUrl }),
         status
       }
     }]
   })
-  const movies = (inputs.movies ?? []).flatMap((m): ReadonlyArray<DatedRelease> => {
-    const day = m.monitored === false ? undefined : covered.find((d) => releasedOn(m, d))
+  const movies = (inputs.movies ?? []).flatMap((movie): ReadonlyArray<DatedRelease> => {
+    const day = movie.monitored === false ? undefined : covered.find((coveredDay) => releasedOn(movie, coveredDay))
     if (day === undefined) return []
-    const status = m.hasFile === true ? "available" : queued(inputs.radarrQueue, (r) => r.movieId === m.id) ?? "missing"
-    const posterUrl = posterOf(m.images)
+    const status = movie.hasFile === true ? "available" : queued(inputs.radarrQueue, (record) => record.movieId === movie.id) ?? "missing"
+    const posterUrl = posterOf(movie.images)
     return [{
       day,
       release: {
-        id: `movie:${m.id}`,
+        id: `movie:${movie.id}`,
         kind: "movie",
-        libraryId: LibraryId.movie(m.id),
-        title: m.title,
+        libraryId: LibraryId.movie(movie.id),
+        title: movie.title,
         ...(posterUrl === undefined ? {} : { posterUrl }),
         status
       }
     }]
   })
-  return [...episodes, ...movies].sort((a, b) =>
-    a.day.localeCompare(b.day) ||
-    (a.release.airsAt ?? Infinity) - (b.release.airsAt ?? Infinity) ||
-    a.release.title.localeCompare(b.release.title) ||
-    (a.release.episode ?? "").localeCompare(b.release.episode ?? ""))
+  return [...episodes, ...movies].sort((left, right) =>
+    left.day.localeCompare(right.day) ||
+    (left.release.airsAt ?? Infinity) - (right.release.airsAt ?? Infinity) ||
+    left.release.title.localeCompare(right.release.title) ||
+    (left.release.episode ?? "").localeCompare(right.release.episode ?? ""))
 }
 
 /**
@@ -156,7 +156,7 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
  * movies whose digital or physical release is that day. By air time, movies (a day, no time) last.
  */
 export const dayReleases = (day: string, zone: string, inputs: DayInputs): ReadonlyArray<DayRelease> =>
-  rangeReleases(day, 1, zone, inputs).map((r) => r.release)
+  rangeReleases(day, 1, zone, inputs).map((dated) => dated.release)
 
 /** The Live Activity shows this many lines: 4 keep the push far under 4 KB and fit the Lock Screen. */
 export const maxItems = 4
@@ -168,20 +168,20 @@ const stateOf = (status: DayRelease["status"]): ActivityItem["state"] =>
 
 /** The lines of the activity: those still awaited first, then those here, at most 4. */
 export const activityItems = (releases: ReadonlyArray<DayRelease>): ReadonlyArray<ActivityItem> => {
-  const lines = releases.map((r): ActivityItem => ({
-    title: short(r.episode === undefined ? r.title : `${r.title} ${r.episode}`, 40),
-    ...(r.airsAt === undefined ? {} : { at: r.airsAt }),
-    state: stateOf(r.status)
+  const lines = releases.map((release): ActivityItem => ({
+    title: short(release.episode === undefined ? release.title : `${release.title} ${release.episode}`, 40),
+    ...(release.airsAt === undefined ? {} : { at: release.airsAt }),
+    state: stateOf(release.status)
   }))
-  return lines.length <= maxItems ? lines : [...lines.filter((l) => l.state !== "done"), ...lines.filter((l) => l.state === "done")].slice(0, maxItems)
+  return lines.length <= maxItems ? lines : [...lines.filter((line) => line.state !== "done"), ...lines.filter((line) => line.state === "done")].slice(0, maxItems)
 }
 
 /** "2 of 5 here" */
 export const summary = (releases: ReadonlyArray<DayRelease>) =>
-  `${releases.filter((r) => r.status === "available").length} of ${releases.length} here`
+  `${releases.filter((release) => release.status === "available").length} of ${releases.length} here`
 
 export const allAvailable = (releases: ReadonlyArray<DayRelease>) =>
-  releases.length > 0 && releases.every((r) => r.status === "available")
+  releases.length > 0 && releases.every((release) => release.status === "available")
 
 /**
  * How much earlier than the flow's time a release airing earlier starts the activity. iOS stops
@@ -196,6 +196,6 @@ export const earliestStartMs = 3 * 3600_000
  */
 export const startsAt = (day: string, zone: string, time: string | undefined, releases: ReadonlyArray<DayRelease>) => {
   const configured = instantOf(day, time ?? defaultStartsAt, zone)
-  const first = Math.min(...releases.flatMap((r) => r.airsAt === undefined ? [] : [r.airsAt * 1000]))
+  const first = Math.min(...releases.flatMap((release) => release.airsAt === undefined ? [] : [release.airsAt * 1000]))
   return Math.max(configured - earliestStartMs, Math.min(configured, first))
 }

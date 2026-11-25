@@ -45,8 +45,8 @@ describe("push to APNs", () => {
         const devices = yield* Devices
 
         yield* notifier.send(yield* engine.handle(ev.added()))
-        expect(dev.hits.map((h) => h.path)).toEqual(["/3/device/pts-mathieu"])
-        expect(prod.hits.map((h) => h.path)).toEqual(["/3/device/pts-julie"])
+        expect(dev.hits.map((hit) => hit.path)).toEqual(["/3/device/pts-mathieu"])
+        expect(prod.hits.map((hit) => hit.path)).toEqual(["/3/device/pts-julie"])
 
         const start = dev.hits[0]!
         expect(start.headers["apns-push-type"]).toBe("liveactivity")

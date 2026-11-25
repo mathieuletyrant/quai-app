@@ -173,7 +173,7 @@ function App() {
 
 /** Ends this browser's session. */
 function SignOut() {
-  const signOut = () => void callHome((c) => c.session.signOut()).finally(refreshSession)
+  const signOut = () => void callHome((api) => api.session.signOut()).finally(refreshSession)
   return <Button variant="secondary" icon="signOut" className="w-full" onClick={signOut}>Sign out</Button>
 }
 

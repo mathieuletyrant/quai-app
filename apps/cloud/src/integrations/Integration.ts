@@ -93,13 +93,13 @@ export const runningWhere = (
   context: Pick<WatchContext, "flows" | "running">,
   test: (activity: Activity, flow: Flow) => boolean
 ): ReadonlyArray<Activity> =>
-  context.running.filter((a) => {
-    const flow = context.flows.find((f) => f.id === a.flowId)
-    return flow !== undefined && test(a, flow)
+  context.running.filter((activity) => {
+    const flow = context.flows.find((candidate) => candidate.id === activity.flowId)
+    return flow !== undefined && test(activity, flow)
   })
 
 export const anyEnabledFlow = (context: Pick<WatchContext, "flows">, subject: Flow["subject"]) =>
-  context.flows.some((f) => f.enabled && f.subject === subject)
+  context.flows.some((flow) => flow.enabled && flow.subject === subject)
 
 /** Reads a JSON body against a schema; `None` when it doesn't fit. */
 export const readJson = <A, I>(schema: Schema.Codec<A, I>, body: string) =>

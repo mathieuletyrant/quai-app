@@ -21,7 +21,7 @@ export const maxGrabLookbackMs = 400 * 24 * 3600_000
 
 /** How far back the grabs are read: a day before the oldest torrent (epoch seconds added), at most `maxGrabLookbackMs`. */
 export const grabsSince = (addedOn: ReadonlyArray<number>, now: number) =>
-  Math.max(Math.min(now, ...addedOn.map((s) => s * 1000)) - 24 * 3600_000, now - maxGrabLookbackMs)
+  Math.max(Math.min(now, ...addedOn.map((seconds) => seconds * 1000)) - 24 * 3600_000, now - maxGrabLookbackMs)
 
 /** A read's value as space back takes it: `null` when its service isn't reached, `undefined` when it didn't answer. */
 const known = <A>(reached: boolean, value: Option.Option<A>): A | null | undefined => reached ? Option.getOrUndefined(value) : null
@@ -65,12 +65,12 @@ export class Upcoming extends Context.Service<Upcoming, {
           has("qbittorrent") ? reads.read(finishedTorrentsRead) : none
         ], { concurrency: "unbounded" })
         const planned = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
-        const nextRunAt = Option.getOrUndefined(Option.flatMap(job, (j) => Option.fromNullishOr(epochSeconds(j.nextRunTime ?? undefined))))
+        const nextRunAt = Option.getOrUndefined(Option.flatMap(job, (scheduled) => Option.fromNullishOr(epochSeconds(scheduled.nextRunTime ?? undefined))))
         const cleanups = Option.isSome(cleaner) && Option.isSome(finished)
           ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunAt === undefined ? undefined : nextRunAt * 1000, now })
           : []
 
-        const addedOn = Option.match(finished, { onNone: () => [], onSome: (list) => list.flatMap((t) => t.added_on ?? []) })
+        const addedOn = Option.match(finished, { onNone: () => [], onSome: (list) => list.flatMap((torrent) => torrent.added_on ?? []) })
         const since = grabsSince(addedOn, now)
         const library = planned.length > 0 || cleanups.length > 0
           ? (yield* reads.all({
@@ -90,8 +90,8 @@ export class Upcoming extends Context.Service<Upcoming, {
           radarrGrabs: known(has("radarr"), library.radarrGrabs),
           sonarrGrabs: known(has("sonarr"), library.sonarrGrabs),
           hardlinks: {
-            movie: Option.getOrUndefined(Option.map(library.radarrSettings, (s) => s.copyUsingHardlinks)),
-            series: Option.getOrUndefined(Option.map(library.sonarrSettings, (s) => s.copyUsingHardlinks))
+            movie: Option.getOrUndefined(Option.map(library.radarrSettings, (settings) => settings.copyUsingHardlinks)),
+            series: Option.getOrUndefined(Option.map(library.sonarrSettings, (settings) => settings.copyUsingHardlinks))
           },
           torrents: known(has("qbittorrent"), finished),
           cleanups,

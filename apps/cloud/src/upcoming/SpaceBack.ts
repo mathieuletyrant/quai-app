@@ -69,10 +69,10 @@ const titleOf = LibraryId.titleOf
 export const covers = (deleted: TitleKey, files: TitleKey) => deleted === files || (deleted === titleOf(deleted) && titleOf(files) === deleted)
 
 /** Whether two titles may share files: one covers the other. */
-const overlap = (a: TitleKey, b: TitleKey) => covers(a, b) || covers(b, a)
+const overlap = (left: TitleKey, right: TitleKey) => covers(left, right) || covers(right, left)
 
 /** Torrents with the same name and size hold the same files: a cross-seed of the other. */
-const sameFiles = (a: TorrentInput, b: TorrentInput) => a.size === b.size && a.name.toLowerCase() === b.name.toLowerCase()
+const sameFiles = (left: TorrentInput, right: TorrentInput) => left.size === right.size && left.name.toLowerCase() === right.name.toLowerCase()
 
 /** Torrents holding the same files, and the title they are in the library. */
 export interface FileSet {
@@ -85,18 +85,18 @@ export interface FileSet {
 export const fileSets = (input: Pick<SpaceBackInput, "grabs" | "unlinkedCategory">, torrents: ReadonlyArray<TorrentInput>): ReadonlyArray<FileSet> => {
   const sets: Array<Array<TorrentInput>> = []
   for (const torrent of torrents) {
-    const set = sets.find((s) => s.some((t) => sameFiles(t, torrent)))
+    const set = sets.find((candidate) => candidate.some((member) => sameFiles(member, torrent)))
     if (set === undefined) sets.push([torrent])
     else set.push(torrent)
   }
   return sets.map((members): FileSet => {
-    const keys = new Set(members.flatMap((t) => {
-      const key = input.grabs.get(t.hash.toLowerCase())
+    const keys = new Set(members.flatMap((member) => {
+      const key = input.grabs.get(member.hash.toLowerCase())
       return key === undefined ? [] : [key]
     }))
     if (keys.size > 1) return { torrents: members, key: undefined }
     if (keys.size === 1) return { torrents: members, key: [...keys][0]! }
-    const unlinked = input.unlinkedCategory !== undefined && members.some((t) => t.category === input.unlinkedCategory)
+    const unlinked = input.unlinkedCategory !== undefined && members.some((member) => member.category === input.unlinkedCategory)
     return { torrents: members, key: unlinked ? null : undefined }
   })
 }
@@ -123,22 +123,22 @@ export const torrentGoing = (torrent: TorrentInput): Going => {
  * is no sooner than every other's latest. A single copy is always its own last.
  */
 export const surelyLast = (copies: ReadonlyArray<Going>): Going | undefined => {
-  if (copies.length === 0 || copies.some((c) => !Number.isFinite(c.latest))) return undefined
-  const last = copies.reduce((a, b) => b.latest > a.latest ? b : a)
+  if (copies.length === 0 || copies.some((copy) => !Number.isFinite(copy.latest))) return undefined
+  const last = copies.reduce((latest, copy) => copy.latest > latest.latest ? copy : latest)
   if (copies.length === 1) return last
-  return copies.every((c) => c === last || c.latest <= last.earliest) ? last : undefined
+  return copies.every((copy) => copy === last || copy.latest <= last.earliest) ? last : undefined
 }
 
 /** Shares within which two sizes are the same files: a release and the library file it became. */
 const sameSizeShare = 0.05
 
 /** The words of a title or a release name, lowercase, without accents. */
-const tokensOf = (text: string) => text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w !== "")
+const tokensOf = (text: string) => text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word !== "")
 
 /** A title's telling words: no years or one-letter words, unless that's all it has ("1917", "X"). */
 const titleWords = (title: string) => {
   const tokens = tokensOf(title)
-  const telling = tokens.filter((w) => w.length > 1 && !/^(19|20)\d\d$/.test(w))
+  const telling = tokens.filter((word) => word.length > 1 && !/^(19|20)\d\d$/.test(word))
   return new Set(telling.length > 0 ? telling : tokens)
 }
 
@@ -148,11 +148,11 @@ const titleWords = (title: string) => {
  */
 export const mayHold = (set: FileSet, deletion: DeletionInput): boolean => {
   const size = deletion.sizeBytes ?? 0
-  if (set.torrents.some((t) => size > 0 && Math.abs(t.size - size) <= size * sameSizeShare)) return true
+  if (set.torrents.some((member) => size > 0 && Math.abs(member.size - size) <= size * sameSizeShare)) return true
   const title = titleWords(deletion.title)
-  return title.size > 0 && set.torrents.some((t) => {
-    const name = new Set(tokensOf(t.name))
-    return [...title].every((w) => name.has(w))
+  return title.size > 0 && set.torrents.some((member) => {
+    const name = new Set(tokensOf(member.name))
+    return [...title].every((word) => name.has(word))
   })
 }
 
@@ -169,7 +169,7 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
   const torrents = new Map<string, number>()
   if (input.torrents === undefined) return { deletions, torrents }
   const sets = fileSets(input, input.torrents)
-  const deletionOf = (key: TitleKey) => input.deletions.filter((d) => d.key !== undefined && covers(d.key, key)).sort((a, b) => a.at - b.at)[0]
+  const deletionOf = (key: TitleKey) => input.deletions.filter((deletion) => deletion.key !== undefined && covers(deletion.key, key)).sort((left, right) => left.at - right.at)[0]
 
   for (const set of sets) {
     if (set.key === undefined) continue
@@ -183,18 +183,18 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
     }
     const last = surelyLast(copies)
     if (last === undefined) continue
-    const size = Math.max(...set.torrents.map((t) => t.size))
+    const size = Math.max(...set.torrents.map((member) => member.size))
     if ("deletion" in last.row) add(deletions, last.row.deletion, size)
     else add(torrents, last.row.torrent, size)
   }
 
-  const unplaced = sets.filter((s) => s.key === undefined)
+  const unplaced = sets.filter((candidate) => candidate.key === undefined)
   for (const deletion of input.deletions) {
     if (deletion.key === undefined || deletion.sizeBytes === undefined || deletions.has(deletion.candidateId)) continue
     const key = deletion.key
     const copy = input.hardlinks[kindOf(key)] === false
-    const held = sets.some((s) => typeof s.key === "string" && overlap(key, s.key))
-    const mightBeHeld = unplaced.some((s) => mayHold(s, deletion))
+    const held = sets.some((candidate) => typeof candidate.key === "string" && overlap(key, candidate.key))
+    const mightBeHeld = unplaced.some((candidate) => mayHold(candidate, deletion))
     // A copy goes by itself; hardlinked files only when no torrent holds them, or might.
     if (copy || (!held && !mightBeHeld)) deletions.set(deletion.candidateId, deletion.sizeBytes)
   }

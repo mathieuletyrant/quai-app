@@ -51,7 +51,7 @@ export class HomeStore extends Context.Service<HomeStore, {
                 Effect.map((value): HomeDocument | null => ({ key, value })),
                 Effect.catch((problem) => Effect.as(Effect.logWarning(`document ${key} ${problem}: skipped`), null))
               ))
-            return documents.filter((d) => d !== null)
+            return documents.filter((document) => document !== null)
           }),
         put: (key, value) =>
           Effect.gen(function*() {

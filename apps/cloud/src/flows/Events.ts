@@ -29,7 +29,7 @@ export const lookupIds = (lookup: MediaLookup): ReadonlyArray<readonly [provider
 export const knownId = <A extends number | string>(id: A | undefined | null): A | undefined =>
   id === undefined || id === null || id === 0 || id === "" ? undefined : id
 
-const episodeKey = (e: { readonly season: number; readonly episode: number }) => `${e.season}:${e.episode}`
+const episodeKey = (episode: { readonly season: number; readonly episode: number }) => `${episode.season}:${episode.episode}`
 
 /**
  * What an activity follows after a new event about its subject. A season pack's imports arrive one
@@ -40,7 +40,7 @@ export const widenLookup = (current: MediaLookup | null, incoming: MediaLookup |
   if (incoming === null) return current
   if (current?._tag !== "Episodes" || incoming._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return incoming
   const known = new Set(current.episodes.map(episodeKey))
-  const added = incoming.episodes.filter((e) => !known.has(episodeKey(e)))
+  const added = incoming.episodes.filter((episode) => !known.has(episodeKey(episode)))
   const tmdbId = current.tmdbId ?? incoming.tmdbId
   const imdbId = current.imdbId ?? incoming.imdbId
   const ids = { ...(tmdbId === undefined ? {} : { tmdbId }), ...(imdbId === undefined ? {} : { imdbId }) }
@@ -53,7 +53,7 @@ export const widenLookup = (current: MediaLookup | null, incoming: MediaLookup |
 export const narrowsLookup = (current: MediaLookup | null, incoming: MediaLookup | null): boolean => {
   if (current?._tag !== "Episodes" || incoming?._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return false
   const known = new Set(current.episodes.map(episodeKey))
-  return incoming.episodes.length < current.episodes.length && incoming.episodes.every((e) => known.has(episodeKey(e)))
+  return incoming.episodes.length < current.episodes.length && incoming.episodes.every((episode) => known.has(episodeKey(episode)))
 }
 
 /** What one activity follows. `key` is unique per subject: `movie:tmdb:1`, `playback:<session>:<item>`, `request:12`. */

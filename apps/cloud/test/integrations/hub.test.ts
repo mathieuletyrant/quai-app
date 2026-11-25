@@ -28,11 +28,11 @@ const probe: Integration = {
 }
 
 const layer = (integrations: ReadonlyArray<Integration | Effect.Effect<Integration, never, HomeReads>>) =>
-  cloud(Layer.effect(Integrations, Effect.all(integrations.map((i) => Effect.isEffect(i) ? i : Effect.succeed(i)))))
+  cloud(Layer.effect(Integrations, Effect.all(integrations.map((integration) => Effect.isEffect(integration) ? integration : Effect.succeed(integration)))))
     .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
 
 const setWatches = (home: { readonly received: ReadonlyArray<{ readonly _tag: string }> }) =>
-  home.received.filter((m) => m._tag === "SetWatches").length
+  home.received.filter((message) => message._tag === "SetWatches").length
 
 describe("hub", () => {
   it.effect("sends the watches the running activities need when they change, and only then", () =>
@@ -43,7 +43,7 @@ describe("hub", () => {
       expect(setWatches(home)).toBe(1)
 
       yield* home.webhook("radarr", fixture("radarr/grab.json"))
-      expect(home.state.watches.map((w) => [w.id, w.path])).toEqual([["qbittorrent:torrents", `/api/v2/torrents/info?hashes=${hash}`]])
+      expect(home.state.watches.map((watch) => [watch.id, watch.path])).toEqual([["qbittorrent:torrents", `/api/v2/torrents/info?hashes=${hash}`]])
       expect(setWatches(home)).toBe(2)
 
       yield* home.snapshot("qbittorrent:torrents", (fixture("qbittorrent/torrents-info.json") as Array<object>).slice(0, 1))
@@ -70,18 +70,18 @@ describe("hub", () => {
       yield* home.connect
       yield* home.webhook("radarr", fixture("radarr/grab.json"))
       // The probe watches Radarr, which this Quai Home doesn't reach.
-      expect(home.state.watches.map((w) => w.id)).toEqual(["qbittorrent:torrents"])
+      expect(home.state.watches.map((watch) => watch.id)).toEqual(["qbittorrent:torrents"])
 
       // Reconnected, Quai Home starts with no watch: they're sent again.
       yield* home.disconnect
       expect(home.state.watches).toEqual([])
       yield* home.connect
-      expect(home.state.watches.map((w) => w.id)).toEqual(["qbittorrent:torrents"])
+      expect(home.state.watches.map((watch) => watch.id)).toEqual(["qbittorrent:torrents"])
 
       // A flow whose downloading step no longer shows progress: no torrent watch.
       const store = yield* FlowStore
-      const download = (yield* store.all).find((f) => f.id === "download")!
-      yield* store.save({ ...download, steps: download.steps.map((s) => ({ ...s, show: {} })) })
+      const download = (yield* store.all).find((flow) => flow.id === "download")!
+      yield* store.save({ ...download, steps: download.steps.map((step) => ({ ...step, show: {} })) })
       yield* (yield* Hub).sync
       expect(home.state.watches).toEqual([])
     }).pipe(Effect.provide(layer([radarr, qbittorrent, probe]))))

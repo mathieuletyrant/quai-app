@@ -5,13 +5,13 @@ import { useLoad } from "../load.ts"
 import { Button, Callout, Checklist, ChecklistItem, Code, Mono } from "../ui"
 
 /** Where Quai Home stands: its version and the Quai Cloud it links to. */
-export const loadOverview = () => callHome((c) => c.home.overview())
+export const loadOverview = () => callHome((api) => api.home.overview())
 
 /** Whether Quai Home reaches at least one service, and at least one iPhone is paired. */
 const loadProgress = () =>
   Promise.all([
-    callHome((c) => c.services.list()).then((list) => list.some((s) => s.source !== "none")),
-    call((c) => c.console.devices()).then((devices) => devices.length > 0, () => false)
+    callHome((api) => api.services.list()).then((list) => list.some((setup) => setup.source !== "none")),
+    call((api) => api.console.devices()).then((devices) => devices.length > 0, () => false)
   ]).then(([services, iphones]) => ({ services, iphones }))
 
 /** The two steps to a working Quai, until both are done. */
@@ -41,7 +41,7 @@ export function CloudChanged({ cloud, onDone }: { cloud: CloudLink; onDone: () =
   if (cloud.previousUrl === undefined) return null
   const done = () => {
     setSaving(true)
-    void callHome((c) => c.home.acknowledgeCloud()).finally(() => {
+    void callHome((api) => api.home.acknowledgeCloud()).finally(() => {
       setSaving(false)
       onDone()
     })

@@ -13,7 +13,7 @@ import { fixture } from "../fixtures.ts"
 const now = Date.parse("2026-11-24T21:00:00Z")
 const day = 24 * 3600_000
 const candidates = () => Schema.decodeUnknownSync(CandidatePage)(fixture("real/reclaimerr/candidates.json")).items
-const runner = () => candidates().find((c) => c.title === "Runner")!
+const runner = () => candidates().find((candidate) => candidate.title === "Runner")!
 const radarrMovie = (overrides: Record<string, unknown> = {}) =>
   Schema.decodeUnknownSync(RadarrMovies)([{ id: 55, title: "Runner", year: 2026, tmdbId: 1377237, hasFile: true, sizeOnDisk: 7268360548, ...overrides }])
 const finished: FinishedTorrent = {
@@ -82,7 +82,7 @@ describe("the title a Reclaimerr deletion takes", () => {
   })
 
   it("a season, or the whole series; an episode is only part of it", () => {
-    const vampire = candidates().find((c) => c.media_type === "series")!
+    const vampire = candidates().find((candidate) => candidate.media_type === "series")!
     const series = Schema.decodeUnknownSync(SonarrSeries)([{ id: 12, title: "Vampire Diaries", tvdbId: 1, tmdbId: vampire.tmdb_id }])
     expect(candidateTitleKey(planned(vampire), { series })).toBe(`series:12:s${vampire.season_number}`)
     expect(candidateTitleKey(planned({ ...vampire, scope: "series" }), { series })).toBe("series:12")

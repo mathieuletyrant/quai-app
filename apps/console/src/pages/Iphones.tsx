@@ -61,7 +61,7 @@ const countdown = (seconds: number) => `${Math.floor(seconds / 60)}:${String(sec
 const subtitle = (devices: ReadonlyArray<Device> | null, offline: boolean) => {
   if (devices === null || offline) return "The iPhones Quai starts Live Activities on"
   if (devices.length === 0) return "None paired yet"
-  return `${devices.length} paired · ${devices.filter((d) => d.canStartActivities).length} allow Live Activities`
+  return `${devices.length} paired · ${devices.filter((device) => device.canStartActivities).length} allow Live Activities`
 }
 
 /**
@@ -79,14 +79,14 @@ function usePairing(onPaired: () => void, cloudUrls: ReadonlyArray<string>, cons
     setError(null)
     setStarting(true)
     try {
-      const result = await call((c) => c.console.createPairingCode({ payload: { serverUrls: cloudUrls } }))
+      const result = await call((api) => api.console.createPairingCode({ payload: { serverUrls: cloudUrls } }))
       const link = withConsoleAddresses(result.link, window.location.origin, consolePublicUrl)
       const qrSvg = await QRCode.toString(link, { type: "svg", margin: 0, errorCorrectionLevel: "M", color: qrColors })
       const expiresAt = DateTime.toEpochMillis(result.expiresAt)
       setPairing({ code: result.code, expiresAt, lifetime: expiresAt - Date.now(), qrSvg, link, accessHeaderNames: result.accessHeaderNames })
       setNow(Date.now())
-    } catch (e) {
-      setError(e)
+    } catch (failure) {
+      setError(failure)
     } finally {
       setStarting(false)
     }
@@ -139,18 +139,18 @@ function PairingPanel({ pairing, left, onNew, onDone }: { pairing: Pairing; left
 
 /** "X-Auth, X-Token", in monospace. */
 function HeaderNames({ names }: { names: ReadonlyArray<string> }) {
-  return names.map((name, i) => <span key={name}>{i > 0 && ", "}<Mono>{name}</Mono></span>)
+  return names.map((name, index) => <span key={name}>{index > 0 && ", "}<Mono>{name}</Mono></span>)
 }
 
 function PairingSteps() {
   return (
     <ol className="flex flex-col gap-4">
-      {steps.map((s, i) => (
-        <li key={s.title} className="flex gap-3.5">
-          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-raised text-caption font-bold text-text-2 ring-1 ring-line-strong">{i + 1}</span>
+      {steps.map((step, index) => (
+        <li key={step.title} className="flex gap-3.5">
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-raised text-caption font-bold text-text-2 ring-1 ring-line-strong">{index + 1}</span>
           <div className="pt-0.5">
-            <p className="text-copy font-semibold">{s.title}</p>
-            <p className="mt-0.5 text-body text-muted">{s.text}</p>
+            <p className="text-copy font-semibold">{step.title}</p>
+            <p className="mt-0.5 text-body text-muted">{step.text}</p>
           </div>
         </li>
       ))}
@@ -193,10 +193,10 @@ function DeviceName({ device }: { device: Device }) {
 }
 
 const columns: ReadonlyArray<Column<Device>> = [
-  { header: "iPhone", primary: true, cell: (d) => <DeviceName device={d} /> },
-  { header: "App", cell: (d) => <Badge>{d.apnsEnvironment === "development" ? "Xcode build" : "TestFlight"}</Badge> },
-  { header: "Live Activities", cell: (d) => d.canStartActivities ? <Status tone="ok">Allowed</Status> : <Status tone="warn">Not allowed yet</Status> },
-  { header: "Last seen", cell: (d) => <span className="text-muted tabular-nums">{lastSeen(d.lastSeenAt)}</span> }
+  { header: "iPhone", primary: true, cell: (device) => <DeviceName device={device} /> },
+  { header: "App", cell: (device) => <Badge>{device.apnsEnvironment === "development" ? "Xcode build" : "TestFlight"}</Badge> },
+  { header: "Live Activities", cell: (device) => device.canStartActivities ? <Status tone="ok">Allowed</Status> : <Status tone="warn">Not allowed yet</Status> },
+  { header: "Last seen", cell: (device) => <span className="text-muted tabular-nums">{lastSeen(device.lastSeenAt)}</span> }
 ]
 
 /** The paired iPhones, or skeleton rows while `devices` is null. */
@@ -205,8 +205,8 @@ function DeviceTable({ devices, onRemove, emptyAction }: { devices: ReadonlyArra
     <DataTable
       columns={columns}
       rows={devices}
-      rowKey={(d) => d.id}
-      actions={(d) => <IconButton icon="trash" label={`Remove ${d.name}`} className="hover:bg-danger-soft hover:text-danger-text" onClick={() => onRemove(d)} />}
+      rowKey={(device) => device.id}
+      actions={(device) => <IconButton icon="trash" label={`Remove ${device.name}`} className="hover:bg-danger-soft hover:text-danger-text" onClick={() => onRemove(device)} />}
       empty={
         <EmptyState icon="phone" title="No iPhone paired yet" action={emptyAction}>
           Pair one to follow downloads, playback and server health on its Lock Screen and in the Dynamic Island.
@@ -218,16 +218,16 @@ function DeviceTable({ devices, onRemove, emptyAction }: { devices: ReadonlyArra
 
 export function IphonesPage() {
   const { epoch } = useLink()
-  const devices = useLoad(() => call((c) => c.console.devices()), [epoch])
+  const devices = useLoad(() => call((api) => api.console.devices()), [epoch])
   const overview = useLoad(loadOverview, [epoch])
   const { pairing, left, error: pairingError, starting, start, stop } = usePairing(devices.refresh, cloudUrlsOf(overview.data), overview.data?.consolePublicUrl)
 
   const remove = async (device: Device) => {
     if (!window.confirm(`Remove ${device.name}? It stops receiving Live Activities until paired again.`)) return
     try {
-      await call((c) => c.console.removeDevice({ params: { id: device.id } }))
-    } catch (e) {
-      devices.setError(e)
+      await call((api) => api.console.removeDevice({ params: { id: device.id } }))
+    } catch (failure) {
+      devices.setError(failure)
     }
     devices.refresh()
   }
@@ -245,7 +245,7 @@ export function IphonesPage() {
       </PageBar>
 
       <PageBody>
-        <ErrorCallout unlessOffline error={errors.find((e) => e !== null && !isCloudOffline(e)) ?? null} title="Something went wrong" />
+        <ErrorCallout unlessOffline error={errors.find((error) => error !== null && !isCloudOffline(error)) ?? null} title="Something went wrong" />
         {overview.data && <CloudChanged cloud={overview.data.cloud} onDone={overview.refresh} />}
         {pairing && <PairingPanel pairing={pairing} left={left} onNew={start} onDone={stop} />}
 

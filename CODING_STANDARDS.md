@@ -29,6 +29,6 @@ A security finding stays a finding even when an earlier reply waved the same cla
 
 ## Comments
 
-No comment that explains, justifies or narrates the code: the why goes in the commit or the PR. Allowed: a comment that
-prevents a concrete foot-gun, a unit on a numeric literal, a vendor quirk with its link, a `TODO` with an issue, JSDoc
-on an exported contract.
+`AGENTS.md`'s "Code" section is the rule: a comment carries what the code can't (why, a service's quirk, a unit, a
+gotcha), and an export keeps its one-line doc. A comment that only restates the code or the name next to it is a
+finding, quoting both.

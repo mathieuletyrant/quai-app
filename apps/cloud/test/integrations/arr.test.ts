@@ -46,7 +46,7 @@ describe("Radarr webhooks", () => {
       yield* home.connect
       const integration = yield* radarr
       const events = yield* integration.webhook!.read(fixture("radarr/grab.json"))
-      expect(events.map((e) => e.type)).toEqual(["media.grabbed"])
+      expect(events.map((event) => event.type)).toEqual(["media.grabbed"])
       expect(home.calls).toEqual([])
     }).pipe(Effect.provide(link)))
 
@@ -56,7 +56,7 @@ describe("Radarr webhooks", () => {
       yield* home.connect
       const integration = yield* radarr
       const events = yield* integration.webhook!.read(fixture("radarr/movie-added.json"))
-      return { types: events.map((e) => e.type), paths: home.calls.map((c) => c.path) }
+      return { types: events.map((event) => event.type), paths: home.calls.map((call) => call.path) }
     }).pipe(Effect.provide(link))
 
   it.effect("a movie added that Radarr lists \"Missing\" starts a search", () =>
@@ -68,7 +68,7 @@ describe("Radarr webhooks", () => {
 
   it.effect("a movie added before it is out (Radarr's \"Not Available\") starts nothing", () =>
     Effect.gen(function*() {
-      const announced = (fixture("radarr/movie-by-tmdb.json") as Array<object>).map((m) => ({ ...m, status: "announced", isAvailable: false }))
+      const announced = (fixture("radarr/movie-by-tmdb.json") as Array<object>).map((movie) => ({ ...movie, status: "announced", isAvailable: false }))
       expect((yield* added({ json: announced })).types).toEqual([])
     }))
 
@@ -112,7 +112,7 @@ describe("Sonarr webhooks", () => {
           lookup: { ...severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }]), imdbId: undefined }
         }
       }])
-      expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((e) => e.type)).toEqual(["media.grabbed"])
+      expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((event) => event.type)).toEqual(["media.grabbed"])
     }))
 
   it.effect("an import that needs someone says so on the torrent's activity", () =>

@@ -17,15 +17,15 @@ describe("journal feed", () => {
 
   it("puts the live lines newer than the history on top, each once, filtered like the history", () => {
     const live = [line(20), line(40), line(50, { source: "sonarr" }), line(60, { level: "error" })]
-    expect(visibleLines(live, history, noFilters, null).lines.map((l) => l.at)).toEqual([60, 50, 40, 30, 20, 10])
-    expect(visibleLines(live, history, { ...noFilters, sources: ["radarr"] }, null).lines.map((l) => l.at)).toEqual([60, 40, 30, 20, 10])
-    expect(visibleLines(live, history, { ...noFilters, level: "error" }, null).lines.map((l) => l.at)).toEqual([60, 30, 20, 10])
+    expect(visibleLines(live, history, noFilters, null).lines.map((line) => line.at)).toEqual([60, 50, 40, 30, 20, 10])
+    expect(visibleLines(live, history, { ...noFilters, sources: ["radarr"] }, null).lines.map((line) => line.at)).toEqual([60, 40, 30, 20, 10])
+    expect(visibleLines(live, history, { ...noFilters, level: "error" }, null).lines.map((line) => line.at)).toEqual([60, 30, 20, 10])
   })
 
   it("holds back what comes in while paused, and counts it", () => {
     const live = [line(40), line(50)]
     const paused = visibleLines(live, history, noFilters, journalId(40, "c", 0))
-    expect(paused.lines.map((l) => l.at)).toEqual([40, 30, 20, 10])
+    expect(paused.lines.map((line) => line.at)).toEqual([40, 30, 20, 10])
     expect(paused.held).toBe(1)
   })
 
@@ -38,6 +38,6 @@ describe("journal feed", () => {
   it("groups by day", () => {
     const now = new Date(2026, 10, 20, 21).getTime()
     const days = byDay([line(now - 3600_000), line(now - 24 * 3600_000), line(now - 3 * 24 * 3600_000)], now)
-    expect(days.map((d) => d.label)).toEqual(["Today", "Yesterday", "Tue, Nov 17"])
+    expect(days.map((day) => day.label)).toEqual(["Today", "Yesterday", "Tue, Nov 17"])
   })
 })

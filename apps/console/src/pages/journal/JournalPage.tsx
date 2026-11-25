@@ -73,11 +73,11 @@ function useLiveLines() {
     let timer: ReturnType<typeof setTimeout> | undefined
     let stopped = false
     const poll = () => {
-      call((c) => c.consoleJournal.since({ query: cursor === undefined ? {} : { cursor } })).then((tail) => {
+      call((api) => api.consoleJournal.since({ query: cursor === undefined ? {} : { cursor } })).then((tail) => {
         const first = cursor === undefined
         cursor = tail.cursor
         if (tail.entries.length === 0 || stopped) return
-        setLive((l) => ({ lines: [...l.lines, ...tail.entries].slice(-liveCap), fresh: first ? new Set() : new Set(tail.entries.map((e) => e.id)) }))
+        setLive((current) => ({ lines: [...current.lines, ...tail.entries].slice(-liveCap), fresh: first ? new Set() : new Set(tail.entries.map((entry) => entry.id)) }))
       }, () => undefined).finally(() => {
         if (!stopped) timer = setTimeout(poll, pollMs)
       })
@@ -110,7 +110,7 @@ export function JournalPage() {
   const settledSearch = useSettled(search, 300)
   const applied = { ...filters, search: settledSearch }
   const key = JSON.stringify(historyQuery(applied))
-  const history = useLoad(() => call((c) => c.consoleJournal.history({ query: { ...historyQuery(applied), limit: pageSize } })), [key, epoch])
+  const history = useLoad(() => call((api) => api.consoleJournal.history({ query: { ...historyQuery(applied), limit: pageSize } })), [key, epoch])
   const live = useLiveLines()
   const [frozenAt, setFrozenAt] = useState<string | null>(null)
   const away = useScrolledAway()
@@ -121,7 +121,7 @@ export function JournalPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
   const bySubject = (line: JournalEntry) =>
-    line.subject !== undefined && setFilters((f) => ({ ...f, subject: { key: line.subject!, title: line.title ?? line.subject! } }))
+    line.subject !== undefined && setFilters((current) => ({ ...current, subject: { key: line.subject!, title: line.title ?? line.subject! } }))
 
   return (
     <>
@@ -167,15 +167,15 @@ function LiveState({ paused }: { paused: boolean }) {
 function FilterBar({ filters, search, onFilters, onSearch }: {
   filters: JournalFilters
   search: string
-  onFilters: (f: (filters: JournalFilters) => JournalFilters) => void
+  onFilters: (change: (filters: JournalFilters) => JournalFilters) => void
   onSearch: (search: string) => void
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <SourcePicker sources={filters.sources} onChange={(sources) => onFilters((f) => ({ ...f, sources }))} />
-      <Segmented label="Level" value={filters.level} options={levels} onChange={(level) => onFilters((f) => ({ ...f, level }))} />
+      <SourcePicker sources={filters.sources} onChange={(sources) => onFilters((current) => ({ ...current, sources }))} />
+      <Segmented label="Level" value={filters.level} options={levels} onChange={(level) => onFilters((current) => ({ ...current, level }))} />
       {filters.subject !== null && (
-        <Button variant="secondary" size="sm" icon="x" onClick={() => onFilters((f) => ({ ...f, subject: null }))}>
+        <Button variant="secondary" size="sm" icon="x" onClick={() => onFilters((current) => ({ ...current, subject: null }))}>
           {filters.subject.title}
         </Button>
       )}
@@ -184,7 +184,7 @@ function FilterBar({ filters, search, onFilters, onSearch }: {
         placeholder="Search the journal"
         aria-label="Search the journal"
         value={search}
-        onChange={(e) => onSearch(e.target.value)}
+        onChange={(event) => onSearch(event.target.value)}
       />
     </div>
   )
@@ -193,7 +193,7 @@ function FilterBar({ filters, search, onFilters, onSearch }: {
 /** Which sources to show: every one when none is picked. */
 function SourcePicker({ sources, onChange }: { sources: ReadonlyArray<JournalSource>; onChange: (sources: ReadonlyArray<JournalSource>) => void }) {
   const toggle = (source: JournalSource) =>
-    onChange(sources.includes(source) ? sources.filter((s) => s !== source) : [...sources, source])
+    onChange(sources.includes(source) ? sources.filter((picked) => picked !== source) : [...sources, source])
   return (
     <Popover
       trigger={({ toggle: open }) => (
@@ -240,9 +240,9 @@ function JournalHistory({ first, filters, live, frozenAt, onSubject }: {
   const loadOlder = () => {
     setLoading(true)
     const before = history.at(-1)?.id
-    call((c) => c.consoleJournal.history({ query: { ...historyQuery(filters, before), limit: pageSize } }))
+    call((api) => api.consoleJournal.history({ query: { ...historyQuery(filters, before), limit: pageSize } }))
       .then((page) => {
-        setOlder((o) => ({ entries: [...o.entries, ...page.entries], more: page.more }))
+        setOlder((current) => ({ entries: [...current.entries, ...page.entries], more: page.more }))
         setError(null)
       }, setError)
       .finally(() => setLoading(false))

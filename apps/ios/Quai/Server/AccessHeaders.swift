@@ -95,7 +95,6 @@ extension Error {
         return self
     }
 
-    /// What to show the user.
     var quaiMessage: String { quaiError.localizedDescription }
 
     /// The call was cancelled (its screen closed, the app left the front), not refused: nothing to show.

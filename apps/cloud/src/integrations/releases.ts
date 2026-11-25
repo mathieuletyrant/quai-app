@@ -32,12 +32,11 @@ const dayReadKeys = ["episodes", "sonarrQueue", "movies", "radarrQueue"] as cons
 /** Every 5 minutes while the day's activity runs, every 30 otherwise (to know when to start it). */
 export const pollSeconds = { running: 300, idle: 1800 } as const
 
-const dayFlows = (context: Pick<WatchContext, "flows">) => context.flows.filter((f) => f.enabled && f.subject === "day")
+const dayFlows = (context: Pick<WatchContext, "flows">) => context.flows.filter((flow) => flow.enabled && flow.subject === "day")
 
-/** Running activities of day flows. */
 const dayActivities = (context: WatchContext) => {
-  const ids = new Set(context.flows.filter((f) => f.subject === "day").map((f) => f.id))
-  return context.running.filter((a) => ids.has(a.flowId))
+  const ids = new Set(context.flows.filter((flow) => flow.subject === "day").map((flow) => flow.id))
+  return context.running.filter((activity) => ids.has(activity.flowId))
 }
 
 const subjectOf = (day: string): Subject => ({ kind: "day", key: dayKey(day), title: "Today" })
@@ -46,11 +45,11 @@ const subjectOf = (day: string): Subject => ({ kind: "day", key: dayKey(day), ti
 export const calendarWatches = (context: WatchContext): ReadonlyArray<HomeProtocol.Watch> => {
   if (!anyEnabledFlow(context, "day")) return []
   const today = dayOf(context.now, context.timeZone)
-  const everySeconds = dayActivities(context).some((a) => a.subjectKey === dayKey(today)) ? pollSeconds.running : pollSeconds.idle
+  const everySeconds = dayActivities(context).some((activity) => activity.subjectKey === dayKey(today)) ? pollSeconds.running : pollSeconds.idle
   const reads = dayReads(today, context.timeZone)
   return dayReadKeys
     .map((key) => watchOf(calendarWatchIds[key], reads[key], everySeconds))
-    .filter((w) => context.services.includes(w.service))
+    .filter((watch) => context.services.includes(watch.service))
 }
 
 /**
@@ -71,11 +70,11 @@ export const dayEvents = (context: WatchContext, releases: ReadonlyArray<DayRele
   }
   if (releases === null || releases.length === 0) return events
   const items = activityItems(releases)
-  const here = releases.filter((r) => r.status === "available").length
+  const here = releases.filter((release) => release.status === "available").length
   const values = { items, here, total: releases.length, detail: summary(releases) }
   const done = allAvailable(releases)
   for (const flow of dayFlows(context)) {
-    const activity = running.find((a) => a.flowId === flow.id && a.subjectKey === dayKey(today))
+    const activity = running.find((candidate) => candidate.flowId === flow.id && candidate.subjectKey === dayKey(today))
     if (activity === undefined) {
       const due = context.now >= startsAt(today, context.timeZone, flow.filter.startsAt, releases)
       if (due && !done) events.push({ type: "releases.today", flowId: flow.id, subject: subjectOf(today), values })
@@ -106,10 +105,10 @@ export const releases = Effect.sync((): Integration => {
   const evaluate = (context: WatchContext): ReadonlyArray<FlowEvent> => {
     const today = dayOf(context.now, context.timeZone)
     // Only what was read for the watches of now: yesterday's calendars don't count.
-    const current = new Map(calendarWatches(context).map((w) => [w.id, w.path]))
+    const current = new Map(calendarWatches(context).map((watch) => [watch.id, watch.path]))
     const value = <K extends keyof DayReads>(key: K): DayValue<K> | undefined => {
-      const r = read.get(calendarWatchIds[key])
-      return r !== undefined && current.get(calendarWatchIds[key]) === r.path ? r.value as DayValue<K> : undefined
+      const found = read.get(calendarWatchIds[key])
+      return found !== undefined && current.get(calendarWatchIds[key]) === found.path ? found.value as DayValue<K> : undefined
     }
     const got = { episodes: value("episodes"), movies: value("movies"), sonarrQueue: value("sonarrQueue"), radarrQueue: value("radarrQueue") }
     const releases = got.episodes === undefined && got.movies === undefined ? null : dayReleases(today, context.timeZone, dayInputs(got))
@@ -122,7 +121,7 @@ export const releases = Effect.sync((): Integration => {
       watches: calendarWatches,
       read: (snapshot, context) =>
         Effect.gen(function*() {
-          const key = dayReadKeys.find((k) => calendarWatchIds[k] === snapshot.watch.id)
+          const key = dayReadKeys.find((readKey) => calendarWatchIds[readKey] === snapshot.watch.id)
           if (key === undefined) return []
           const value = yield* readSnapshot<unknown>(dayReads(dayOf(context.now, context.timeZone), context.timeZone)[key], snapshot)
           if (Option.isNone(value)) return []

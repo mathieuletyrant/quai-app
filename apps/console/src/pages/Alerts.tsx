@@ -87,9 +87,9 @@ function InlineNumber({ label, value, min, max, onSave }: {
         className="h-8 px-2 text-center tabular-nums"
         value={text}
         invalid={parsed === null}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(event) => setText(event.target.value)}
         onBlur={save}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
+        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur() }}
       />
     </span>
   )
@@ -184,8 +184,8 @@ function LoadingList() {
   return (
     <Panel flush>
       <ul className="divide-y divide-line">
-        {[0, 1, 2].map((n) => (
-          <li key={n} className="flex gap-4 px-5 py-5">
+        {[0, 1, 2].map((placeholder) => (
+          <li key={placeholder} className="flex gap-4 px-5 py-5">
             <Skeleton className="size-9" />
             <div className="flex flex-1 flex-col gap-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-64" /></div>
           </li>
@@ -196,7 +196,7 @@ function LoadingList() {
 }
 
 export function AlertsPage() {
-  const settings = useLoad(() => call((c) => c.consoleAlerts.settings()), [])
+  const settings = useLoad(() => call((api) => api.consoleAlerts.settings()), [])
   const [notice, setNotice] = useState<Notice | null>(null)
   const clearNotice = useCallback(() => setNotice(null), [])
 
@@ -204,7 +204,7 @@ export function AlertsPage() {
     const previous = settings.data
     settings.setData(() => next)
     try {
-      const saved = await call((c) => c.consoleAlerts.save({ payload: next }))
+      const saved = await call((api) => api.consoleAlerts.save({ payload: next }))
       settings.setData(() => saved)
       setNotice({ ok: true, text: "Saved" })
     } catch (error) {

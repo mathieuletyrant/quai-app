@@ -100,7 +100,7 @@ export class Journal extends Context.Service<Journal, {
       )
     })
 
-    const fromMemory = (query: JournalQuery): JournalPage => ({ ...journalPage(tail.map((t) => t.entry), query), kept: "memory" })
+    const fromMemory = (query: JournalQuery): JournalPage => ({ ...journalPage(tail.map((logged) => logged.entry), query), kept: "memory" })
 
     return {
       log,
@@ -126,9 +126,9 @@ export class Journal extends Context.Service<Journal, {
         }),
       since: (cursor) =>
         Effect.sync(() => {
-          const [from, n] = (cursor ?? "").split(".")
-          const after = from === boot && n !== undefined && /^\d+$/.test(n) ? Number(n) : 0
-          return { entries: tail.filter((t) => t.seq > after).map((t) => t.entry), cursor: `${boot}.${seq}` }
+          const [from, sequence] = (cursor ?? "").split(".")
+          const after = from === boot && sequence !== undefined && /^\d+$/.test(sequence) ? Number(sequence) : 0
+          return { entries: tail.filter((logged) => logged.seq > after).map((logged) => logged.entry), cursor: `${boot}.${seq}` }
         }),
       flush
     } satisfies Journal["Service"]

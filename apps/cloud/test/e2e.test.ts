@@ -32,7 +32,7 @@ describe("end to end", () => {
         const paired = yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development", pushToStartToken: "pts" })
         const deviceId = paired._tag === "Some" ? paired.value.deviceId : yield* Effect.die("no pairing")
         const hub = yield* Hub
-        const steps = () => apnsServer.hits.map((h) => `${h.body.aps.event}:${h.body.aps["content-state"].step}`)
+        const steps = () => apnsServer.hits.map((hit) => `${hit.body.aps.event}:${hit.body.aps["content-state"].step}`)
         const radarr = (name: string) => home.webhook("radarr", fixture(`radarr/${name}.json`))
 
         // Something Quai can't read changes nothing.
@@ -69,7 +69,7 @@ describe("end to end", () => {
         yield* TestClock.adjust("15 seconds")
         yield* home.snapshot(find, fixture("jellyfin/items-movie.json"))
         expect(steps().at(-1)).toBe("end:3")
-        expect(apnsServer.hits.every((h, i) => h.path === (i === 0 ? "/3/device/pts" : "/3/device/act"))).toBe(true)
+        expect(apnsServer.hits.every((hit, index) => hit.path === (index === 0 ? "/3/device/pts" : "/3/device/act"))).toBe(true)
         expect(home.watch(find)).toBeUndefined()
 
         yield* TestClock.adjust("15 minutes")

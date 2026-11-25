@@ -166,7 +166,7 @@ export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string>
  * often the same disk several times): the largest one holds the library.
  */
 export const mediaDisk = (disks: typeof DiskSpaces.Type): DiskSpace | undefined => {
-  const largest = [...disks].sort((a, b) => b.totalSpace - a.totalSpace)[0]
+  const largest = [...disks].sort((left, right) => right.totalSpace - left.totalSpace)[0]
   return largest === undefined || largest.totalSpace <= 0
     ? undefined
     : { freeBytes: largest.freeSpace, totalBytes: largest.totalSpace }

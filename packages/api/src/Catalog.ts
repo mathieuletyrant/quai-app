@@ -43,10 +43,10 @@ export const actionCatalog: ReadonlyArray<{
   { type: "request.decline", subject: "request", label: "Decline", service: "seerr" }
 ]
 
-export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((a) => a.type === type)!.subject
+export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((action) => action.type === type)!.subject
 
-export const subjectOf = (type: EventType): FlowSubject => catalog.find((e) => e.type === type)!.subject
-export const isDataEvent = (type: EventType): boolean => catalog.find((e) => e.type === type)!.data
+export const subjectOf = (type: EventType): FlowSubject => catalog.find((event) => event.type === type)!.subject
+export const isDataEvent = (type: EventType): boolean => catalog.find((event) => event.type === type)!.data
 
 /** What a step can show for each kind of flow: the values its data events carry. */
 export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
@@ -62,7 +62,7 @@ export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
  * The server refuses a flow that breaks one; the console shows it before saving.
  */
 export const flowProblem = (flow: Flow): string | null => {
-  const ids = new Set(flow.steps.map((s) => s.id))
+  const ids = new Set(flow.steps.map((step) => step.id))
   if (ids.size !== flow.steps.length) return "Two steps have the same id."
   for (const step of flow.steps) {
     if (isDataEvent(step.on)) return `“${step.label}” uses a data event: pick an event that starts a step.`
@@ -77,7 +77,7 @@ export const flowProblem = (flow: Flow): string | null => {
   if (flow.subject === "request" && flow.expireAfterMinutes !== undefined) {
     return "A request flow ends when the request is approved, declined or deleted, not after no news."
   }
-  const events = new Set(flow.steps.map((s) => s.on))
+  const events = new Set(flow.steps.map((step) => step.on))
   if (events.size !== flow.steps.length) return "Two steps start on the same event."
   if (flow.endOn !== undefined) {
     if (isDataEvent(flow.endOn) || subjectOf(flow.endOn) !== flow.subject) return "The end event doesn't fit this flow."

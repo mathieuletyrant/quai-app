@@ -22,7 +22,7 @@ export const fakeApns = Effect.acquireRelease(
     server.on("stream", (stream, headers) => {
       let body = ""
       stream.setEncoding("utf8")
-      stream.on("data", (c: string) => (body += c))
+      stream.on("data", (chunk: string) => (body += chunk))
       stream.on("end", () => {
         const path = String(headers[":path"])
         hits.push({ path, headers, body: JSON.parse(body) })

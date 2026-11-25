@@ -28,15 +28,15 @@ export const SonarrWebhook = Schema.Struct({
 })
 export type SonarrWebhook = typeof SonarrWebhook.Type
 
-const pad = (n: number) => n.toString().padStart(2, "0")
+const pad = (value: number) => value.toString().padStart(2, "0")
 
 /** "Severance · S02E03", "Severance · S02" for a season pack, "Severance · 3 episodes" across seasons. */
 export const episodeLabel = (series: string, episodes: ReadonlyArray<typeof Episode.Type>) => {
   if (episodes.length === 0) return series
-  const seasons = new Set(episodes.map((e) => e.seasonNumber))
+  const seasons = new Set(episodes.map((episode) => episode.seasonNumber))
   if (episodes.length === 1) {
-    const e = episodes[0]!
-    return `${series} · S${pad(e.seasonNumber)}E${pad(e.episodeNumber)}`
+    const episode = episodes[0]!
+    return `${series} · S${pad(episode.seasonNumber)}E${pad(episode.episodeNumber)}`
   }
   if (seasons.size === 1) return `${series} · S${pad(episodes[0]!.seasonNumber)}`
   return `${series} · ${episodes.length} episodes`
@@ -63,7 +63,7 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
       ...(knownId(series.tmdbId) === undefined ? {} : { tmdbId: series.tmdbId! }),
       ...(knownId(series.imdbId) === undefined ? {} : { imdbId: series.imdbId! }),
       title: series.title,
-      episodes: (payload.episodes ?? []).map((e) => ({ season: e.seasonNumber, episode: e.episodeNumber }))
+      episodes: (payload.episodes ?? []).map((episode) => ({ season: episode.seasonNumber, episode: episode.episodeNumber }))
     }
   }
   switch (payload.eventType) {

@@ -153,7 +153,7 @@ const qbittorrentSession = (client: HttpClient.HttpClient, config: QBittorrentEn
     const send = (request: HttpClientRequest.HttpClientRequest, session: string | null) =>
       client.execute(request.pipe(
         HttpClientRequest.prependUrl(config.url),
-        session === null ? (r) => r : HttpClientRequest.setHeader("Cookie", session)
+        session === null ? (unchanged) => unchanged : HttpClientRequest.setHeader("Cookie", session)
       )).pipe(Effect.mapError((cause) => error("unreachable", cause)))
 
     return (request: HttpClientRequest.HttpClientRequest) =>

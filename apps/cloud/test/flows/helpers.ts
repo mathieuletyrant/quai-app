@@ -5,9 +5,9 @@ import type { FlowEvent, Subject } from "../../src/flows/Events.ts"
 import { FlowStore } from "../../src/flows/FlowStore.ts"
 import { HomeDocuments } from "../../src/home/HomeLink.ts"
 
-export const download = builtInFlows.find((f) => f.id === "download")!
-export const playback = builtInFlows.find((f) => f.id === "playback")!
-export const requestFlow = builtInFlows.find((f) => f.id === "request")!
+export const download = builtInFlows.find((flow) => flow.id === "download")!
+export const playback = builtInFlows.find((flow) => flow.id === "playback")!
+export const requestFlow = builtInFlows.find((flow) => flow.id === "request")!
 
 export const dune: Subject = { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" }
 
@@ -27,8 +27,8 @@ export const ev = {
 export const fixedFlows = (flows: ReadonlyArray<Flow> = builtInFlows) =>
   Layer.succeed(FlowStore, {
     all: Effect.succeed(flows),
-    get: (id) => Effect.succeed(Option.fromNullishOr(flows.find((f) => f.id === id))),
-    save: (f) => Effect.succeed(f),
+    get: (id) => Effect.succeed(Option.fromNullishOr(flows.find((flow) => flow.id === id))),
+    save: (flow) => Effect.succeed(flow),
     remove: () => Effect.succeed(false),
     reset: () => Effect.succeed(Option.none())
   })

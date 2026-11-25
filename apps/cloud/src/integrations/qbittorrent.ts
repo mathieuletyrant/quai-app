@@ -54,7 +54,7 @@ export const progressEvent = (torrent: Torrent): FlowEvent => ({
 
 /** Running activities on a torrent whose current step shows progress. */
 const downloading = (context: WatchContext): ReadonlyArray<Activity> =>
-  runningWhere(context, (a, flow) => a.downloadId !== null && flow.steps[a.stepIndex]?.show.progress === true)
+  runningWhere(context, (activity, flow) => activity.downloadId !== null && flow.steps[activity.stepIndex]?.show.progress === true)
 
 export const torrentsWatchId = "qbittorrent:torrents"
 
@@ -66,11 +66,11 @@ export const removedDetail = "Removed from the download client"
  * Cleanuparr. Only after a minute on the step, the time qBittorrent takes to add what was grabbed.
  */
 export const removedDownloads = (activities: ReadonlyArray<Activity>, torrents: ReadonlyArray<Torrent>, now: number): ReadonlyArray<FlowEvent> => {
-  const present = new Set(torrents.map((t) => t.hash.toLowerCase()))
+  const present = new Set(torrents.map((torrent) => torrent.hash.toLowerCase()))
   const gone = new Set(
     activities
-      .filter((a) => a.downloadId !== null && !present.has(a.downloadId) && now - a.enteredAt >= 60_000)
-      .map((a) => a.downloadId!)
+      .filter((activity) => activity.downloadId !== null && !present.has(activity.downloadId) && now - activity.enteredAt >= 60_000)
+      .map((activity) => activity.downloadId!)
   )
   return [...gone].map((downloadId) => ({ type: "download.removed", downloadId, values: { detail: removedDetail } }))
 }
@@ -83,7 +83,7 @@ export const qbittorrent: Integration = {
   service: "qbittorrent",
   watcher: {
     watches: (context) => {
-      const hashes = [...new Set(downloading(context).map((a) => a.downloadId!))].sort()
+      const hashes = [...new Set(downloading(context).map((activity) => activity.downloadId!))].sort()
       return hashes.length === 0 ? [] : [{
         id: torrentsWatchId,
         service: "qbittorrent",

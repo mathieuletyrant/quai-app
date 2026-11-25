@@ -293,7 +293,7 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       connect: Effect.gen(function*() {
         yield* open
         const link = yield* Effect.flatMap(Effect.service(HomeLinks), (links) => links.link(HomeId.homeId(publicKey)))
-        for (let i = 0; i < 20 && Option.isNone(yield* link.home); i++) yield* settle
+        for (let attempt = 0; attempt < 20 && Option.isNone(yield* link.home); attempt++) yield* settle
         if (Option.isNone(yield* link.home)) return yield* Effect.die(`the fake home didn't link: ${JSON.stringify(state.refused)}`)
       }),
       /** Connects and stops there, whatever the Cloud says. */
@@ -315,13 +315,13 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         ),
       /** Quai Home's poll of a watch failed. */
       failWatch: (watchId: string, reason = "unreachable") => Effect.andThen(send(HomeProtocol.Failed.make({ id: watchId, reason })), settle),
-      watch: (id: string) => state.watches.find((w) => w.id === id),
+      watch: (id: string) => state.watches.find((watch) => watch.id === id),
       /** Relays a request of the console Quai Home serves, and returns the Cloud's answer. */
       console: (request: Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">) =>
         Effect.gen(function*() {
           const id = `c${++consoleCount}`
           yield* send(HomeProtocol.ConsoleRequest.make({ ...request, id }))
-          for (let i = 0; i < 20 && !consoleAnswers.has(id); i++) yield* settle
+          for (let attempt = 0; attempt < 20 && !consoleAnswers.has(id); attempt++) yield* settle
           const answer = consoleAnswers.get(id)
           if (answer === undefined) return yield* Effect.die(`the Cloud didn't answer ${request.method} ${request.path}`)
           return { status: answer.status, json: answer.body === "" ? undefined : JSON.parse(answer.body) as unknown }

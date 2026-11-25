@@ -18,7 +18,7 @@ type SavedService = Saved[string]
 
 const SavedJson = Schema.fromJsonString(Saved)
 
-const noEndpoints: Endpoints = Object.fromEntries(allServices.map((s) => [s, null])) as unknown as Endpoints
+const noEndpoints: Endpoints = Object.fromEntries(allServices.map((service) => [service, null])) as unknown as Endpoints
 
 /** A saved service as `ServiceAuth` uses it. qBittorrent may log in without a user name. */
 export const endpointOf = (service: HomeService, saved: SavedService): Endpoints[HomeService] =>
@@ -108,9 +108,9 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
           )
         })
 
-      const update = (service: HomeService, f: (all: Saved) => Saved) =>
+      const update = (service: HomeService, change: (all: Saved) => Saved) =>
         Effect.gen(function*() {
-          const next = f(yield* Ref.get(saved))
+          const next = change(yield* Ref.get(saved))
           yield* write(next)
           yield* Ref.set(saved, next)
           yield* PubSub.publish(pubsub, service)
@@ -178,7 +178,7 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
     Effect.gen(function*() {
       const config = yield* HomeConfig
       const pubsub = yield* PubSub.unbounded<HomeService>()
-      const endpoints = Object.fromEntries(allServices.map((s) => [s, config[s]])) as unknown as Endpoints
+      const endpoints = Object.fromEntries(allServices.map((service) => [service, config[service]])) as unknown as Endpoints
       return {
         current: Effect.succeed(endpoints),
         list: Effect.succeed([]),

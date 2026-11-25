@@ -26,7 +26,7 @@ export const icons: ReadonlyArray<{ readonly name: string; readonly label: strin
 
 /** A flow icon in `color`: a hex colour, or a theme variable (`var(--color-muted)`). */
 export function Glyph({ name, color, size = 18 }: { name: string; color: string; size?: number }) {
-  const icon = icons.find((i) => i.name === name) ?? icons[0]!
+  const icon = icons.find((candidate) => candidate.name === name) ?? icons[0]!
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ stroke: color }} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={icon.path} />

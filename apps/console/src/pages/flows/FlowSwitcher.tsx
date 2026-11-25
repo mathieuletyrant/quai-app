@@ -17,16 +17,16 @@ export function FlowSwitcher({ flows, current, dirty, onOpen, onNew }: {
   onOpen: (flow: Flow) => void
   onNew: (base: Flow, name: string) => void
 }) {
-  const subjectsWithBase = (Object.keys(subjects) as Array<Flow["subject"]>).flatMap((s) => {
-    const base = flows.find((f) => f.subject === s && f.builtIn)
-    return base ? [{ subject: s, base }] : []
+  const subjectsWithBase = (Object.keys(subjects) as Array<Flow["subject"]>).flatMap((subject) => {
+    const base = flows.find((flow) => flow.subject === subject && flow.builtIn)
+    return base ? [{ subject, base }] : []
   })
   return (
     <Popover className="w-85" trigger={({ open, toggle }) => <Trigger flow={current} dirty={dirty} open={open} onClick={toggle} />}>
       {(close) => (
         <>
           <MenuLabel>Flows</MenuLabel>
-          {flows.map((f) => <FlowItem key={f.id} flow={f} current={f.id === current.id} onClick={() => { close(); onOpen(f) }} />)}
+          {flows.map((flow) => <FlowItem key={flow.id} flow={flow} current={flow.id === current.id} onClick={() => { close(); onOpen(flow) }} />)}
           <MenuSeparator />
           <MenuLabel>New flow</MenuLabel>
           {subjectsWithBase.map(({ subject, base }) => (

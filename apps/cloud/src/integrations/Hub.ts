@@ -23,7 +23,7 @@ export const offlineGraceMs = 60_000
 
 /** "Radarr, Sonarr", or "no service". */
 const servicesText = (services: LinkedHome["services"]) =>
-  services.length === 0 ? "no service" : services.map((s) => journalSourceNames[s]).join(", ")
+  services.length === 0 ? "no service" : services.map((service) => journalSourceNames[service]).join(", ")
 
 /** What the journal says when Quai Home links. */
 const linkedNote = (home: LinkedHome) => {
@@ -134,7 +134,7 @@ export class Hub extends Context.Service<Hub, {
       const { activities } = yield* engine.snapshot
       return Option.some({
         flows: yield* flows.all,
-        running: [...activities.values()].filter((a) => a.endedAt === null),
+        running: [...activities.values()].filter((activity) => activity.endedAt === null),
         services: home.value.services,
         now: yield* Clock.currentTimeMillis,
         timeZone: yield* time.zone,
@@ -156,7 +156,7 @@ export class Hub extends Context.Service<Hub, {
             }
           }
         }
-        const watches = [...owners.values()].map((o) => o.watch).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+        const watches = [...owners.values()].map((owner) => owner.watch).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
         const fingerprint = JSON.stringify(watches)
         if (!force && sent?.fingerprint === fingerprint) return
         yield* link.setWatches(watches).pipe(
@@ -219,7 +219,7 @@ export class Hub extends Context.Service<Hub, {
           return fromHome(owner.integration.service, (ctx) => failed(owner.watch, event.reason, ctx))
         }
         case "Webhook": {
-          const webhook = integrations.find((i) => i.service === event.service)?.webhook
+          const webhook = integrations.find((integration) => integration.service === event.service)?.webhook
           if (webhook === undefined) return Effect.void
           return fromHome(event.service, () =>
             webhook.read(event.body).pipe(

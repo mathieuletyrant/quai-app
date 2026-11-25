@@ -15,7 +15,6 @@ final class Dictation {
     }
 
     private(set) var state = State.idle
-    /// What it heard so far.
     private(set) var transcript = ""
 
     @ObservationIgnored private var engine: AVAudioEngine?
