@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.28.3](https://github.com/mathieuletyrant/quai-app/compare/v0.28.2...v0.28.3) (2026-11-25)
+
+
+### 🐛 Fixes
+
+* **ios:** a cancelled read no longer shows as a failure ([#123](https://github.com/mathieuletyrant/quai-app/issues/123)) ([81b708c](https://github.com/mathieuletyrant/quai-app/commit/81b708c24786af4984576922bcb46b75783d5c12))
+* **ios:** raw strings that hold a hex colour need ## ([#122](https://github.com/mathieuletyrant/quai-app/issues/122)) ([62a52b2](https://github.com/mathieuletyrant/quai-app/commit/62a52b24891ac9502206638a7174edb72ffb3748))
+
 ## [0.28.2](https://github.com/mathieuletyrant/quai-app/compare/v0.28.1...v0.28.2) (2026-11-25)
 
 
