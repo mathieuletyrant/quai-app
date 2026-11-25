@@ -42,13 +42,13 @@ export const deletionRaised = ({ candidate, deletesAt, operation }: PlannedCandi
 /** Every deletion Reclaimerr plans on its own, but those the user let go in Quai. */
 export const deletionsState = (
   candidates: ReadonlyArray<Candidate>,
-  dismissed: ReadonlySet<number>,
+  letGo: ReadonlySet<number>,
   now: number
 ): AlertState =>
   alertState(
     "plannedDeletion",
     "reclaimerr",
-    plannedDeletions(candidates).filter(({ candidate }) => !dismissed.has(candidate.id)).map((planned) =>
+    plannedDeletions(candidates).filter(({ candidate }) => !letGo.has(candidate.id)).map((planned) =>
       deletionRaised(planned, now)
     )
   )
