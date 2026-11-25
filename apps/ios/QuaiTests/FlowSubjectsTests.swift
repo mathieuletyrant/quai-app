@@ -24,6 +24,13 @@ struct FlowSubjectsTests {
         #expect(LiveNow(Today(read, subjects: subjects)).isEmpty)
     }
 
+    @Test func activitiesComeWithTheirFlowsSubjects() async throws {
+        let all = try flows(requestsFlow)
+        let shown = await Connection.shown(try activities(requestActivity), known: [:]) { all }
+        #expect(shown.activities.allSatisfy { shown.subjects[$0.attributes.flowId] != nil })
+        #expect(LiveNow(Today(shown.activities, subjects: shown.subjects)).isEmpty)
+    }
+
     @Test func readsTheFlowsOnlyWhenAnActivitysFlowIsNew() async throws {
         let read = try activities(requestActivity)
         var loads = 0

@@ -230,9 +230,9 @@ final class Connection {
     private func readActivities() async throws {
         let client = try await requiredClient()
         let read = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
-        // Before they show: a request's activity read as media would flash in the live bar.
-        flowSubjects = await Self.subjects(for: read, known: flowSubjects) { try? await self.flows() }
-        activities = read
+        let shown = await Self.shown(read, known: flowSubjects) { try? await self.flows() }
+        flowSubjects = shown.subjects
+        activities = shown.activities
         lastError = nil
         hasAnswered = true
     }
@@ -251,6 +251,16 @@ final class Connection {
         }
         try? await RemoteControl.perform(key: activity.attributes.key, action: action)
         await refresh()
+    }
+
+    /// The activities read, with what their flows follow: both set together, so none shows before
+    /// its flow's subject is known.
+    static func shown(
+        _ activities: [RunningActivity],
+        known: [String: Components.Schemas.FlowSubject],
+        load: () async -> [Components.Schemas.FlowSummary]?
+    ) async -> (activities: [RunningActivity], subjects: [String: Components.Schemas.FlowSubject]) {
+        (activities, await subjects(for: activities, known: known, load: load))
     }
 
     /// What each flow follows, by flow id: read again when an activity's flow is new (a new custom
