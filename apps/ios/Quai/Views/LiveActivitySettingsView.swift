@@ -72,10 +72,10 @@ struct LiveActivitySettingsView: View {
         var saved = loadedPreferences ?? .init(flows: .init(additionalProperties: [:]))
         saved.flows = .init(additionalProperties: preferences)
         loadedPreferences = saved
-        let next = saved
+        let toSave = saved
         Task {
             do {
-                try await connection.save(next)
+                try await connection.save(toSave)
                 status = nil
             } catch {
                 status = error.message(replacing: status)
