@@ -131,9 +131,15 @@ export const surelyLast = (copies: ReadonlyArray<Going>): Going | undefined => {
 /** Shares within which two sizes are the same files: a release and the library file it became. */
 const sameSizeShare = 0.05
 
-/** The words of a title or a release name, lowercase, without accents, years or one-letter words. */
-const wordsOf = (text: string) =>
-  new Set(text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !/^(19|20)\d\d$/.test(w)))
+/** The words of a title or a release name, lowercase, without accents. */
+const tokensOf = (text: string) => text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w !== "")
+
+/** A title's telling words: no years or one-letter words, unless that's all it has ("1917", "X"). */
+const titleWords = (title: string) => {
+  const tokens = tokensOf(title)
+  const telling = tokens.filter((w) => w.length > 1 && !/^(19|20)\d\d$/.test(w))
+  return new Set(telling.length > 0 ? telling : tokens)
+}
 
 /**
  * Whether torrents Quai couldn't place may hold a deletion's files: about the same size, or every
@@ -142,9 +148,9 @@ const wordsOf = (text: string) =>
 export const mayHold = (set: FileSet, deletion: DeletionInput): boolean => {
   const size = deletion.sizeBytes ?? 0
   if (set.torrents.some((t) => size > 0 && Math.abs(t.size - size) <= size * sameSizeShare)) return true
-  const title = wordsOf(deletion.title)
+  const title = titleWords(deletion.title)
   return title.size > 0 && set.torrents.some((t) => {
-    const name = wordsOf(t.name)
+    const name = new Set(tokensOf(t.name))
     return [...title].every((w) => name.has(w))
   })
 }

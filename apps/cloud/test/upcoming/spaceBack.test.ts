@@ -90,6 +90,12 @@ describe("space back, with hardlinks", () => {
     expect(claims(base({ torrents: [named] }))).toEqual(nothing)
   })
 
+  it("a title that's only a year or a letter still matches by name", () => {
+    const year = { candidateId: 10, title: "1917", key: "movie:3", at: T1, sizeBytes: 5e9 }
+    const release = movieTorrent({ hash: "zzz", name: "1917.2019.2160p.UHD", size: 30e9, cleanup: undefined })
+    expect(claims(base({ deletions: [year], torrents: [release], grabs: new Map() }))).toEqual(nothing)
+  })
+
   it("a torrent Quai can't place that can't hold the title doesn't keep it from freeing", () => {
     const unrelated = movieTorrent({ hash: "zzz", name: "Paddington.in.Peru.2024.1080p", size: 9e9, cleanup: undefined })
     expect(claims(base({ torrents: [unrelated] }))).toEqual({ deletions: [[9, 57e9]], torrents: [] })

@@ -218,7 +218,10 @@ struct UpcomingView: View {
                 }
             }
         }
-        .refreshable { await connection.loadUpcoming() }
+        .refreshable {
+            await connection.loadUpcoming()
+            if connection.library == nil { await connection.loadLibrary() }
+        }
         .task {
             await connection.loadUpcoming()
             if connection.library == nil { await connection.loadLibrary() }
@@ -279,7 +282,6 @@ struct UpcomingRow: View {
     let item: UpcomingItem
     let when: String
     var compact = false
-    /// Shows a chevron: the row opens To fix or its title. False while its title isn't found.
     var opens = true
 
     private var posterWidth: CGFloat { compact ? 32 : 40 }
