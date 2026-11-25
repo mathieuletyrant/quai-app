@@ -85,6 +85,7 @@ export interface Integration {
   readonly actions: Partial<Record<ActionType, ActionHandler>>
 }
 
+/** Every integration of the running Cloud. */
 export class Integrations extends Context.Service<Integrations, ReadonlyArray<Integration>>()("quai/Integrations") {}
 
 /** Running activities that pass `test`, in their flow. */

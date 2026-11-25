@@ -40,6 +40,7 @@ export const toOffline = (error: HomeError) =>
 
 /** A home Quai Cloud serves, once its documents are loaded. */
 export interface LinkedHome {
+  /** The home this link is to. */
   readonly homeId: string
   /** The services this Quai Home reaches (from its Hello). */
   readonly services: ReadonlyArray<HomeService>
@@ -203,6 +204,7 @@ export class HomeLink extends Context.Service<HomeLink, {
     }
   })()
 
+  /** The home's documents. */
   static readonly documents = Layer.effect(HomeDocuments, Effect.map(Effect.service(HomeLink), (link) => link.documents))
 }
 

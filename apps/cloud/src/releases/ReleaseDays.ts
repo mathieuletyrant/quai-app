@@ -67,6 +67,7 @@ export const rangeReads = (firstDay: string, days: number, zone: string): DayRea
   }
 }
 
+/** What is read of a day. */
 export const dayReads = (day: string, zone: string): DayReads => rangeReads(day, 1, zone)
 
 /** The day `days - 1` after `firstDay`. */

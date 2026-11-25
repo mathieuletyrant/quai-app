@@ -32,6 +32,7 @@ const FinishedTorrent = Schema.Struct({
 })
 export type FinishedTorrent = typeof FinishedTorrent.Type
 
+/** Every finished torrent. */
 export const finishedTorrentsRead: Read<ReadonlyArray<FinishedTorrent>> = {
   service: "qbittorrent",
   path: "/api/v2/torrents/info?filter=completed",
