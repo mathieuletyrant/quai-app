@@ -37,14 +37,14 @@ export function useLoad<A>(load: () => Promise<A>, deps: DependencyList) {
   const refresh = useCallback(() => {
     latest.current().then(
       (data) => setState({ data, error: null }),
-      (error: unknown) => setState((s) => ({ ...s, error }))
+      (error: unknown) => setState((current) => ({ ...current, error }))
     )
   }, [])
   useEffect(() => refresh(), [refresh, ...deps])
   return {
     ...state,
     refresh,
-    setData: (f: (data: A) => A) => setState((s) => ({ ...s, data: s.data === null ? null : f(s.data) })),
-    setError: (error: unknown) => setState((s) => ({ ...s, error }))
+    setData: (update: (data: A) => A) => setState((current) => ({ ...current, data: current.data === null ? null : update(current.data) })),
+    setError: (error: unknown) => setState((current) => ({ ...current, error }))
   }
 }

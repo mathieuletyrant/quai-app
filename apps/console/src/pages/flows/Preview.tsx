@@ -78,9 +78,9 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
           {current.show.list && <SampleList done={done} step={step} />}
           {actions.length > 0 && (
             <div className="flex gap-2">
-              {actions.map((a) => (
-                <span key={a} className="grid h-9 flex-1 place-items-center rounded-xl bg-white/10">
-                  <Glyph name={actionGlyph(a, isPaused)} color={tint} size={16} />
+              {actions.map((action) => (
+                <span key={action} className="grid h-9 flex-1 place-items-center rounded-xl bg-white/10">
+                  <Glyph name={actionGlyph(action, isPaused)} color={tint} size={16} />
                 </span>
               ))}
             </div>
@@ -104,7 +104,7 @@ function PauseSwitch({ paused, onChange }: { paused: boolean; onChange: (paused:
         { value: "playing", label: <><Glyph name="play.fill" color="currentColor" size={10} />Playing</> },
         { value: "paused", label: <><Glyph name="pause.fill" color="currentColor" size={10} />Paused</> }
       ]}
-      onChange={(v) => onChange(v === "paused")}
+      onChange={(state) => onChange(state === "paused")}
     />
   )
 }
@@ -131,8 +131,8 @@ function ProgressBar({ share, tint }: { share: string; tint: string }) {
 function SampleList({ done, step }: { done: boolean; step: number }) {
   return (
     <ul className="flex flex-col gap-1.5">
-      {sampleItems.map((item, i) => {
-        const here = item.done || done || (i === 1 && step > 0)
+      {sampleItems.map((item, index) => {
+        const here = item.done || done || (index === 1 && step > 0)
         return (
           <li key={item.title} className="flex items-center gap-2 text-body">
             <Glyph name={here ? "checkmark" : "clock.fill"} color={here ? doneColor : pendingColor} size={13} />
@@ -149,10 +149,10 @@ function SampleList({ done, step }: { done: boolean; step: number }) {
 function StepTrack({ steps, current, tint }: { steps: ReadonlyArray<DraftStep>; current: number; tint: string }) {
   return (
     <div className="flex gap-1.5">
-      {steps.map((s, i) => (
-        <div key={s.id} className="min-w-0 flex-1">
-          <div className="mb-1 h-0.75 rounded-full" style={{ background: i <= current ? tint : trackColor }} />
-          <p className={`truncate text-overline ${i === current ? "font-semibold text-white/95" : "text-white/45"}`}>{s.label}</p>
+      {steps.map((step, index) => (
+        <div key={step.id} className="min-w-0 flex-1">
+          <div className="mb-1 h-0.75 rounded-full" style={{ background: index <= current ? tint : trackColor }} />
+          <p className={`truncate text-overline ${index === current ? "font-semibold text-white/95" : "text-white/45"}`}>{step.label}</p>
         </div>
       ))}
     </div>
@@ -170,7 +170,7 @@ function StepSlider({ count, step, onStep }: { count: number; step: number; onSt
         min={0}
         max={count - 1}
         value={step}
-        onChange={(e) => onStep(Number(e.target.value))}
+        onChange={(event) => onStep(Number(event.target.value))}
         className="flex-1 accent-accent"
       />
       <span className="w-10 text-right text-caption tabular-nums text-muted">{step + 1} / {count}</span>

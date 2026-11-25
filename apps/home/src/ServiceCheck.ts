@@ -28,11 +28,11 @@ export const verdict = (service: HomeProtocol.HomeService, status: number, body:
   if (status < 200 || status >= 300) return { outcome: "failed", message: `${name} answered HTTP ${status}` }
   // qBittorrent answers its version as plain text: "v5.1.2".
   const version = service === "qbittorrent"
-    ? Option.some(body.trim()).pipe(Option.filter((v) => /^v?\d[\w.-]*$/.test(v)))
-    : Option.map(decodeVersion(body), (b) => b.version)
-  return Option.match(Option.map(version, (v) => v.replace(/^v/, "")), {
+    ? Option.some(body.trim()).pipe(Option.filter((text) => /^v?\d[\w.-]*$/.test(text)))
+    : Option.map(decodeVersion(body), (decoded) => decoded.version)
+  return Option.match(Option.map(version, (raw) => raw.replace(/^v/, "")), {
     onNone: () => ({ outcome: "ok", message: `${name} reached` }),
-    onSome: (v) => ({ outcome: "ok", message: `${name} ${v}`, version: v })
+    onSome: (versionNumber) => ({ outcome: "ok", message: `${name} ${versionNumber}`, version: versionNumber })
   })
 }
 

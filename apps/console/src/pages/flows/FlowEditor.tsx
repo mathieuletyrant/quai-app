@@ -7,7 +7,6 @@ import { type Selection, Pipeline } from "./Pipeline.tsx"
 import { Preview } from "./Preview.tsx"
 import { type Phone, TestMenu } from "./TestMenu.tsx"
 
-/** A flow has at most this many steps. */
 const maxSteps = 6
 
 /**
@@ -23,7 +22,7 @@ export function FlowEditor(props: {
   phones: ReadonlyArray<Phone>
   /** The page title: the flow's name, opening the other flows. */
   switcher: ReactNode
-  onChange: (change: (d: Draft) => void) => void
+  onChange: (change: (draft: Draft) => void) => void
   onSave: () => void
   onDiscard: () => void
   onTest: (deviceIds: ReadonlyArray<DeviceId>) => void
@@ -44,25 +43,25 @@ export function FlowEditor(props: {
     if (next._tag === "Step") setPreviewStep(next.index)
   }
   const addStep = () => {
-    onChange((d) => { d.steps.push(newStep(d, events)) })
+    onChange((edited) => { edited.steps.push(newStep(edited, events)) })
     select({ _tag: "Step", index: draft.steps.length })
   }
   const moveStep = (index: number, delta: -1 | 1) => {
-    onChange((d) => {
-      const [moved] = d.steps.splice(index, 1)
-      d.steps.splice(index + delta, 0, moved!)
+    onChange((edited) => {
+      const [moved] = edited.steps.splice(index, 1)
+      edited.steps.splice(index + delta, 0, moved!)
     })
     select({ _tag: "Step", index: index + delta })
   }
   const removeStep = (index: number) => {
-    onChange((d) => { d.steps.splice(index, 1) })
+    onChange((edited) => { edited.steps.splice(index, 1) })
     select({ _tag: "Step", index: Math.max(0, index - 1) })
   }
 
   return (
     <>
       <PageBar title={props.switcher}>
-        <EnabledToggle enabled={draft.enabled} onChange={(on) => onChange((d) => { d.enabled = on })} />
+        <EnabledToggle enabled={draft.enabled} onChange={(on) => onChange((edited) => { edited.enabled = on })} />
         {props.dirty || props.isNew
           ? <SaveBar isNew={props.isNew} problem={problem} onSave={props.onSave} onDiscard={props.onDiscard} />
           : (
@@ -94,7 +93,7 @@ export function FlowEditor(props: {
                 index={selection.index}
                 events={events}
                 actions={actions}
-                onChange={(next) => onChange((d) => { d.steps[selection.index] = next })}
+                onChange={(next) => onChange((edited) => { edited.steps[selection.index] = next })}
                 onMove={(delta) => moveStep(selection.index, delta)}
                 onRemove={() => removeStep(selection.index)}
               />

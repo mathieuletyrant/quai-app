@@ -75,7 +75,7 @@ export const ensureSeerrWebhook = (url: string, token: string) =>
     const refused = (message: string, cause?: unknown) =>
       new ServiceError({ service: "seerr", message: `could not set up the webhook: ${message}`, cause })
     const settings = yield* auth.execute("seerr", HttpClientRequest.get(seerrWebhookPath)).pipe(
-      Effect.flatMap((r) => r.status === 200 ? Effect.mapError(r.json, (cause) => refused("unreadable settings", cause)) : Effect.fail(refused(`HTTP ${r.status}`))),
+      Effect.flatMap((response) => response.status === 200 ? Effect.mapError(response.json, (cause) => refused("unreadable settings", cause)) : Effect.fail(refused(`HTTP ${response.status}`))),
       Effect.flatMap((body) => Effect.mapError(Schema.decodeUnknownEffect(WebhookSettings)(body), (cause) => refused("unexpected settings", cause)))
     )
     const plan = seerrWebhookPlan(settings, token)

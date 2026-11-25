@@ -90,7 +90,7 @@ const cloud = (connection: Connection, message: object | string) =>
 /** Lets forked fibers run up to their next wait. */
 const settle = Effect.repeat(Effect.yieldNow, { times: 20 })
 
-const nothingSent = (connection: Connection) => Effect.map(Effect.andThen(settle, Queue.size(connection.sent)), (n) => n === 0)
+const nothingSent = (connection: Connection) => Effect.map(Effect.andThen(settle, Queue.size(connection.sent)), (size) => size === 0)
 const noConnection = (connections: Queue.Queue<Connection>) =>
   Effect.map(Effect.andThen(settle, Queue.poll(connections)), Option.isNone)
 
@@ -146,10 +146,10 @@ describe("link", () => {
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const connection = yield* linked(connections)
-        for (let i = 0; i < 4; i++) {
+        for (let ping = 0; ping < 4; ping++) {
           yield* TestClock.adjust("20 seconds")
-          yield* cloud(connection, { _tag: "Ping", at: i })
-          expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "Pong", at: i })
+          yield* cloud(connection, { _tag: "Ping", at: ping })
+          expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "Pong", at: ping })
         }
         expect(yield* noConnection(connections)).toBe(true)
 
@@ -229,14 +229,14 @@ describe("link", () => {
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const link = yield* Link
-        for (let i = 0; i < heldWebhooksLimit + 5; i++) {
-          yield* link.send({ _tag: "WebhookReceived", service: "radarr", receivedAt: i, body: {} })
+        for (let webhook = 0; webhook < heldWebhooksLimit + 5; webhook++) {
+          yield* link.send({ _tag: "WebhookReceived", service: "radarr", receivedAt: webhook, body: {} })
         }
         const connection = yield* linked(connections)
         yield* settle
         const sent: Array<any> = []
         while ((yield* Queue.size(connection.sent)) > 0) sent.push(yield* Queue.take(connection.sent))
-        const webhooks = sent.filter((m) => m._tag === "WebhookReceived")
+        const webhooks = sent.filter((message) => message._tag === "WebhookReceived")
         expect(webhooks).toHaveLength(heldWebhooksLimit)
         expect(webhooks[0].receivedAt).toBe(5)
       })))
@@ -252,7 +252,7 @@ describe("link", () => {
         yield* cloud(connection, { _tag: "StoreList", id: "5", prefix: "" })
         yield* cloud(connection, { _tag: "StorePut", id: "6", key: "../escape", value: 1 })
         const answers = [] as Array<unknown>
-        for (let i = 0; i < 6; i++) answers.push(yield* Queue.take(connection.sent))
+        for (let answer = 0; answer < 6; answer++) answers.push(yield* Queue.take(connection.sent))
         expect(answers).toEqual([
           { _tag: "StoreDone", id: "1" },
           { _tag: "StoreDone", id: "2" },
@@ -267,7 +267,7 @@ describe("link", () => {
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const connection = yield* linked(connections)
-        const line = (n: number, source: string) => ({ id: journalId(1_000 + n, "c", n), at: 1_000 + n, level: "info", source, kind: "media.grabbed", text: `line ${n}` })
+        const line = (index: number, source: string) => ({ id: journalId(1_000 + index, "c", index), at: 1_000 + index, level: "info", source, kind: "media.grabbed", text: `line ${index}` })
         yield* cloud(connection, { _tag: "JournalAppend", entries: [line(1, "radarr"), line(2, "sonarr"), line(3, "radarr")] })
         yield* cloud(connection, { _tag: "JournalRead", id: "r9", query: { limit: 1, sources: ["radarr"] } })
         expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "JournalPage", id: "r9", entries: [line(3, "radarr")], more: true })
@@ -281,9 +281,9 @@ describe("link", () => {
         const connection = yield* linked(connections)
         const noted = yield* Queue.take(connection.sent)
         expect(noted._tag).toBe("JournalNoted")
-        expect(noted.entries.map((e: { text: string }) => e.text)).toEqual(["refused"])
+        expect(noted.entries.map((entry: { text: string }) => entry.text)).toEqual(["refused"])
         const page = yield* journal.read({ limit: 10 })
-        expect(page.entries.map((e) => e.text)).toEqual(["refused"])
+        expect(page.entries.map((entry) => entry.text)).toEqual(["refused"])
       })))
 
   it.effect("polls watches while linked, stops on disconnect, and sends snapshots again after the next Welcome", () =>

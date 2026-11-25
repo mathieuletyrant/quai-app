@@ -89,13 +89,13 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         )
       const radarrWebUrls = yield* webUrlsOf("RADARR")
       const sonarrWebUrls = yield* webUrlsOf("SONARR")
-      const nonEmpty = (value: Option.Option<string>) => Option.filter(Option.map(value, (v) => v.trim()), (v) => v !== "")
+      const nonEmpty = (value: Option.Option<string>) => Option.filter(Option.map(value, (text) => text.trim()), (text) => text !== "")
       const password = yield* secret("QUAI_HOME_PASSWORD")
       return {
         cloudUrl: Option.getOrNull(nonEmpty(yield* Config.option(Config.schema(Schema.String.check(Schema.isPattern(/^\s*(wss?:\/\/.*)?$/)), "QUAI_CLOUD_URL")))),
         cloudAppUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CLOUD_APP_URL")), trimSlash)),
         consolePublicUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CONSOLE_PUBLIC_URL")), trimSlash)),
-        password: Option.getOrNull(Option.filter(password, (p) => Redacted.value(p) !== "")),
+        password: Option.getOrNull(Option.filter(password, (redacted) => Redacted.value(redacted) !== "")),
         consoleDir: Option.getOrNull(nonEmpty(yield* opt("QUAI_CONSOLE_DIR"))),
         port: yield* Config.Port("QUAI_HOME_PORT").pipe(Config.withDefault(8788)),
         dataDir: yield* Config.String("QUAI_DATA_DIR").pipe(Config.withDefault("./data")),

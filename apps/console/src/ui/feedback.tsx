@@ -3,7 +3,7 @@ import { isCloudOffline } from "../client.ts"
 import { cx } from "./cx.ts"
 import { Icon, type IconName } from "./icons.tsx"
 
-export const errorText = (e: unknown) => typeof e === "object" && e !== null && "message" in e ? String(e.message) : String(e)
+export const errorText = (error: unknown) => typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error)
 
 const calloutTones = {
   neutral: "border-line bg-white/3 text-muted",
@@ -46,7 +46,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 /** A list's outline while it loads: `count` bars inside a flush panel. */
 export function SkeletonList({ count }: { count: number }) {
-  return <div className="flex flex-col gap-3 p-5">{Array.from({ length: count }, (_, i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
+  return <div className="flex flex-col gap-3 p-5">{Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-12 w-full" />)}</div>
 }
 
 /** What a panel shows with nothing in it: what's missing, and the action that fills it. */

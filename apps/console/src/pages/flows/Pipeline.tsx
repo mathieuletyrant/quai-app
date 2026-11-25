@@ -39,7 +39,7 @@ const endTitle = (flow: Draft, eventLabel: (type: string) => string) => {
 }
 
 /** The shows a step has turned on, in the order the editor lists them. */
-const shownKeys = (step: DraftStep) => (Object.keys(showLabels) as Array<keyof typeof showLabels>).filter((k) => step.show[k])
+const shownKeys = (step: DraftStep) => (Object.keys(showLabels) as Array<keyof typeof showLabels>).filter((key) => step.show[key])
 
 const tag = "rounded-md px-1.5 py-0.5 text-overline font-semibold"
 
@@ -54,7 +54,7 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
   onSelect: (selection: Selection) => void
   onAddStep: (() => void) | null
 }) {
-  const eventOf = (type: string) => events.find((e) => e.type === type)
+  const eventOf = (type: string) => events.find((event) => event.type === type)
   const eventLabel = (type: string) => {
     const event = eventOf(type)
     const label = event ? eventName(event) : type
@@ -163,8 +163,8 @@ function StepNode({ flow, step, index, selected, warning, onSelect }: {
       {shows.length > 0 || actions.length > 0
         ? (
           <span className="flex flex-wrap gap-1.5">
-            {shows.map((k) => <span key={k} className={`${tag} text-muted ring-1 ring-line-strong ring-inset`}>{showLabels[k]}</span>)}
-            {actions.map((a) => <ActionTag key={a} action={a} color={flow.color} />)}
+            {shows.map((key) => <span key={key} className={`${tag} text-muted ring-1 ring-line-strong ring-inset`}>{showLabels[key]}</span>)}
+            {actions.map((action) => <ActionTag key={action} action={action} color={flow.color} />)}
           </span>
         )
         : <span className="text-body text-faint">Shows its name only</span>}
@@ -214,7 +214,7 @@ function EventLabel({ label, services }: { label: string; services: ReadonlyArra
     <>
       <Icon name="bolt" size={12} className="text-faint" />
       <span>When <span className="font-semibold text-text-2">{label}</span></span>
-      {services.map((s) => <span key={s} className={`${tag} bg-white/7 text-text-2`}>{serviceNames[s]}</span>)}
+      {services.map((service) => <span key={service} className={`${tag} bg-white/7 text-text-2`}>{serviceNames[service]}</span>)}
     </>
   )
 }

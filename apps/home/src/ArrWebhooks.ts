@@ -45,10 +45,10 @@ export const ensureWebhook = (service: "radarr" | "sonarr", url: string) =>
   Effect.gen(function*() {
     const auth = yield* ServiceAuth
     const existing = yield* auth.execute(service, HttpClientRequest.get("/api/v3/notification")).pipe(
-      Effect.flatMap((r) => r.json),
+      Effect.flatMap((response) => response.json),
       Effect.flatMap(Schema.decodeUnknownEffect(Notifications))
     )
-    const mine = existing.find((n) => n.name === webhookName && n.implementation === "Webhook")
+    const mine = existing.find((notification) => notification.name === webhookName && notification.implementation === "Webhook")
     const body = webhookBody(service, url)
     const request = mine === undefined
       ? HttpClientRequest.post("/api/v3/notification")
@@ -87,10 +87,10 @@ export const WebhookSetupLive = Layer.effectDiscard(
         Effect.logInfo(`${service} webhook ${result}`),
         journal.note({ level: "info", source: service, kind: "webhook.setup", text: `${name[service]}'s webhook to Quai Home ${result}` })
       )
-    const refused = (service: keyof typeof name, e: ServiceError) =>
+    const refused = (service: keyof typeof name, error: ServiceError) =>
       Effect.andThen(
-        Effect.logWarning(`${service}: ${e.message}`, e.cause),
-        journal.note({ level: "error", source: service, kind: "webhook.failed", text: `${name[service]}: ${e.message}` })
+        Effect.logWarning(`${service}: ${error.message}`, error.cause),
+        journal.note({ level: "error", source: service, kind: "webhook.failed", text: `${name[service]}: ${error.message}` })
       )
     const setUp = (service: HomeProtocol.HomeService) =>
       Effect.gen(function*() {
@@ -98,7 +98,7 @@ export const WebhookSetupLive = Layer.effectDiscard(
         if (service === "radarr" || service === "sonarr") {
           yield* ensureWebhook(service, webhookUrl(internalUrl, service, token)).pipe(
             Effect.tap((result) => done(service, result)),
-            Effect.catchTag("ServiceError", (e) => refused(service, e))
+            Effect.catchTag("ServiceError", (error) => refused(service, error))
           )
         } else if (service === "seerr") {
           yield* ensureSeerrWebhook(webhookUrl(internalUrl, "seerr", token), token).pipe(
@@ -109,7 +109,7 @@ export const WebhookSetupLive = Layer.effectDiscard(
                   journal.note({ level: "warn", source: "seerr", kind: "webhook.taken", text: "Seerr's webhook already posts elsewhere: left as it is, Quai Cloud polls the requests instead" })
                 )
                 : done("seerr", result)),
-            Effect.catchTag("ServiceError", (e) => refused("seerr", e))
+            Effect.catchTag("ServiceError", (error) => refused("seerr", error))
           )
         }
       })

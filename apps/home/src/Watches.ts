@@ -60,7 +60,7 @@ export class Watches extends Context.Service<Watches, {
               set: (watches) =>
                 Effect.gen(function*() {
                   yield* FiberSet.clear(fibers)
-                  const kept = new Map(watches.map((w) => [w.id, targetOf(w)]))
+                  const kept = new Map(watches.map((watch) => [watch.id, targetOf(watch)]))
                   for (const [id, last] of sent) if (kept.get(id) !== last.target) sent.delete(id)
                   for (const watch of watches) {
                     if (!HomeProtocol.allowed({ service: watch.service, method: "GET", path: watch.path })) {

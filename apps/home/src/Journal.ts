@@ -35,7 +35,7 @@ export const parseJournal = (text: string): { readonly entries: ReadonlyArray<Jo
   return { entries, skipped }
 }
 
-const toLines = (entries: ReadonlyArray<JournalEntry>) => entries.map((e) => JSON.stringify(e) + "\n").join("")
+const toLines = (entries: ReadonlyArray<JournalEntry>) => entries.map((entry) => JSON.stringify(entry) + "\n").join("")
 
 /**
  * The home's journal, on `/data/journal`: one JSON line per entry, one file per day (UTC), kept 7
@@ -64,7 +64,7 @@ export class Journal extends Context.Service<Journal, {
       yield* fs.makeDirectory(root, { recursive: true }).pipe(Effect.catch(warn(`could not create ${root}`)))
 
       // What was kept before, a corrupted line skipped (a crash mid-write leaves half of one).
-      const files = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((f) => filePattern.test(f)).sort()
+      const files = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((name) => filePattern.test(name)).sort()
       const entries: Array<JournalEntry> = []
       const ids = new Set<string>()
       let skipped = 0
@@ -79,7 +79,7 @@ export class Journal extends Context.Service<Journal, {
         }
       }
       if (skipped > 0) yield* Effect.logWarning(`journal: skipped ${skipped} unreadable line${skipped === 1 ? "" : "s"}`)
-      entries.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+      entries.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
 
       let pending: Array<JournalEntry> = []
       let counter = 0
@@ -107,20 +107,20 @@ export class Journal extends Context.Service<Journal, {
           const cutoff = now - Retention.days * dayMs
           const tooMany = entries.length > Retention.maxEntries + Retention.slack
           const keepFrom = Math.max(
-            entries.findIndex((e) => e.at >= cutoff) === -1 ? entries.length : entries.findIndex((e) => e.at >= cutoff),
+            entries.findIndex((entry) => entry.at >= cutoff) === -1 ? entries.length : entries.findIndex((entry) => entry.at >= cutoff),
             tooMany ? entries.length - Retention.maxEntries : 0
           )
           const dropped = entries.splice(0, keepFrom)
           for (const entry of dropped) ids.delete(entry.id)
-          const onDisk = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((f) => filePattern.test(f))
-          const touched = new Set(dropped.map((e) => journalFile(e.at)))
+          const onDisk = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((name) => filePattern.test(name))
+          const touched = new Set(dropped.map((entry) => journalFile(entry.at)))
           const oldest = journalFile(cutoff)
           for (const file of onDisk) {
             if (file < oldest) yield* fs.remove(join(root, file), { force: true }).pipe(Effect.catch(warn(`could not remove ${file}`)))
             else if (touched.has(file)) {
               // What still waits in memory is appended by the next flush, not written twice.
-              const waiting = new Set(pending.map((e) => e.id))
-              const kept = entries.filter((e) => journalFile(e.at) === file && !waiting.has(e.id))
+              const waiting = new Set(pending.map((entry) => entry.id))
+              const kept = entries.filter((entry) => journalFile(entry.at) === file && !waiting.has(entry.id))
               yield* rewrite(file, kept).pipe(Effect.catch(warn(`could not prune ${file}`)))
             }
           }
@@ -162,9 +162,9 @@ export class Journal extends Context.Service<Journal, {
         if (ids.has(entry.id)) return false
         ids.add(entry.id)
         // Nearly always the newest: kept sorted without sorting everything.
-        let i = entries.length
-        while (i > 0 && entries[i - 1]!.id > entry.id) i--
-        entries.splice(i, 0, entry)
+        let position = entries.length
+        while (position > 0 && entries[position - 1]!.id > entry.id) position--
+        entries.splice(position, 0, entry)
         pending.push(entry)
         return true
       }

@@ -25,8 +25,8 @@ export function Popover({ trigger, align = "left", className, children }: {
   }, [open])
   useEffect(() => {
     if (!open) return
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false) }
+    const onDown = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false) }
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false) }
     document.addEventListener("mousedown", onDown)
     document.addEventListener("keydown", onKey)
     return () => {

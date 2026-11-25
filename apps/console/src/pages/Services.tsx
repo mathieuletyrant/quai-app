@@ -24,7 +24,7 @@ const checkTones: Record<ServiceCheck["outcome"], Tone> = { ok: "ok", refused: "
 const subtitle = (list: ReadonlyArray<ServiceSetup> | null) =>
   list === null
     ? "Where Quai Home reaches each service, and its key"
-    : `${list.filter((s) => s.source !== "none").length} of ${list.length} set · addresses and keys stay in Quai Home, never sent to Quai Cloud`
+    : `${list.filter((setup) => setup.source !== "none").length} of ${list.length} set · addresses and keys stay in Quai Home, never sent to Quai Cloud`
 
 const secretName = (service: Service) => service === "qbittorrent" ? "Password" : "API key"
 
@@ -68,10 +68,10 @@ function ServiceForm({ setup, onSaved, onRemove }: { setup: ServiceSetup; onSave
     setError(null)
     try {
       const payload = { url, ...(secret === "" ? {} : { secret }), ...(qbittorrent ? { username } : {}) }
-      const saved = await callHome((c) => c.services.save({ params: { service: setup.service }, payload }))
+      const saved = await callHome((api) => api.services.save({ params: { service: setup.service }, payload }))
       onSaved(saved.check)
-    } catch (e) {
-      setError(e)
+    } catch (failure) {
+      setError(failure)
     } finally {
       setSaving(false)
     }
@@ -82,15 +82,15 @@ function ServiceForm({ setup, onSaved, onRemove }: { setup: ServiceSetup; onSave
       <ErrorCallout error={error} />
       <div className="grid gap-4 md:grid-cols-2">
         <Field label="Address" hint={<>As Quai Home reaches it.</>}>
-          <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={about[setup.service].example} required autoComplete="off" />
+          <Input value={url} onChange={(event) => setUrl(event.target.value)} placeholder={about[setup.service].example} required autoComplete="off" />
         </Field>
         {qbittorrent && (
           <Field label="User name">
-            <Input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Optional" autoComplete="off" />
+            <Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Optional" autoComplete="off" />
           </Field>
         )}
         <Field label={secretName(setup.service)} hint={about[setup.service].key}>
-          <Input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={secretPlaceholder(setup)} autoComplete="new-password" />
+          <Input type="password" value={secret} onChange={(event) => setSecret(event.target.value)} placeholder={secretPlaceholder(setup)} autoComplete="new-password" />
         </Field>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -122,12 +122,12 @@ function ServiceRow({ setup, onChanged }: { setup: ServiceSetup; onChanged: () =
   const [editing, setEditing] = useState(false)
   const [fresh, setFresh] = useState<ServiceCheck | null>(null)
   const checked = useLoad(
-    () => setup.source === "none" ? Promise.resolve(null) : callHome((c) => c.services.check({ params: { service: setup.service } })),
+    () => setup.source === "none" ? Promise.resolve(null) : callHome((api) => api.services.check({ params: { service: setup.service } })),
     [setup.source, setup.url]
   )
   const remove = () => {
     if (!window.confirm(`Remove ${journalSourceNames[setup.service]}? Quai leaves out what it does until it's set again.`)) return
-    void callHome((c) => c.services.remove({ params: { service: setup.service } })).then(() => {
+    void callHome((api) => api.services.remove({ params: { service: setup.service } })).then(() => {
       setEditing(false)
       setFresh(null)
       onChanged()
@@ -154,7 +154,7 @@ function ServiceRow({ setup, onChanged }: { setup: ServiceSetup; onChanged: () =
 }
 
 export function ServicesPage() {
-  const services = useLoad(() => callHome((c) => c.services.list()), [])
+  const services = useLoad(() => callHome((api) => api.services.list()), [])
   return (
     <>
       <PageBar title="Services" subtitle={subtitle(services.data)} />
@@ -173,7 +173,7 @@ export function ServicesPage() {
 
 /** Services set by Quai Home's environment are read-only here: where to change them. */
 function EnvironmentNote({ list }: { list: ReadonlyArray<ServiceSetup> | null }) {
-  if (list === null || !list.some((s) => s.source === "environment")) return null
+  if (list === null || !list.some((setup) => setup.source === "environment")) return null
   return (
     <p className="flex gap-2 text-caption text-muted">
       <Icon name="info" size={14} className="mt-0.5 shrink-0" />

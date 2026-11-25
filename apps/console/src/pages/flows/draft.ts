@@ -8,7 +8,7 @@ export type EventType = FlowStep["on"]
 
 export const clone = (flow: Flow | Draft): Draft => structuredClone(flow) as Draft
 
-export const sameFlow = (a: Flow | Draft, b: Flow | Draft) => JSON.stringify(a) === JSON.stringify(b)
+export const sameFlow = (left: Flow | Draft, right: Flow | Draft) => JSON.stringify(left) === JSON.stringify(right)
 
 export const slug = (text: string) =>
   text.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "flow"
@@ -60,13 +60,13 @@ export const endsAtLastStep = (flow: Draft) => flow.endOn === undefined || flow.
  * nor for a flow with buttons (a request), whose buttons already say where it stands.
  */
 export const showsSteps = (flow: Draft) =>
-  flow.steps.length > 1 && !flow.steps.some((s) => (s.actions ?? []).length > 0)
+  flow.steps.length > 1 && !flow.steps.some((step) => (step.actions ?? []).length > 0)
 
 /** An event's label without the services in brackets, which the console shows as badges. */
 export const eventName = (event: CatalogEvent) => event.label.replace(/ \(.*\)$/, "")
 
 /** "Release grabbed — Radarr, Sonarr": an event as a select lists it. */
-export const eventOption = (event: CatalogEvent) => `${eventName(event)} — ${event.services.map((s) => serviceNames[s]).join(", ")}`
+export const eventOption = (event: CatalogEvent) => `${eventName(event)} — ${event.services.map((service) => serviceNames[service]).join(", ")}`
 
 export const showLabels: Record<keyof StepShow, string> = {
   progress: "Progress",
@@ -84,10 +84,10 @@ export interface Catalogs {
 }
 
 export const stepEvents = (catalogs: Catalogs, subject: Flow["subject"]) =>
-  catalogs.events.filter((e) => !e.data && e.subject === subject)
+  catalogs.events.filter((event) => !event.data && event.subject === subject)
 
 export const stepActions = (catalogs: Catalogs, subject: Flow["subject"]) =>
-  catalogs.actions.filter((a) => a.subject === subject)
+  catalogs.actions.filter((action) => action.subject === subject)
 
 /**
  * Why a step will be skipped for some titles, if it will: series only follow a download once
@@ -102,8 +102,8 @@ export const skippedFor = (flow: Draft, event: CatalogEvent | undefined): string
 }
 
 export const newStep = (flow: Draft, events: ReadonlyArray<CatalogEvent>): DraftStep => {
-  const unused = events.find((e) => !flow.steps.some((s) => s.on === e.type)) ?? events[0]!
-  let n = flow.steps.length + 1
-  while (flow.steps.some((s) => s.id === `step-${n}`)) n++
-  return { id: `step-${n}`, label: unused.label.replace(/ \(.*\)$/, ""), icon: "sparkles", on: unused.type, show: {} }
+  const unused = events.find((event) => !flow.steps.some((step) => step.on === event.type)) ?? events[0]!
+  let number = flow.steps.length + 1
+  while (flow.steps.some((step) => step.id === `step-${number}`)) number++
+  return { id: `step-${number}`, label: unused.label.replace(/ \(.*\)$/, ""), icon: "sparkles", on: unused.type, show: {} }
 }

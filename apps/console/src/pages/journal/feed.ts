@@ -52,16 +52,16 @@ export const visibleLines = (
     fresh.push(entry)
   }
   const lines = [...fresh, ...history]
-    .sort((a, b) => a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
-    .filter((e) => !seen.has(e.id) && seen.add(e.id))
+    .sort((left, right) => left.id < right.id ? 1 : left.id > right.id ? -1 : 0)
+    .filter((entry) => !seen.has(entry.id) && seen.add(entry.id))
   return { lines, held }
 }
 
 const dayMs = 24 * 3600_000
 const startOfDay = (at: number) => {
-  const d = new Date(at)
-  d.setHours(0, 0, 0, 0)
-  return d.getTime()
+  const date = new Date(at)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
 }
 
 /** "Today", "Yesterday", "Wed, Nov 18", in the browser's time zone. */

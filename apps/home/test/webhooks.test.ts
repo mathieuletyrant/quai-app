@@ -58,16 +58,16 @@ describe("webhook setup", () => {
   it.effect("creates Quai's webhook once, then updates it in place", () => {
     const seen: Array<Seen> = []
     let existing: Array<object> = [{ id: 3, name: "Discord", implementation: "Discord" }]
-    const http = fakeHttp((r) => {
-      if (r.method === "GET") return { json: existing }
+    const http = fakeHttp((incoming) => {
+      if (incoming.method === "GET") return { json: existing }
       existing = [...existing, { id: 9, name: "Quai", implementation: "Webhook" }]
-      return { status: r.method === "POST" ? 201 : 202, json: {} }
+      return { status: incoming.method === "POST" ? 201 : 202, json: {} }
     }, seen)
     const url = "http://quai-home:8788/webhooks/radarr?token=t"
     return Effect.gen(function*() {
       expect(yield* ensureWebhook("radarr", url)).toBe("created")
       expect(yield* ensureWebhook("radarr", url)).toBe("updated")
-      expect(seen.map((r) => `${r.method} ${r.url.href}`)).toEqual([
+      expect(seen.map((recorded) => `${recorded.method} ${recorded.url.href}`)).toEqual([
         "GET http://radarr:7878/api/v3/notification",
         "POST http://radarr:7878/api/v3/notification",
         "GET http://radarr:7878/api/v3/notification",
@@ -86,7 +86,7 @@ describe("Seerr webhook setup", () => {
   const url = `http://quai-home:8788/webhooks/seerr?token=${token}`
   const run = (current: object) => {
     const seen: Array<Seen> = []
-    const http = fakeHttp((r) => r.method === "GET" ? { json: current } : { json: {} }, seen)
+    const http = fakeHttp((incoming) => incoming.method === "GET" ? { json: current } : { json: {} }, seen)
     return Effect.map(
       ensureSeerrWebhook(url, token).pipe(Effect.provide(ServiceAuth.fromConfig.pipe(Layer.provide([configLayer(), http])))),
       (result) => ({ result, seen })
@@ -97,7 +97,7 @@ describe("Seerr webhook setup", () => {
     Effect.gen(function*() {
       const { result, seen } = yield* run({ enabled: false, types: 0, options: { webhookUrl: "", jsonPayload: "" } })
       expect(result).toBe("created")
-      expect(seen.map((r) => `${r.method} ${r.url.href}`)).toEqual([
+      expect(seen.map((recorded) => `${recorded.method} ${recorded.url.href}`)).toEqual([
         "GET http://seerr:5055/api/v1/settings/notifications/webhook",
         "POST http://seerr:5055/api/v1/settings/notifications/webhook"
       ])
@@ -123,7 +123,7 @@ describe("Seerr webhook setup", () => {
           // Turned off is still someone's: they may turn it back on.
           const { result, seen } = yield* run({ enabled, types: 222, options: { webhookUrl: other } })
           expect(result).toBe("taken")
-          expect(seen.map((r) => r.method)).toEqual(["GET"])
+          expect(seen.map((recorded) => recorded.method)).toEqual(["GET"])
         }
       }
     }))

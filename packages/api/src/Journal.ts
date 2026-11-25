@@ -70,8 +70,8 @@ export type JournalOrigin = "c" | "h"
  * An entry's id: its time, then who wrote it and a counter, so that ids sort as the entries
  * happened and two writers never mint the same one.
  */
-export const journalId = (at: number, origin: JournalOrigin, n: number) =>
-  `${String(Math.max(0, Math.floor(at))).padStart(13, "0")}-${origin}${n.toString(36).padStart(6, "0")}`
+export const journalId = (at: number, origin: JournalOrigin, counter: number) =>
+  `${String(Math.max(0, Math.floor(at))).padStart(13, "0")}-${origin}${counter.toString(36).padStart(6, "0")}`
 
 /** A page asked for at most this many entries. */
 export const maxJournalPage = 200
@@ -112,8 +112,8 @@ export const journalMatches = (entry: JournalEntry, query: Omit<JournalQuery, "b
 export const journalPage = (entries: ReadonlyArray<JournalEntry>, query: JournalQuery) => {
   const limit = Math.min(maxJournalPage, Math.max(1, Math.floor(query.limit)))
   const matching = entries
-    .filter((e) => (query.before === undefined || e.id < query.before) && journalMatches(e, query))
-    .sort((a, b) => a.id < b.id ? 1 : a.id > b.id ? -1 : 0)
+    .filter((entry) => (query.before === undefined || entry.id < query.before) && journalMatches(entry, query))
+    .sort((left, right) => left.id < right.id ? 1 : left.id > right.id ? -1 : 0)
   return { entries: matching.slice(0, limit), more: matching.length > limit }
 }
 

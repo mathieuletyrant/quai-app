@@ -13,9 +13,9 @@ const day = 24 * 3600_000
 /** Nov 20, 2026, 08:00 UTC. */
 const morning = Date.UTC(2026, 10, 20, 8)
 
-let n = 0
+let sequence = 0
 const line = (at: number, overrides: Partial<JournalEntry> = {}): JournalEntry => ({
-  id: journalId(at, "c", n++),
+  id: journalId(at, "c", sequence++),
   at,
   level: "info",
   source: "radarr",
@@ -36,7 +36,7 @@ const inTemp = <A, E>(test: (dir: string, fs: FileSystem.FileSystem) => Effect.E
   }).pipe(Effect.scoped, Effect.provide(NodeFileSystem.layer))
 
 const files = (fs: FileSystem.FileSystem, dir: string) =>
-  Effect.map(fs.readDirectory(join(dir, "journal")), (all) => all.filter((f) => !f.startsWith(".")).sort())
+  Effect.map(fs.readDirectory(join(dir, "journal")), (all) => all.filter((name) => !name.startsWith(".")).sort())
 
 describe("home journal", () => {
   it.effect("writes JSON lines in the file of their day 2 s after they came in, and reads them back after a restart", () =>
@@ -100,8 +100,8 @@ describe("home journal", () => {
     inTemp((dir, fs) =>
       Effect.gen(function*() {
         const total = Retention.maxEntries + Retention.slack + 1
-        const older = Array.from({ length: 300 }, (_, i) => line(morning - day + i))
-        const newer = Array.from({ length: total - 300 }, (_, i) => line(morning + i))
+        const older = Array.from({ length: 300 }, (_, index) => line(morning - day + index))
+        const newer = Array.from({ length: total - 300 }, (_, index) => line(morning + index))
         yield* opened(dir, (journal) =>
           Effect.gen(function*() {
             yield* journal.append([...older, ...newer])
@@ -125,9 +125,9 @@ describe("home journal", () => {
           yield* TestClock.adjust(1000)
           yield* journal.note({ level: "warn", source: "home", kind: "call.refused", text: "refused" })
           const all = yield* journal.read({ limit: 10 })
-          expect(all.entries.map((e) => e.text)).toEqual(["refused", grabbed.text])
+          expect(all.entries.map((entry) => entry.text)).toEqual(["refused", grabbed.text])
           expect(all.entries[0]!.id).toMatch(/-h/)
-          expect((yield* journal.read({ limit: 10, level: "warn" })).entries.map((e) => e.text)).toEqual(["refused"])
+          expect((yield* journal.read({ limit: 10, level: "warn" })).entries.map((entry) => entry.text)).toEqual(["refused"])
           expect((yield* journal.read({ limit: 10, subject: "movie:tmdb:1" })).entries).toEqual([grabbed])
           expect((yield* journal.read({ limit: 1 })).more).toBe(true)
           expect(yield* journal.noted).toHaveLength(1)
@@ -155,7 +155,7 @@ describe("home journal lines", () => {
           up = true
           yield* calls.run(status)
           yield* calls.run(status)
-          const texts = (yield* journal.read({ limit: 10 })).entries.map((e) => `${e.level} ${e.source} ${e.text}`).reverse()
+          const texts = (yield* journal.read({ limit: 10 })).entries.map((entry) => `${entry.level} ${entry.source} ${entry.text}`).reverse()
           expect(texts).toEqual([
             "warn radarr Quai Home refused a call outside its allowlist: Radarr GET /api/v3/config/host",
             "warn radarr Quai Home can't reach Radarr: unreachable",
