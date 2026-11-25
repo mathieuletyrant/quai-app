@@ -13,6 +13,8 @@ export type TitleKey = string
 /** A deletion Reclaimerr plans, as space back needs it. */
 export interface DeletionInput {
   readonly candidateId: number
+  /** As Reclaimerr names it: "Chainsaw Man – Le Film : L'arc de Reze". */
+  readonly title: string
   /** The title it deletes whole; undefined when it isn't known, or only part of it goes. */
   readonly key: TitleKey | undefined
   /** Epoch milliseconds. */
@@ -126,13 +128,34 @@ export const surelyLast = (copies: ReadonlyArray<Going>): Going | undefined => {
   return copies.every((c) => c === last || c.latest <= last.earliest) ? last : undefined
 }
 
+/** Shares within which two sizes are the same files: a release and the library file it became. */
+const sameSizeShare = 0.05
+
+/** The words of a title or a release name, lowercase, without accents, years or one-letter words. */
+const wordsOf = (text: string) =>
+  new Set(text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 1 && !/^(19|20)\d\d$/.test(w)))
+
+/**
+ * Whether torrents Quai couldn't place may hold a deletion's files: about the same size, or every
+ * word of its title in their name. Reclaimerr's title may be translated: the size still tells.
+ */
+export const mayHold = (set: FileSet, deletion: DeletionInput): boolean => {
+  const size = deletion.sizeBytes ?? 0
+  if (set.torrents.some((t) => size > 0 && Math.abs(t.size - size) <= size * sameSizeShare)) return true
+  const title = wordsOf(deletion.title)
+  return title.size > 0 && set.torrents.some((t) => {
+    const name = wordsOf(t.name)
+    return [...title].every((w) => name.has(w))
+  })
+}
+
 const add = <K>(map: Map<K, number>, key: K, bytes: number) => map.set(key, (map.get(key) ?? 0) + bytes)
 
 /**
  * The space each planned deletion and seed cleanup gives back, only when sure: on the row of the
  * copy that surely goes last, the size of the files. Copies (no hardlinks) are each their own space.
- * A torrent Quai can't place may hold any title's files: then no hardlinked deletion is said to
- * free anything by itself.
+ * A torrent Quai can't place that may hold a title's files (`mayHold`) keeps its hardlinked
+ * deletion from freeing anything by itself.
  */
 export const spaceBack = (input: SpaceBackInput): SpaceBack => {
   const deletions = new Map<number, number>()
@@ -158,14 +181,15 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
     else add(torrents, last.row.torrent, size)
   }
 
-  const unplaced = sets.some((s) => s.key === undefined)
+  const unplaced = sets.filter((s) => s.key === undefined)
   for (const deletion of input.deletions) {
     if (deletion.key === undefined || deletion.sizeBytes === undefined || deletions.has(deletion.candidateId)) continue
     const key = deletion.key
     const copy = input.hardlinks[kindOf(key)] === false
     const held = sets.some((s) => typeof s.key === "string" && overlap(key, s.key))
+    const mightBeHeld = unplaced.some((s) => mayHold(s, deletion))
     // A copy goes by itself; hardlinked files only when no torrent holds them, or might.
-    if (copy || (!held && !unplaced)) deletions.set(deletion.candidateId, deletion.sizeBytes)
+    if (copy || (!held && !mightBeHeld)) deletions.set(deletion.candidateId, deletion.sizeBytes)
   }
   return { deletions, torrents }
 }

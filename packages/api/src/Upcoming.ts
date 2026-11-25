@@ -28,6 +28,8 @@ export const UpcomingItem = Schema.Struct({
   /** "S02E05", "S01E07–E08" */
   episode: Schema.optionalKey(Schema.String),
   posterUrl: Schema.optionalKey(Schema.String),
+  /** The library title a release opens: `movie:<radarr id>`, `series:<sonarr id>`. */
+  libraryId: Schema.optionalKey(Schema.String),
   /**
    * Epoch seconds it happens at. A movie's release is a day (its midnight, `timed` false). None for
    * a seed cleanup by ratio: no date can be known.

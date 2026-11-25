@@ -19,7 +19,7 @@ describe("release rows", () => {
     expect(episodeRange([])).toBeUndefined()
   })
 
-  it("keeps what has no file yet: a series' episodes airing together are one row, a movie is a day", () => {
+  it("keeps what has no file yet: a series' episodes of one day are one row, a movie is a day", () => {
     const episode = (id: number, code: string, airsAt: number, status: DayRelease["status"] = "missing"): DayRelease => ({
       id: `episode:${id}`,
       kind: "episode",
@@ -31,13 +31,14 @@ describe("release rows", () => {
     })
     const items = releaseItems([
       { day: "2026-11-26", release: episode(1, "S02E08", 1795600000) },
-      { day: "2026-11-26", release: episode(2, "S02E07", 1795600000) },
+      // An hour later the same day: still one row, at the first one's time.
+      { day: "2026-11-26", release: episode(2, "S02E07", 1795603600) },
       { day: "2026-11-25", release: episode(3, "S02E06", 1795500000, "available") },
       { day: "2026-11-27", release: { id: "movie:9", kind: "movie", libraryId: "movie:9", title: "Dune", status: "grabbed" } }
     ], paris)
     expect(items).toEqual([
-      { id: "release-episode-1", kind: "release", service: "sonarr", title: "Severance", episode: "S02E07–E08", at: 1795600000, timed: true, earliest: false },
-      { id: "release-movie-9", kind: "release", service: "radarr", title: "Dune", at: Date.parse("2026-11-26T23:00:00Z") / 1000, timed: false, earliest: false }
+      { id: "release-episode-1", kind: "release", service: "sonarr", title: "Severance", episode: "S02E07–E08", libraryId: "series:5", at: 1795600000, timed: true, earliest: false },
+      { id: "release-movie-9", kind: "release", service: "radarr", title: "Dune", libraryId: "movie:9", at: Date.parse("2026-11-26T23:00:00Z") / 1000, timed: false, earliest: false }
     ])
   })
 })

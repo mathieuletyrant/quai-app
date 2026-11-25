@@ -26,6 +26,9 @@ extension Components.Schemas.UpcomingItem {
 
     /// A deletion or a stuck removal opens its To fix card.
     var opensFix: Bool { fixId != nil }
+
+    /// A row opens something: To fix, or the title of a release.
+    var opens: Bool { opensFix || libraryId != nil }
 }
 
 /// What the screen shows: everything, what arrives, or what goes.
@@ -153,6 +156,7 @@ struct UpcomingView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
     @State private var filter: UpcomingFilter = .all
+    @State private var selected: LibraryItem?
 
     private var items: [UpcomingItem] { connection.upcoming?.items ?? [] }
     private var shown: [UpcomingItem] { items.filter(filter.includes) }
@@ -203,15 +207,33 @@ struct UpcomingView: View {
                             NavigationLink { FixesView() } label: { UpcomingRow(item: item, when: schedule.when(item)) }
                                 .buttonStyle(.plain)
                                 .accessibilityHint("Opens To fix")
+                        } else if let title = libraryItem(item) {
+                            Button { selected = title } label: { UpcomingRow(item: item, when: schedule.when(item)) }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Opens it in the Library")
                         } else {
-                            UpcomingRow(item: item, when: schedule.when(item))
+                            UpcomingRow(item: item, when: schedule.when(item), opens: false)
                         }
                     }
                 }
             }
         }
         .refreshable { await connection.loadUpcoming() }
-        .task { await connection.loadUpcoming() }
+        .task {
+            await connection.loadUpcoming()
+            if connection.library == nil { await connection.loadLibrary() }
+        }
+        .sheet(item: $selected) { title in
+            TitleDetailView(item: title)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+    }
+
+    /// The release's title in the Library, once the Library is loaded.
+    private func libraryItem(_ item: UpcomingItem) -> LibraryItem? {
+        guard let id = item.libraryId else { return nil }
+        return connection.library?.items.first { $0.id == id }
     }
 
     private var emptyMessage: String {
@@ -257,6 +279,8 @@ struct UpcomingRow: View {
     let item: UpcomingItem
     let when: String
     var compact = false
+    /// Shows a chevron: the row opens To fix or its title. False while its title isn't found.
+    var opens = true
 
     private var posterWidth: CGFloat { compact ? 32 : 40 }
 
@@ -271,10 +295,17 @@ struct UpcomingRow: View {
                     .font(QuaiFont.tag)
                     .tracking(0.6)
                     .foregroundStyle(item.tint)
-                Text(item.headline)
-                    .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
-                    .foregroundStyle(Palette.primaryText)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(item.title)
+                        .lineLimit(1)
+                    if let episode = item.episode {
+                        Text("· \(episode)")
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                }
+                .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
+                .foregroundStyle(Palette.primaryText)
                 Text(when)
                     .font(QuaiFont.caption.monospacedDigit())
                     .foregroundStyle(Palette.secondaryText)
@@ -287,7 +318,7 @@ struct UpcomingRow: View {
                     .foregroundStyle(Palette.ok)
                     .accessibilityLabel("Frees \(Format.bytes(freesBytes))")
             }
-            if item.opensFix && !compact {
+            if item.opens && opens && !compact {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.tertiaryText)
