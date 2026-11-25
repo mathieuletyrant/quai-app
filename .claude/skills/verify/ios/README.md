@@ -40,7 +40,7 @@ data needs a route in `previewRoutes` (and a fixture, per `fixtures/README.md`).
 
 ## 3. Build and screenshots (CI)
 
-Push the branch (`claude/**` triggers `ci.yml` without a PR; once the branch has an open PR, the push run skips `ios` and the PR's run does it). The `ios` job:
+Open the PR (a draft is fine): `ci.yml` runs on pull requests only. The `ios` job:
 
 1. **Build**: with the client from `ios-client`, `build-for-testing` for a generic simulator, while the simulator boots and the
    preview server starts. Swift errors appear as annotations (xcbeautify). Read them with the

@@ -1,21 +1,20 @@
 name: ci
 
+# A PR runs it, an agent's too: it opens its PR (a draft is fine) to get the checks, the iOS build and screenshots.
 on:
   pull_request:
-  # An agent's branch gets the iOS build and screenshots before any PR.
-  push:
-    branches: ["claude/**"]
   workflow_dispatch:
 
 # A newer commit of the same branch cancels the run still going, the whole of it, when it starts. Not per job: a job
 # that waits on others (ios on ios-client) can join a per-job queue after an older commit's, which then cancels the
 # newer one, and the PR's `required` fails on a cancelled job.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
-  typescript:
+  # TypeScript's types, lint and format: pnpm check (tsc in every package, then ESLint with dprint).
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,12 +25,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
 
   docker:
     runs-on: ubuntu-latest
-    needs: typescript
+    needs: test
     strategy:
       matrix:
         target: [cloud, home]
@@ -55,16 +65,8 @@ jobs:
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
       pushes: ${{ steps.filter.outputs.pushes }}
-      pr: ${{ steps.pr.outputs.open }}
     steps:
       - uses: actions/checkout@v4
-      # A push to a branch with an open PR: its pull_request run does the macOS work.
-      - name: Open PR of this branch
-        id: pr
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: echo "open=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length > 0')" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -94,7 +96,7 @@ jobs:
     needs: changes
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (needs.changes.outputs.pushes == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
+      needs.changes.outputs.pushes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -180,7 +182,7 @@ jobs:
     needs: [changes, ios-client]
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
+      needs.changes.outputs.ios == 'true'
     runs-on: macos-26
     timeout-minutes: 30
     permissions:
@@ -282,12 +284,11 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: .github/scripts/ios-screenshots.sh screenshots ${{ github.event.pull_request.number }}
 
-  # The one check branch protection requires. A branch named claude/** runs this workflow twice, on push and on its
-  # PR, and both report jobs of the same names: requiring those names lets a push run's cancelled job block the PR.
-  # This job runs on the PR only and passes when every job passed or was skipped (a PR that doesn't touch its files).
+  # The one check branch protection requires: it passes when every job passed or was skipped (a PR that doesn't
+  # touch its files), so adding a job never means editing the protection rules.
   required:
     if: always() && github.event_name == 'pull_request'
-    needs: [typescript, swift-lint, docker, changes, live-activity-pushes, ios-client, ios]
+    needs: [lint, test, swift-lint, docker, changes, live-activity-pushes, ios-client, ios]
     runs-on: ubuntu-latest
     steps:
       - name: Every job passed or was skipped
