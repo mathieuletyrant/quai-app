@@ -113,12 +113,12 @@ struct SearchView: View {
             guard let result = requestAfterPreview else { return }
             requestAfterPreview = nil
             request(result)
-        }) { result in
+        }, content: { result in
             SearchResultDetail(result: result, state: states[result.id] ?? result.state) {
                 requestAfterPreview = result
                 previewing = nil
             }
-        }
+        })
         .sheet(item: $choosingSeasons) { series in
             SeasonPicker(result: series) { seasons in send(series, seasons: seasons) }
                 .presentationDetents([.medium, .large])

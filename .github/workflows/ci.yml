@@ -1,14 +1,20 @@
 name: ci
 
+# A PR runs it, an agent's too: it opens its PR (a draft is fine) to get the checks, the iOS build and screenshots.
 on:
   pull_request:
-  # An agent's branch gets the iOS build and screenshots before any PR.
-  push:
-    branches: ["claude/**"]
   workflow_dispatch:
 
+# A newer commit of the same branch cancels the run still going, the whole of it, when it starts. Not per job: a job
+# that waits on others (ios on ios-client) can join a per-job queue after an older commit's, which then cancels the
+# newer one, and the PR's `required` fails on a cancelled job.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
-  typescript:
+  # TypeScript's types, lint and format: pnpm check (tsc in every package, then ESLint with dprint).
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +25,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
 
   docker:
     runs-on: ubuntu-latest
-    needs: typescript
+    needs: test
     strategy:
       matrix:
         target: [cloud, home]
@@ -48,16 +65,8 @@ jobs:
     outputs:
       ios: ${{ steps.filter.outputs.ios }}
       pushes: ${{ steps.filter.outputs.pushes }}
-      pr: ${{ steps.pr.outputs.open }}
     steps:
       - uses: actions/checkout@v4
-      # A push to a branch with an open PR: its pull_request run does the macOS work.
-      - name: Open PR of this branch
-        id: pr
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: echo "open=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length > 0')" >> "$GITHUB_OUTPUT"
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -87,7 +96,7 @@ jobs:
     needs: changes
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (needs.changes.outputs.pushes == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
+      needs.changes.outputs.pushes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -137,6 +146,22 @@ jobs:
 
   # The app's client isn't committed: generated here, outside the Xcode build, and handed to the
   # ios job. The generator comes from the cache that swift-tools.yml keeps on main.
+  # Swift's format and lint, on its own: it starts with the other jobs and needs nothing built (static binaries pinned
+  # in apps/ios/tools.env), so its answer comes in under a minute, and a style fix never holds back the macOS build.
+  # TypeScript's lint runs in `lint` (pnpm check: tsc, then ESLint).
+  swift-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The app's Swift against apps/ios/.swiftformat, on Linux: each change SwiftFormat would make
+      # is an annotation on its line, and fails the job. `apps/ios/scripts/format.sh` applies them.
+      - name: SwiftFormat
+        run: apps/ios/scripts/format.sh --lint --reporter github-actions-log
+      # The rules in apps/ios/.swiftlint.yml (crashes, complexity, names, dead code): each
+      # violation is an annotation on its line, and `--strict` makes a warning fail the job too.
+      - name: SwiftLint
+        run: apps/ios/scripts/lint.sh --strict --reporter github-actions-logging
+
   ios-client:
     runs-on: ubuntu-latest
     steps:
@@ -146,10 +171,6 @@ jobs:
           path: apps/ios/Tools/.build
           key: swift-tools-${{ runner.os }}-${{ hashFiles('apps/ios/Tools/Package.resolved') }}
       - run: apps/ios/scripts/gen-client.sh
-      # The app's Swift against apps/ios/.swiftformat, on Linux: each change SwiftFormat would make
-      # is an annotation on its line, and fails the job. `apps/ios/scripts/format.sh` applies them.
-      - name: SwiftFormat
-        run: apps/ios/scripts/format.sh --lint --reporter github-actions-log
       - uses: actions/upload-artifact@v4
         with:
           name: ios-client
@@ -161,13 +182,9 @@ jobs:
     needs: [changes, ios-client]
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (needs.changes.outputs.ios == 'true' && !(github.event_name == 'push' && needs.changes.outputs.pr == 'true'))
+      needs.changes.outputs.ios == 'true'
     runs-on: macos-26
     timeout-minutes: 30
-    # A newer commit of the same branch replaces a run still going.
-    concurrency:
-      group: ios-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
-      cancel-in-progress: true
     permissions:
       contents: write
       pull-requests: write
@@ -221,9 +238,10 @@ jobs:
         env:
           UDID: ${{ steps.simulator.outputs.udid }}
         run: |
+          # A compiler warning in the app's targets fails the build here, not in Xcode (project.yml).
           eval xcodebuild build-for-testing $XCODE_FLAGS \
             -destination "'generic/platform=iOS Simulator'" ARCHS=arm64 \
-            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO > build.log 2>&1 &
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO QUAI_WARNINGS_AS_ERRORS=YES > build.log 2>&1 &
           build=$!
           until grep -qE '^(SwiftCompile|CompileSwift|SwiftDriver) ' build.log || ! kill -0 "$build" 2> /dev/null; do sleep 1; done
           echo "Booting the simulator at $(date -u +%T)"
@@ -266,12 +284,11 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: .github/scripts/ios-screenshots.sh screenshots ${{ github.event.pull_request.number }}
 
-  # The one check branch protection requires. A branch named claude/** runs this workflow twice, on push and on its
-  # PR, and both report jobs of the same names: requiring those names lets a push run's cancelled job block the PR.
-  # This job runs on the PR only and passes when every job passed or was skipped (a PR that doesn't touch its files).
+  # The one check branch protection requires: it passes when every job passed or was skipped (a PR that doesn't
+  # touch its files), so adding a job never means editing the protection rules.
   required:
     if: always() && github.event_name == 'pull_request'
-    needs: [typescript, docker, changes, live-activity-pushes, ios-client, ios]
+    needs: [lint, test, swift-lint, docker, changes, live-activity-pushes, ios-client, ios]
     runs-on: ubuntu-latest
     steps:
       - name: Every job passed or was skipped

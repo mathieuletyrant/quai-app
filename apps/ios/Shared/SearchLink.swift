@@ -18,6 +18,7 @@ struct SearchLink: Equatable {
     }
 
     static func url(listen: Bool) -> URL {
+        // swiftlint:disable:next force_unwrapping - two constant URLs, both valid
         URL(string: listen ? "quai://search?listen=1" : "quai://search")!
     }
 }

@@ -6,6 +6,7 @@ import OpenAPIRuntime
 /// then reads only its success (`.ok`, `.noContent`, the generated throwing accessors). Listed
 /// before `AccessHeadersMiddleware`, which tells a proxy's refusal apart first.
 struct QuaiErrorsMiddleware: ClientMiddleware {
+    // swiftlint:disable:next function_parameter_count - ClientMiddleware's own signature
     func intercept(
         _ request: HTTPRequest,
         body: HTTPBody?,

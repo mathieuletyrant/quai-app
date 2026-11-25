@@ -59,6 +59,7 @@ struct AccessHeader: Codable, Hashable, Sendable {
 struct AccessHeadersMiddleware: ClientMiddleware {
     let headers: [AccessHeader]
 
+    // swiftlint:disable:next function_parameter_count - ClientMiddleware's own signature
     func intercept(
         _ request: HTTPRequest,
         body: HTTPBody?,
