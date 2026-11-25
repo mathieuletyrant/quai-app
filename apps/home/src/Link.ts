@@ -203,21 +203,15 @@ export class Link extends Context.Service<Link, {
             (page) => write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
           )
 
-        /** One message from the Cloud; an outcome when it ends the connection. */
-        const handle = (message: HomeProtocol.CloudMessage): Effect.Effect<Outcome | void, never, Scope.Scope> => {
+        /** One message from the Cloud that keeps the connection going. */
+        const handle = (
+          message: Exclude<HomeProtocol.CloudMessage, CloudMessageOf<"Refused">>
+        ): Effect.Effect<unknown, never, Scope.Scope> => {
           switch (message._tag) {
             case "Challenge":
               return write(HomeProtocol.Proof.make({ signature: key.sign(message.nonce) }))
             case "Welcome":
               return welcomed(message)
-            case "Refused":
-              return Effect.succeed(
-                {
-                  _tag: "Refused",
-                  reason: message.reason,
-                  retryAfterSeconds: message.retryAfterSeconds
-                } satisfies Outcome
-              )
             case "Ping":
               return Effect.flatMap(
                 Effect.flatMap(Clock.currentTimeMillis, (now) => Ref.set(lastPing, now)),
@@ -241,13 +235,30 @@ export class Link extends Context.Service<Link, {
           }
         }
 
-        /** One frame from the Cloud: anything not part of the protocol is logged and left. */
-        const receive = (frame: string) => {
+        /**
+         * One frame from the Cloud; an outcome only when the Cloud refused this home. Anything not part of the
+         * protocol is logged and left.
+         */
+        const receive = (frame: string): Effect.Effect<Outcome | undefined, never, Scope.Scope> => {
           const decoded = decodeCloudMessage(frame)
           if (decoded._tag === "None") {
-            return Effect.logWarning("ignored a message from the cloud that isn't part of the protocol")
+            return Effect.as(
+              Effect.logWarning("ignored a message from the cloud that isn't part of the protocol"),
+              undefined
+            )
           }
-          return handle(decoded.value)
+          const message = decoded.value
+          if (message._tag === "Refused") {
+            return Effect.succeed(
+              {
+                _tag: "Refused",
+                reason: message.reason,
+                retryAfterSeconds: message.retryAfterSeconds
+              } satisfies Outcome
+            )
+          }
+          // What a handler yields is never an outcome: `Deferred.succeed`'s `true` once closed the link.
+          return Effect.as(handle(message), undefined)
         }
 
         const read = Effect.gen(function*() {

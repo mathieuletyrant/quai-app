@@ -374,6 +374,23 @@ describe("link", () => {
       })
     ))
 
+  it.effect("stays linked after a console answer: the next request goes over the same link", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const connection = yield* linked(connections)
+        for (const path of ["/console-api/devices", "/console-api/push-settings"]) {
+          const answer = yield* Effect.forkChild(link.console({ method: "GET", path }))
+          yield* settle
+          const request = yield* Queue.take(connection.sent)
+          yield* cloud(connection, { _tag: "ConsoleResponse", id: request.id, status: 200, body: "[]" })
+          expect(yield* Fiber.join(answer)).toEqual({ status: 200, body: "[]" })
+          yield* settle
+          expect(yield* link.linked).toBe(true)
+        }
+      })
+    ))
+
   it.effect("a console request fails while the Cloud hasn't welcomed this home, and when the link drops", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
