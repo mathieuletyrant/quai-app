@@ -227,7 +227,7 @@ deletions, stuck removals, seed cleanups). It only shows; acting on one of them 
 already can (To fix). Not the queue: what downloads now is an activity.
 
 **Planned deletion**. Reclaimerr removing a title from the library, on its own, at a date it
-planned. It is a fix, an alert and an Upcoming row.
+planned. It is a fix, an alert and an Upcoming row, then *gone* once Reclaimerr did it.
 _Avoid_: deletion, scheduled deletion, candidate
 
 **Stuck removal**. Cleanuparr's queue cleaner taking a download that doesn't move out of an *arr
@@ -242,3 +242,9 @@ _Avoid_: stuck removal (that is the queue cleaner)
 every torrent seeding the same files (cross-seeds too) are gone. With hardlinks, a planned deletion
 or a seed cleanup alone may give nothing back.
 _Avoid_: freed space, reclaimed space
+
+**Gone**. What Upcoming showed as *going* that the stack has now done on its own: a planned
+deletion Reclaimerr carried out, a stuck removal or a seed cleanup Cleanuparr made. One
+notification each, turned on per iPhone and per kind, even for what was let go. Not an alert:
+nothing is wrong and nothing lasts.
+_Avoid_: deleted, removed, cleanup done
