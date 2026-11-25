@@ -1,8 +1,9 @@
 name: ai-review
 
+# On demand only, it's billed: the `ai-review` label, or a `/ai-review` comment. Release PRs never get it.
 on:
   pull_request:
-    types: [opened, ready_for_review, reopened, labeled]
+    types: [labeled]
   issue_comment:
     types: [created]
 
