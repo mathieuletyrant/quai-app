@@ -17,11 +17,13 @@ const buttonSizes = {
   sm: { base: "h-8 px-3 text-body", withIcon: "pl-2.5" }
 } as const
 
-export function Button({ variant = "primary", size = "md", icon, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: keyof typeof buttonVariants
-  size?: keyof typeof buttonSizes
-  icon?: IconName
-}) {
+export function Button(
+  { variant = "primary", size = "md", icon, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
+    variant?: keyof typeof buttonVariants
+    size?: keyof typeof buttonSizes
+    icon?: IconName
+  }
+) {
   return (
     <button
       type="button"
@@ -41,11 +43,13 @@ export function Button({ variant = "primary", size = "md", icon, className, chil
   )
 }
 
-export function IconButton({ label, icon, outlined, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  label: string
-  icon?: IconName
-  outlined?: boolean
-}) {
+export function IconButton(
+  { label, icon, outlined, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
+    label: string
+    icon?: IconName
+    outlined?: boolean
+  }
+) {
   return (
     <button
       type="button"

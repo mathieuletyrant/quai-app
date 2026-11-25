@@ -1,4 +1,11 @@
-import { type JournalEntry, type JournalNote, journalId, journalPage, type JournalQuery, JournalEntry as JournalEntrySchema } from "@quai/api"
+import {
+  type JournalEntry,
+  JournalEntry as JournalEntrySchema,
+  journalId,
+  type JournalNote,
+  journalPage,
+  type JournalQuery
+} from "@quai/api"
 import { Clock, Context, Effect, FileSystem, Layer, Queue, Schema, Semaphore } from "effect"
 import { randomBytes } from "node:crypto"
 import { join } from "node:path"
@@ -17,13 +24,16 @@ export const Retention = {
 const dayMs = 24 * 3600_000
 
 /** The file of a day (UTC): `2026-11-20.jsonl`. */
-export const journalFile = (at: number) => `${new Date(Math.floor(at / dayMs) * dayMs).toISOString().slice(0, 10)}.jsonl`
+export const journalFile = (at: number) =>
+  `${new Date(Math.floor(at / dayMs) * dayMs).toISOString().slice(0, 10)}.jsonl`
 const filePattern = /^\d{4}-\d{2}-\d{2}\.jsonl$/
 
 const decodeLine = Schema.decodeUnknownOption(Schema.fromJsonString(JournalEntrySchema))
 
 /** The lines of one file that read as entries; the others are skipped. */
-export const parseJournal = (text: string): { readonly entries: ReadonlyArray<JournalEntry>; readonly skipped: number } => {
+export const parseJournal = (
+  text: string
+): { readonly entries: ReadonlyArray<JournalEntry>; readonly skipped: number } => {
   const entries: Array<JournalEntry> = []
   let skipped = 0
   for (const line of text.split("\n")) {
@@ -51,7 +61,9 @@ export class Journal extends Context.Service<Journal, {
   readonly note: (note: JournalNote) => Effect.Effect<void>
   /** Quai Home's own lines not yet handed to the Cloud, oldest first. Waits for one. */
   readonly noted: Effect.Effect<ReadonlyArray<JournalEntry>>
-  readonly read: (query: JournalQuery) => Effect.Effect<{ readonly entries: ReadonlyArray<JournalEntry>; readonly more: boolean }>
+  readonly read: (
+    query: JournalQuery
+  ) => Effect.Effect<{ readonly entries: ReadonlyArray<JournalEntry>; readonly more: boolean }>
   /** Writes what waits, now, and prunes what's too old. */
   readonly flush: Effect.Effect<void>
 }>()("quai-home/Journal") {
@@ -64,7 +76,9 @@ export class Journal extends Context.Service<Journal, {
       yield* fs.makeDirectory(root, { recursive: true }).pipe(Effect.catch(warn(`could not create ${root}`)))
 
       // What was kept before, a corrupted line skipped (a crash mid-write leaves half of one).
-      const files = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((name) => filePattern.test(name)).sort()
+      const files = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((name) =>
+        filePattern.test(name)
+      ).sort()
       const entries: Array<JournalEntry> = []
       const ids = new Set<string>()
       let skipped = 0
@@ -78,7 +92,9 @@ export class Journal extends Context.Service<Journal, {
           entries.push(entry)
         }
       }
-      if (skipped > 0) yield* Effect.logWarning(`journal: skipped ${skipped} unreadable line${skipped === 1 ? "" : "s"}`)
+      if (skipped > 0) {
+        yield* Effect.logWarning(`journal: skipped ${skipped} unreadable line${skipped === 1 ? "" : "s"}`)
+      }
       entries.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
 
       let pending: Array<JournalEntry> = []
@@ -107,17 +123,22 @@ export class Journal extends Context.Service<Journal, {
           const cutoff = now - Retention.days * dayMs
           const tooMany = entries.length > Retention.maxEntries + Retention.slack
           const keepFrom = Math.max(
-            entries.findIndex((entry) => entry.at >= cutoff) === -1 ? entries.length : entries.findIndex((entry) => entry.at >= cutoff),
+            entries.findIndex((entry) => entry.at >= cutoff) === -1
+              ? entries.length
+              : entries.findIndex((entry) => entry.at >= cutoff),
             tooMany ? entries.length - Retention.maxEntries : 0
           )
           const dropped = entries.splice(0, keepFrom)
           for (const entry of dropped) ids.delete(entry.id)
-          const onDisk = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((name) => filePattern.test(name))
+          const onDisk = (yield* fs.readDirectory(root).pipe(Effect.orElseSucceed(() => []))).filter((name) =>
+            filePattern.test(name)
+          )
           const touched = new Set(dropped.map((entry) => journalFile(entry.at)))
           const oldest = journalFile(cutoff)
           for (const file of onDisk) {
-            if (file < oldest) yield* fs.remove(join(root, file), { force: true }).pipe(Effect.catch(warn(`could not remove ${file}`)))
-            else if (touched.has(file)) {
+            if (file < oldest) {
+              yield* fs.remove(join(root, file), { force: true }).pipe(Effect.catch(warn(`could not remove ${file}`)))
+            } else if (touched.has(file)) {
               // What still waits in memory is appended by the next flush, not written twice.
               const waiting = new Set(pending.map((entry) => entry.id))
               const kept = entries.filter((entry) => journalFile(entry.at) === file && !waiting.has(entry.id))
@@ -153,7 +174,10 @@ export class Journal extends Context.Service<Journal, {
         if (scheduled) return Effect.void
         scheduled = true
         return Effect.asVoid(Effect.forkIn(
-          Effect.sleep(Retention.flushMs).pipe(Effect.andThen(Effect.sync(() => (scheduled = false))), Effect.andThen(flush)),
+          Effect.sleep(Retention.flushMs).pipe(
+            Effect.andThen(Effect.sync(() => (scheduled = false))),
+            Effect.andThen(flush)
+          ),
           scope
         ))
       })
@@ -173,7 +197,13 @@ export class Journal extends Context.Service<Journal, {
       yield* Effect.addFinalizer(() => flush)
 
       return {
-        append: (batch) => Effect.andThen(Effect.sync(() => { for (const entry of batch) add(entry) }), later),
+        append: (batch) =>
+          Effect.andThen(
+            Effect.sync(() => {
+              for (const entry of batch) add(entry)
+            }),
+            later
+          ),
         note: (note) =>
           Effect.gen(function*() {
             const at = yield* Clock.currentTimeMillis

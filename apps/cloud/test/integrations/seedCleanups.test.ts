@@ -2,10 +2,10 @@ import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
 import {
   DownloadCleanerSettings,
+  seedCleanups,
   type SeedingRule,
   seedingRuleOf,
   type SeedingTorrent,
-  seedCleanups,
   unlinkedCategory
 } from "../../src/integrations/cleanuparr.ts"
 import { fixture } from "../fixtures.ts"
@@ -33,8 +33,10 @@ const torrent = (overrides: Partial<SeedingTorrent> = {}): SeedingTorrent => ({
   ...overrides
 })
 
-const run = (torrents: ReadonlyArray<SeedingTorrent>, overrides: { nextRunAt?: number; settings?: typeof DownloadCleanerSettings.Type } = {}) =>
-  seedCleanups({ settings: overrides.settings ?? settings(), torrents, nextRunAt: overrides.nextRunAt, now })
+const run = (
+  torrents: ReadonlyArray<SeedingTorrent>,
+  overrides: { nextRunAt?: number; settings?: typeof DownloadCleanerSettings.Type } = {}
+) => seedCleanups({ settings: overrides.settings ?? settings(), torrents, nextRunAt: overrides.nextRunAt, now })
 
 describe("the download cleaner's rule for a torrent", () => {
   it("is the first by priority that covers it", () => {
@@ -45,8 +47,20 @@ describe("the download cleaner's rule for a torrent", () => {
 
   it("is unknown when a rule before it may cover it and Quai can't tell: trackers, privacy unknown", () => {
     const [publicRule, privateRule] = rules()
-    const catchAll: SeedingRule = { ...privateRule!, name: "Anything: 2 days", privacyType: "Both", maxSeedTime: 48, priority: 9 }
-    const byTracker: SeedingRule = { ...privateRule!, name: "Tracker X: forever", trackerPatterns: ["tracker.example"], maxSeedTime: -1, priority: 0 }
+    const catchAll: SeedingRule = {
+      ...privateRule!,
+      name: "Anything: 2 days",
+      privacyType: "Both",
+      maxSeedTime: 48,
+      priority: 9
+    }
+    const byTracker: SeedingRule = {
+      ...privateRule!,
+      name: "Tracker X: forever",
+      trackerPatterns: ["tracker.example"],
+      maxSeedTime: -1,
+      priority: 0
+    }
     expect(seedingRuleOf([byTracker, catchAll], torrent())).toBeUndefined()
     // qBittorrent before 5 doesn't say whether a torrent is private.
     expect(seedingRuleOf([publicRule!, catchAll], torrent({ private: undefined }))).toBeUndefined()
@@ -68,7 +82,9 @@ describe("seed cleanups", () => {
     expect(run([torrent({ private: false })])[0]?.atOnce).toBe(true)
     expect(run([torrent({ category: "manual" })])).toEqual([])
     expect(run([torrent({ progress: 0.5 })])).toEqual([])
-    expect(run([torrent()], { settings: { ...settings(), ignoredDownloads: ["A023231BF0630AF6D783211374AC3D1AC6A8EF36"] } })).toEqual([])
+    expect(
+      run([torrent()], { settings: { ...settings(), ignoredDownloads: ["A023231BF0630AF6D783211374AC3D1AC6A8EF36"] } })
+    ).toEqual([])
     expect(run([torrent()], { settings: { ...settings(), enabled: false } })).toEqual([])
     expect(run([torrent({ private: undefined })])).toEqual([])
   })
@@ -78,7 +94,10 @@ describe("seed cleanups", () => {
     expect(run([torrent({ seeding_time: 2160 * 3600 - 60 })], { nextRunAt })[0]?.at).toBe(nextRunAt)
     const ratioOnly = withRules(rules().map((rule) => ({ ...rule, maxRatio: 2, maxSeedTime: -1 })))
     expect(run([torrent({ ratio: 1 })], { settings: ratioOnly })[0]?.at).toBeUndefined()
-    expect(run([torrent({ ratio: 2.5 })], { settings: ratioOnly, nextRunAt })[0]).toMatchObject({ at: nextRunAt, timing: "at" })
+    expect(run([torrent({ ratio: 2.5 })], { settings: ratioOnly, nextRunAt })[0]).toMatchObject({
+      at: nextRunAt,
+      timing: "at"
+    })
   })
 
   it("with a ratio too, the seed time is only the latest it goes", () => {

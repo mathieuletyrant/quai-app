@@ -18,4 +18,3 @@ export const FixesHandlers = HttpApiBuilder.group(QuaiApi, "fixes", (handlers) =
       .handle("releases", ({ params }) => fixes.releases(params.id))
       .handle("grab", ({ params, payload }) => fixes.grab(params.id, payload))
   }))
-

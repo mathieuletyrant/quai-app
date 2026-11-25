@@ -82,7 +82,9 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
     })
     if (step.show.progress && !ends) {
       for (const progress of [0.12, 0.31, 0.52, 0.74, 0.93, 1]) {
-        beat(4_000, "Update", { values: { progress, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - progress) * 24) } })
+        beat(4_000, "Update", {
+          values: { progress, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - progress) * 24) }
+        })
       }
     }
     if (step.show.list && !ends) {
@@ -91,7 +93,9 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
     if (step.actions?.includes("playback.playPause")) {
       // Shows the button's two states: a pause, then playing again from where it was.
       beat(8_000, "Update", { values: { paused: true, progress: 0.2, detail: "TV Salon" } })
-      beat(5_000, "Update", { values: { paused: false, startsAt: clock + 5_000 - 8_000, endsAt: clock + 5_000 + 32_000, detail: "TV Salon" } })
+      beat(5_000, "Update", {
+        values: { paused: false, startsAt: clock + 5_000 - 8_000, endsAt: clock + 5_000 + 32_000, detail: "TV Salon" }
+      })
     }
   })
   if (activity.endedAt === null) beat(8_000, "End", { endedAt: clock + 8_000, tone: "done" })

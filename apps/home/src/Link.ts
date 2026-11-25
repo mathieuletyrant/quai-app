@@ -59,7 +59,9 @@ export class Link extends Context.Service<Link, {
   /** Whether the cloud welcomed this connection. */
   readonly linked: Effect.Effect<boolean>
   /** Relays one of the console's requests to the Cloud, and its answer back. */
-  readonly console: (request: ConsoleRequest) => Effect.Effect<{ readonly status: number; readonly body: string }, CloudUnreachable>
+  readonly console: (
+    request: ConsoleRequest
+  ) => Effect.Effect<{ readonly status: number; readonly body: string }, CloudUnreachable>
 }>()("quai-home/Link") {
   /** No `QUAI_CLOUD_URL`: nothing to link to, every console request says so. */
   static readonly unlinked = Layer.succeed(Link, {
@@ -102,12 +104,18 @@ export class Link extends Context.Service<Link, {
       const runStore = (request: StoreRequest): Effect.Effect<HomeMessage> => {
         const done = HomeProtocol.StoreDone.make({ id: request.id })
         const operation: Effect.Effect<HomeMessage, StoreError> = request._tag === "StoreList"
-          ? Effect.map(store.list(request.prefix), (documents) => HomeProtocol.StoreDocuments.make({ id: request.id, documents }))
+          ? Effect.map(
+            store.list(request.prefix),
+            (documents) => HomeProtocol.StoreDocuments.make({ id: request.id, documents })
+          )
           : request._tag === "StorePut"
           ? Effect.as(store.put(request.key, request.value), done)
           : Effect.as(store.delete(request.key), done)
         return operation.pipe(
-          Effect.catchTag("StoreError", (error) => Effect.succeed(HomeProtocol.Failed.make({ id: request.id, reason: error.message })))
+          Effect.catchTag(
+            "StoreError",
+            (error) => Effect.succeed(HomeProtocol.Failed.make({ id: request.id, reason: error.message }))
+          )
         )
       }
 
@@ -123,7 +131,11 @@ export class Link extends Context.Service<Link, {
         const watcher = yield* watches.make(write)
         // Store operations run one at a time, in the order the cloud sent them.
         const storeQueue = yield* Queue.unbounded<StoreRequest>()
-        yield* Effect.forkScoped(Effect.forever(Effect.flatMap(Queue.take(storeQueue), (storeRequest) => Effect.flatMap(runStore(storeRequest), write))))
+        yield* Effect.forkScoped(
+          Effect.forever(
+            Effect.flatMap(Queue.take(storeQueue), (storeRequest) => Effect.flatMap(runStore(storeRequest), write))
+          )
+        )
         const lastPing = yield* Ref.make(yield* Clock.currentTimeMillis)
 
         yield* write(yield* hello)
@@ -136,7 +148,8 @@ export class Link extends Context.Service<Link, {
               yield* Deferred.fail(answer, new CloudUnreachable({ message: notLinkedMessage }))
             }
             consolePending.clear()
-          }))
+          })
+        )
         // A service set or removed from the console: the Cloud hears which services this home reaches now.
         const changes = yield* settings.changes
         yield* Effect.forkScoped(Effect.forever(Effect.gen(function*() {
@@ -159,22 +172,34 @@ export class Link extends Context.Service<Link, {
                   yield* write(HomeProtocol.Proof.make({ signature: key.sign(message.nonce) }))
                   break
                 case "Welcome":
-                  if (message.homeId !== key.homeId) yield* Effect.logWarning(`the cloud welcomed home ${message.homeId}, this is ${key.homeId}`)
+                  if (message.homeId !== key.homeId) {
+                    yield* Effect.logWarning(`the cloud welcomed home ${message.homeId}, this is ${key.homeId}`)
+                  }
                   yield* Effect.logInfo(`linked as home ${key.homeId}`)
                   yield* Ref.set(failures, 0)
                   yield* gate.withPermit(Effect.gen(function*() {
                     yield* Ref.set(linked, true)
-                    if (held.length > 0) yield* Effect.logInfo(`sending ${held.length} message(s) held while the link was down`)
+                    if (held.length > 0) {
+                      yield* Effect.logInfo(`sending ${held.length} message(s) held while the link was down`)
+                    }
                     for (const message of held.splice(0)) yield* write(message)
                   }))
                   // On disk, without holding up the link.
                   yield* Effect.forkDetach(cloudSeen.linked)
                   yield* watcher.reset
                   // Quai Home's own journal lines, for the Cloud's live view: they're kept here already.
-                  yield* Effect.forkScoped(Effect.forever(Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))))
+                  yield* Effect.forkScoped(
+                    Effect.forever(
+                      Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))
+                    )
+                  )
                   break
                 case "Refused":
-                  return { _tag: "Refused", reason: message.reason, retryAfterSeconds: message.retryAfterSeconds } satisfies Outcome
+                  return {
+                    _tag: "Refused",
+                    reason: message.reason,
+                    retryAfterSeconds: message.retryAfterSeconds
+                  } satisfies Outcome
                 case "Ping":
                   yield* Ref.set(lastPing, yield* Clock.currentTimeMillis)
                   yield* write(HomeProtocol.Pong.make({ at: message.at }))
@@ -204,7 +229,9 @@ export class Link extends Context.Service<Link, {
                 }
                 case "JournalRead": {
                   const page = yield* journal.read(message.query)
-                  yield* write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
+                  yield* write(
+                    HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more })
+                  )
                   break
                 }
               }
@@ -225,7 +252,10 @@ export class Link extends Context.Service<Link, {
         return yield* Effect.raceFirst(read, heartbeat)
       }).pipe(
         Effect.scoped,
-        Effect.catchTag("SocketError", (error) => Effect.succeed({ _tag: "Closed", reason: error.message } satisfies Outcome))
+        Effect.catchTag(
+          "SocketError",
+          (error) => Effect.succeed({ _tag: "Closed", reason: error.message } satisfies Outcome)
+        )
       )
 
       const loop = Effect.gen(function*() {
@@ -249,7 +279,9 @@ export class Link extends Context.Service<Link, {
         console: (request) =>
           Effect.gen(function*() {
             const write = yield* Ref.get(current)
-            if (write === null || !(yield* Ref.get(linked))) return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
+            if (write === null || !(yield* Ref.get(linked))) {
+              return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
+            }
             const id = `c${yield* Ref.updateAndGet(consoleCount, (count) => count + 1)}`
             const answer = yield* Deferred.make<HomeProtocol.ConsoleResponse, CloudUnreachable>()
             consolePending.set(id, answer)

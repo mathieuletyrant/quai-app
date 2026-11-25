@@ -12,21 +12,93 @@ export const catalog: ReadonlyArray<{
   readonly services: ReadonlyArray<ServiceName>
 }> = [
   { type: "media.added", subject: "media", label: "Added (Radarr)", data: false, services: ["radarr"] },
-  { type: "media.grabbed", subject: "media", label: "Release grabbed (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
-  { type: "media.imported", subject: "media", label: "Imported (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
-  { type: "media.importBlocked", subject: "media", label: "Import needs you (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
+  {
+    type: "media.grabbed",
+    subject: "media",
+    label: "Release grabbed (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "media.imported",
+    subject: "media",
+    label: "Imported (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "media.importBlocked",
+    subject: "media",
+    label: "Import needs you (Radarr, Sonarr)",
+    data: true,
+    services: ["radarr", "sonarr"]
+  },
   { type: "media.available", subject: "media", label: "Available in Jellyfin", data: false, services: ["jellyfin"] },
-  { type: "download.progress", subject: "media", label: "Download progress (qBittorrent)", data: true, services: ["qbittorrent"] },
-  { type: "download.removed", subject: "media", label: "Download gone before its import (qBittorrent)", data: true, services: ["qbittorrent"] },
-  { type: "playback.started", subject: "playback", label: "Playback started (Jellyfin)", data: false, services: ["jellyfin"] },
-  { type: "playback.progress", subject: "playback", label: "Playback position (Jellyfin)", data: true, services: ["jellyfin"] },
-  { type: "playback.stopped", subject: "playback", label: "Playback stopped (Jellyfin)", data: false, services: ["jellyfin"] },
-  { type: "request.pending", subject: "request", label: "Request waiting for approval (Seerr)", data: false, services: ["seerr"] },
+  {
+    type: "download.progress",
+    subject: "media",
+    label: "Download progress (qBittorrent)",
+    data: true,
+    services: ["qbittorrent"]
+  },
+  {
+    type: "download.removed",
+    subject: "media",
+    label: "Download gone before its import (qBittorrent)",
+    data: true,
+    services: ["qbittorrent"]
+  },
+  {
+    type: "playback.started",
+    subject: "playback",
+    label: "Playback started (Jellyfin)",
+    data: false,
+    services: ["jellyfin"]
+  },
+  {
+    type: "playback.progress",
+    subject: "playback",
+    label: "Playback position (Jellyfin)",
+    data: true,
+    services: ["jellyfin"]
+  },
+  {
+    type: "playback.stopped",
+    subject: "playback",
+    label: "Playback stopped (Jellyfin)",
+    data: false,
+    services: ["jellyfin"]
+  },
+  {
+    type: "request.pending",
+    subject: "request",
+    label: "Request waiting for approval (Seerr)",
+    data: false,
+    services: ["seerr"]
+  },
   { type: "request.approved", subject: "request", label: "Request approved (Seerr)", data: false, services: ["seerr"] },
   { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] },
-  { type: "releases.today", subject: "day", label: "Today's releases begin (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
-  { type: "releases.progress", subject: "day", label: "A release grabbed or available (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
-  { type: "releases.available", subject: "day", label: "Every release available (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  {
+    type: "releases.today",
+    subject: "day",
+    label: "Today's releases begin (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "releases.progress",
+    subject: "day",
+    label: "A release grabbed or available (Radarr, Sonarr)",
+    data: true,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "releases.available",
+    subject: "day",
+    label: "Every release available (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
   { type: "releases.dayOver", subject: "day", label: "Midnight", data: false, services: ["quai"] }
 ]
 
@@ -43,7 +115,8 @@ export const actionCatalog: ReadonlyArray<{
   { type: "request.decline", subject: "request", label: "Decline", service: "seerr" }
 ]
 
-export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((action) => action.type === type)!.subject
+export const actionSubject = (type: ActionType): FlowSubject =>
+  actionCatalog.find((action) => action.type === type)!.subject
 
 export const subjectOf = (type: EventType): FlowSubject => catalog.find((event) => event.type === type)!.subject
 export const isDataEvent = (type: EventType): boolean => catalog.find((event) => event.type === type)!.data
@@ -104,7 +177,13 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     filter: { mediaType: "any" },
     steps: [
       { id: "searching", label: "Searching", icon: "magnifyingglass", on: "media.added", show: {} },
-      { id: "downloading", label: "Downloading", icon: "arrow.down", on: "media.grabbed", show: { progress: true, speed: true, eta: true } },
+      {
+        id: "downloading",
+        label: "Downloading",
+        icon: "arrow.down",
+        on: "media.grabbed",
+        show: { progress: true, speed: true, eta: true }
+      },
       { id: "importing", label: "Importing", icon: "tray.and.arrow.down.fill", on: "media.imported", show: {} },
       { id: "available", label: "Ready to watch", icon: "checkmark", on: "media.available", show: {} }
     ],

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
-import { testScript } from "../../src/flows/TestScript.ts"
 import { builtInFlows } from "@quai/api"
+import { testScript } from "../../src/flows/TestScript.ts"
 import { download, playback } from "./helpers.ts"
 
 describe("test script", () => {
@@ -26,15 +26,30 @@ describe("test script", () => {
     const request = builtInFlows.find((flow) => flow.id === "request")!
     const beats = testScript(request, 0, "t")
     expect(beats.map((beat) => `${beat.push._tag}:${beat.push.activity.stepIndex}`)).toEqual(["Start:0", "End:1"])
-    expect(beats[0]!.push.activity).toMatchObject({ title: "Big Buck Bunny (test)", values: { detail: "Julie · Movie · 2008" } })
+    expect(beats[0]!.push.activity).toMatchObject({
+      title: "Big Buck Bunny (test)",
+      values: { detail: "Julie · Movie · 2008" }
+    })
   })
 
   it("today's releases: a few lines ticked off, the whole count, then all here", () => {
     const today = builtInFlows.find((flow) => flow.id === "today")!
     const beats = testScript(today, 0, "t")
-    expect(beats.map((beat) => `${beat.push._tag}:${beat.push.activity.stepIndex}`)).toEqual(["Start:0", "Update:0", "End:1"])
+    expect(beats.map((beat) => `${beat.push._tag}:${beat.push.activity.stepIndex}`)).toEqual([
+      "Start:0",
+      "Update:0",
+      "End:1"
+    ])
     expect(beats[0]!.push.activity.title).toBe("Today (test)")
-    expect(beats.map((beat) => [beat.push.activity.values.here, beat.push.activity.values.total])).toEqual([[1, 4], [2, 4], [4, 4]])
-    expect(beats[0]!.push.activity.values.items?.map((item) => item.state)).toEqual(["done", "active", "waiting", "waiting"])
+    expect(beats.map((beat) => [beat.push.activity.values.here, beat.push.activity.values.total])).toEqual([[1, 4], [
+      2,
+      4
+    ], [4, 4]])
+    expect(beats[0]!.push.activity.values.items?.map((item) => item.state)).toEqual([
+      "done",
+      "active",
+      "waiting",
+      "waiting"
+    ])
   })
 })

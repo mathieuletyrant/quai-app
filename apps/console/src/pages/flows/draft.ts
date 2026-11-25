@@ -1,7 +1,11 @@
 import type { ActionType, CatalogAction, CatalogEvent, Flow, FlowStep, StepShow } from "@quai/api"
 
 /** A flow being edited: the contract's type, writable. */
-type Mutable<T> = { -readonly [K in keyof T]: T[K] extends ReadonlyArray<infer U> ? Array<Mutable<U>> : T[K] extends object ? Mutable<T[K]> : T[K] }
+type Mutable<T> = {
+  -readonly [K in keyof T]: T[K] extends ReadonlyArray<infer U> ? Array<Mutable<U>>
+    : T[K] extends object ? Mutable<T[K]>
+    : T[K]
+}
 export type Draft = Mutable<Flow>
 export type DraftStep = Draft["steps"][number]
 export type EventType = FlowStep["on"]
@@ -16,11 +20,22 @@ export const slug = (text: string) =>
 /** The colours a flow can take: data saved with the flow and sent to the iPhone, so hex, not theme tokens. */
 export const palette = ["#FFC230", "#FF8A3D", "#FF6B5B", "#B57EDC", "#8B8CF8", "#4FC3F7", "#6FD3C2", "#30D158"]
 
-export const subjects: Record<Flow["subject"], { readonly label: string; readonly description: string; readonly icon: string }> = {
+export const subjects: Record<
+  Flow["subject"],
+  { readonly label: string; readonly description: string; readonly icon: string }
+> = {
   media: { label: "Downloads", description: "A title from Radarr or Sonarr to Jellyfin.", icon: "arrow.down" },
   playback: { label: "Playback", description: "What plays on Jellyfin, with remote buttons.", icon: "play.fill" },
-  request: { label: "Requests", description: "A Seerr request waiting for approval, with Approve and Decline.", icon: "person.fill.questionmark" },
-  day: { label: "Today's releases", description: "The day's episodes and movies from Sonarr and Radarr, from a time you pick.", icon: "calendar" }
+  request: {
+    label: "Requests",
+    description: "A Seerr request waiting for approval, with Approve and Decline.",
+    icon: "person.fill.questionmark"
+  },
+  day: {
+    label: "Today's releases",
+    description: "The day's episodes and movies from Sonarr and Radarr, from a time you pick.",
+    icon: "calendar"
+  }
 }
 
 /** How the console names each service an event comes from. */
@@ -66,7 +81,8 @@ export const showsSteps = (flow: Draft) =>
 export const eventName = (event: CatalogEvent) => event.label.replace(/ \(.*\)$/, "")
 
 /** "Release grabbed — Radarr, Sonarr": an event as a select lists it. */
-export const eventOption = (event: CatalogEvent) => `${eventName(event)} — ${event.services.map((service) => serviceNames[service]).join(", ")}`
+export const eventOption = (event: CatalogEvent) =>
+  `${eventName(event)} — ${event.services.map((service) => serviceNames[service]).join(", ")}`
 
 export const showLabels: Record<keyof StepShow, string> = {
   progress: "Progress",
@@ -105,5 +121,11 @@ export const newStep = (flow: Draft, events: ReadonlyArray<CatalogEvent>): Draft
   const unused = events.find((event) => !flow.steps.some((step) => step.on === event.type)) ?? events[0]!
   let number = flow.steps.length + 1
   while (flow.steps.some((step) => step.id === `step-${number}`)) number++
-  return { id: `step-${number}`, label: unused.label.replace(/ \(.*\)$/, ""), icon: "sparkles", on: unused.type, show: {} }
+  return {
+    id: `step-${number}`,
+    label: unused.label.replace(/ \(.*\)$/, ""),
+    icon: "sparkles",
+    on: unused.type,
+    show: {}
+  }
 }

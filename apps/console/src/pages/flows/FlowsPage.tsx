@@ -1,7 +1,19 @@
 import type { DeviceId, Flow } from "@quai/api"
 import { type ReactNode, useCallback, useEffect, useState } from "react"
 import { call, useLink } from "../../client.ts"
-import { Async, ErrorCallout, errorText, CloudOfflineState, type Notice, PageBar, PageBody, Panel, Skeleton, Toast, Workspace } from "../../ui"
+import {
+  Async,
+  CloudOfflineState,
+  ErrorCallout,
+  errorText,
+  type Notice,
+  PageBar,
+  PageBody,
+  Panel,
+  Skeleton,
+  Toast,
+  Workspace
+} from "../../ui"
 import { type Catalogs, clone, type Draft, sameFlow, slug } from "./draft.ts"
 import { FlowEditor } from "./FlowEditor.tsx"
 import { FlowSwitcher } from "./FlowSwitcher.tsx"
@@ -43,10 +55,13 @@ export function FlowsPage() {
     if (chosen) open(chosen)
   }
 
+  // Reloads when `epoch` moves (a save elsewhere), never over a draft being edited.
   useEffect(() => {
     if (draft !== null) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the last failure before reloading
     setFailure(null)
     load().catch(setFailure)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `draft` and `load` are read, not watched
   }, [epoch])
 
   /** Leaving unsaved changes asks first. */
@@ -60,34 +75,42 @@ export function FlowsPage() {
     }
   }
 
-  const save = () => run(async () => {
-    if (draft === null) return
-    const id = isNew ? slug(draft.name) : draft.id
-    const saved = await call((api) => api.flows.save({ params: { id }, payload: { ...draft, id } }))
-    setNotice({ ok: true, text: isNew ? "Flow created." : "Saved: new activities follow it from now on." })
-    await load(saved.id)
-  })
+  const save = () =>
+    run(async () => {
+      if (draft === null) return
+      const id = isNew ? slug(draft.name) : draft.id
+      const saved = await call((api) => api.flows.save({ params: { id }, payload: { ...draft, id } }))
+      setNotice({ ok: true, text: isNew ? "Flow created." : "Saved: new activities follow it from now on." })
+      await load(saved.id)
+    })
 
-  const test = (deviceIds: ReadonlyArray<DeviceId>) => run(async () => {
-    if (draft === null) return
-    await call((api) => api.flows.test({ params: { id: draft.id }, payload: { deviceIds } }))
-    setNotice({ ok: true, text: `Test sent to ${deviceIds.length === 1 ? "the iPhone" : `${deviceIds.length} iPhones`}: lock it to watch (about 30 s).` })
-  })
+  const test = (deviceIds: ReadonlyArray<DeviceId>) =>
+    run(async () => {
+      if (draft === null) return
+      await call((api) => api.flows.test({ params: { id: draft.id }, payload: { deviceIds } }))
+      setNotice({
+        ok: true,
+        text: `Test sent to ${
+          deviceIds.length === 1 ? "the iPhone" : `${deviceIds.length} iPhones`
+        }: lock it to watch (about 30 s).`
+      })
+    })
 
-  const remove = () => run(async () => {
-    if (draft === null) return
-    if (draft.builtIn) {
-      if (!window.confirm(`Reset “${draft.name}” to how Quai ships it?`)) return
-      await call((api) => api.flows.reset({ params: { id: draft.id } }))
-      setNotice({ ok: true, text: "Back to how Quai ships it." })
-      await load(draft.id)
-    } else {
-      if (!window.confirm(`Delete “${draft.name}”? Its running activities end.`)) return
-      await call((api) => api.flows.remove({ params: { id: draft.id } }))
-      setNotice({ ok: true, text: "Deleted." })
-      await load()
-    }
-  })
+  const remove = () =>
+    run(async () => {
+      if (draft === null) return
+      if (draft.builtIn) {
+        if (!window.confirm(`Reset “${draft.name}” to how Quai ships it?`)) return
+        await call((api) => api.flows.reset({ params: { id: draft.id } }))
+        setNotice({ ok: true, text: "Back to how Quai ships it." })
+        await load(draft.id)
+      } else {
+        if (!window.confirm(`Delete “${draft.name}”? Its running activities end.`)) return
+        await call((api) => api.flows.remove({ params: { id: draft.id } }))
+        setNotice({ ok: true, text: "Deleted." })
+        await load()
+      }
+    })
 
   const startNew = (base: Flow, name: string) => {
     if (!leave()) return
@@ -108,7 +131,9 @@ export function FlowsPage() {
           flows={flows}
           current={draft}
           dirty={dirty || isNew}
-          onOpen={(flow) => { if (flow.id !== draft.id && leave()) open(flow) }}
+          onOpen={(flow) => {
+            if (flow.id !== draft.id && leave()) open(flow)
+          }}
           onNew={startNew}
         />
       }
@@ -118,7 +143,10 @@ export function FlowsPage() {
         setDraft(next)
       }}
       onSave={save}
-      onDiscard={() => { if (original) setDraft(clone(original)); else void load() }}
+      onDiscard={() => {
+        if (original) setDraft(clone(original))
+        else void load()
+      }}
       onTest={test}
       onDuplicate={() => startNew(draft as Flow, `${draft.name} copy`.slice(0, 40))}
       onRemove={remove}
@@ -130,8 +158,18 @@ export function FlowsPage() {
       <Async
         state={{ data: draft, error: failure }}
         loading={<EditorSkeleton />}
-        offline={<Unreadable><Panel><CloudOfflineState what="Flows" /></Panel></Unreadable>}
-        failed={(error) => <Unreadable><ErrorCallout error={error} title="The flows couldn't be read" /></Unreadable>}
+        offline={
+          <Unreadable>
+            <Panel>
+              <CloudOfflineState what="Flows" />
+            </Panel>
+          </Unreadable>
+        }
+        failed={(error) => (
+          <Unreadable>
+            <ErrorCallout error={error} title="The flows couldn't be read" />
+          </Unreadable>
+        )}
       >
         {editor}
       </Async>
@@ -146,7 +184,10 @@ function EditorSkeleton() {
     <div aria-busy="true" aria-label="Loading the flows" className="flex flex-1 flex-col">
       <div className="flex min-h-16 items-center gap-3 border-b border-line px-4 md:px-8">
         <Skeleton className="size-9 rounded-control" />
-        <div className="flex flex-col gap-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
+        <div className="flex flex-col gap-1.5">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-3 w-24" />
+        </div>
       </div>
       <Workspace
         canvas={

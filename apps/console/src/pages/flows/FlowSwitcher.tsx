@@ -22,15 +22,35 @@ export function FlowSwitcher({ flows, current, dirty, onOpen, onNew }: {
     return base ? [{ subject, base }] : []
   })
   return (
-    <Popover className="w-85" trigger={({ open, toggle }) => <Trigger flow={current} dirty={dirty} open={open} onClick={toggle} />}>
+    <Popover
+      className="w-85"
+      trigger={({ open, toggle }) => <Trigger flow={current} dirty={dirty} open={open} onClick={toggle} />}
+    >
       {(close) => (
         <>
           <MenuLabel>Flows</MenuLabel>
-          {flows.map((flow) => <FlowItem key={flow.id} flow={flow} current={flow.id === current.id} onClick={() => { close(); onOpen(flow) }} />)}
+          {flows.map((flow) => (
+            <FlowItem
+              key={flow.id}
+              flow={flow}
+              current={flow.id === current.id}
+              onClick={() => {
+                close()
+                onOpen(flow)
+              }}
+            />
+          ))}
           <MenuSeparator />
           <MenuLabel>New flow</MenuLabel>
           {subjectsWithBase.map(({ subject, base }) => (
-            <NewFlowItem key={subject} subject={subject} onClick={() => { close(); onNew(base, `My ${subjects[subject].label.toLowerCase()}`) }} />
+            <NewFlowItem
+              key={subject}
+              subject={subject}
+              onClick={() => {
+                close()
+                onNew(base, `My ${subjects[subject].label.toLowerCase()}`)
+              }}
+            />
           ))}
         </>
       )}
@@ -48,12 +68,17 @@ function Trigger({ flow, dirty, open, onClick }: { flow: Draft; dirty: boolean; 
       onClick={onClick}
       className="group -my-1 -ml-2 flex max-w-full min-w-0 items-center gap-3 rounded-card py-1.5 pr-3 pl-2 text-left transition-colors hover:bg-white/5 aria-expanded:bg-white/6"
     >
-      <span className="grid size-9 shrink-0 place-items-center rounded-tile bg-black" style={{ boxShadow: `inset 0 0 0 1.5px ${flow.color}66` }}>
+      <span
+        className="grid size-9 shrink-0 place-items-center rounded-tile bg-black"
+        style={{ boxShadow: `inset 0 0 0 1.5px ${flow.color}66` }}
+      >
         <Glyph name={flow.icon} color={flow.color} size={17} />
       </span>
       <span className="min-w-0">
         <span className="flex items-center gap-2">
-          <span className="truncate text-heading leading-6 font-semibold tracking-title">{flow.name || "New flow"}</span>
+          <span className="truncate text-heading leading-6 font-semibold tracking-title">
+            {flow.name || "New flow"}
+          </span>
           {dirty && <span className="size-2 shrink-0 rounded-full bg-warn" title="Unsaved changes" />}
           <Icon name="chevronDown" size={15} className="text-muted transition-colors group-hover:text-text" />
         </span>

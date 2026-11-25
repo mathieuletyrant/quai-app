@@ -32,7 +32,9 @@ export class ConsoleAuth extends Context.Service<ConsoleAuth, {
   /** Where a browser with this cookie (if any) stands. */
   readonly access: (token: string | undefined) => Effect.Effect<ConsoleAccess["state"]>
   /** A new session token, for the right password. */
-  readonly signIn: (password: string) => Effect.Effect<{ readonly token: string; readonly expiresAt: number }, WrongPassword>
+  readonly signIn: (
+    password: string
+  ) => Effect.Effect<{ readonly token: string; readonly expiresAt: number }, WrongPassword>
 }>()("quai-home/ConsoleAuth") {
   static readonly layer = Layer.effect(
     ConsoleAuth,
@@ -50,8 +52,12 @@ export class ConsoleAuth extends Context.Service<ConsoleAuth, {
               : "signedOut"),
         signIn: (given) =>
           Effect.gen(function*() {
-            if (password === null) return yield* Effect.fail(new WrongPassword({ message: "Set QUAI_HOME_PASSWORD on Quai Home first" }))
-            if (!timingSafeEqual(digest(given), digest(password))) return yield* Effect.fail(new WrongPassword({ message: "Wrong password" }))
+            if (password === null) {
+              return yield* Effect.fail(new WrongPassword({ message: "Set QUAI_HOME_PASSWORD on Quai Home first" }))
+            }
+            if (!timingSafeEqual(digest(given), digest(password))) {
+              return yield* Effect.fail(new WrongPassword({ message: "Wrong password" }))
+            }
             const expiresAt = (yield* Clock.currentTimeMillis) + sessionMs
             return { token: sessionToken(consoleSecret, password, expiresAt), expiresAt }
           })

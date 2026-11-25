@@ -1,5 +1,13 @@
 import { Schema } from "effect"
-import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, HttpApiSecurity } from "effect/http-api"
+import {
+  HttpApi,
+  HttpApiEndpoint,
+  HttpApiError,
+  HttpApiGroup,
+  HttpApiMiddleware,
+  HttpApiSchema,
+  HttpApiSecurity
+} from "effect/http-api"
 import { HomeService } from "./Home.ts"
 
 /**
@@ -39,7 +47,8 @@ export class SessionGroup extends HttpApiGroup.make("session")
     error: WrongPassword
   }))
   .add(HttpApiEndpoint.delete("signOut", "/session", { success: HttpApiSchema.NoContent }))
-  .prefix("/home-api") {}
+  .prefix("/home-api")
+{}
 
 /** The Quai Cloud this home links to: `QUAI_CLOUD_URL`, set on Quai Home only. */
 export const CloudLink = Schema.Struct({
@@ -83,7 +92,8 @@ export class HomeStatusGroup extends HttpApiGroup.make("home")
   /** The iPhones were paired again (or will be): forget the Cloud this home linked to before. */
   .add(HttpApiEndpoint.post("acknowledgeCloud", "/home/cloud-changed", { success: HttpApiSchema.NoContent }))
   .middleware(ConsoleSession)
-  .prefix("/home-api") {}
+  .prefix("/home-api")
+{}
 
 /** What reaching a service with its address and key gave. */
 export const ServiceCheck = Schema.Struct({
@@ -161,7 +171,10 @@ export class ServicesGroup extends HttpApiGroup.make("services")
     success: ServiceCheck
   }))
   .middleware(ConsoleSession)
-  .prefix("/home-api") {}
+  .prefix("/home-api")
+{}
 
 /** What Quai Home serves its console, next to the relayed `/console-api`. */
-export class HomeConsoleApi extends HttpApi.make("quai-home").add(SessionGroup).add(HomeStatusGroup).add(ServicesGroup) {}
+export class HomeConsoleApi
+  extends HttpApi.make("quai-home").add(SessionGroup).add(HomeStatusGroup).add(ServicesGroup)
+{}

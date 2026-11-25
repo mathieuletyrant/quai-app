@@ -8,11 +8,14 @@ import { StoreError } from "./Errors.ts"
 type HomeService = HomeProtocol.HomeService
 
 /** What `services.json` holds: what the Services page saved, keys in clear (the file is 0600). */
-const Saved = Schema.Record(Schema.String, Schema.Struct({
-  url: Schema.String,
-  secret: Schema.optionalKey(Schema.String),
-  username: Schema.optionalKey(Schema.String)
-}))
+const Saved = Schema.Record(
+  Schema.String,
+  Schema.Struct({
+    url: Schema.String,
+    secret: Schema.optionalKey(Schema.String),
+    username: Schema.optionalKey(Schema.String)
+  })
+)
 type Saved = typeof Saved.Type
 type SavedService = Saved[string]
 
@@ -46,7 +49,9 @@ export const merged = (
     return new InvalidService({ message: "The address must start with http:// or https://" })
   }
   const secret = input.secret === undefined || input.secret === "" ? before?.secret : input.secret
-  if (service !== "qbittorrent" && secret === undefined) return new InvalidService({ message: "The API key is missing" })
+  if (service !== "qbittorrent" && secret === undefined) {
+    return new InvalidService({ message: "The API key is missing" })
+  }
   const username = input.username?.trim()
   return {
     url,
@@ -64,7 +69,10 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
   readonly current: Effect.Effect<Endpoints>
   /** Each service as the Services page shows it: its source, its address, never its key. */
   readonly list: Effect.Effect<ReadonlyArray<ServiceSetup>>
-  readonly save: (service: HomeService, input: ServiceInput) => Effect.Effect<void, SetByEnvironment | InvalidService | StoreError>
+  readonly save: (
+    service: HomeService,
+    input: ServiceInput
+  ) => Effect.Effect<void, SetByEnvironment | InvalidService | StoreError>
   readonly remove: (service: HomeService) => Effect.Effect<void, SetByEnvironment | StoreError>
   /** The services that change from now on, one by one. */
   readonly changes: Effect.Effect<PubSub.Subscription<HomeService>, never, Scope.Scope>
@@ -79,7 +87,9 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
       const initial: Saved = exists
         ? yield* fs.readFileString(path).pipe(
           Effect.flatMap(Schema.decodeUnknownEffect(SavedJson)),
-          Effect.catch((cause) => Effect.as(Effect.logWarning(`${path} can't be read: no service saved from the console`, cause), {}))
+          Effect.catch((cause) =>
+            Effect.as(Effect.logWarning(`${path} can't be read: no service saved from the console`, cause), {})
+          )
         )
         : {}
       const saved = yield* Ref.make<Saved>(initial)
@@ -98,7 +108,9 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
 
       const write = (all: Saved) =>
         Effect.gen(function*() {
-          const text = yield* Schema.encodeEffect(SavedJson)(all).pipe(Effect.mapError(fail("could not encode the services")))
+          const text = yield* Schema.encodeEffect(SavedJson)(all).pipe(
+            Effect.mapError(fail("could not encode the services"))
+          )
           const temp = join(dirname(path), `.${randomBytes(6).toString("hex")}.tmp`)
           yield* fs.makeDirectory(dirname(path), { recursive: true }).pipe(
             Effect.andThen(fs.writeFileString(temp, text, { mode: 0o600 })),
@@ -178,7 +190,9 @@ export class ServiceSettings extends Context.Service<ServiceSettings, {
     Effect.gen(function*() {
       const config = yield* HomeConfig
       const pubsub = yield* PubSub.unbounded<HomeService>()
-      const endpoints = Object.fromEntries(allServices.map((service) => [service, config[service]])) as unknown as Endpoints
+      const endpoints = Object.fromEntries(
+        allServices.map((service) => [service, config[service]])
+      ) as unknown as Endpoints
       return {
         current: Effect.succeed(endpoints),
         list: Effect.succeed([]),

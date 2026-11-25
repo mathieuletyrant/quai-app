@@ -40,13 +40,23 @@ export class Calls extends Context.Service<Calls, {
       const reached = (service: HomeProtocol.HomeService) =>
         Effect.suspend(() => {
           if (!failing.delete(service)) return Effect.void
-          return journal.note({ level: "info", source: service, kind: "service.reached", text: `Quai Home reaches ${journalSourceNames[service]} again` })
+          return journal.note({
+            level: "info",
+            source: service,
+            kind: "service.reached",
+            text: `Quai Home reaches ${journalSourceNames[service]} again`
+          })
         })
       const unreached = (service: HomeProtocol.HomeService, reason: string) =>
         Effect.suspend(() => {
           if (failing.get(service) === reason) return Effect.void
           failing.set(service, reason)
-          return journal.note({ level: "warn", source: service, kind: "service.unreached", text: `Quai Home can't reach ${journalSourceNames[service]}: ${reason}` })
+          return journal.note({
+            level: "warn",
+            source: service,
+            kind: "service.unreached",
+            text: `Quai Home can't reach ${journalSourceNames[service]}: ${reason}`
+          })
         })
 
       const refuse = (call: HomeProtocol.Call, why: string) =>
@@ -55,7 +65,9 @@ export class Calls extends Context.Service<Calls, {
             level: "warn",
             source: call.service,
             kind: "call.refused",
-            text: `Quai Home refused a call ${why}: ${journalSourceNames[call.service]} ${call.method} ${call.path.split("?")[0]}`
+            text: `Quai Home refused a call ${why}: ${journalSourceNames[call.service]} ${call.method} ${
+              call.path.split("?")[0]
+            }`
           }),
           failed(call.id, "not allowed")
         )
@@ -76,17 +88,25 @@ export class Calls extends Context.Service<Calls, {
         Effect.flatMap(auth.execute(call.service, requestOf(call)), (response) => {
           const length = Number(response.headers["content-length"])
           if (length > HomeProtocol.maxBodyBytes) return failed(call.id, "too large")
-          return Effect.map(response.text, (body): CallResponse | Failed =>
-            Buffer.byteLength(body) > HomeProtocol.maxBodyBytes
-              ? HomeProtocol.Failed.make({ id: call.id, reason: "too large" })
-              : HomeProtocol.CallResponse.make({ id: call.id, status: response.status, body }))
+          return Effect.map(
+            response.text,
+            (body): CallResponse | Failed =>
+              Buffer.byteLength(body) > HomeProtocol.maxBodyBytes
+                ? HomeProtocol.Failed.make({ id: call.id, reason: "too large" })
+                : HomeProtocol.CallResponse.make({ id: call.id, status: response.status, body })
+          )
         })
 
       /** The service didn't answer (unreachable, a login refused, too slow): the journal hears it once, the cloud each time. */
-      const notAnswered = (call: HomeProtocol.Call) => (error: ServiceError | HttpClientError.HttpClientError | Cause.TimeoutError) => {
-        const reason = error._tag === "ServiceError" ? error.message : error._tag === "TimeoutError" ? "timed out" : "could not read the response"
-        return Effect.andThen(unreached(call.service, reason), failed(call.id, reason))
-      }
+      const notAnswered =
+        (call: HomeProtocol.Call) => (error: ServiceError | HttpClientError.HttpClientError | Cause.TimeoutError) => {
+          const reason = error._tag === "ServiceError"
+            ? error.message
+            : error._tag === "TimeoutError"
+            ? "timed out"
+            : "could not read the response"
+          return Effect.andThen(unreached(call.service, reason), failed(call.id, reason))
+        }
 
       const send = (call: HomeProtocol.Call, rule: HomeProtocol.AllowRule) =>
         exchange(call).pipe(
@@ -102,12 +122,18 @@ export class Calls extends Context.Service<Calls, {
        */
       const verdict = (call: HomeProtocol.Call, against: NonNullable<HomeProtocol.AllowRule["against"]>) =>
         Effect.flatMap(auth.execute(call.service, HttpClientRequest.get(against.path)), (response) => {
-          if (response.status < 200 || response.status >= 300) return Effect.succeed<Verdict>({ _tag: "Unanswered", reason: `HTTP ${response.status}` })
-          if (Number(response.headers["content-length"]) > HomeProtocol.maxBodyBytes) return Effect.succeed<Verdict>({ _tag: "Refused", why: unreadable })
+          if (response.status < 200 || response.status >= 300) {
+            return Effect.succeed<Verdict>({ _tag: "Unanswered", reason: `HTTP ${response.status}` })
+          }
+          if (Number(response.headers["content-length"]) > HomeProtocol.maxBodyBytes) {
+            return Effect.succeed<Verdict>({ _tag: "Refused", why: unreadable })
+          }
           return Effect.map(response.text, (body): Verdict => {
             const current = Buffer.byteLength(body) > HomeProtocol.maxBodyBytes ? Option.none() : decodeJson(body)
             if (Option.isNone(current)) return { _tag: "Refused", why: unreadable }
-            return against.check(current.value, call.body) ? { _tag: "Allowed" } : { _tag: "Refused", why: "that changes more than it may" }
+            return against.check(current.value, call.body)
+              ? { _tag: "Allowed" }
+              : { _tag: "Refused", why: "that changes more than it may" }
           })
         })
 
@@ -121,7 +147,9 @@ export class Calls extends Context.Service<Calls, {
       const checked = (call: HomeProtocol.Call, against: NonNullable<HomeProtocol.AllowRule["against"]>) =>
         Effect.gen(function*() {
           const outcome = yield* verdict(call, against)
-          if (outcome._tag === "Unanswered") return yield* Effect.andThen(unreached(call.service, outcome.reason), failed(call.id, outcome.reason))
+          if (outcome._tag === "Unanswered") {
+            return yield* Effect.andThen(unreached(call.service, outcome.reason), failed(call.id, outcome.reason))
+          }
           yield* reached(call.service)
           if (outcome._tag === "Refused") return yield* refuse(call, outcome.why)
           return yield* exchange(call)

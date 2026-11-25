@@ -1,16 +1,27 @@
-import { HomeOffline, HomeProtocol, type Upcoming as UpcomingList, upcomingReleaseDays, type UpcomingService } from "@quai/api"
+import {
+  HomeOffline,
+  HomeProtocol,
+  type Upcoming as UpcomingList,
+  upcomingReleaseDays,
+  type UpcomingService
+} from "@quai/api"
 import { Clock, Context, Effect, Layer, Option } from "effect"
 import { stuckRemovalsRead } from "../fixes/Planned.ts"
+import { dayOf } from "../home/Day.ts"
 import { HomeLink, offlineMessage } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
+import { HomeTime } from "../home/HomeTime.ts"
 import { epochSeconds, mediaManagementRead } from "../integrations/arr.ts"
-import { downloadCleanerJobRead, downloadCleanerRead, seedCleanups, unlinkedCategory } from "../integrations/cleanuparr.ts"
+import {
+  downloadCleanerJobRead,
+  downloadCleanerRead,
+  seedCleanups,
+  unlinkedCategory
+} from "../integrations/cleanuparr.ts"
 import { finishedTorrentsRead } from "../integrations/qbittorrent.ts"
 import { radarrGrabsRead, radarrMoviesRead } from "../integrations/radarr.ts"
 import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../integrations/reclaimerr.ts"
 import { sonarrGrabsRead, sonarrSeriesRead } from "../integrations/sonarr.ts"
-import { dayOf } from "../home/Day.ts"
-import { HomeTime } from "../home/HomeTime.ts"
 import { rangeReads, rangeReleases } from "../releases/ReleaseDays.ts"
 import { byDate, plannedDeletionItems, releaseItems, seedItems, stuckRemovalItems } from "./Rows.ts"
 import { spaceBack } from "./SpaceBack.ts"
@@ -24,7 +35,8 @@ export const grabsSince = (addedOn: ReadonlyArray<number>, now: number) =>
   Math.max(Math.min(now, ...addedOn.map((seconds) => seconds * 1000)) - 24 * 3600_000, now - maxGrabLookbackMs)
 
 /** A read's value as space back takes it: `null` when its service isn't reached, `undefined` when it didn't answer. */
-const known = <A>(reached: boolean, value: Option.Option<A>): A | null | undefined => reached ? Option.getOrUndefined(value) : null
+const known = <A>(reached: boolean, value: Option.Option<A>): A | null | undefined =>
+  reached ? Option.getOrUndefined(value) : null
 
 const nothingBack = { deletions: new Map<number, number>(), torrents: new Map<string, number>() }
 
@@ -65,12 +77,22 @@ export class Upcoming extends Context.Service<Upcoming, {
           has("qbittorrent") ? reads.read(finishedTorrentsRead) : none
         ], { concurrency: "unbounded" })
         const planned = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
-        const nextRunAt = Option.getOrUndefined(Option.flatMap(job, (scheduled) => Option.fromNullishOr(epochSeconds(scheduled.nextRunTime ?? undefined))))
+        const nextRunAt = Option.getOrUndefined(
+          Option.flatMap(job, (scheduled) => Option.fromNullishOr(epochSeconds(scheduled.nextRunTime ?? undefined)))
+        )
         const cleanups = Option.isSome(cleaner) && Option.isSome(finished)
-          ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunAt === undefined ? undefined : nextRunAt * 1000, now })
+          ? seedCleanups({
+            settings: cleaner.value,
+            torrents: finished.value,
+            nextRunAt: nextRunAt === undefined ? undefined : nextRunAt * 1000,
+            now
+          })
           : []
 
-        const addedOn = Option.match(finished, { onNone: () => [], onSome: (list) => list.flatMap((torrent) => torrent.added_on ?? []) })
+        const addedOn = Option.match(finished, {
+          onNone: () => [],
+          onSome: (list) => list.flatMap((torrent) => torrent.added_on ?? [])
+        })
         const since = grabsSince(addedOn, now)
         const library = planned.length > 0 || cleanups.length > 0
           ? (yield* reads.all({
@@ -80,7 +102,8 @@ export class Upcoming extends Context.Service<Upcoming, {
             sonarrGrabs: has("sonarr") ? sonarrGrabsRead(since) : null,
             radarrSettings: recent && has("radarr") ? mediaManagementRead("radarr") : null,
             sonarrSettings: recent && has("sonarr") ? mediaManagementRead("sonarr") : null
-          }, { optional: ["movies", "series", "radarrGrabs", "sonarrGrabs", "radarrSettings", "sonarrSettings"] })).values
+          }, { optional: ["movies", "series", "radarrGrabs", "sonarrGrabs", "radarrSettings", "sonarrSettings"] }))
+            .values
           : undefined
         const frees = library === undefined ? nothingBack : spaceBack(spaceInputs({
           now,
@@ -105,16 +128,21 @@ export class Upcoming extends Context.Service<Upcoming, {
         if (calendars.unavailable.includes("radarr")) unavailable.push("radarr")
         if (calendars.unavailable.includes("sonarr")) unavailable.push("sonarr")
         if (has("reclaimerr") && Option.isNone(candidates)) unavailable.push("reclaimerr")
-        if (has("cleanuparr") && (Option.isNone(removals) || (cleaning && Option.isNone(cleaner)))) unavailable.push("cleanuparr")
+        if (has("cleanuparr") && (Option.isNone(removals) || (cleaning && Option.isNone(cleaner)))) {
+          unavailable.push("cleanuparr")
+        }
         if (has("qbittorrent") && Option.isNone(finished)) unavailable.push("qbittorrent")
 
         return {
           timeZone: zone,
           items: [
-            ...releaseItems(rangeReleases(today, upcomingReleaseDays, zone, {
-              episodes: Option.getOrUndefined(calendars.values.episodes),
-              movies: Option.getOrUndefined(calendars.values.movies)
-            }), zone),
+            ...releaseItems(
+              rangeReleases(today, upcomingReleaseDays, zone, {
+                episodes: Option.getOrUndefined(calendars.values.episodes),
+                movies: Option.getOrUndefined(calendars.values.movies)
+              }),
+              zone
+            ),
             ...plannedDeletionItems(plannedDeletionFixes(planned, posters), now, frees.deletions),
             ...stuckRemovalItems(Option.getOrElse(removals, () => []), now),
             ...seedItems(cleanups, zone, frees.torrents)

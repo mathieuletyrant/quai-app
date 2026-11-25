@@ -1,15 +1,15 @@
-import { HomeProtocol, journalId } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { HomeProtocol, journalId } from "@quai/api"
 import { Effect, Fiber, Layer, Option, Queue } from "effect"
 import { Socket } from "effect/socket"
 import { TestClock } from "effect/testing"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
 import { join } from "node:path"
 import { Calls } from "../src/Calls.ts"
+import { CloudSeen } from "../src/CloudSeen.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { Journal } from "../src/Journal.ts"
-import { CloudSeen } from "../src/CloudSeen.ts"
 import { heldWebhooksLimit, Link } from "../src/Link.ts"
 import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
@@ -29,7 +29,10 @@ const fakeSocket = Effect.gen(function*() {
   let latest: Connection | null = null
   const socket = Socket.make({
     reader: Effect.gen(function*() {
-      const connection: Connection = { incoming: yield* Queue.unbounded<string | typeof close>(), sent: yield* Queue.unbounded<any>() }
+      const connection: Connection = {
+        incoming: yield* Queue.unbounded<string | typeof close>(),
+        sent: yield* Queue.unbounded<any>()
+      }
       latest = connection
       yield* Queue.offer(connections, connection)
       return {
@@ -41,7 +44,8 @@ const fakeSocket = Effect.gen(function*() {
       }
     }),
     writer: Effect.succeed({
-      write: (chunk) => Queue.offer(latest!.sent, typeof chunk === "string" ? JSON.parse(chunk) : chunk).pipe(Effect.asVoid),
+      write: (chunk) =>
+        Queue.offer(latest!.sent, typeof chunk === "string" ? JSON.parse(chunk) : chunk).pipe(Effect.asVoid),
       writeAll: () => Effect.void
     })
   })
@@ -90,7 +94,8 @@ const cloud = (connection: Connection, message: object | string) =>
 /** Lets forked fibers run up to their next wait. */
 const settle = Effect.repeat(Effect.yieldNow, { times: 20 })
 
-const nothingSent = (connection: Connection) => Effect.map(Effect.andThen(settle, Queue.size(connection.sent)), (size) => size === 0)
+const nothingSent = (connection: Connection) =>
+  Effect.map(Effect.andThen(settle, Queue.size(connection.sent)), (size) => size === 0)
 const noConnection = (connections: Queue.Queue<Connection>) =>
   Effect.map(Effect.andThen(settle, Queue.poll(connections)), Option.isNone)
 
@@ -123,14 +128,22 @@ describe("link", () => {
         const proof = yield* Queue.take(connection.sent)
         expect(proof._tag).toBe("Proof")
         const publicKey = createPublicKey({ key: Buffer.from(key.publicKey, "base64"), format: "der", type: "spki" })
-        expect(verify(null, Buffer.from(HomeProtocol.challengePayload(nonce)), publicKey, Buffer.from(proof.signature, "base64"))).toBe(true)
+        expect(
+          verify(
+            null,
+            Buffer.from(HomeProtocol.challengePayload(nonce)),
+            publicKey,
+            Buffer.from(proof.signature, "base64")
+          )
+        ).toBe(true)
 
         const link = yield* Link
         expect(yield* link.linked).toBe(false)
         yield* cloud(connection, { _tag: "Welcome", homeId: key.homeId })
         yield* settle
         expect(yield* link.linked).toBe(true)
-      })))
+      })
+    ))
 
   it.effect("answers a Call, and ignores what it can't read", () =>
     withLink(({ connections }) =>
@@ -138,9 +151,21 @@ describe("link", () => {
         const connection = yield* linked(connections)
         yield* cloud(connection, "not json")
         yield* cloud(connection, { _tag: "Shutdown" })
-        yield* cloud(connection, { _tag: "Call", id: "42", service: "radarr", method: "GET", path: "/api/v3/system/status" })
-        expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "CallResponse", id: "42", status: 200, body: "/api/v3/system/status" })
-      })))
+        yield* cloud(connection, {
+          _tag: "Call",
+          id: "42",
+          service: "radarr",
+          method: "GET",
+          path: "/api/v3/system/status"
+        })
+        expect(yield* Queue.take(connection.sent)).toEqual({
+          _tag: "CallResponse",
+          id: "42",
+          status: 200,
+          body: "/api/v3/system/status"
+        })
+      })
+    ))
 
   it.effect("answers Ping with Pong, and reconnects after 60 s without one", () =>
     withLink(({ connections }) =>
@@ -162,7 +187,8 @@ describe("link", () => {
         yield* TestClock.adjust("1 second")
         const next = yield* Queue.take(connections)
         expect(yield* Queue.take(next.sent)).toMatchObject({ _tag: "Hello" })
-      })))
+      })
+    ))
 
   it.effect("reconnects after 1 s, 2 s, 4 s…, and starts over after a Welcome", () =>
     withLink(({ connections }) =>
@@ -184,7 +210,8 @@ describe("link", () => {
         yield* cloud(fourth, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
         yield* Queue.offer(fourth.incoming, close)
         yield* reconnectsAfter(1)
-      })))
+      })
+    ))
 
   it.effect("waits retryAfterSeconds after a Refused", () =>
     withLink(({ connections }) =>
@@ -197,14 +224,16 @@ describe("link", () => {
         yield* TestClock.adjust("1 second")
         const second = yield* Queue.take(connections)
         expect(yield* Queue.take(second.sent)).toMatchObject({ _tag: "Hello" })
-      })))
+      })
+    ))
 
   it.effect("sends webhooks while linked, holds them while not and sends them once welcomed again", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const link = yield* Link
         const connection = yield* linked(connections)
-        const webhook = (eventType: string) => ({ _tag: "WebhookReceived", service: "sonarr", receivedAt: 0, body: { eventType } }) as const
+        const webhook = (eventType: string) =>
+          ({ _tag: "WebhookReceived", service: "sonarr", receivedAt: 0, body: { eventType } }) as const
         yield* link.send(webhook("Grab"))
         expect(yield* Queue.take(connection.sent)).toEqual(webhook("Grab"))
 
@@ -223,7 +252,8 @@ describe("link", () => {
         yield* settle
         expect(yield* Queue.take(next.sent)).toEqual(webhook("Download"))
         expect(yield* Queue.take(next.sent)).toEqual(webhook("ManualInteractionRequired"))
-      })))
+      })
+    ))
 
   it.effect(`holds at most ${heldWebhooksLimit} webhooks, the newest`, () =>
     withLink(({ connections }) =>
@@ -239,7 +269,8 @@ describe("link", () => {
         const webhooks = sent.filter((message) => message._tag === "WebhookReceived")
         expect(webhooks).toHaveLength(heldWebhooksLimit)
         expect(webhooks[0].receivedAt).toBe(5)
-      })))
+      })
+    ))
 
   it.effect("runs store operations in order and answers each", () =>
     withLink(({ connections }) =>
@@ -261,17 +292,34 @@ describe("link", () => {
           { _tag: "StoreDocuments", id: "5", documents: [{ key: "devices/a", value: 1 }] },
           { _tag: "Failed", id: "6", reason: "invalid key: ../escape" }
         ])
-      })))
+      })
+    ))
 
   it.effect("keeps the Cloud's journal lines and answers a read with a page, in the order sent", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const connection = yield* linked(connections)
-        const line = (index: number, source: string) => ({ id: journalId(1_000 + index, "c", index), at: 1_000 + index, level: "info", source, kind: "media.grabbed", text: `line ${index}` })
-        yield* cloud(connection, { _tag: "JournalAppend", entries: [line(1, "radarr"), line(2, "sonarr"), line(3, "radarr")] })
+        const line = (index: number, source: string) => ({
+          id: journalId(1_000 + index, "c", index),
+          at: 1_000 + index,
+          level: "info",
+          source,
+          kind: "media.grabbed",
+          text: `line ${index}`
+        })
+        yield* cloud(connection, {
+          _tag: "JournalAppend",
+          entries: [line(1, "radarr"), line(2, "sonarr"), line(3, "radarr")]
+        })
         yield* cloud(connection, { _tag: "JournalRead", id: "r9", query: { limit: 1, sources: ["radarr"] } })
-        expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "JournalPage", id: "r9", entries: [line(3, "radarr")], more: true })
-      })))
+        expect(yield* Queue.take(connection.sent)).toEqual({
+          _tag: "JournalPage",
+          id: "r9",
+          entries: [line(3, "radarr")],
+          more: true
+        })
+      })
+    ))
 
   it.effect("hands its own journal lines to the Cloud once linked", () =>
     withLink(({ connections }) =>
@@ -284,12 +332,16 @@ describe("link", () => {
         expect(noted.entries.map((entry: { text: string }) => entry.text)).toEqual(["refused"])
         const page = yield* journal.read({ limit: 10 })
         expect(page.entries.map((entry) => entry.text)).toEqual(["refused"])
-      })))
+      })
+    ))
 
   it.effect("polls watches while linked, stops on disconnect, and sends snapshots again after the next Welcome", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
-        const watches = { _tag: "SetWatches", watches: [{ id: "w", service: "jellyfin", path: "/Sessions", everySeconds: 15 }] }
+        const watches = {
+          _tag: "SetWatches",
+          watches: [{ id: "w", service: "jellyfin", path: "/Sessions", everySeconds: 15 }]
+        }
         const snapshot = { _tag: "WatchSnapshot", watchId: "w", status: 200, body: "/Sessions" }
         const first = yield* linked(connections)
         yield* cloud(first, watches)
@@ -305,7 +357,8 @@ describe("link", () => {
         expect(yield* nothingSent(second)).toBe(true)
         yield* cloud(second, watches)
         expect(yield* Queue.take(second.sent)).toEqual(snapshot)
-      })))
+      })
+    ))
 
   it.effect("relays a console request to the Cloud and its answer back", () =>
     withLink(({ connections }) =>
@@ -318,7 +371,8 @@ describe("link", () => {
         expect(request).toEqual({ _tag: "ConsoleRequest", id: request.id, method: "GET", path: "/console-api/devices" })
         yield* cloud(connection, { _tag: "ConsoleResponse", id: request.id, status: 200, body: "[]" })
         expect(yield* Fiber.join(answer)).toEqual({ status: 200, body: "[]" })
-      })))
+      })
+    ))
 
   it.effect("a console request fails while the Cloud hasn't welcomed this home, and when the link drops", () =>
     withLink(({ connections }) =>
@@ -334,7 +388,8 @@ describe("link", () => {
         yield* settle
         yield* Queue.offer(connection.incoming, close)
         expect((yield* Effect.flip(Fiber.join(answer)))._tag).toBe("CloudUnreachable")
-      })))
+      })
+    ))
 
   it.effect("tells the Cloud which services it reaches when one is set from the console", () =>
     withLink(({ connections }) =>
@@ -347,5 +402,6 @@ describe("link", () => {
           _tag: "ServicesChanged",
           services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"]
         })
-      })))
+      })
+    ))
 })

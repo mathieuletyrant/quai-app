@@ -10,7 +10,9 @@ import { Service } from "./Service.ts"
  * - `stuckRemoval`: a download Cleanuparr's queue cleaner takes out at its next strike, if it's still stuck (going);
  * - `seedCleanup`: finished torrents Cleanuparr's download cleaner takes out of qBittorrent, grouped by week (going).
  */
-export const UpcomingKind = Schema.Literals(["releaseDay", "plannedDeletion", "stuckRemoval", "seedCleanup"]).annotate({ identifier: "UpcomingKind" })
+export const UpcomingKind = Schema.Literals(["releaseDay", "plannedDeletion", "stuckRemoval", "seedCleanup"]).annotate({
+  identifier: "UpcomingKind"
+})
 export type UpcomingKind = typeof UpcomingKind.Type
 
 /** Who does it: the row's tag. */
@@ -74,4 +76,5 @@ export class UpcomingGroup extends HttpApiGroup.make("upcoming")
   .add(HttpApiEndpoint.get("list", "/upcoming", { success: Upcoming }).annotate(OpenApi.Identifier, "getUpcoming"))
   .middleware(DeviceAuth)
   .middleware(HomeRequired)
-  .prefix("/api") {}
+  .prefix("/api")
+{}

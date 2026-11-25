@@ -35,8 +35,10 @@ export class CloudSeen extends Context.Service<CloudSeen, {
           )
         )
       return {
-        previous: Effect.map(Ref.get(seen), (url) => Option.filter(url, (seenUrl) => current !== null && seenUrl !== current)),
-        linked: Effect.flatMap(Ref.get(seen), (url) => current === null || Option.isSome(url) ? Effect.void : remember(current)),
+        previous: Effect.map(Ref.get(seen), (url) =>
+          Option.filter(url, (seenUrl) => current !== null && seenUrl !== current)),
+        linked: Effect.flatMap(Ref.get(seen), (url) =>
+          current === null || Option.isSome(url) ? Effect.void : remember(current)),
         acknowledge: current === null ? Effect.void : remember(current)
       } satisfies CloudSeen["Service"]
     })

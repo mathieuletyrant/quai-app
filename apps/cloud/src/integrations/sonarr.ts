@@ -3,9 +3,17 @@ import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { knownId, seriesKey } from "../flows/Events.ts"
 import type { Read } from "../home/HomeReads.ts"
-import { ArrImage, epochSeconds, grabsSincePath, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
-import type { Integration } from "./Integration.ts"
 import * as LibraryId from "../library/LibraryId.ts"
+import {
+  ArrImage,
+  epochSeconds,
+  grabsSincePath,
+  importBlockedDetail,
+  knownYear,
+  posterOf,
+  queuePageSize
+} from "./arr.ts"
+import type { Integration } from "./Integration.ts"
 
 const Series = Schema.Struct({
   title: Schema.String,
@@ -63,7 +71,10 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
       ...(knownId(series.tmdbId) === undefined ? {} : { tmdbId: series.tmdbId! }),
       ...(knownId(series.imdbId) === undefined ? {} : { imdbId: series.imdbId! }),
       title: series.title,
-      episodes: (payload.episodes ?? []).map((episode) => ({ season: episode.seasonNumber, episode: episode.episodeNumber }))
+      episodes: (payload.episodes ?? []).map((episode) => ({
+        season: episode.seasonNumber,
+        episode: episode.episodeNumber
+      }))
     }
   }
   switch (payload.eventType) {
@@ -114,7 +125,11 @@ export const SonarrSeries = Schema.Array(LibrarySeries)
 export type SonarrSeries = typeof LibrarySeries.Type
 
 /** Every series: the library, the posters of Reclaimerr's deletions, Upcoming's space back. */
-export const sonarrSeriesRead: Read<typeof SonarrSeries.Type> & { readonly service: "sonarr" } = { service: "sonarr", path: "/api/v3/series", schema: SonarrSeries }
+export const sonarrSeriesRead: Read<typeof SonarrSeries.Type> & { readonly service: "sonarr" } = {
+  service: "sonarr",
+  path: "/api/v3/series",
+  schema: SonarrSeries
+}
 
 /**
  * A series as the library lists it. `episodeCount` is Sonarr's own count: its monitored episodes
@@ -205,7 +220,11 @@ export const SonarrGrabs = Schema.Array(Schema.Struct({
 }))
 
 /** The grabs since `ms`: what To fix knows was grabbed, what Upcoming ties each torrent to. */
-export const sonarrGrabsRead = (ms: number): Read<typeof SonarrGrabs.Type> & { readonly service: "sonarr" } => ({ service: "sonarr", path: grabsSincePath(ms), schema: SonarrGrabs })
+export const sonarrGrabsRead = (ms: number): Read<typeof SonarrGrabs.Type> & { readonly service: "sonarr" } => ({
+  service: "sonarr",
+  path: grabsSincePath(ms),
+  schema: SonarrGrabs
+})
 
 export const SonarrEpisodes = Schema.Array(Schema.Struct({
   id: Schema.Number,
@@ -222,7 +241,9 @@ export const episodeCode = (season: number, episode: number) => `S${pad(season)}
 
 /** Monitored episodes airing between two instants (epoch milliseconds), with their series. */
 export const sonarrCalendarPath = (startMs: number, endMs: number) =>
-  `/api/v3/calendar?start=${encodeURIComponent(new Date(startMs).toISOString())}&end=${encodeURIComponent(new Date(endMs).toISOString())}&unmonitored=false&includeSeries=true`
+  `/api/v3/calendar?start=${encodeURIComponent(new Date(startMs).toISOString())}&end=${
+    encodeURIComponent(new Date(endMs).toISOString())
+  }&unmonitored=false&includeSeries=true`
 
 export const SonarrCalendar = Schema.Array(Schema.Struct({
   id: Schema.Number,

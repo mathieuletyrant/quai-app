@@ -1,5 +1,5 @@
 import { type JournalEntry, type JournalPage as Page, type JournalSource, journalSources } from "@quai/api"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { call, useLink } from "../../client.ts"
 import { useLoad } from "../../load.ts"
 import {
@@ -67,7 +67,9 @@ function useSettled<A>(value: A, ms: number) {
 
 /** The lines Quai Cloud took in since the page opened, polled every 2 s: oldest first, `fresh` the last batch. */
 function useLiveLines() {
-  const [live, setLive] = useState<{ readonly lines: ReadonlyArray<JournalEntry>; readonly fresh: ReadonlySet<string> }>({ lines: [], fresh: new Set() })
+  const [live, setLive] = useState<
+    { readonly lines: ReadonlyArray<JournalEntry>; readonly fresh: ReadonlySet<string> }
+  >({ lines: [], fresh: new Set() })
   useEffect(() => {
     let cursor: string | undefined
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -77,7 +79,10 @@ function useLiveLines() {
         const first = cursor === undefined
         cursor = tail.cursor
         if (tail.entries.length === 0 || stopped) return
-        setLive((current) => ({ lines: [...current.lines, ...tail.entries].slice(-liveCap), fresh: first ? new Set() : new Set(tail.entries.map((entry) => entry.id)) }))
+        setLive((current) => ({
+          lines: [...current.lines, ...tail.entries].slice(-liveCap),
+          fresh: first ? new Set() : new Set(tail.entries.map((entry) => entry.id))
+        }))
       }, () => undefined).finally(() => {
         if (!stopped) timer = setTimeout(poll, pollMs)
       })
@@ -110,7 +115,10 @@ export function JournalPage() {
   const settledSearch = useSettled(search, 300)
   const applied = { ...filters, search: settledSearch }
   const key = JSON.stringify(historyQuery(applied))
-  const history = useLoad(() => call((api) => api.consoleJournal.history({ query: { ...historyQuery(applied), limit: pageSize } })), [key, epoch])
+  const history = useLoad(
+    () => call((api) => api.consoleJournal.history({ query: { ...historyQuery(applied), limit: pageSize } })),
+    [key, epoch]
+  )
   const live = useLiveLines()
   const [frozenAt, setFrozenAt] = useState<string | null>(null)
   const away = useScrolledAway()
@@ -121,13 +129,18 @@ export function JournalPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
   const bySubject = (line: JournalEntry) =>
-    line.subject !== undefined && setFilters((current) => ({ ...current, subject: { key: line.subject!, title: line.title ?? line.subject! } }))
+    line.subject !== undefined &&
+    setFilters((current) => ({ ...current, subject: { key: line.subject!, title: line.title ?? line.subject! } }))
 
   return (
     <>
       <PageBar title="Journal" subtitle={subtitle(frozenAt !== null)}>
         <LiveState paused={frozenAt !== null} />
-        <Button variant="secondary" icon={frozenAt === null ? "pause" : "play"} onClick={frozenAt === null ? pause : jumpToLatest}>
+        <Button
+          variant="secondary"
+          icon={frozenAt === null ? "pause" : "play"}
+          onClick={frozenAt === null ? pause : jumpToLatest}
+        >
           {frozenAt === null ? "Pause" : "Resume"}
         </Button>
       </PageBar>
@@ -135,7 +148,14 @@ export function JournalPage() {
       <PageBody className="pb-24 md:pb-24">
         <FilterBar filters={filters} search={search} onFilters={setFilters} onSearch={setSearch} />
         <ErrorCallout error={history.error} title="Couldn't read the journal" />
-        <Async state={history} loading={<Panel flush><SkeletonList count={6} /></Panel>}>
+        <Async
+          state={history}
+          loading={
+            <Panel flush>
+              <SkeletonList count={6} />
+            </Panel>
+          }
+        >
           {(page) => (
             <JournalHistory
               key={key}
@@ -148,7 +168,11 @@ export function JournalPage() {
           )}
         </Async>
       </PageBody>
-      <JumpToLatest held={visibleLines(live.lines, history.data?.entries ?? [], applied, frozenAt).held} away={away} onJump={jumpToLatest} />
+      <JumpToLatest
+        held={visibleLines(live.lines, history.data?.entries ?? [], applied, frozenAt).held}
+        away={away}
+        onJump={jumpToLatest}
+      />
     </>
   )
 }
@@ -156,7 +180,12 @@ export function JournalPage() {
 /** "● Live" while the page follows what comes in. */
 function LiveState({ paused }: { paused: boolean }) {
   return (
-    <span className={cx("inline-flex items-center gap-2 px-1 text-caption font-semibold", paused ? "text-muted" : "text-accent")}>
+    <span
+      className={cx(
+        "inline-flex items-center gap-2 px-1 text-caption font-semibold",
+        paused ? "text-muted" : "text-accent"
+      )}
+    >
       <StatusDot tone={paused ? "neutral" : "accent"} pulse={!paused} />
       {paused ? "Paused" : "Live"}
     </span>
@@ -172,10 +201,23 @@ function FilterBar({ filters, search, onFilters, onSearch }: {
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <SourcePicker sources={filters.sources} onChange={(sources) => onFilters((current) => ({ ...current, sources }))} />
-      <Segmented label="Level" value={filters.level} options={levels} onChange={(level) => onFilters((current) => ({ ...current, level }))} />
+      <SourcePicker
+        sources={filters.sources}
+        onChange={(sources) => onFilters((current) => ({ ...current, sources }))}
+      />
+      <Segmented
+        label="Level"
+        value={filters.level}
+        options={levels}
+        onChange={(level) => onFilters((current) => ({ ...current, level }))}
+      />
       {filters.subject !== null && (
-        <Button variant="secondary" size="sm" icon="x" onClick={() => onFilters((current) => ({ ...current, subject: null }))}>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="x"
+          onClick={() => onFilters((current) => ({ ...current, subject: null }))}
+        >
           {filters.subject.title}
         </Button>
       )}
@@ -191,7 +233,12 @@ function FilterBar({ filters, search, onFilters, onSearch }: {
 }
 
 /** Which sources to show: every one when none is picked. */
-function SourcePicker({ sources, onChange }: { sources: ReadonlyArray<JournalSource>; onChange: (sources: ReadonlyArray<JournalSource>) => void }) {
+function SourcePicker(
+  { sources, onChange }: {
+    sources: ReadonlyArray<JournalSource>
+    onChange: (sources: ReadonlyArray<JournalSource>) => void
+  }
+) {
   const toggle = (source: JournalSource) =>
     onChange(sources.includes(source) ? sources.filter((picked) => picked !== source) : [...sources, source])
   return (
@@ -207,7 +254,12 @@ function SourcePicker({ sources, onChange }: { sources: ReadonlyArray<JournalSou
         <>
           <MenuLabel>Sources</MenuLabel>
           {journalSources.map((source) => (
-            <MenuItem key={source} icon={sourceIcon[source]} aria-pressed={sources.includes(source)} onClick={() => toggle(source)}>
+            <MenuItem
+              key={source}
+              icon={sourceIcon[source]}
+              aria-pressed={sources.includes(source)}
+              onClick={() => toggle(source)}
+            >
               <span className="flex-1">{sourceName(source)}</span>
               {sources.includes(source) && <Icon name="check" size={14} className="text-accent" />}
             </MenuItem>
@@ -229,13 +281,16 @@ function JournalHistory({ first, filters, live, frozenAt, onSubject }: {
   onSubject: (line: JournalEntry) => void
 }) {
   // Until an older page came, whether there is more is the first page's say.
-  const [older, setOlder] = useState<{ readonly entries: ReadonlyArray<JournalEntry>; readonly more: boolean | null }>({ entries: [], more: null })
+  const [older, setOlder] = useState<{ readonly entries: ReadonlyArray<JournalEntry>; readonly more: boolean | null }>({
+    entries: [],
+    more: null
+  })
   const more = older.more ?? first.more
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const history = [...first.entries, ...older.entries]
   const { lines } = visibleLines(live.lines, history, filters, frozenAt)
-  const now = useRef(Date.now()).current
+  const [now] = useState(() => Date.now())
 
   const loadOlder = () => {
     setLoading(true)
@@ -252,7 +307,8 @@ function JournalHistory({ first, filters, live, frozenAt, onSubject }: {
     <>
       {first.kept === "memory" && (
         <Callout tone="warn" icon="unlink" title="Only the last lines">
-          Quai Home is offline, or too old to keep a journal: this is what Quai Cloud holds in memory. The 7-day history comes back with it.
+          Quai Home is offline, or too old to keep a journal: this is what Quai Cloud holds in memory. The 7-day history
+          comes back with it.
         </Callout>
       )}
       {/* Clipped, not hidden: the day headings stay sticky. */}
@@ -262,7 +318,9 @@ function JournalHistory({ first, filters, live, frozenAt, onSubject }: {
       <ErrorCallout error={error} title="Couldn't read older lines" />
       {more && (
         <div className="flex justify-center">
-          <Button variant="secondary" icon="arrowDown" disabled={loading} onClick={loadOlder}>{loading ? "Loading…" : "Load older"}</Button>
+          <Button variant="secondary" icon="arrowDown" disabled={loading} onClick={loadOlder}>
+            {loading ? "Loading…" : "Load older"}
+          </Button>
         </div>
       )}
     </>
@@ -276,14 +334,25 @@ function JournalLines({ lines, now, fresh, onSubject }: {
   onSubject: (line: JournalEntry) => void
 }) {
   if (lines.length === 0) {
-    return <EmptyState icon="journal" title="Nothing here yet">What Quai does shows here as it happens: webhooks, Live Activities, pushes, buttons pressed.</EmptyState>
+    return (
+      <EmptyState icon="journal" title="Nothing here yet">
+        What Quai does shows here as it happens: webhooks, Live Activities, pushes, buttons pressed.
+      </EmptyState>
+    )
   }
   return (
     <LogList>
       {byDay(lines, now).map((day) => (
         <div key={day.label}>
           <LogDay>{day.label}</LogDay>
-          {day.lines.map((line) => <JournalRow key={line.id} line={line} fresh={fresh.has(line.id)} onSubject={() => onSubject(line)} />)}
+          {day.lines.map((line) => (
+            <JournalRow
+              key={line.id}
+              line={line}
+              fresh={fresh.has(line.id)}
+              onSubject={() => onSubject(line)}
+            />
+          ))}
         </div>
       ))}
     </LogList>

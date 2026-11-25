@@ -8,14 +8,14 @@ describe("containerEnvironment", () => {
       QUAI_MAX_HOMES: "25",
       QUAI_APNS_KEY: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
       QUAI_APNS_KEY_ID: "ABCDE12345",
-      QUAI_APNS_TEAM_ID: "FGHIJ67890",
+      QUAI_APNS_TEAM_ID: "FGHIJ67890"
     })).toEqual({
       QUAI_PORT: "8787",
       QUAI_CLOUD_PUBLIC_URL: "https://cloud.quai.stream",
       QUAI_MAX_HOMES: "25",
       QUAI_APNS_KEY: "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----",
       QUAI_APNS_KEY_ID: "ABCDE12345",
-      QUAI_APNS_TEAM_ID: "FGHIJ67890",
+      QUAI_APNS_TEAM_ID: "FGHIJ67890"
     })
   })
 

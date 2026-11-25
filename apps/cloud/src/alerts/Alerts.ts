@@ -3,9 +3,9 @@ import {
   type ActiveAlerts,
   type AlertKind,
   AlertKind as AlertKindSchema,
+  alertKinds,
   type AlertSettings,
   AlertSettings as AlertSettingsSchema,
-  alertKinds,
   currentAlertKind as currentKind,
   defaultAlertSettings,
   type HomeOffline,
@@ -42,8 +42,12 @@ export interface AlertState {
   readonly raised: ReadonlyArray<Raised>
 }
 
-export const alertState = (kind: AlertKind, scope: string, raised: ReadonlyArray<Raised>): AlertState =>
-  ({ _tag: "AlertState", kind, scope, raised })
+export const alertState = (kind: AlertKind, scope: string, raised: ReadonlyArray<Raised>): AlertState => ({
+  _tag: "AlertState",
+  kind,
+  scope,
+  raised
+})
 
 /** `alerts/settings`, `alerts/active`: home documents, so a restarted Cloud doesn't notify again. */
 export const settingsKey = "alerts/settings"
@@ -126,7 +130,8 @@ export const reconcile = (stored: ReadonlyArray<StoredAlert>, state: AlertState,
 const sourceOf = (scope: string): JournalSource =>
   (journalSources as ReadonlyArray<string>).includes(scope) ? (scope as JournalSource) : "cloud"
 
-const enabledKinds = (settings: AlertSettings): ReadonlyArray<AlertKind> => alertKinds.filter((kind) => settings[kind].enabled)
+const enabledKinds = (settings: AlertSettings): ReadonlyArray<AlertKind> =>
+  alertKinds.filter((kind) => settings[kind].enabled)
 
 const toActive = (alert: StoredAlert): ActiveAlert => ({
   id: alert.id,
@@ -167,7 +172,8 @@ export class Alerts extends Context.Service<Alerts, {
         Effect.mapError(store.get(activeKey), toOffline),
         (doc) => Option.getOrElse(Option.flatMap(doc, decodeActive), (): ReadonlyArray<StoredAlert> => [])
       )
-      const saveStored = (alerts: ReadonlyArray<StoredAlert>) => Effect.mapError(store.put(activeKey, alerts), toOffline)
+      const saveStored = (alerts: ReadonlyArray<StoredAlert>) =>
+        Effect.mapError(store.put(activeKey, alerts), toOffline)
 
       const notify = (alert: StoredAlert, title: string, body: string | undefined) =>
         Effect.gen(function*() {
@@ -177,11 +183,23 @@ export class Alerts extends Context.Service<Alerts, {
               environment: recipient.apnsEnvironment,
               deviceToken: recipient.token,
               priority: 10,
-              body: { aps: { alert: body === undefined ? { title } : { title, body }, sound: "default", "thread-id": alert.kind } }
+              body: {
+                aps: {
+                  alert: body === undefined ? { title } : { title, body },
+                  sound: "default",
+                  "thread-id": alert.kind
+                }
+              }
             }).pipe(
               Effect.catchTag("ApnsError", (error: ApnsError) =>
                 Effect.andThen(
-                  journal.log({ level: "error", source: "apple", kind: "push.refused", text: `Apple refused the alert for ${recipient.name}: ${error.reason}`, deviceName: recipient.name }),
+                  journal.log({
+                    level: "error",
+                    source: "apple",
+                    kind: "push.refused",
+                    text: `Apple refused the alert for ${recipient.name}: ${error.reason}`,
+                    deviceName: recipient.name
+                  }),
                   error.tokenGone ? devices.dropToken(recipient.token).pipe(Effect.ignore) : Effect.void
                 ))
             )
@@ -196,7 +214,12 @@ export class Alerts extends Context.Service<Alerts, {
           if (!change.changed) return
           yield* saveStored(change.next)
           for (const alert of change.started) {
-            yield* journal.log({ level: "warn", source: sourceOf(alert.scope), kind: "alert.raised", text: alert.detail === undefined ? alert.title : `${alert.title}: ${alert.detail}` })
+            yield* journal.log({
+              level: "warn",
+              source: sourceOf(alert.scope),
+              kind: "alert.raised",
+              text: alert.detail === undefined ? alert.title : `${alert.title}: ${alert.detail}`
+            })
             yield* notify(alert, alert.title, alert.detail)
           }
           for (const alert of change.over) {

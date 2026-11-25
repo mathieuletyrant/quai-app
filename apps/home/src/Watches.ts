@@ -37,7 +37,13 @@ export class Watches extends Context.Service<Watches, {
               Effect.gen(function*() {
                 let failing = false
                 while (true) {
-                  const result = yield* calls.run({ _tag: "Call", id: watch.id, service: watch.service, method: "GET", path: watch.path })
+                  const result = yield* calls.run({
+                    _tag: "Call",
+                    id: watch.id,
+                    service: watch.service,
+                    method: "GET",
+                    path: watch.path
+                  })
                   if (result._tag === "Failed") {
                     // Once per failure streak; the next success sends a snapshot even if unchanged.
                     if (!failing) yield* send(result)
@@ -48,7 +54,9 @@ export class Watches extends Context.Service<Watches, {
                     const last = sent.get(watch.id)
                     if (last === undefined || last.status !== result.status || last.body !== result.body) {
                       sent.set(watch.id, { target: targetOf(watch), status: result.status, body: result.body })
-                      yield* send(HomeProtocol.WatchSnapshot.make({ watchId: watch.id, status: result.status, body: result.body }))
+                      yield* send(
+                        HomeProtocol.WatchSnapshot.make({ watchId: watch.id, status: result.status, body: result.body })
+                      )
                     }
                   }
                   yield* Effect.sleep(`${watch.everySeconds} seconds`)
@@ -68,12 +76,17 @@ export class Watches extends Context.Service<Watches, {
                         level: "warn",
                         source: watch.service,
                         kind: "watch.refused",
-                        text: `Quai Home refused a watch outside its allowlist: ${journalSourceNames[watch.service]} GET ${watch.path.split("?")[0]}`
+                        text: `Quai Home refused a watch outside its allowlist: ${
+                          journalSourceNames[watch.service]
+                        } GET ${watch.path.split("?")[0]}`
                       })
                       yield* send(HomeProtocol.Failed.make({ id: watch.id, reason: "not allowed" }))
                       continue
                     }
-                    if (!(watch.everySeconds >= HomeProtocol.minWatchSeconds && watch.everySeconds <= HomeProtocol.maxWatchSeconds)) {
+                    if (
+                      !(watch.everySeconds >= HomeProtocol.minWatchSeconds &&
+                        watch.everySeconds <= HomeProtocol.maxWatchSeconds)
+                    ) {
                       yield* send(HomeProtocol.Failed.make({ id: watch.id, reason: "period out of range" }))
                       continue
                     }

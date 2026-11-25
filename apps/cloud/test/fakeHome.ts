@@ -1,20 +1,20 @@
-import { Alerts } from "../src/alerts/Alerts.ts"
 import { HomeProtocol, type JournalEntry, journalPage } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
 import { Socket } from "effect/socket"
 import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
+import { Alerts } from "../src/alerts/Alerts.ts"
 import { Activities } from "../src/flows/Activities.ts"
 import { FlowStore } from "../src/flows/FlowStore.ts"
 import { Devices } from "../src/home/Devices.ts"
 import { HomeError, HomeLink, HomeLinks, offlineMessage } from "../src/home/HomeLink.ts"
 import { HomeReads } from "../src/home/HomeReads.ts"
-import { Hub } from "../src/integrations/Hub.ts"
-import { IntegrationsLive } from "../src/integrations/All.ts"
-import { Journal } from "../src/journal/Journal.ts"
-import type { Integrations } from "../src/integrations/Integration.ts"
-import { Notifier } from "../src/push/Notifier.ts"
 import { HomeTime } from "../src/home/HomeTime.ts"
+import { IntegrationsLive } from "../src/integrations/All.ts"
+import { Hub } from "../src/integrations/Hub.ts"
+import type { Integrations } from "../src/integrations/Integration.ts"
+import { Journal } from "../src/journal/Journal.ts"
+import { Notifier } from "../src/push/Notifier.ts"
 import { fixture } from "./fixtures.ts"
 
 type Call = typeof HomeProtocol.Call.Type
@@ -73,7 +73,8 @@ export interface FakeHomeOptions {
 }
 
 /** A route of a recorded Home: `"radarr GET /api/v3/queue"`, the path without its query. */
-export const routeOf = (call: Pick<Call, "service" | "method" | "path">) => `${call.service} ${call.method} ${call.path.split("?")[0]}`
+export const routeOf = (call: Pick<Call, "service" | "method" | "path">) =>
+  `${call.service} ${call.method} ${call.path.split("?")[0]}`
 
 /** What a route answers: a fixture file (`"radarr/queue.json"`), an answer, or a function of the call. */
 export type Recording = string | Answer | ((call: Call) => Answer)
@@ -102,10 +103,13 @@ export const recordedHome = (
  * cleaner and the *arr media management setting.
  */
 const allowedSince = (call: Pick<Call, "service" | "method" | "path">): number =>
-  /^\/api\/(v3\/config\/mediamanagement|configuration\/download_cleaner|jobs\/DownloadCleaner)$/.test(call.path.split("?")[0]!)
+  /^\/api\/(v3\/config\/mediamanagement|configuration\/download_cleaner|jobs\/DownloadCleaner)$/.test(
+      call.path.split("?")[0]!
+    )
     ? 9
     : call.service === "seerr" &&
-    (/^\/api\/v1\/(search|user)$/.test(call.path.split("?")[0]!) || (call.method === "POST" && call.path === "/api/v1/request"))
+        (/^\/api\/v1\/(search|user)$/.test(call.path.split("?")[0]!) ||
+          (call.method === "POST" && call.path === "/api/v1/request"))
     ? 8
     : call.service === "prowlarr" || /\/health$/.test(call.path.split("?")[0]!)
     ? 6
@@ -134,7 +138,10 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       yield* Effect.addFinalizer(() =>
         notAllowed.length === 0
           ? Effect.void
-          : Effect.die(new Error(`the fake Quai Home refused what the allowlist doesn't allow: ${notAllowed.join(", ")}`)))
+          : Effect.die(
+            new Error(`the fake Quai Home refused what the allowlist doesn't allow: ${notAllowed.join(", ")}`)
+          )
+      )
     }
     const privateKey = options.privateKey ?? testHomeKey
     const otherKey = generateKeyPairSync("ed25519").privateKey
@@ -161,7 +168,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
     const passesAgainst = (call: Call): boolean => {
       const against = HomeProtocol.allowRule(call)?.against
       if (against === undefined) return true
-      const answer = options.answer?.({ ...call, method: "GET", path: against.path, body: undefined }) ?? { status: 404 }
+      const answer = options.answer?.({ ...call, method: "GET", path: against.path, body: undefined }) ??
+        { status: 404 }
       if (!("status" in answer || "json" in answer || "body" in answer) || (answer.status ?? 200) !== 200) return false
       const body = answer.body ?? (answer.json === undefined ? "" : JSON.stringify(answer.json))
       try {
@@ -176,7 +184,11 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       switch (message._tag) {
         case "Challenge":
           return HomeProtocol.Proof.make({
-            signature: sign(null, Buffer.from(HomeProtocol.challengePayload(message.nonce)), options.badProof === true ? otherKey : privateKey)
+            signature: sign(
+              null,
+              Buffer.from(HomeProtocol.challengePayload(message.nonce)),
+              options.badProof === true ? otherKey : privateKey
+            )
               .toString("base64")
           })
         case "Welcome":
@@ -208,14 +220,19 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         case "SetWatches":
           // Quai Home answers a watch it refuses with Failed under the watch's id, and never polls it.
           for (const watch of message.watches) {
-            if (!allows({ service: watch.service, method: "GET", path: watch.path })) notAllowed.push(`watch ${watch.id}: ${watch.service} GET ${watch.path.split("?")[0]}`)
+            if (!allows({ service: watch.service, method: "GET", path: watch.path })) {
+              notAllowed.push(`watch ${watch.id}: ${watch.service} GET ${watch.path.split("?")[0]}`)
+            }
           }
           state.watches = message.watches
           return null
         case "StoreList":
           return HomeProtocol.StoreDocuments.make({
             id: message.id,
-            documents: [...documents].filter(([k]) => k.startsWith(message.prefix)).sort().map(([key, value]) => ({ key, value }))
+            documents: [...documents].filter(([key]) => key.startsWith(message.prefix)).sort().map(([key, value]) => ({
+              key,
+              value
+            }))
           })
         case "StorePut":
           documents.set(message.key, JSON.parse(JSON.stringify(message.value)))
@@ -235,7 +252,9 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
     }
 
     const send = (message: HomeProtocol.HomeMessage) =>
-      Effect.suspend(() => state.toCloud === null ? Effect.void : Effect.asVoid(Queue.offer(state.toCloud, JSON.stringify(message))))
+      Effect.suspend(() =>
+        state.toCloud === null ? Effect.void : Effect.asVoid(Queue.offer(state.toCloud, JSON.stringify(message)))
+      )
 
     /** Opens a connection: the link serves it in the background. Settles before returning. */
     const open: Effect.Effect<void, never, HomeLinks | Scope.Scope> = Effect.gen(function*() {
@@ -266,13 +285,16 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         })
       })
       yield* Effect.forkScoped(links.serve(socket))
-      yield* Queue.offer(toCloud, JSON.stringify(HomeProtocol.Hello.make({
-        protocol: options.protocol ?? HomeProtocol.protocolVersion,
-        homeVersion: "test",
-        publicKey,
-        services: options.services ?? ["radarr", "sonarr", "qbittorrent", "jellyfin"],
-        ...(options.webUrls === undefined ? {} : { webUrls: options.webUrls })
-      })))
+      yield* Queue.offer(
+        toCloud,
+        JSON.stringify(HomeProtocol.Hello.make({
+          protocol: options.protocol ?? HomeProtocol.protocolVersion,
+          homeVersion: "test",
+          publicKey,
+          services: options.services ?? ["radarr", "sonarr", "qbittorrent", "jellyfin"],
+          ...(options.webUrls === undefined ? {} : { webUrls: options.webUrls })
+        }))
+      )
       yield* settle
     })
 
@@ -283,7 +305,10 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       journal,
       /** Quai Home writes a line of its own, and hands it to the Cloud's live view. */
       note: (entry: JournalEntry) =>
-        Effect.andThen(Effect.sync(() => journal.push(entry)), Effect.andThen(send(HomeProtocol.JournalNoted.make({ entries: [entry] })), settle)),
+        Effect.andThen(
+          Effect.sync(() => journal.push(entry)),
+          Effect.andThen(send(HomeProtocol.JournalNoted.make({ entries: [entry] })), settle)
+        ),
       calls,
       received,
       /** What the allowlist refused (calls as `routeOf`, and watches). */
@@ -294,7 +319,9 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         yield* open
         const link = yield* Effect.flatMap(Effect.service(HomeLinks), (links) => links.link(HomeId.homeId(publicKey)))
         for (let attempt = 0; attempt < 20 && Option.isNone(yield* link.home); attempt++) yield* settle
-        if (Option.isNone(yield* link.home)) return yield* Effect.die(`the fake home didn't link: ${JSON.stringify(state.refused)}`)
+        if (Option.isNone(yield* link.home)) {
+          return yield* Effect.die(`the fake home didn't link: ${JSON.stringify(state.refused)}`)
+        }
       }),
       /** Connects and stops there, whatever the Cloud says. */
       open,
@@ -310,11 +337,18 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
         Effect.andThen(send(HomeProtocol.WebhookReceived.make({ service, receivedAt: 0, body })), settle),
       snapshot: (watchId: string, body: unknown, status = 200) =>
         Effect.andThen(
-          send(HomeProtocol.WatchSnapshot.make({ watchId, status, body: typeof body === "string" ? body : JSON.stringify(body) })),
+          send(
+            HomeProtocol.WatchSnapshot.make({
+              watchId,
+              status,
+              body: typeof body === "string" ? body : JSON.stringify(body)
+            })
+          ),
           settle
         ),
       /** Quai Home's poll of a watch failed. */
-      failWatch: (watchId: string, reason = "unreachable") => Effect.andThen(send(HomeProtocol.Failed.make({ id: watchId, reason })), settle),
+      failWatch: (watchId: string, reason = "unreachable") =>
+        Effect.andThen(send(HomeProtocol.Failed.make({ id: watchId, reason })), settle),
       watch: (id: string) => state.watches.find((watch) => watch.id === id),
       /** Relays a request of the console Quai Home serves, and returns the Cloud's answer. */
       console: (request: Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">) =>
@@ -323,7 +357,9 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           yield* send(HomeProtocol.ConsoleRequest.make({ ...request, id }))
           for (let attempt = 0; attempt < 20 && !consoleAnswers.has(id); attempt++) yield* settle
           const answer = consoleAnswers.get(id)
-          if (answer === undefined) return yield* Effect.die(`the Cloud didn't answer ${request.method} ${request.path}`)
+          if (answer === undefined) {
+            return yield* Effect.die(`the Cloud didn't answer ${request.method} ${request.path}`)
+          }
           return { status: answer.status, json: answer.body === "" ? undefined : JSON.parse(answer.body) as unknown }
         }),
       /** A service was set or removed from Quai Home's console. */
@@ -338,7 +374,10 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
  * Quai Cloud without its HTTP server: the home link, the home's data on it, the engine and the
  * Hub (without heartbeat: tests call `beat`). Needs `Apns`; `integrations` may use the link.
  */
-export const cloud = <E, R>(integrations: Layer.Layer<Integrations, E, R>, link: Layer.Layer<HomeLink | HomeLinks> = testLink) =>
+export const cloud = <E, R>(
+  integrations: Layer.Layer<Integrations, E, R>,
+  link: Layer.Layer<HomeLink | HomeLinks> = testLink
+) =>
   Hub.layerFed.pipe(
     Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),

@@ -14,10 +14,14 @@ import { Service } from "./Service.ts"
  * - `noSource`: a monitored title still without a file, and no release grabbed for it, 2 hours
  *   after it was added or became available (aired, for an episode).
  */
-export const FixKind = Schema.Literals(["importBlocked", "plannedDeletion", "stuckRemoval", "noSource"]).annotate({ identifier: "FixKind" })
+export const FixKind = Schema.Literals(["importBlocked", "plannedDeletion", "stuckRemoval", "noSource"]).annotate({
+  identifier: "FixKind"
+})
 export type FixKind = typeof FixKind.Type
 
-export const FixService = Service.pick(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({ identifier: "FixService" })
+export const FixService = Service.pick(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({
+  identifier: "FixService"
+})
 export type FixService = typeof FixService.Type
 
 /**
@@ -30,9 +34,10 @@ export type FixService = typeof FixService.Type
  * - `searchReleases`: list the releases the indexers have, to grab one;
  * - `ignoreAndWait`: hide it until a release is grabbed, or for some days.
  */
-export const FixAction = Schema.Literals(["remove", "importAnyway", "keep", "letGo", "searchReleases", "ignoreAndWait"]).annotate({
-  identifier: "FixAction"
-})
+export const FixAction = Schema.Literals(["remove", "importAnyway", "keep", "letGo", "searchReleases", "ignoreAndWait"])
+  .annotate({
+    identifier: "FixAction"
+  })
 export type FixAction = typeof FixAction.Type
 
 /** `importBlocked`: the download in the queue, and what Radarr or Sonarr says about it. */
@@ -56,9 +61,10 @@ export type PlannedDeletion = typeof PlannedDeletion.Type
  * Why Cleanuparr strikes a download: stalled, downloading too slowly (or too long), an import that
  * keeps failing, stuck on its metadata, or in error in the download client.
  */
-export const RemovalReason = Schema.Literals(["stalled", "slow", "failedImport", "downloadingMetadata", "errored"]).annotate({
-  identifier: "RemovalReason"
-})
+export const RemovalReason = Schema.Literals(["stalled", "slow", "failedImport", "downloadingMetadata", "errored"])
+  .annotate({
+    identifier: "RemovalReason"
+  })
 export type RemovalReason = typeof RemovalReason.Type
 
 /** `stuckRemoval`: the download, its strikes, and when Cleanuparr strikes again. */
@@ -234,11 +240,21 @@ export class FixesGroup extends HttpApiGroup.make("fixes")
       payload: ImportDownload,
       error: [InvalidFix, FixFailed, HttpApiError.NotFound]
     }).annotate(OpenApi.Identifier, "importDownload"),
-    HttpApiEndpoint.post("keep", "/fixes/:id/keep", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("keep", "/fixes/:id/keep", {
+      params: id,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "keepTitle"),
-    HttpApiEndpoint.post("letGo", "/fixes/:id/let-go", { params: id, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("letGo", "/fixes/:id/let-go", {
+      params: id,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "letGoFix"),
-    HttpApiEndpoint.post("ignoreAndWait", "/fixes/:id/ignore-and-wait", { params: id, payload: IgnoreAndWait, error: [InvalidFix, FixFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("ignoreAndWait", "/fixes/:id/ignore-and-wait", {
+      params: id,
+      payload: IgnoreAndWait,
+      error: [InvalidFix, FixFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "ignoreAndWaitFix"),
     HttpApiEndpoint.get("releases", "/fixes/:id/releases", {
       params: id,
@@ -253,5 +269,5 @@ export class FixesGroup extends HttpApiGroup.make("fixes")
   )
   .middleware(DeviceAuth)
   .middleware(HomeRequired)
-  .prefix("/api") {}
-
+  .prefix("/api")
+{}

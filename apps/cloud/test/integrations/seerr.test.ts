@@ -1,25 +1,25 @@
-import { builtInFlows, defaultAlertSettings, DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { builtInFlows, defaultAlertSettings, DeviceAuth, QuaiApi } from "@quai/api"
 import { Effect, Exit, Layer, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { ActionRunner } from "../../src/flows/ActionRunner.ts"
 import { Activities } from "../../src/flows/Activities.ts"
+import { Hub } from "../../src/integrations/Hub.ts"
+import { Integrations } from "../../src/integrations/Integration.ts"
 import {
   decodeSeerrWebhook,
   pendingWatchId,
   requestDetail,
-  SeerrRequestPage,
   seerrEvents,
+  SeerrRequestPage,
   splitSubject,
   toMediaRequest,
   waiting
 } from "../../src/integrations/seerr.ts"
 import { Apns } from "../../src/push/Apns.ts"
-import { Hub } from "../../src/integrations/Hub.ts"
 import { Requests } from "../../src/requests/Requests.ts"
-import { Integrations } from "../../src/integrations/Integration.ts"
 import { cloudLive, type FakeHomeOptions, makeFakeHome, recordedHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp, testAppDroppingOn } from "../testApp.ts"
@@ -33,7 +33,9 @@ const webhookEvents = (name: string) => Effect.map(decodeSeerrWebhook(fixture(`s
 const seerrAnswers = (state: { request12: "pending" | "approved" | "gone"; pending: ReadonlyArray<number> }) => {
   const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
   return recordedHome({
-    "seerr GET /api/v1/request": () => ({ json: { ...page, results: page.results.filter((request) => state.pending.includes(request.id)) } }),
+    "seerr GET /api/v1/request": () => ({
+      json: { ...page, results: page.results.filter((request) => state.pending.includes(request.id)) }
+    }),
     "seerr GET /api/v1/request/12": () =>
       state.request12 === "gone"
         ? { status: 404, json: { message: "Request not found." } }
@@ -56,11 +58,20 @@ describe("Seerr requests", () => {
       const [pending] = yield* webhookEvents("webhook-pending")
       expect(pending).toEqual({
         type: "request.pending",
-        subject: { kind: "request", key: "request:12", title: "Paddington in Peru", mediaType: "movie", requester: "Julie" },
+        subject: {
+          kind: "request",
+          key: "request:12",
+          title: "Paddington in Peru",
+          mediaType: "movie",
+          requester: "Julie"
+        },
         values: { detail: "Julie · Movie · 2024" }
       })
       expect((yield* webhookEvents("webhook-approved")).map((event) => event.type)).toEqual(["request.approved"])
-      expect((yield* webhookEvents("webhook-declined")).map((event) => [event.type, event.values?.detail])).toEqual([["request.declined", "Declined"]])
+      expect((yield* webhookEvents("webhook-declined")).map((event) => [event.type, event.values?.detail])).toEqual([[
+        "request.declined",
+        "Declined"
+      ]])
       expect(yield* webhookEvents("webhook-auto-approved")).toEqual([])
       expect(yield* webhookEvents("webhook-test")).toEqual([])
     }))
@@ -69,7 +80,13 @@ describe("Seerr requests", () => {
     const page = Schema.decodeUnknownSync(SeerrRequestPage)(fixture("seerr/requests-pending.json"))
     const autoApproved = { ...page.results[0]!, id: 14, status: 2 }
     expect(waiting([...page.results, autoApproved]).map((request) => request.id)).toEqual([12, 13])
-    expect(toMediaRequest(page.results[1]!, { title: "Severance", year: 2022, posterUrl: "https://image.tmdb.org/t/p/w342/p.jpg" })).toEqual({
+    expect(
+      toMediaRequest(page.results[1]!, {
+        title: "Severance",
+        year: 2022,
+        posterUrl: "https://image.tmdb.org/t/p/w342/p.jpg"
+      })
+    ).toEqual({
       id: 13,
       kind: "series",
       title: "Severance",
@@ -97,7 +114,12 @@ describe("Seerr requests", () => {
 
       yield* home.webhook("seerr", fixture("seerr/webhook-pending.json"))
       const [activity] = yield* running
-      expect(activity).toMatchObject({ key: "request|request:12", title: "Paddington in Peru", stepIndex: 0, values: { detail: "Julie · Movie · 2024" } })
+      expect(activity).toMatchObject({
+        key: "request|request:12",
+        title: "Paddington in Peru",
+        stepIndex: 0,
+        values: { detail: "Julie · Movie · 2024" }
+      })
 
       // Approved in Seerr: the last step ends it.
       yield* home.webhook("seerr", fixture("seerr/webhook-approved.json"))
@@ -119,15 +141,20 @@ describe("Seerr requests", () => {
 
   it.effect("without the webhook, the poll finds what waits, and what was approved or deleted meanwhile", () =>
     Effect.gen(function*() {
-      const state = { request12: "pending" as "pending" | "approved" | "gone", pending: [12, 13] as ReadonlyArray<number> }
+      const state = {
+        request12: "pending" as "pending" | "approved" | "gone",
+        pending: [12, 13] as ReadonlyArray<number>
+      }
       const home = yield* makeFakeHome({ services, answer: seerrAnswers(state) })
       yield* home.connect
       const page = fixture("seerr/requests-pending.json") as { results: Array<{ id: number }> }
       yield* home.snapshot(pendingWatchId, page)
-      expect((yield* running).map((activity) => [activity.subjectKey, activity.title, activity.values.detail])).toEqual([
-        ["request:12", "Paddington in Peru", "Julie · Movie · 2024"],
-        ["request:13", "Severance", "Julie · Series · 2022 · S1–2"]
-      ])
+      expect((yield* running).map((activity) => [activity.subjectKey, activity.title, activity.values.detail])).toEqual(
+        [
+          ["request:12", "Paddington in Peru", "Julie · Movie · 2024"],
+          ["request:13", "Severance", "Julie · Series · 2022 · S1–2"]
+        ]
+      )
       // The same list again (a restarted Cloud's first read): nothing new, nothing written.
       const writes = home.received.filter((message) => message._tag === "StorePut").length
       yield* home.snapshot(pendingWatchId, { ...page, pageInfo: { page: 1 } })
@@ -139,7 +166,11 @@ describe("Seerr requests", () => {
       const calls = home.calls.map((call) => `${call.method} ${call.path}`)
       expect(calls).toContain("GET /api/v1/request/12")
       expect(calls).toContain("GET /api/v1/request/13")
-      expect((yield* running).map((activity) => [activity.subjectKey, activity.stepIndex, activity.endedAt !== null, activity.values.detail])).toEqual([
+      expect(
+        (yield* running).map((
+          activity
+        ) => [activity.subjectKey, activity.stepIndex, activity.endedAt !== null, activity.values.detail])
+      ).toEqual([
         ["request:12", 1, true, "Julie"],
         ["request:13", 0, true, "Removed"]
       ])
@@ -161,7 +192,9 @@ describe("Seerr requests", () => {
         yield* home.snapshot(pendingWatchId, { ...page, pageInfo: { page: day } })
       }
       const after = yield* running
-      expect(after.map((activity) => [activity.subjectKey, activity.enteredAt, activity.endedAt])).toEqual(before.map((activity) => [activity.subjectKey, activity.enteredAt, null]))
+      expect(after.map((activity) => [activity.subjectKey, activity.enteredAt, activity.endedAt])).toEqual(
+        before.map((activity) => [activity.subjectKey, activity.enteredAt, null])
+      )
     }).pipe(Effect.provide(engine)))
 
   it.effect("only the requests a flow's filter takes start it, and the others aren't sent again at each poll", () =>
@@ -187,7 +220,10 @@ describe("Seerr requests", () => {
       const before = home.received.filter((message) => message._tag === "SetWatches").length
       yield* (yield* ActionRunner).run("request|request:12", "request.approve")
       yield* settle
-      expect(home.calls.filter((call) => call.method === "POST").map((call) => [call.path, call.body])).toEqual([["/api/v1/request/12/approve", undefined]])
+      expect(home.calls.filter((call) => call.method === "POST").map((call) => [call.path, call.body])).toEqual([[
+        "/api/v1/request/12/approve",
+        undefined
+      ]])
       expect(home.received.filter((message) => message._tag === "SetWatches").length).toBe(before + 1)
       // Nothing to approve on an approved request.
       yield* home.webhook("seerr", fixture("seerr/webhook-approved.json"))
@@ -221,9 +257,12 @@ describe("requests routes", () => {
       yield* home.connect
       const console = yield* HttpApiTest.groups(QuaiApi, ["console"])
       const qr = yield* console.console.createPairingCode({ payload: { serverUrls: [] } })
-      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
       const api = yield* HttpApiTest.groups(QuaiApi, ["requests"]).pipe(
-        Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
+        Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) =>
+          next(HttpClientRequest.bearerToken(request, token))))
       )
       return { home, api: api.requests }
     })
@@ -233,10 +272,11 @@ describe("requests routes", () => {
       const { api } = yield* setUp({ services, answer: seerrAnswers({ request12: "pending", pending: [12, 13] }) })
       const list = yield* api.list()
       expect(list.status).toBe("ok")
-      expect(list.items.map((request) => [request.id, request.title, request.year, request.kind, request.posterUrl])).toEqual([
-        [12, "Paddington in Peru", 2024, "movie", "https://image.tmdb.org/t/p/w342/1ffZAucqfvQu36x1C49XfOdjuOG.jpg"],
-        [13, "Severance", 2022, "series", "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg"]
-      ])
+      expect(list.items.map((request) => [request.id, request.title, request.year, request.kind, request.posterUrl]))
+        .toEqual([
+          [12, "Paddington in Peru", 2024, "movie", "https://image.tmdb.org/t/p/w342/1ffZAucqfvQu36x1C49XfOdjuOG.jpg"],
+          [13, "Severance", 2022, "series", "https://image.tmdb.org/t/p/w342/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg"]
+        ])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("approves or declines one that still waits; one decided meanwhile is a 404", () =>

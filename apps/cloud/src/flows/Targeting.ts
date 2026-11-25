@@ -1,4 +1,12 @@
-import { type ActivityAttributes, type ActivityContent, type DevicePreferences, type Flow, type FlowPreference, type StepShow, stepShows } from "@quai/api"
+import {
+  type ActivityAttributes,
+  type ActivityContent,
+  type DevicePreferences,
+  type Flow,
+  type FlowPreference,
+  type StepShow,
+  stepShows
+} from "@quai/api"
 import type { Activity, Push } from "./Engine.ts"
 
 export const preferenceFor = (preferences: DevicePreferences, flowId: string): FlowPreference =>
@@ -47,7 +55,9 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
     // Paused or not drives the label and the Play/Pause button, whatever the step shows.
     ...(values.paused !== undefined ? { paused: values.paused } : {}),
     // A paused timeline holds where it is: the iPhone needs the fraction to draw it.
-    ...(show.timer && !show.progress && values.paused === true && values.progress !== undefined ? { progress: values.progress } : {}),
+    ...(show.timer && !show.progress && values.paused === true && values.progress !== undefined
+      ? { progress: values.progress }
+      : {}),
     ...(show.since ? { since: seconds(values.since ?? activity.enteredAt) } : {}),
     ...(values.detail !== undefined ? { detail: values.detail } : {}),
     ...(show.list && values.items !== undefined ? { items: values.items } : {}),
@@ -59,7 +69,12 @@ export const contentFor = (flow: Flow, activity: Activity, preference: FlowPrefe
 /** What to send one iPhone for one push. */
 export type Delivery =
   | { readonly _tag: "None" }
-  | { readonly _tag: "Start"; readonly token: string; readonly attributes: ActivityAttributes; readonly content: ActivityContent }
+  | {
+    readonly _tag: "Start"
+    readonly token: string
+    readonly attributes: ActivityAttributes
+    readonly content: ActivityContent
+  }
   | { readonly _tag: "Update"; readonly token: string; readonly content: ActivityContent }
   | { readonly _tag: "End"; readonly token: string; readonly content: ActivityContent; readonly dismissAt: number }
 
@@ -89,9 +104,16 @@ export const deliveryFor = (
     // Swiped away: it stays away until it changes for real (a step, a pause or a resume), then
     // starts again as a new activity.
     const paused = push.activity.values.paused ?? null
-    if (push._tag === "End" || (push.activity.stepIndex === dismissed.stepIndex && paused === dismissed.paused)) return none
+    if (push._tag === "End" || (push.activity.stepIndex === dismissed.stepIndex && paused === dismissed.paused)) {
+      return none
+    }
     if (content === null || target.pushToStartToken === null) return none
-    return { _tag: "Start", token: target.pushToStartToken, attributes: attributesFor(flow, push.activity, preference), content }
+    return {
+      _tag: "Start",
+      token: target.pushToStartToken,
+      attributes: attributesFor(flow, push.activity, preference),
+      content
+    }
   }
 
   if (push._tag === "End") {
@@ -110,5 +132,10 @@ export const deliveryFor = (
     return target.activityToken === null ? none : { _tag: "Update", token: target.activityToken, content }
   }
   if (target.pushToStartToken === null) return none
-  return { _tag: "Start", token: target.pushToStartToken, attributes: attributesFor(flow, push.activity, preference), content }
+  return {
+    _tag: "Start",
+    token: target.pushToStartToken,
+    attributes: attributesFor(flow, push.activity, preference),
+    content
+  }
 }

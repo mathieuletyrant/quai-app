@@ -1,12 +1,12 @@
-import { Schema } from "effect"
 import type { PlannedDeletion } from "@quai/api"
+import { Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
 import type { Read } from "../home/HomeReads.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 import { epochSeconds, knownYear, posterOf } from "./arr.ts"
 import type { RadarrMovie } from "./radarr.ts"
 import type { SonarrSeries } from "./sonarr.ts"
-import * as LibraryId from "../library/LibraryId.ts"
 
 /**
  * Reclaimerr (github.com/jessielw/Reclaimerr): rule-based cleanup for Jellyfin, Plex and Emby. Its
@@ -54,7 +54,11 @@ export type Candidate = typeof Candidate.Type
 export const CandidatePage = Schema.Struct({ items: Schema.Array(Candidate) })
 
 /** The candidates, as the To fix list, Upcoming and the Planned deletion alert's watch read them. */
-export const candidatesRead: Read<typeof CandidatePage.Type> = { service: "reclaimerr", path: candidatesPath, schema: CandidatePage }
+export const candidatesRead: Read<typeof CandidatePage.Type> = {
+  service: "reclaimerr",
+  path: candidatesPath,
+  schema: CandidatePage
+}
 
 /**
  * A candidate's reason, readable: Reclaimerr writes its rule's name, then each condition with what it
@@ -127,7 +131,10 @@ export const plannedDeletions = (candidates: ReadonlyArray<Candidate>): Readonly
   candidates
     .flatMap((candidate): ReadonlyArray<PlannedCandidate> => {
       const deletesAt = epochSeconds(candidate.auto_delete_eligible_at)
-      if (!deleting.has(candidate.auto_delete_state) || deletesAt === undefined || candidate.blockers?.includes("protected") === true) return []
+      if (
+        !deleting.has(candidate.auto_delete_state) || deletesAt === undefined ||
+        candidate.blockers?.includes("protected") === true
+      ) return []
       return [{ candidate, deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }]
     })
     .sort((left, right) => left.deletesAt - right.deletesAt)
@@ -160,7 +167,9 @@ const matching = (candidate: Candidate, listed: ReadonlyArray<Listed>): Listed |
   const title = normalized(candidate.title)
   const year = knownYear(candidate.year ?? undefined)
   const named = listed.filter((entry) => normalized(entry.title) === title)
-  const dated = year === undefined ? named : named.filter((entry) => knownYear(entry.year) === undefined || knownYear(entry.year) === year)
+  const dated = year === undefined
+    ? named
+    : named.filter((entry) => knownYear(entry.year) === undefined || knownYear(entry.year) === year)
   return dated.length === 1 ? dated[0] : undefined
 }
 
@@ -173,21 +182,30 @@ const sameSizeShare = 0.02
  * of it goes (an episode; a movie version other than Radarr's whole file), or when Reclaimerr moves
  * it (its files go elsewhere).
  */
-export const candidateTitleKey = ({ candidate, operation }: PlannedCandidate, sources: PosterSources): LibraryId.LibraryId | undefined => {
+export const candidateTitleKey = (
+  { candidate, operation }: PlannedCandidate,
+  sources: PosterSources
+): LibraryId.LibraryId | undefined => {
   if (operation === "move") return undefined
   const scope = candidate.scope ?? (isMovie(candidate) ? "movie" : "series")
   if (isMovie(candidate)) {
-    const movie = sources.movies === undefined ? undefined : matching(candidate, sources.movies) as RadarrMovie | undefined
+    const movie = sources.movies === undefined
+      ? undefined
+      : matching(candidate, sources.movies) as RadarrMovie | undefined
     if (movie === undefined) return undefined
     if (scope === "movie") return LibraryId.movie(movie.id)
     // One version among those the media server has: Radarr's file only when it weighs the same.
     const size = candidate.size_bytes ?? 0
     const onDisk = movie.sizeOnDisk ?? 0
-    return scope === "version" && size > 0 && Math.abs(size - onDisk) <= onDisk * sameSizeShare ? LibraryId.movie(movie.id) : undefined
+    return scope === "version" && size > 0 && Math.abs(size - onDisk) <= onDisk * sameSizeShare
+      ? LibraryId.movie(movie.id)
+      : undefined
   }
   const series = sources.series === undefined ? undefined : matching(candidate, sources.series)
   if (series === undefined) return undefined
-  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) return LibraryId.season(series.id, candidate.season_number)
+  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) {
+    return LibraryId.season(series.id, candidate.season_number)
+  }
   return ["series", "show", "tv"].includes(scope) ? LibraryId.series(series.id) : undefined
 }
 
@@ -198,7 +216,10 @@ export const candidatePoster = (candidate: Candidate, sources: PosterSources): s
 }
 
 /** Planned deletions as fixes, soonest first, with their posters when found. */
-export const plannedDeletionFixes = (planned: ReadonlyArray<PlannedCandidate>, sources: PosterSources = {}): ReadonlyArray<Detected> =>
+export const plannedDeletionFixes = (
+  planned: ReadonlyArray<PlannedCandidate>,
+  sources: PosterSources = {}
+): ReadonlyArray<Detected> =>
   planned.map(({ candidate, deletesAt, operation }): Detected => {
     const year = knownYear(candidate.year ?? undefined)
     const since = epochSeconds(candidate.created_at)

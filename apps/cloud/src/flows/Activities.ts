@@ -44,7 +44,10 @@ export class Activities extends Context.Service<Activities, {
       const flowStore = yield* FlowStore
       const lock = yield* Semaphore.make(1)
       const load = Effect.map(store.get(activitiesKey), (stored) => fromStored(Option.getOrUndefined(stored)))
-      const run = (transition: (state: EngineState, flows: Parameters<typeof onTick>[1], now: number) => Result, send: Send) =>
+      const run = (
+        transition: (state: EngineState, flows: Parameters<typeof onTick>[1], now: number) => Result,
+        send: Send
+      ) =>
         Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
           const now = yield* Clock.currentTimeMillis
           const flows = yield* flowStore.all

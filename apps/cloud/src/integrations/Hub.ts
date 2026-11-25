@@ -5,11 +5,18 @@ import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
+import { HomeTime } from "../home/HomeTime.ts"
 import { eventNote, type From } from "../journal/describe.ts"
 import { Journal } from "../journal/Journal.ts"
 import { Notifier } from "../push/Notifier.ts"
-import { HomeTime } from "../home/HomeTime.ts"
-import { type Integration, Integrations, isAlertState, type Signal, type Watcher, type WatchContext } from "./Integration.ts"
+import {
+  type Integration,
+  Integrations,
+  isAlertState,
+  type Signal,
+  type WatchContext,
+  type Watcher
+} from "./Integration.ts"
 
 /** The engine's housekeeping pace, and how often the watches are checked against the flows. */
 export const heartbeat = "5 seconds"
@@ -29,7 +36,10 @@ const servicesText = (services: LinkedHome["services"]) =>
 const linkedNote = (home: LinkedHome) => {
   const services = servicesText(home.services)
   return home.protocol < HomeProtocol.journalProtocolVersion
-    ? { level: "warn" as const, text: `Quai Home linked (${services}); it is too old to keep the journal: update it to keep the history` }
+    ? {
+      level: "warn" as const,
+      text: `Quai Home linked (${services}); it is too old to keep the journal: update it to keep the history`
+    }
     : { level: "info" as const, text: `Quai Home linked (${services})` }
 }
 
@@ -101,7 +111,12 @@ export class Hub extends Context.Service<Hub, {
         Effect.andThen(Effect.suspend(() => {
           if (gone !== drop) return Effect.void
           drop.logged = true
-          return journal.log({ level: "warn", source: "home", kind: "home.offline", text: "Quai Home went offline: nothing can be read or pushed until it's back" })
+          return journal.log({
+            level: "warn",
+            source: "home",
+            kind: "home.offline",
+            text: "Quai Home went offline: nothing can be read or pushed until it's back"
+          })
         })),
         Effect.forkIn(scope),
         Effect.asVoid
@@ -156,7 +171,9 @@ export class Hub extends Context.Service<Hub, {
             }
           }
         }
-        const watches = [...owners.values()].map((owner) => owner.watch).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+        const watches = [...owners.values()].map((owner) => owner.watch).sort((left, right) =>
+          left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+        )
         const fingerprint = JSON.stringify(watches)
         if (!force && sent?.fingerprint === fingerprint) return
         yield* link.setWatches(watches).pipe(
@@ -193,7 +210,12 @@ export class Hub extends Context.Service<Hub, {
           // Quai Home reaches other services now: the watches follow.
           sent = null
           return Effect.andThen(
-            journal.log({ level: "info", source: "home", kind: "home.services", text: `Quai Home's services changed: ${servicesText(event.home.services)}` }),
+            journal.log({
+              level: "info",
+              source: "home",
+              kind: "home.services",
+              text: `Quai Home's services changed: ${servicesText(event.home.services)}`
+            }),
             sync
           )
         }
@@ -208,7 +230,10 @@ export class Hub extends Context.Service<Hub, {
         case "Snapshot": {
           const owner = sent?.owners.get(event.watchId)
           if (owner === undefined) return Effect.void
-          return fromHome(owner.integration.service, (ctx) => owner.watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx))
+          return fromHome(
+            owner.integration.service,
+            (ctx) => owner.watcher.read({ watch: owner.watch, status: event.status, body: event.body }, ctx)
+          )
         }
         case "WatchFailed": {
           const owner = sent?.owners.get(event.watchId)
@@ -227,7 +252,12 @@ export class Hub extends Context.Service<Hub, {
                 Effect.as(
                   Effect.andThen(
                     Effect.logWarning(`${event.service} sent a webhook Quai can't read`),
-                    journal.log({ level: "warn", source: event.service, kind: "webhook.unreadable", text: `${journalSourceNames[event.service]} sent a webhook Quai can't read` })
+                    journal.log({
+                      level: "warn",
+                      source: event.service,
+                      kind: "webhook.unreadable",
+                      text: `${journalSourceNames[event.service]} sent a webhook Quai can't read`
+                    })
                   ),
                   []
                 ))
@@ -264,10 +294,17 @@ export class Hub extends Context.Service<Hub, {
     Effect.gen(function*() {
       const hub = yield* Hub.make
       const link = yield* HomeLink
-      yield* Effect.forever(Effect.flatMap(link.nextEvent, (event) =>
-        hub.handle(event).pipe(Effect.catchCause((cause) => Effect.logError(`could not handle ${event._tag}`, cause))))).pipe(
-          Effect.forkScoped
+      yield* Effect.forever(
+        Effect.flatMap(
+          link.nextEvent,
+          (event) =>
+            hub.handle(event).pipe(
+              Effect.catchCause((cause) => Effect.logError(`could not handle ${event._tag}`, cause))
+            )
         )
+      ).pipe(
+        Effect.forkScoped
+      )
       return hub
     })
   )

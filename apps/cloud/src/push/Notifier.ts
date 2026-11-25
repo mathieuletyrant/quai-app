@@ -12,13 +12,23 @@ const iphones = (count: number) => `${count} iPhone${count === 1 ? "" : "s"}`
 
 /** "· pushed to 2 iPhones": where an activity's change went. */
 const reach = (pushed: number, configured: boolean) =>
-  !configured ? " · not pushed: no APNs key" : pushed === 0 ? " · no iPhone to push to" : ` · pushed to ${iphones(pushed)}`
+  !configured
+    ? " · not pushed: no APNs key"
+    : pushed === 0
+    ? " · no iPhone to push to"
+    : ` · pushed to ${iphones(pushed)}`
 
 /**
  * The journal's line for an activity that started, moved to another step or ended; null for an
  * update within its step (a progress), which only changes numbers.
  */
-export const activityNote = (push: Push, flow: Flow, previousStep: number | undefined, pushed: number, configured: boolean) => {
+export const activityNote = (
+  push: Push,
+  flow: Flow,
+  previousStep: number | undefined,
+  pushed: number,
+  configured: boolean
+) => {
   const { activity } = push
   const step = flow.steps[activity.stepIndex]?.label ?? "?"
   const what = push._tag === "Start"
@@ -76,7 +86,9 @@ export class Notifier extends Context.Service<Notifier, {
           if (!(yield* apns.configured)) return yield* logged(push, flow, 0, false)
           const activityKey = push.activity.key
           const now = yield* Clock.currentTimeMillis
-          const targets = (yield* devices.targets(activityKey)).filter((target) => only === null || target.deviceId === only)
+          const targets = (yield* devices.targets(activityKey)).filter((target) =>
+            only === null || target.deviceId === only
+          )
           let pushed = 0
           yield* Effect.forEach(targets, (target: PushTarget) =>
             Effect.gen(function*() {
@@ -89,13 +101,23 @@ export class Notifier extends Context.Service<Notifier, {
                 dismissed: target.dismissed
               }, now)
               // The activity is over: nothing left to show again.
-              if (push._tag === "End" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
-              if (delivery._tag === "None") return
+              if (push._tag === "End" && target.dismissed !== null) {
+                yield* devices.clearDismissed(target.deviceId, activityKey)
+              }
+              if (delivery._tag === "None") {
+                return
+              }
               if (delivery._tag === "Start") shown.add(shownKey)
-              if (delivery._tag === "Start" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
-              if (delivery._tag === "End") shown.delete(shownKey)
+              if (delivery._tag === "Start" && target.dismissed !== null) {
+                yield* devices.clearDismissed(target.deviceId, activityKey)
+              }
+              if (delivery._tag === "End") {
+                shown.delete(shownKey)
+              }
               const step = flow.steps[push.activity.stepIndex]?.id ?? "?"
-              const progress = delivery.content.progress === undefined ? "" : ` ${Math.round(delivery.content.progress * 100)} %`
+              const progress = delivery.content.progress === undefined
+                ? ""
+                : ` ${Math.round(delivery.content.progress * 100)} %`
               yield* apns.send({
                 environment: target.apnsEnvironment,
                 deviceToken: delivery.token,
@@ -103,7 +125,9 @@ export class Notifier extends Context.Service<Notifier, {
                 // High priority: low priority let iOS hold updates back until the app opened.
                 priority: 10
               }).pipe(
-                Effect.tap(() => Effect.logInfo(`push ${delivery._tag} ${activityKey} ${step}${progress} → ${target.deviceId}`)),
+                Effect.tap(() =>
+                  Effect.logInfo(`push ${delivery._tag} ${activityKey} ${step}${progress} → ${target.deviceId}`)
+                ),
                 Effect.tap(() => Effect.sync(() => pushed++)),
                 Effect.catchTag("ApnsError", (error) =>
                   Effect.gen(function*() {
@@ -112,7 +136,9 @@ export class Notifier extends Context.Service<Notifier, {
                       level: "warn",
                       source: "apple",
                       kind: "push.refused",
-                      text: `Apple refused the push to ${target.name}: ${error.reason}${error.tokenGone ? " (its token is gone: dropped)" : ""}`,
+                      text: `Apple refused the push to ${target.name}: ${error.reason}${
+                        error.tokenGone ? " (its token is gone: dropped)" : ""
+                      }`,
                       subject: push.activity.subjectKey,
                       title: push.activity.title,
                       flowId: flow.id,

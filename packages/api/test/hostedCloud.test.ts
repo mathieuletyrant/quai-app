@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 import { type CloudLink, isHostedCloud } from "../src/index.ts"
 
-const link = (url?: string): CloudLink => ({ configured: url !== undefined, linked: true, ...(url === undefined ? {} : { url }) })
+const link = (url?: string): CloudLink => ({
+  configured: url !== undefined,
+  linked: true,
+  ...(url === undefined ? {} : { url })
+})
 
 describe("isHostedCloud", () => {
   it("recognises Quai's hosted Cloud, as Quai Home derives it from wss://cloud.quai.stream/home", () => {

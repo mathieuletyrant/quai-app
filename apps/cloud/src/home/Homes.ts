@@ -1,7 +1,7 @@
 import { Clock, Context, Effect, Exit, Layer, Option, Schedule, Scope, Semaphore } from "effect"
 import { HttpRouter, HttpServerRequest, type HttpServerResponse } from "effect/http"
-import * as DeviceToken from "./DeviceToken.ts"
 import { Devices } from "./Devices.ts"
+import * as DeviceToken from "./DeviceToken.ts"
 import { HomeLink, HomeLinks } from "./HomeLink.ts"
 
 export const Timing = {
@@ -11,7 +11,11 @@ export const Timing = {
   sweepMs: 60_000
 } as const
 
-type HomeHttp = Effect.Effect<HttpServerResponse.HttpServerResponse, unknown, HttpServerRequest.HttpServerRequest | Scope.Scope>
+type HomeHttp = Effect.Effect<
+  HttpServerResponse.HttpServerResponse,
+  unknown,
+  HttpServerRequest.HttpServerRequest | Scope.Scope
+>
 
 /** One home's services and routes, built for it alone. */
 interface HomeApp {
@@ -92,7 +96,8 @@ export class Homes extends Context.Service<Homes, {
 
       const nowhere = yield* build(HomeLink.offline)
       yield* Effect.addFinalizer(() =>
-        Effect.forEach([nowhere, ...apps.values()], (home) => Scope.close(home.scope, Exit.void), { discard: true }))
+        Effect.forEach([nowhere, ...apps.values()], (home) => Scope.close(home.scope, Exit.void), { discard: true })
+      )
 
       const ensure = (homeId: string) =>
         Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
@@ -127,7 +132,9 @@ export class Homes extends Context.Service<Homes, {
       yield* Effect.forkScoped(Effect.forever(Effect.flatMap(links.nextReady, ensure)))
       yield* Effect.forkScoped(sweep.pipe(Effect.repeat(Schedule.spaced(Timing.sweepMs))))
 
-      const linked = Effect.suspend(() => Effect.filter([...apps.values()], (home) => Effect.map(home.link.home, Option.isSome)))
+      const linked = Effect.suspend(() =>
+        Effect.filter([...apps.values()], (home) => Effect.map(home.link.home, Option.isSome))
+      )
 
       const appFor = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<HomeHttp> =>
         Effect.gen(function*() {
@@ -160,10 +167,14 @@ export class Homes extends Context.Service<Homes, {
 export const HomesRoute = HttpRouter.use((router) =>
   Effect.gen(function*() {
     const homes = yield* Homes
-    yield* router.add("*", "/*", Effect.gen(function*() {
-      const request = yield* HttpServerRequest.HttpServerRequest
-      const http = yield* homes.appFor(request)
-      return yield* http
-    }))
+    yield* router.add(
+      "*",
+      "/*",
+      Effect.gen(function*() {
+        const request = yield* HttpServerRequest.HttpServerRequest
+        const http = yield* homes.appFor(request)
+        return yield* http
+      })
+    )
   })
 )

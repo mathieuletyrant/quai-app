@@ -1,6 +1,6 @@
+import { describe, expect, it } from "@effect/vitest"
 import { HomeProtocol } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
-import { describe, expect, it } from "@effect/vitest"
 import { Effect, FileSystem, Logger } from "effect"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
 import { statSync } from "node:fs"
@@ -30,7 +30,8 @@ describe("home key", () => {
         const other = yield* HomeKey.make(join(dir, "other.key"))
         expect(other.homeId).not.toBe(first.homeId)
         expect(other.webhookToken).not.toBe(first.webhookToken)
-      })))
+      })
+    ))
 
   it.effect("signs the cloud's nonce: the proof verifies against the public key in Hello", () =>
     inTemp((dir) =>
@@ -41,7 +42,8 @@ describe("home key", () => {
         const signature = Buffer.from(key.sign(nonce), "base64")
         expect(verify(null, Buffer.from(HomeProtocol.challengePayload(nonce)), publicKey, signature)).toBe(true)
         expect(verify(null, randomBytes(32), publicKey, signature)).toBe(false)
-      })))
+      })
+    ))
 
   it.effect("refuses a file that isn't a key", () =>
     inTemp((dir) =>
@@ -50,7 +52,8 @@ describe("home key", () => {
         yield* fs.writeFileString(join(dir, "home.key"), "garbage")
         const error = yield* Effect.flip(HomeKey.make(join(dir, "home.key")))
         expect(error._tag).toBe("HomeKeyError")
-      })))
+      })
+    ))
 })
 
 describe("home store", () => {
@@ -68,7 +71,12 @@ describe("home store", () => {
           { key: "flows/download", value: { steps: 4 } },
           { key: "flows/playback", value: { steps: 2 } }
         ])
-        expect((yield* store.list("")).map((document) => document.key)).toEqual(["devices/iphone/prefs", "flows/download", "flows/playback", "settings"])
+        expect((yield* store.list("")).map((document) => document.key)).toEqual([
+          "devices/iphone/prefs",
+          "flows/download",
+          "flows/playback",
+          "settings"
+        ])
         expect(yield* store.list("devices/iphone")).toEqual([{ key: "devices/iphone/prefs", value: { quiet: true } }])
 
         yield* store.delete("flows/download")
@@ -78,8 +86,11 @@ describe("home store", () => {
         const fs = yield* FileSystem.FileSystem
         expect(yield* fs.readFileString(join(dir, "home", "flows", "playback.json"))).toBe("{\"steps\":2}")
         // No temp file left behind by the atomic writes.
-        expect((yield* fs.readDirectory(join(dir, "home"), { recursive: true })).filter((name) => name.endsWith(".tmp"))).toEqual([])
-      })))
+        expect(
+          (yield* fs.readDirectory(join(dir, "home"), { recursive: true })).filter((name) => name.endsWith(".tmp"))
+        ).toEqual([])
+      })
+    ))
 
   it.effect("refuses keys that would escape the store or aren't keys", () =>
     inTemp((dir) =>
@@ -90,7 +101,8 @@ describe("home store", () => {
           expect((yield* Effect.flip(store.delete(key)))._tag).toBe("StoreError")
         }
         expect(yield* store.list("")).toEqual([])
-      })))
+      })
+    ))
 
   it.effect("skips a document that can't be read, and logs its key, never what it holds", () => {
     const logs: Array<string> = []
@@ -107,7 +119,11 @@ describe("home store", () => {
         yield* fs.makeDirectory(join(dir, "home", "flows", "folder.json"))
 
         expect(yield* store.list("")).toEqual([{ key: "flows/download", value: { steps: 3 } }])
-        expect(logs).toEqual(["document flows/folder can't be read: skipped", "document flows/playback isn't JSON: skipped"])
-      })).pipe(Effect.provide(captured))
+        expect(logs).toEqual([
+          "document flows/folder can't be read: skipped",
+          "document flows/playback isn't JSON: skipped"
+        ])
+      })
+    ).pipe(Effect.provide(captured))
   })
 })

@@ -20,7 +20,10 @@ export type MediaLookup =
 export const lookupIds = (lookup: MediaLookup): ReadonlyArray<readonly [provider: string, id: string]> => {
   const ids: Array<readonly [string, string]> = lookup._tag === "Movie"
     ? [["tmdb", String(lookup.tmdbId)]]
-    : [["tvdb", String(lookup.tvdbId)], ...(lookup.tmdbId === undefined ? [] : [["tmdb", String(lookup.tmdbId)] as const])]
+    : [
+      ["tvdb", String(lookup.tvdbId)],
+      ...(lookup.tmdbId === undefined ? [] : [["tmdb", String(lookup.tmdbId)] as const])
+    ]
   if (lookup.imdbId !== undefined) ids.push(["imdb", lookup.imdbId])
   return ids
 }
@@ -29,7 +32,8 @@ export const lookupIds = (lookup: MediaLookup): ReadonlyArray<readonly [provider
 export const knownId = <A extends number | string>(id: A | undefined | null): A | undefined =>
   id === undefined || id === null || id === 0 || id === "" ? undefined : id
 
-const episodeKey = (episode: { readonly season: number; readonly episode: number }) => `${episode.season}:${episode.episode}`
+const episodeKey = (episode: { readonly season: number; readonly episode: number }) =>
+  `${episode.season}:${episode.episode}`
 
 /**
  * What an activity follows after a new event about its subject. A season pack's imports arrive one
@@ -38,7 +42,9 @@ const episodeKey = (episode: { readonly season: number; readonly episode: number
  */
 export const widenLookup = (current: MediaLookup | null, incoming: MediaLookup | null): MediaLookup | null => {
   if (incoming === null) return current
-  if (current?._tag !== "Episodes" || incoming._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return incoming
+  if (current?._tag !== "Episodes" || incoming._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) {
+    return incoming
+  }
   const known = new Set(current.episodes.map(episodeKey))
   const added = incoming.episodes.filter((episode) => !known.has(episodeKey(episode)))
   const tmdbId = current.tmdbId ?? incoming.tmdbId
@@ -53,7 +59,8 @@ export const widenLookup = (current: MediaLookup | null, incoming: MediaLookup |
 export const narrowsLookup = (current: MediaLookup | null, incoming: MediaLookup | null): boolean => {
   if (current?._tag !== "Episodes" || incoming?._tag !== "Episodes" || current.tvdbId !== incoming.tvdbId) return false
   const known = new Set(current.episodes.map(episodeKey))
-  return incoming.episodes.length < current.episodes.length && incoming.episodes.every((episode) => known.has(episodeKey(episode)))
+  return incoming.episodes.length < current.episodes.length &&
+    incoming.episodes.every((episode) => known.has(episodeKey(episode)))
 }
 
 /** What one activity follows. `key` is unique per subject: `movie:tmdb:1`, `playback:<session>:<item>`, `request:12`. */

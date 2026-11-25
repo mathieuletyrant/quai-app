@@ -1,15 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
 import { defaultAlertSettings, type DeviceId } from "@quai/api"
 import { Effect, Layer, Redacted, Schema } from "effect"
-import { HomeDocuments } from "../src/home/HomeLink.ts"
 import { generateKeyPairSync } from "node:crypto"
 import { Alerts, alertState, reconcile } from "../src/alerts/Alerts.ts"
 import { deviceKey, Devices } from "../src/home/Devices.ts"
-import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
-import { deletionsState, deletionsWatchId } from "../src/integrations/plannedDeletionAlert.ts"
-import { diskDetail, diskState } from "../src/integrations/disk.ts"
-import { CandidatePage, reasonSummary } from "../src/integrations/reclaimerr.ts"
+import { HomeDocuments } from "../src/home/HomeLink.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
+import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
+import { diskDetail, diskState } from "../src/integrations/disk.ts"
+import { deletionsState, deletionsWatchId } from "../src/integrations/plannedDeletionAlert.ts"
+import { CandidatePage, reasonSummary } from "../src/integrations/reclaimerr.ts"
 import { Apns } from "../src/push/Apns.ts"
 import { cloud, makeFakeHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
@@ -18,9 +18,20 @@ import { fakeApns } from "./push/fakeApns.ts"
 const keyPem = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKey
   .export({ type: "pkcs8", format: "pem" }).toString()
 
-const radarrDown = alertState("serviceDown", "radarr", [{ what: "down", title: "Radarr isn't answering", detail: "No answer for 5 minutes", over: "Radarr answers again" }])
+const radarrDown = alertState("serviceDown", "radarr", [{
+  what: "down",
+  title: "Radarr isn't answering",
+  detail: "No answer for 5 minutes",
+  over: "Radarr answers again"
+}])
 const tera = 1e12
-const diskAt = (percent: number) => [{ path: "/", freeSpace: 1e9, totalSpace: 2e9 }, { path: "/downloads", freeSpace: percent * 2e10, totalSpace: 2 * tera }]
+const diskAt = (
+  percent: number
+) => [{ path: "/", freeSpace: 1e9, totalSpace: 2e9 }, {
+  path: "/downloads",
+  freeSpace: percent * 2e10,
+  totalSpace: 2 * tera
+}]
 
 describe("alerts", () => {
   it("a reading starts what's new, ends what's gone, keeps the rest with its first time", () => {
@@ -47,15 +58,23 @@ describe("alerts", () => {
   it.effect("an *arr's own problems, from the alert's level up, told apart by their check", () =>
     Effect.gen(function*() {
       const checks = yield* Schema.decodeUnknownEffect(HealthChecks)(fixture("radarr/health.json"))
-      expect(arrHealthState("radarr", checks, "error").raised.map((raised) => [raised.what, raised.title])).toEqual([["DownloadClientCheck", "Radarr reports a problem"]])
-      expect(arrHealthState("radarr", checks, "warning").raised.map((raised) => raised.what)).toEqual(["IndexerStatusCheck", "DownloadClientCheck"])
+      expect(arrHealthState("radarr", checks, "error").raised.map((raised) => [raised.what, raised.title])).toEqual([[
+        "DownloadClientCheck",
+        "Radarr reports a problem"
+      ]])
+      expect(arrHealthState("radarr", checks, "warning").raised.map((raised) => raised.what)).toEqual([
+        "IndexerStatusCheck",
+        "DownloadClientCheck"
+      ])
     }))
 
   it("a Reclaimerr reason, readable: the rule, then what each condition found, no library hash nor time of day", () => {
     expect(reasonSummary(
       "Watched movies not revisited: Library matches any f137a2dd21bbc1b99aa5c0f6bf02a805 (f137a2dd21bbc1b99aa5c0f6bf02a805), Never watched is false (9 views; last watched 2026-11-04 21:35:11.102901), Days since watched > 15 (16)"
     )).toBe("Watched movies not revisited · 9 views; last watched 2026-11-04 · 16 days since watched")
-    expect(reasonSummary("Low rated and unwatched: Rating below 6.5 | Never watched")).toBe("Low rated and unwatched · Rating below 6.5 · Never watched")
+    expect(reasonSummary("Low rated and unwatched: Rating below 6.5 | Never watched")).toBe(
+      "Low rated and unwatched · Rating below 6.5 · Never watched"
+    )
     expect(reasonSummary("Rating < 6.5 (5.9)")).toBe("Rating < 6.5 (5.9)")
     expect(reasonSummary("Low rated: Rating < 6.5 (5.9)")).toBe("Low rated · Rating: 5.9")
   })
@@ -70,16 +89,27 @@ describe("alerts", () => {
         ["43:last-day", "Cars 2 will be moved today"],
         ["42", "Up will be deleted in 5 days"]
       ])
-      expect(planned[1]).toMatchObject({ detail: "Unwatched for a year · Last watched more than 365 days ago", silentOver: true })
+      expect(planned[1]).toMatchObject({
+        detail: "Unwatched for a year · Last watched more than 365 days ago",
+        silentOver: true
+      })
       const lastDay = deletionsState(items, new Set(), Date.parse("2026-11-23T05:00:00Z")).raised
-      expect(lastDay.map((raised) => [raised.what, raised.title])[1]).toEqual(["42:last-day", "Up will be deleted tomorrow"])
+      expect(lastDay.map((raised) => [raised.what, raised.title])[1]).toEqual([
+        "42:last-day",
+        "Up will be deleted tomorrow"
+      ])
       expect(deletionsState(items, new Set([42, 43]), fiveDaysBefore).raised).toEqual([])
     }))
 
   it.effect("a planned deletion is notified when planned and on its last day; kept, it ends without a word", () =>
     Effect.gen(function*() {
       const apple = yield* fakeApns
-      const apns = yield* Apns.make({ keyPem: Redacted.make(keyPem), keyId: "KEY123", teamId: "TEAM456", topic: "com.mathieuletyrant.quai" }, { development: apple.url, production: apple.url })
+      const apns = yield* Apns.make({
+        keyPem: Redacted.make(keyPem),
+        keyId: "KEY123",
+        teamId: "TEAM456",
+        topic: "com.mathieuletyrant.quai"
+      }, { development: apple.url, production: apple.url })
       yield* Effect.gen(function*() {
         const home = yield* makeFakeHome({ services: ["radarr", "reclaimerr"] })
         yield* home.connect
@@ -89,24 +119,38 @@ describe("alerts", () => {
         if (paired._tag === "None") return yield* Effect.die("pairing failed")
         yield* devices.update(paired.value.deviceId, { notificationToken: "note-mathieu" })
 
-        expect(home.state.watches.find((watch) => watch.id === deletionsWatchId)?.path).toBe("/api/v1/candidates?page=1&per_page=200")
+        expect(home.state.watches.find((watch) => watch.id === deletionsWatchId)?.path).toBe(
+          "/api/v1/candidates?page=1&per_page=200"
+        )
         // Every minute: a title Reclaimerr plans at its scan is notified before it can be let go unseen.
         expect(home.state.watches.find((watch) => watch.id === deletionsWatchId)?.everySeconds).toBe(60)
         // The test clock stays at 0: each reading moves Up's date closer instead.
-        const up = (fixture("reclaimerr/candidates.json") as { items: Array<{ id: number }> }).items.find((candidate) => candidate.id === 42)!
-        const upIn = (hours: number) => ({ items: [{ ...up, auto_delete_eligible_at: new Date(hours * 3600_000).toISOString() }] })
+        const up = (fixture("reclaimerr/candidates.json") as { items: Array<{ id: number }> }).items.find((candidate) =>
+          candidate.id === 42
+        )!
+        const upIn = (hours: number) => ({
+          items: [{ ...up, auto_delete_eligible_at: new Date(hours * 3600_000).toISOString() }]
+        })
 
         yield* home.snapshot(deletionsWatchId, upIn(5 * 24))
-        expect(apple.hits.map((hit) => [hit.body.aps.alert.title, hit.body.aps["thread-id"]])).toEqual([["Up will be deleted in 5 days", "plannedDeletion"]])
+        expect(apple.hits.map((hit) => [hit.body.aps.alert.title, hit.body.aps["thread-id"]])).toEqual([[
+          "Up will be deleted in 5 days",
+          "plannedDeletion"
+        ]])
 
         // The next days: the text follows, no new notification.
         yield* home.snapshot(deletionsWatchId, upIn(4 * 24))
         expect(apple.hits).toHaveLength(1)
-        expect((yield* (yield* Alerts).active).items.map((alert) => alert.title)).toEqual(["Up will be deleted in 4 days"])
+        expect((yield* (yield* Alerts).active).items.map((alert) => alert.title)).toEqual([
+          "Up will be deleted in 4 days"
+        ])
 
         // Its last day: one more notification, the first days' alert ends without one.
         yield* home.snapshot(deletionsWatchId, upIn(20))
-        expect(apple.hits.map((hit) => hit.body.aps.alert.title)).toEqual(["Up will be deleted in 5 days", "Up will be deleted tomorrow"])
+        expect(apple.hits.map((hit) => hit.body.aps.alert.title)).toEqual([
+          "Up will be deleted in 5 days",
+          "Up will be deleted tomorrow"
+        ])
 
         // Kept: it leaves the list, nobody is notified.
         yield* home.snapshot(deletionsWatchId, { items: [] })
@@ -121,7 +165,10 @@ describe("alerts", () => {
       yield* home.connect
       const { plannedDeletion: _, ...older } = { ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } }
       yield* (yield* HomeDocuments).put("alerts/settings", older)
-      expect(yield* (yield* Alerts).settings).toEqual({ ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } })
+      expect(yield* (yield* Alerts).settings).toEqual({
+        ...defaultAlertSettings,
+        diskLow: { enabled: false, belowPercent: 7 }
+      })
     }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
 
   it.effect("what a home stored under an alert kind's older name reads under the new one", () =>
@@ -132,19 +179,31 @@ describe("alerts", () => {
       const { plannedDeletion: _, ...rest } = defaultAlertSettings
       yield* documents.put("alerts/settings", { ...rest, deletionPlanned: { enabled: false } })
       yield* documents.put("alerts/active", [
-        { id: "deletionPlanned:reclaimerr:42", kind: "deletionPlanned", scope: "reclaimerr", title: "Up will be deleted in 5 days", over: "Up: no deletion planned anymore", since: 1 }
+        {
+          id: "deletionPlanned:reclaimerr:42",
+          kind: "deletionPlanned",
+          scope: "reclaimerr",
+          title: "Up will be deleted in 5 days",
+          over: "Up: no deletion planned anymore",
+          since: 1
+        }
       ])
       const alerts = yield* Alerts
       expect((yield* alerts.settings).plannedDeletion).toEqual({ enabled: false })
       yield* documents.put("alerts/settings", defaultAlertSettings)
-      expect((yield* alerts.active).items.map((alert) => [alert.id, alert.kind])).toEqual([["plannedDeletion:reclaimerr:42", "plannedDeletion"]])
+      expect((yield* alerts.active).items.map((alert) => [alert.id, alert.kind])).toEqual([[
+        "plannedDeletion:reclaimerr:42",
+        "plannedDeletion"
+      ]])
 
       const devices = yield* Devices
       const { code } = yield* devices.createPairingCode
       const paired = yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development" })
       if (paired._tag === "None") return yield* Effect.die("pairing failed")
       const key = deviceKey(paired.value.deviceId)
-      const stored = (yield* documents.get(key)).pipe((doc) => doc._tag === "Some" ? doc.value as Record<string, unknown> : {})
+      const stored = (yield* documents.get(key)).pipe((doc) =>
+        doc._tag === "Some" ? doc.value as Record<string, unknown> : {}
+      )
       yield* documents.put(key, { ...stored, preferences: { flows: {}, mutedAlerts: ["deletionPlanned", "diskLow"] } })
       expect((yield* devices.preferences(paired.value.deviceId)).mutedAlerts).toEqual(["plannedDeletion", "diskLow"])
     }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
@@ -152,7 +211,12 @@ describe("alerts", () => {
   it.effect("watched, notified once to the iPhones that allowed it and didn't mute it, ended once, kept at home", () =>
     Effect.gen(function*() {
       const apple = yield* fakeApns
-      const apns = yield* Apns.make({ keyPem: Redacted.make(keyPem), keyId: "KEY123", teamId: "TEAM456", topic: "com.mathieuletyrant.quai" }, { development: apple.url, production: apple.url })
+      const apns = yield* Apns.make({
+        keyPem: Redacted.make(keyPem),
+        keyId: "KEY123",
+        teamId: "TEAM456",
+        topic: "com.mathieuletyrant.quai"
+      }, { development: apple.url, production: apple.url })
       yield* Effect.gen(function*() {
         const home = yield* makeFakeHome({ services: ["radarr", "sonarr", "prowlarr"] })
         yield* home.connect
@@ -175,14 +239,23 @@ describe("alerts", () => {
         expect(watched).toContain("health:prowlarr prowlarr /api/v1/system/status")
 
         yield* home.snapshot("disk:space", diskAt(4))
-        expect(apple.hits.map((delivered) => delivered.path).sort()).toEqual(["/3/device/note-julie", "/3/device/note-mathieu"])
+        expect(apple.hits.map((delivered) => delivered.path).sort()).toEqual([
+          "/3/device/note-julie",
+          "/3/device/note-mathieu"
+        ])
         const hit = apple.hits[0]!
         expect(hit.headers["apns-push-type"]).toBe("alert")
         expect(hit.headers["apns-topic"]).toBe("com.mathieuletyrant.quai")
-        expect(hit.body.aps).toMatchObject({ alert: { title: "The media disk is running low", body: "80 GB free (4%)" }, "thread-id": "diskLow" })
+        expect(hit.body.aps).toMatchObject({
+          alert: { title: "The media disk is running low", body: "80 GB free (4%)" },
+          "thread-id": "diskLow"
+        })
 
         const alerts = yield* Alerts
-        expect((yield* alerts.active).items.map((alert) => [alert.title, alert.detail])).toEqual([["The media disk is running low", "80 GB free (4%)"]])
+        expect((yield* alerts.active).items.map((alert) => [alert.title, alert.detail])).toEqual([[
+          "The media disk is running low",
+          "80 GB free (4%)"
+        ]])
         expect(home.documents.has("alerts/active")).toBe(true)
 
         // Still low: the text follows, nobody is notified again.
@@ -192,19 +265,30 @@ describe("alerts", () => {
         yield* home.snapshot("disk:space", diskAt(11))
         expect(apple.hits).toHaveLength(2)
         yield* home.snapshot("disk:space", diskAt(12))
-        expect(apple.hits.slice(2).map((delivered) => delivered.body.aps.alert.title)).toEqual(["The media disk has room again", "The media disk has room again"])
+        expect(apple.hits.slice(2).map((delivered) => delivered.body.aps.alert.title)).toEqual([
+          "The media disk has room again",
+          "The media disk has room again"
+        ])
         expect((yield* alerts.active).items).toEqual([])
 
         // Julie mutes the *arr problems.
         yield* devices.setPreferences(julie, { flows: {}, mutedAlerts: ["arrHealth"] })
         yield* home.snapshot("arr-health:radarr", fixture("radarr/health.json"))
-        expect(apple.hits.slice(4).map((delivered) => [delivered.path, delivered.body.aps.alert.title, delivered.body.aps.alert.body])).toEqual([
-          ["/3/device/note-mathieu", "Radarr reports a problem", "Unable to communicate with Transmission. Connection refused (transmission:9091)"]
+        expect(
+          apple.hits.slice(4).map((
+            delivered
+          ) => [delivered.path, delivered.body.aps.alert.title, delivered.body.aps.alert.body])
+        ).toEqual([
+          [
+            "/3/device/note-mathieu",
+            "Radarr reports a problem",
+            "Unable to communicate with Transmission. Connection refused (transmission:9091)"
+          ]
         ])
 
         // Turned off: its alerts end without a notification, and its watches go.
         yield* alerts.saveSettings({ ...defaultAlertSettings, arrHealth: { enabled: false, level: "error" } })
-        expect((yield* alerts.active)).toEqual({ items: [], enabled: ["serviceDown", "diskLow", "plannedDeletion"] })
+        expect(yield* alerts.active).toEqual({ items: [], enabled: ["serviceDown", "diskLow", "plannedDeletion"] })
         expect(apple.hits).toHaveLength(5)
       }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))

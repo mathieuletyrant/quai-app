@@ -82,8 +82,16 @@ const QueueRules = Schema.Array(Schema.Struct({
 }))
 export type QueueRules = typeof QueueRules.Type
 
-export const stallRulesRead: Read<QueueRules> = { service: "cleanuparr", path: "/api/queue-rules/stall", schema: QueueRules }
-export const slowRulesRead: Read<QueueRules> = { service: "cleanuparr", path: "/api/queue-rules/slow", schema: QueueRules }
+export const stallRulesRead: Read<QueueRules> = {
+  service: "cleanuparr",
+  path: "/api/queue-rules/stall",
+  schema: QueueRules
+}
+export const slowRulesRead: Read<QueueRules> = {
+  service: "cleanuparr",
+  path: "/api/queue-rules/slow",
+  schema: QueueRules
+}
 
 /** `JobInfo`: when the queue cleaner runs next (none when it isn't scheduled). */
 export const queueCleanerJobRead: Read<{ readonly nextRunTime?: string | null | undefined }> = {
@@ -143,16 +151,25 @@ const covers = (rule: QueueRules[number], percent: number) =>
  * or public torrent and by upgrade, which Quai can't see: the lowest is the soonest it can go.
  */
 export const ruleLimit = (rules: QueueRules, percent: number | undefined): number => {
-  const limits = rules.filter((rule) => rule.enabled && rule.maxStrikes > 0 && (percent === undefined || covers(rule, percent))).map((rule) => rule.maxStrikes)
+  const limits = rules.filter((rule) =>
+    rule.enabled && rule.maxStrikes > 0 && (percent === undefined || covers(rule, percent))
+  ).map((rule) => rule.maxStrikes)
   return limits.length === 0 ? 0 : Math.min(...limits)
 }
 
 /** A download in Radarr's or Sonarr's queue, by its download id; undefined when neither has it. */
-export type QueuedDownload = (downloadId: string) => { readonly media: QueuedMedia; readonly records: ReadonlyArray<QueueRecord> } | undefined
+export type QueuedDownload = (
+  downloadId: string
+) => { readonly media: QueuedMedia; readonly records: ReadonlyArray<QueueRecord> } | undefined
 
 /** The downloads of the queues read, by download id (any case): each named by its adapter, from all its rows. */
 export const queuedByDownload = (
-  queues: ReadonlyArray<{ readonly queued: (records: ReadonlyArray<QueueRecord>) => QueuedMedia; readonly records: ReadonlyArray<QueueRecord> }>
+  queues: ReadonlyArray<
+    {
+      readonly queued: (records: ReadonlyArray<QueueRecord>) => QueuedMedia
+      readonly records: ReadonlyArray<QueueRecord>
+    }
+  >
 ): QueuedDownload => {
   const found = new Map<string, { readonly media: QueuedMedia; readonly records: ReadonlyArray<QueueRecord> }>()
   for (const { queued, records } of queues) {
@@ -186,7 +203,10 @@ export const isIgnored = (settings: QueueCleanerSettings, downloadId: string) =>
 /** The downloads that may be planned for removal: struck, not removed yet, not left alone, while the queue cleaner runs. */
 export const struckDownloads = (input: Pick<RemovalInput, "downloads" | "settings">): ReadonlyArray<StruckDownload> =>
   input.settings.enabled
-    ? input.downloads.filter((download) => download.isRemoved !== true && !isIgnored(input.settings, download.downloadId) && download.strikes.some((strike) => strike.isDryRun !== true))
+    ? input.downloads.filter((download) =>
+      download.isRemoved !== true && !isIgnored(input.settings, download.downloadId) &&
+      download.strikes.some((strike) => strike.isDryRun !== true)
+    )
     : []
 
 /**
@@ -253,10 +273,12 @@ export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<Remov
     }]
   }).sort((left, right) => strikesLeft(left) - strikesLeft(right))
 
-const strikesLeft = (detected: Detected<RemovalTarget>) => (detected.fix.removal?.maxStrikes ?? 0) - (detected.fix.removal?.strikes ?? 0)
+const strikesLeft = (detected: Detected<RemovalTarget>) =>
+  (detected.fix.removal?.maxStrikes ?? 0) - (detected.fix.removal?.strikes ?? 0)
 
 const decodeAnswered = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)))
-const isStrings = (value: unknown): value is ReadonlyArray<string> => Array.isArray(value) && value.every((item) => typeof item === "string")
+const isStrings = (value: unknown): value is ReadonlyArray<string> =>
+  Array.isArray(value) && value.every((item) => typeof item === "string")
 
 /**
  * Keep, Cleanuparr's only write: the queue cleaner's settings exactly as it answered them (the body
@@ -366,13 +388,18 @@ export interface SeedCleanup<T extends SeedingTorrent = SeedingTorrent> {
   readonly freesFiles: boolean
 }
 
-const tagsOf = (torrent: SeedingTorrent) => (torrent.tags ?? "").split(",").map((tag) => tag.trim()).filter((tag) => tag !== "")
+const tagsOf = (torrent: SeedingTorrent) =>
+  (torrent.tags ?? "").split(",").map((tag) => tag.trim()).filter((tag) => tag !== "")
 
 /** Whether a rule covers the torrent: true, false, or undefined when Quai can't tell (trackers, privacy unknown). */
 const ruleCovers = (rule: SeedingRule, torrent: SeedingTorrent, tags: ReadonlyArray<string>): boolean | undefined => {
   if (!rule.categories.some((category) => sameId(category, torrent.category ?? ""))) return false
-  if ((rule.tagsAny ?? []).length > 0 && !rule.tagsAny!.some((wanted) => tags.some((tag) => sameId(tag, wanted)))) return false
-  if ((rule.tagsAll ?? []).length > 0 && !rule.tagsAll!.every((wanted) => tags.some((tag) => sameId(tag, wanted)))) return false
+  if ((rule.tagsAny ?? []).length > 0 && !rule.tagsAny!.some((wanted) => tags.some((tag) => sameId(tag, wanted)))) {
+    return false
+  }
+  if ((rule.tagsAll ?? []).length > 0 && !rule.tagsAll!.every((wanted) => tags.some((tag) => sameId(tag, wanted)))) {
+    return false
+  }
   // Quai doesn't read the trackers.
   if ((rule.trackerPatterns ?? []).length > 0) return undefined
   if (rule.privacyType === "Both") return true
@@ -411,20 +438,32 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
   readonly now: number
 }): ReadonlyArray<SeedCleanup<T>> => {
   if (!input.settings.enabled) return []
-  const client = input.settings.clients.find((candidate) => candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent"))
+  const client = input.settings.clients.find((candidate) =>
+    candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent")
+  )
   if (client === undefined) return []
   const ignored = input.settings.ignoredDownloads ?? []
-  const firstRun = (at: number) => input.nextRunAt !== undefined && at <= input.nextRunAt ? input.nextRunAt : Math.max(at, input.now)
+  const firstRun = (at: number) =>
+    input.nextRunAt !== undefined && at <= input.nextRunAt ? input.nextRunAt : Math.max(at, input.now)
   return input.torrents.flatMap((torrent): ReadonlyArray<SeedCleanup<T>> => {
     if (torrent.progress < 1) return []
-    if (ignored.some((entry) => sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") || tagsOf(torrent).some((tag) => sameId(tag, entry)))) return []
+    if (
+      ignored.some((entry) =>
+        sameId(entry, torrent.hash) || sameId(entry, torrent.category ?? "") ||
+        tagsOf(torrent).some((tag) => sameId(tag, entry))
+      )
+    ) return []
     const rule = seedingRuleOf(client.seedingRules, torrent)
     if (rule === undefined || (rule.action !== "Delete" && rule.action !== "Stop")) return []
     if (rule.action === "Stop" && isStopped(torrent)) return []
     const byRatio = rule.maxRatio >= 0
     const ratioReached = byRatio && torrent.ratio >= rule.maxRatio
-    const ratioDue = ratioReached ? input.now + Math.max(0, rule.minSeedTime * 3600 - torrent.seeding_time) * 1000 : undefined
-    const timeDue = rule.maxSeedTime >= 0 ? input.now + Math.max(0, rule.maxSeedTime * 3600 - torrent.seeding_time) * 1000 : undefined
+    const ratioDue = ratioReached
+      ? input.now + Math.max(0, rule.minSeedTime * 3600 - torrent.seeding_time) * 1000
+      : undefined
+    const timeDue = rule.maxSeedTime >= 0
+      ? input.now + Math.max(0, rule.maxSeedTime * 3600 - torrent.seeding_time) * 1000
+      : undefined
     const due = [ratioDue, timeDue].filter((instant): instant is number => instant !== undefined)
     const dueNow = due.some((instant) => instant <= input.now)
     // Stopped, it gets no closer to its limits: only what's due already goes.
@@ -444,7 +483,9 @@ export const seedCleanups = <T extends SeedingTorrent>(input: {
 
 /** The category Cleanuparr gives torrents no hardlink holds, when it does: their files aren't in the library. */
 export const unlinkedCategory = (settings: DownloadCleanerSettings): string | undefined => {
-  const config = settings.clients.find((candidate) => candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent"))?.unlinkedConfig
+  const config = settings.clients.find((candidate) =>
+    candidate.downloadClientEnabled && sameId(candidate.downloadClientTypeName, "qBittorrent")
+  )?.unlinkedConfig
   return config?.enabled === true ? config.targetCategory : undefined
 }
 
@@ -473,7 +514,9 @@ export const removalNote = (event: RemovalEvent): JournalNote => {
     level: "info",
     source: "cleanuparr",
     kind: "cleanuparr.removed",
-    text: `Cleanuparr removed ${title} from the queue${why === undefined ? "" : ` (${why})`}${event.removeFromClient === true ? ", and from the download client" : ""}`,
+    text: `Cleanuparr removed ${title} from the queue${why === undefined ? "" : ` (${why})`}${
+      event.removeFromClient === true ? ", and from the download client" : ""
+    }`,
     ...(event.itemTitle ? { title: event.itemTitle } : {})
   }
 }
@@ -490,7 +533,11 @@ export const firstLookBackMs = 3600_000
  * The removals not logged yet: newer than `after` (epoch milliseconds), not seen before, never a dry
  * run. Oldest first, as they happened.
  */
-export const newRemovals = (events: ReadonlyArray<RemovalEvent>, after: number, seen: ReadonlySet<string>): ReadonlyArray<RemovalEvent> =>
+export const newRemovals = (
+  events: ReadonlyArray<RemovalEvent>,
+  after: number,
+  seen: ReadonlySet<string>
+): ReadonlyArray<RemovalEvent> =>
   events
     .filter((event) => event.isDryRun !== true && !seen.has(event.id) && Date.parse(event.timestamp) > after)
     .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
@@ -520,7 +567,7 @@ export const cleanuparr = (journal: Journal["Service"]): Integration => {
           after ??= yield* lastLogged
           const fresh = newRemovals(events.value.items, after, seen)
           for (const event of events.value.items) seen.add(event.id)
-          if (seen.size > 1000) for (const id of [...seen].slice(0, seen.size - 1000)) seen.delete(id)
+          if (seen.size > 1000) { for (const id of [...seen].slice(0, seen.size - 1000)) seen.delete(id) }
           yield* Effect.forEach(fresh, (event) => journal.log(removalNote(event)), { discard: true })
           return []
         })

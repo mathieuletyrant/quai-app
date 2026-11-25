@@ -1,6 +1,5 @@
 import type { ReactNode } from "react"
 import { cx } from "./cx.ts"
-import { Icon, type IconName } from "./icons.tsx"
 
 const tones = {
   neutral: { badge: "bg-white/7 text-text-2", dot: "bg-faint", text: "text-muted" },
@@ -14,7 +13,12 @@ export type Tone = keyof typeof tones
 
 export function Badge({ tone = "neutral", dot, children }: { tone?: Tone; dot?: boolean; children: ReactNode }) {
   return (
-    <span className={cx("inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-caption font-semibold whitespace-nowrap", tones[tone].badge)}>
+    <span
+      className={cx(
+        "inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-caption font-semibold whitespace-nowrap",
+        tones[tone].badge
+      )}
+    >
       {dot && <StatusDot tone={tone} />}
       {children}
     </span>
@@ -34,5 +38,10 @@ export function StatusDot({ tone, pulse, label }: { tone: Tone; pulse?: boolean;
 
 /** A status in words, coloured: "● Configured". */
 export function Status({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return <span className={cx("inline-flex items-center gap-2 font-semibold", tones[tone].text)}><StatusDot tone={tone} />{children}</span>
+  return (
+    <span className={cx("inline-flex items-center gap-2 font-semibold", tones[tone].text)}>
+      <StatusDot tone={tone} />
+      {children}
+    </span>
+  )
 }

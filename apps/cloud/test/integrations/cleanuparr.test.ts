@@ -2,13 +2,13 @@ import { describe, expect, it } from "@effect/vitest"
 import { HomeProtocol } from "@quai/api"
 import { Effect, Layer, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
+import { queuedMovie } from "../../src/fixes/movies.ts"
 import { QueuePage } from "../../src/integrations/arr.ts"
 import {
   cleanuparr,
   completion,
   excluding,
   newRemovals,
-  stuckRemovals,
   queuedByDownload,
   type QueueRules,
   removalNote,
@@ -19,24 +19,28 @@ import {
   slowRulesRead,
   stallRulesRead,
   strikesRead,
-  type StruckDownload
+  type StruckDownload,
+  stuckRemovals
 } from "../../src/integrations/cleanuparr.ts"
 import { Integrations } from "../../src/integrations/Integration.ts"
-import { queuedMovie } from "../../src/fixes/movies.ts"
 import { Journal } from "../../src/journal/Journal.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { cloud, makeFakeHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
 const now = Date.parse("2026-11-19T12:00:00Z")
-const decode = <A>(read: { readonly schema: Schema.Codec<A, unknown> }, path: string) => Schema.decodeUnknownSync(read.schema)(fixture(path))
+const decode = <A>(read: { readonly schema: Schema.Codec<A, unknown> }, path: string) =>
+  Schema.decodeUnknownSync(read.schema)(fixture(path))
 
 const strikes = () => decode(strikesRead, "cleanuparr/strikes.json").items
 const settings = () => decode(settingsRead, "cleanuparr/queue-cleaner.json")
 const radarrQueue = () => Schema.decodeUnknownSync(QueuePage)(fixture("radarr/queue.json")).records
 
 /** The rules' input, every download in Radarr's queue. */
-const input = (downloads: ReadonlyArray<StruckDownload>, overrides: Partial<Parameters<typeof stuckRemovals>[0]> = {}) => ({
+const input = (
+  downloads: ReadonlyArray<StruckDownload>,
+  overrides: Partial<Parameters<typeof stuckRemovals>[0]> = {}
+) => ({
   downloads,
   settings: settings(),
   stallRules: decode(stallRulesRead, "cleanuparr/stall-rules.json"),
@@ -72,8 +76,12 @@ describe("Cleanuparr: what it removes next", () => {
   })
 
   it("a stall or slow rule's limit: the enabled rules covering how far it got, the lowest", () => {
-    const rule = (maxStrikes: number, min: number, max: number, enabled = true) =>
-      ({ enabled, maxStrikes, minCompletionPercentage: min, maxCompletionPercentage: max })
+    const rule = (maxStrikes: number, min: number, max: number, enabled = true) => ({
+      enabled,
+      maxStrikes,
+      minCompletionPercentage: min,
+      maxCompletionPercentage: max
+    })
     const rules: QueueRules = [rule(3, 0, 50), rule(5, 50, 100), rule(2, 0, 100, false)]
     expect(ruleLimit(rules, 0)).toBe(3)
     expect(ruleLimit(rules, 50)).toBe(3)
@@ -87,7 +95,9 @@ describe("Cleanuparr: what it removes next", () => {
 
   it("one strike short of a limit, or at it and marked for removal; dry runs and turned-off checks never count", () => {
     const ids = (downloads: ReadonlyArray<StruckDownload>, overrides = {}) =>
-      stuckRemovals(input(downloads, overrides)).map((detected) => `${detected.fix.removal?.reason} ${detected.fix.removal?.strikes}/${detected.fix.removal?.maxStrikes}`)
+      stuckRemovals(input(downloads, overrides)).map((detected) =>
+        `${detected.fix.removal?.reason} ${detected.fix.removal?.strikes}/${detected.fix.removal?.maxStrikes}`
+      )
     expect(ids([struck(["Stalled", "Stalled"])])).toEqual(["stalled 2/3"])
     expect(ids([struck(["Stalled"])])).toEqual([])
     expect(ids([struck(["Stalled", "Stalled", "Stalled"])])).toEqual([])
@@ -98,7 +108,13 @@ describe("Cleanuparr: what it removes next", () => {
     expect(ids([struck(["DownloadingMetadata", "DownloadingMetadata"])])).toEqual(["downloadingMetadata 2/3"])
     // Errored is off in the recorded settings (0 strikes).
     expect(ids([struck(["Errored", "Errored"])])).toEqual([])
-    expect(ids([struck(["Stalled", "Stalled"], { strikes: struck(["Stalled", "Stalled"]).strikes.map((strike) => ({ ...strike, isDryRun: true })) })])).toEqual([])
+    expect(
+      ids([
+        struck(["Stalled", "Stalled"], {
+          strikes: struck(["Stalled", "Stalled"]).strikes.map((strike) => ({ ...strike, isDryRun: true }))
+        })
+      ])
+    ).toEqual([])
     expect(ids([struck(["Stalled", "Stalled"], { isRemoved: true })])).toEqual([])
     expect(ids([struck(["DeadTorrent", "DeadTorrent"])])).toEqual([])
     // The closest to its limit wins: one strike left for the import, two for stalling.
@@ -118,23 +134,42 @@ describe("Cleanuparr: what it removes next", () => {
         reason: "Stalled, no progress",
         since: Date.parse("2026-11-19T11:10:00Z") / 1000,
         actions: ["keep", "letGo"],
-        removal: { release: "Mouse.2025.MULTi.1080p.WEB.H264-SUPPLY", reason: "stalled", strikes: 2, maxStrikes: 3, removesAt: 1_700_000_000 }
+        removal: {
+          release: "Mouse.2025.MULTi.1080p.WEB.H264-SUPPLY",
+          reason: "stalled",
+          strikes: 2,
+          maxStrikes: 3,
+          removesAt: 1_700_000_000
+        }
       },
-      target: { kind: "removal", downloadItemId: "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09", downloadId: "C3D4E5F60718293A4B5C6D7E8F90123456789012" }
+      target: {
+        kind: "removal",
+        downloadItemId: "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09",
+        downloadId: "C3D4E5F60718293A4B5C6D7E8F90123456789012"
+      }
     })
-    expect(stuckRemovals(input([struck(["Stalled", "Stalled"], { downloadId: "E5F60718293A4B5C6D7E8F9012345678901234AB" })]))).toEqual([])
+    expect(
+      stuckRemovals(input([struck(["Stalled", "Stalled"], { downloadId: "E5F60718293A4B5C6D7E8F9012345678901234AB" })]))
+    ).toEqual([])
   })
 
   it("finds a download in the queues by id, any case, named from all its rows (a season pack has one per episode)", () => {
     const [record] = radarrQueue()
-    const queued = queuedByDownload([{ queued: (rows) => ({ title: `${rows.length} rows`, messages: [] }), records: [record!, { ...record!, id: 99 }] }])
+    const queued = queuedByDownload([{
+      queued: (rows) => ({ title: `${rows.length} rows`, messages: [] }),
+      records: [record!, { ...record!, id: 99 }]
+    }])
     expect(queued(record!.downloadId!.toLowerCase())?.media.title).toBe("2 rows")
     expect(queued("0000000000000000000000000000000000000000")).toBeUndefined()
   })
 
   it("what the queue cleaner leaves alone, or all of it when it's off, is never planned", () => {
     const mouse = [struck(["Stalled", "Stalled"])]
-    expect(stuckRemovals(input(mouse, { settings: { ...settings(), ignoredDownloads: ["c3d4e5f60718293a4b5c6d7e8f90123456789012"] } }))).toEqual([])
+    expect(
+      stuckRemovals(
+        input(mouse, { settings: { ...settings(), ignoredDownloads: ["c3d4e5f60718293a4b5c6d7e8f90123456789012"] } })
+      )
+    ).toEqual([])
     expect(stuckRemovals(input(mouse, { settings: { ...settings(), enabled: false } }))).toEqual([])
   })
 
@@ -142,14 +177,24 @@ describe("Cleanuparr: what it removes next", () => {
     const hash = "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"
     const recorded = fixture("cleanuparr/queue-cleaner.json") as Record<string, unknown>
     // A field Quai doesn't model, nulls, numbers written as Cleanuparr writes them: all sent back as they came.
-    for (const answered of [recorded, { ...recorded, errored: null, ignoredDownloads: null, aFutureSetting: { nested: [1, 2.5] } }]) {
+    for (
+      const answered of [recorded, {
+        ...recorded,
+        errored: null,
+        ignoredDownloads: null,
+        aFutureSetting: { nested: [1, 2.5] }
+      }]
+    ) {
       const body = Option.getOrThrow(excluding(JSON.stringify(answered), hash))
       const before = answered.ignoredDownloads as Array<string> | null
       expect(body).toEqual({ ...answered, ignoredDownloads: [...before ?? [], hash] })
-      expect(HomeProtocol.ignoresOneMoreDownload(JSON.parse(JSON.stringify(answered)), JSON.parse(JSON.stringify(body)))).toBe(true)
+      expect(
+        HomeProtocol.ignoresOneMoreDownload(JSON.parse(JSON.stringify(answered)), JSON.parse(JSON.stringify(body)))
+      ).toBe(true)
     }
     // The rules read the same answer, nulls included.
-    expect(Schema.decodeUnknownSync(settingsRead.schema)({ ...recorded, errored: null, ignoredDownloads: null })).toMatchObject({ ignoredDownloads: null })
+    expect(Schema.decodeUnknownSync(settingsRead.schema)({ ...recorded, errored: null, ignoredDownloads: null }))
+      .toMatchObject({ ignoredDownloads: null })
     expect(excluding("<html></html>", hash)).toEqual(Option.none())
     expect(excluding(JSON.stringify({ ...recorded, ignoredDownloads: "x" }), hash)).toEqual(Option.none())
   })
@@ -173,7 +218,8 @@ describe("Cleanuparr: the journal of its removals", () => {
         level: "info",
         source: "cleanuparr",
         kind: "cleanuparr.removed",
-        text: "Cleanuparr removed Old.Movie.1999.720p.BluRay.x264-GROUP from the queue (stalled), and from the download client",
+        text:
+          "Cleanuparr removed Old.Movie.1999.720p.BluRay.x264-GROUP from the queue (stalled), and from the download client",
         title: "Old.Movie.1999.720p.BluRay.x264-GROUP"
       },
       {
@@ -187,26 +233,48 @@ describe("Cleanuparr: the journal of its removals", () => {
     expect(newRemovals(events(), 0, new Set(events().map((event) => event.id)))).toEqual([])
   })
 
-  const layer = cloud(Layer.effect(Integrations, Effect.map(Effect.service(Journal), (journal) => [cleanuparr(journal)])))
+  const layer = cloud(
+    Layer.effect(Integrations, Effect.map(Effect.service(Journal), (journal) => [cleanuparr(journal)]))
+  )
     .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
-  const removedLines = Effect.map(Effect.flatMap(Effect.service(Journal), (journal) => journal.since(undefined)), (tail) =>
-    tail.entries.filter((entry) => entry.kind === "cleanuparr.removed").map((entry) => entry.title))
+  const removedLines = Effect.map(
+    Effect.flatMap(Effect.service(Journal), (journal) => journal.since(undefined)),
+    (tail) => tail.entries.filter((entry) => entry.kind === "cleanuparr.removed").map((entry) => entry.title)
+  )
 
   it.effect("watched every 5 minutes while Quai Home reaches it; each removal logged once, the last hour's on a first read", () =>
     Effect.gen(function*() {
       yield* TestClock.setTime(now)
       const home = yield* makeFakeHome({ services: ["radarr", "cleanuparr"] })
       yield* home.connect
-      expect(home.watch(removalsWatchId)).toEqual({ id: removalsWatchId, service: "cleanuparr", path: removalsRead.path, everySeconds: 300 })
+      expect(home.watch(removalsWatchId)).toEqual({
+        id: removalsWatchId,
+        service: "cleanuparr",
+        path: removalsRead.path,
+        everySeconds: 300
+      })
 
       yield* home.snapshot(removalsWatchId, fixture("cleanuparr/events-removed.json"))
-      expect(yield* removedLines).toEqual(["Old.Movie.1999.720p.BluRay.x264-GROUP", "Some.Show.S03E04.1080p.WEB.h264-ETHEL"])
+      expect(yield* removedLines).toEqual([
+        "Old.Movie.1999.720p.BluRay.x264-GROUP",
+        "Some.Show.S03E04.1080p.WEB.h264-ETHEL"
+      ])
 
       // A later read with one more removal logs only that one.
       const page = fixture("cleanuparr/events-removed.json") as { items: Array<Record<string, unknown>> }
-      const later = { ...page.items[0], id: "0195f100-0004-7000-8000-000000000004", timestamp: "2026-11-19T11:59:00+00:00", itemTitle: "Late.Show.S01E01-GRP", deleteReason: "SlowTime" }
+      const later = {
+        ...page.items[0],
+        id: "0195f100-0004-7000-8000-000000000004",
+        timestamp: "2026-11-19T11:59:00+00:00",
+        itemTitle: "Late.Show.S01E01-GRP",
+        deleteReason: "SlowTime"
+      }
       yield* home.snapshot(removalsWatchId, { ...page, items: [later, ...page.items] })
-      expect(yield* removedLines).toEqual(["Old.Movie.1999.720p.BluRay.x264-GROUP", "Some.Show.S03E04.1080p.WEB.h264-ETHEL", "Late.Show.S01E01-GRP"])
+      expect(yield* removedLines).toEqual([
+        "Old.Movie.1999.720p.BluRay.x264-GROUP",
+        "Some.Show.S03E04.1080p.WEB.h264-ETHEL",
+        "Late.Show.S01E01-GRP"
+      ])
     }).pipe(Effect.provide(layer)))
 
   it.effect("a Cloud that starts again goes on from its last removal line in the journal", () =>
@@ -214,7 +282,14 @@ describe("Cleanuparr: the journal of its removals", () => {
       yield* TestClock.setTime(now)
       const home = yield* makeFakeHome({ services: ["cleanuparr"] })
       // Logged by the Cloud before it restarted, when it read Old Movie's removal.
-      home.journal.push({ id: "0001763550000000-c000000", at: Date.parse("2026-11-19T11:25:00Z"), level: "info", source: "cleanuparr", kind: "cleanuparr.removed", text: "…" })
+      home.journal.push({
+        id: "0001763550000000-c000000",
+        at: Date.parse("2026-11-19T11:25:00Z"),
+        level: "info",
+        source: "cleanuparr",
+        kind: "cleanuparr.removed",
+        text: "…"
+      })
       yield* home.connect
       yield* home.snapshot(removalsWatchId, fixture("cleanuparr/events-removed.json"))
       expect(yield* removedLines).toEqual(["Some.Show.S03E04.1080p.WEB.h264-ETHEL"])

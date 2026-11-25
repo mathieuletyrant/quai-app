@@ -36,7 +36,9 @@ const generatorTags = (): ReadonlyArray<string> => {
 const appOperations = () =>
   Object.entries(spec.paths)
     .filter(([path]) => path.startsWith("/api/"))
-    .flatMap(([path, operations]) => Object.entries(operations).map(([method, operation]) => ({ route: `${method.toUpperCase()} ${path}`, operation })))
+    .flatMap(([path, operations]) =>
+      Object.entries(operations).map(([method, operation]) => ({ route: `${method.toUpperCase()} ${path}`, operation }))
+    )
 
 /** Every `$ref`'d schema reachable from a value, by name. */
 const reachableSchemas = (start: unknown): Set<string> => {
@@ -82,7 +84,9 @@ describe("the iPhone's generated client", () => {
   it("is generated for every tag under /api/* (apps/ios/Quai/openapi-generator-config.yaml)", () => {
     const listed = new Set([...generatorTags(), ...leftOutOfTheApp])
     const missing = appOperations()
-      .flatMap(({ route, operation }) => (operation.tags ?? []).filter((tag) => !listed.has(tag)).map((tag) => `${tag} (${route})`))
+      .flatMap(({ route, operation }) =>
+        (operation.tags ?? []).filter((tag) => !listed.has(tag)).map((tag) => `${tag} (${route})`)
+      )
     expect(missing).toEqual([])
   })
 
@@ -104,7 +108,9 @@ describe("the iPhone's generated client", () => {
 
 describe("the checks themselves", () => {
   it("see Schema.Number's shape", () => {
-    expect(isNonFiniteNumber({ anyOf: [{ type: "number" }, { type: "string", enum: ["Infinity", "-Infinity", "NaN"] }] })).toBe(true)
+    expect(
+      isNonFiniteNumber({ anyOf: [{ type: "number" }, { type: "string", enum: ["Infinity", "-Infinity", "NaN"] }] })
+    ).toBe(true)
     expect(isNonFiniteNumber({ type: "number" })).toBe(false)
   })
 

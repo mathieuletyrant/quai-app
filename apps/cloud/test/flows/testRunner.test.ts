@@ -1,5 +1,5 @@
-import type { DeviceId } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import type { DeviceId } from "@quai/api"
 import { Effect, Layer, Option } from "effect"
 import { TestClock } from "effect/testing"
 import { TestRunner } from "../../src/flows/TestRunner.ts"
@@ -23,7 +23,8 @@ describe("flow tests", () => {
       const runner = yield* TestRunner
       expect(Option.isSome(yield* runner.play("download", [phone, ipad]))).toBe(true)
       yield* TestClock.adjust("2 minutes")
-      const on = (device: string) => sent.filter((line) => line.startsWith(`${device}:`)).map((line) => line.split(":")[1])
+      const on = (device: string) =>
+        sent.filter((line) => line.startsWith(`${device}:`)).map((line) => line.split(":")[1])
       expect(new Set(sent.map((line) => line.split(":")[0]))).toEqual(new Set(["phone", "ipad"]))
       expect(on("phone")).toEqual(on("ipad"))
       expect(on("phone")[0]).toBe("Start")

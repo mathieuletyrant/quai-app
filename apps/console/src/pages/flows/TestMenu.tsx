@@ -44,9 +44,25 @@ export function TestMenu({ phones, onTest }: {
       {(close) => (
         <>
           <MenuLabel>Play a test on</MenuLabel>
-          {phones.map((phone) => <PhoneOption key={phone.id} phone={phone} ticked={ticked.has(phone.id)} onToggle={() => toggle(phone.id)} />)}
-          <p className="px-2.5 pt-1 pb-2 text-caption leading-relaxed text-faint">Plays every step in about 30 s. Lock the iPhone to watch.</p>
-          <Button size="sm" disabled={ticked.size === 0} onClick={() => { onTest([...ticked]); close() }}>
+          {phones.map((phone) => (
+            <PhoneOption
+              key={phone.id}
+              phone={phone}
+              ticked={ticked.has(phone.id)}
+              onToggle={() => toggle(phone.id)}
+            />
+          ))}
+          <p className="px-2.5 pt-1 pb-2 text-caption leading-relaxed text-faint">
+            Plays every step in about 30 s. Lock the iPhone to watch.
+          </p>
+          <Button
+            size="sm"
+            disabled={ticked.size === 0}
+            onClick={() => {
+              onTest([...ticked])
+              close()
+            }}
+          >
             {sendLabel(ticked.size)}
           </Button>
         </>

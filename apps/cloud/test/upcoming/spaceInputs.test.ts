@@ -4,9 +4,14 @@ import { epochSeconds, seasonOfRelease } from "../../src/integrations/arr.ts"
 import type { SeedCleanup } from "../../src/integrations/cleanuparr.ts"
 import type { FinishedTorrent } from "../../src/integrations/qbittorrent.ts"
 import { RadarrMovies } from "../../src/integrations/radarr.ts"
-import { type Candidate, CandidatePage, candidateTitleKey, type PlannedCandidate } from "../../src/integrations/reclaimerr.ts"
+import {
+  type Candidate,
+  CandidatePage,
+  candidateTitleKey,
+  type PlannedCandidate
+} from "../../src/integrations/reclaimerr.ts"
 import { SonarrSeries } from "../../src/integrations/sonarr.ts"
-import { grabKey, grabsByHash, libraryHolds, type SpaceReads, spaceInputs } from "../../src/upcoming/SpaceInputs.ts"
+import { grabKey, grabsByHash, libraryHolds, spaceInputs, type SpaceReads } from "../../src/upcoming/SpaceInputs.ts"
 import { grabsSince, maxGrabLookbackMs } from "../../src/upcoming/Upcoming.ts"
 import { fixture } from "../fixtures.ts"
 
@@ -15,7 +20,15 @@ const day = 24 * 3600_000
 const candidates = () => Schema.decodeUnknownSync(CandidatePage)(fixture("real/reclaimerr/candidates.json")).items
 const runner = () => candidates().find((candidate) => candidate.title === "Runner")!
 const radarrMovie = (overrides: Record<string, unknown> = {}) =>
-  Schema.decodeUnknownSync(RadarrMovies)([{ id: 55, title: "Runner", year: 2026, tmdbId: 1377237, hasFile: true, sizeOnDisk: 7268360548, ...overrides }])
+  Schema.decodeUnknownSync(RadarrMovies)([{
+    id: 55,
+    title: "Runner",
+    year: 2026,
+    tmdbId: 1377237,
+    hasFile: true,
+    sizeOnDisk: 7268360548,
+    ...overrides
+  }])
 const finished: FinishedTorrent = {
   hash: "AAA",
   name: "Runner.2026.1080p",
@@ -45,7 +58,13 @@ describe("where a release's files are in the library", () => {
   it("each torrent's hash, in lowercase, to its title", () => {
     expect([...grabsByHash({
       radarrGrabs: [{ movieId: 304, date: "2026-11-22T10:59:31Z", downloadId: "D3904AE6" }],
-      sonarrGrabs: [{ episodeId: 1, seriesId: 233, date: "2026-11-24T09:33:01Z", downloadId: "A0232", sourceTitle: "Notre.Maison.S01" }, { episodeId: 2, date: "x", downloadId: null }]
+      sonarrGrabs: [{
+        episodeId: 1,
+        seriesId: 233,
+        date: "2026-11-24T09:33:01Z",
+        downloadId: "A0232",
+        sourceTitle: "Notre.Maison.S01"
+      }, { episodeId: 2, date: "x", downloadId: null }]
     })]).toEqual([["d3904ae6", "movie:304"], ["a0232", "series:233:s1"]])
   })
 })
@@ -70,20 +89,29 @@ describe("whether the library still holds a title", () => {
 const planned = (candidate: Candidate): PlannedCandidate => ({
   candidate,
   deletesAt: epochSeconds(candidate.auto_delete_eligible_at) ?? 0,
-  operation: candidate.delete_operation === "move" ? "move" : "delete" })
+  operation: candidate.delete_operation === "move" ? "move" : "delete"
+})
 
 describe("the title a Reclaimerr deletion takes", () => {
   it("a movie version is the Radarr movie only when it weighs the same", () => {
     expect(candidateTitleKey(planned(runner()), { movies: radarrMovie() })).toBe("movie:55")
-    expect(candidateTitleKey(planned(runner()), { movies: radarrMovie({ sizeOnDisk: 2 * 7268360548 }) })).toBeUndefined()
-    expect(candidateTitleKey(planned({ ...runner(), scope: "movie" }), { movies: radarrMovie({ sizeOnDisk: 1 }) })).toBe("movie:55")
-    expect(candidateTitleKey(planned({ ...runner(), delete_operation: "move" }), { movies: radarrMovie() })).toBeUndefined()
+    expect(candidateTitleKey(planned(runner()), { movies: radarrMovie({ sizeOnDisk: 2 * 7268360548 }) }))
+      .toBeUndefined()
+    expect(candidateTitleKey(planned({ ...runner(), scope: "movie" }), { movies: radarrMovie({ sizeOnDisk: 1 }) }))
+      .toBe("movie:55")
+    expect(candidateTitleKey(planned({ ...runner(), delete_operation: "move" }), { movies: radarrMovie() }))
+      .toBeUndefined()
     expect(candidateTitleKey(planned(runner()), {})).toBeUndefined()
   })
 
   it("a season, or the whole series; an episode is only part of it", () => {
     const vampire = candidates().find((candidate) => candidate.media_type === "series")!
-    const series = Schema.decodeUnknownSync(SonarrSeries)([{ id: 12, title: "Vampire Diaries", tvdbId: 1, tmdbId: vampire.tmdb_id }])
+    const series = Schema.decodeUnknownSync(SonarrSeries)([{
+      id: 12,
+      title: "Vampire Diaries",
+      tvdbId: 1,
+      tmdbId: vampire.tmdb_id
+    }])
     expect(candidateTitleKey(planned(vampire), { series })).toBe(`series:12:s${vampire.season_number}`)
     expect(candidateTitleKey(planned({ ...vampire, scope: "series" }), { series })).toBe("series:12")
     expect(candidateTitleKey(planned({ ...vampire, scope: "episode" }), { series })).toBeUndefined()
@@ -108,8 +136,20 @@ describe("space back's input", () => {
   it("deletions at their date (now when past), torrents with the cleaner's plan", () => {
     const cleanup = { torrent: finished, at: now + day, timing: "at", freesFiles: true } as unknown as SeedCleanup
     const input = spaceInputs(reads({ cleanups: [cleanup] }))
-    expect(input.deletions).toEqual([{ candidateId: 9, title: "Runner", key: "movie:55", at: Date.parse("2026-11-30T10:00:05Z"), sizeBytes: 7268360548 }])
-    expect(input.torrents).toEqual([{ hash: "AAA", name: "Runner.2026.1080p", size: 7e9, category: "radarr", cleanup: { at: now + day, timing: "at", freesFiles: true } }])
+    expect(input.deletions).toEqual([{
+      candidateId: 9,
+      title: "Runner",
+      key: "movie:55",
+      at: Date.parse("2026-11-30T10:00:05Z"),
+      sizeBytes: 7268360548
+    }])
+    expect(input.torrents).toEqual([{
+      hash: "AAA",
+      name: "Runner.2026.1080p",
+      size: 7e9,
+      category: "radarr",
+      cleanup: { at: now + day, timing: "at", freesFiles: true }
+    }])
     expect([...input.grabs]).toEqual([["aaa", "movie:55"]])
   })
 

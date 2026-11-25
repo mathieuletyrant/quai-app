@@ -1,9 +1,21 @@
 import { type ActivityItem, defaultStartsAt } from "@quai/api"
+import { dayOf, dayRange, instantOf, nextDay } from "../home/Day.ts"
 import type { Read } from "../home/HomeReads.ts"
 import { epochSeconds, posterOf, QueuePage, type QueueRecord } from "../integrations/arr.ts"
-import { RadarrCalendar, radarrCalendarPath, radarrCalendarQueuePath, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
-import { episodeCode, SonarrCalendar, sonarrCalendarPath, sonarrCalendarQueuePath, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
-import { dayOf, dayRange, instantOf, nextDay } from "../home/Day.ts"
+import {
+  RadarrCalendar,
+  type RadarrCalendarMovie,
+  radarrCalendarPath,
+  radarrCalendarQueuePath,
+  releasedOn
+} from "../integrations/radarr.ts"
+import {
+  episodeCode,
+  SonarrCalendar,
+  type SonarrCalendarEpisode,
+  sonarrCalendarPath,
+  sonarrCalendarQueuePath
+} from "../integrations/sonarr.ts"
 import * as LibraryId from "../library/LibraryId.ts"
 
 /**
@@ -85,7 +97,10 @@ export const dayInputs = (read: { readonly [K in keyof DayReads]?: DayValue<K> |
   radarrQueue: read.radarrQueue?.records
 })
 
-const queued = (queue: ReadonlyArray<QueueRecord> | undefined, matches: (record: QueueRecord) => boolean): DayRelease["status"] | null => {
+const queued = (
+  queue: ReadonlyArray<QueueRecord> | undefined,
+  matches: (record: QueueRecord) => boolean
+): DayRelease["status"] | null => {
   const rows = (queue ?? []).filter(matches)
   if (rows.length === 0) return null
   return rows.some((record) => record.status === "downloading") ? "downloading" : "grabbed"
@@ -102,7 +117,12 @@ export interface DatedRelease {
  * airing then, monitored movies whose digital or physical release falls on one of the days (the
  * first one). By air time, a movie (a day, no time) after the episodes of its day.
  */
-export const rangeReleases = (firstDay: string, days: number, zone: string, inputs: DayInputs): ReadonlyArray<DatedRelease> => {
+export const rangeReleases = (
+  firstDay: string,
+  days: number,
+  zone: string,
+  inputs: DayInputs
+): ReadonlyArray<DatedRelease> => {
   const { start } = dayRange(firstDay, zone)
   const { end } = dayRange(lastDayOf(firstDay, days), zone)
   const covered: Array<string> = [firstDay]
@@ -110,7 +130,9 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
   const episodes = (inputs.episodes ?? []).flatMap((episode): ReadonlyArray<DatedRelease> => {
     const airs = epochSeconds(episode.airDateUtc)
     if (episode.monitored === false || airs === undefined || airs * 1000 < start || airs * 1000 >= end) return []
-    const status = episode.hasFile === true ? "available" : queued(inputs.sonarrQueue, (record) => record.episodeId === episode.id) ?? "missing"
+    const status = episode.hasFile === true
+      ? "available"
+      : queued(inputs.sonarrQueue, (record) => record.episodeId === episode.id) ?? "missing"
     const posterUrl = posterOf(episode.series?.images)
     return [{
       day: dayOf(airs * 1000, zone),
@@ -120,7 +142,9 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
         libraryId: LibraryId.series(episode.seriesId),
         title: episode.series?.title ?? "Unknown series",
         episode: episodeCode(episode.seasonNumber, episode.episodeNumber),
-        ...(episode.title === undefined || episode.title === "" || episode.title === "TBA" ? {} : { episodeTitle: episode.title }),
+        ...(episode.title === undefined || episode.title === "" || episode.title === "TBA"
+          ? {}
+          : { episodeTitle: episode.title }),
         airsAt: airs,
         ...(posterUrl === undefined ? {} : { posterUrl }),
         status
@@ -130,7 +154,9 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
   const movies = (inputs.movies ?? []).flatMap((movie): ReadonlyArray<DatedRelease> => {
     const day = movie.monitored === false ? undefined : covered.find((coveredDay) => releasedOn(movie, coveredDay))
     if (day === undefined) return []
-    const status = movie.hasFile === true ? "available" : queued(inputs.radarrQueue, (record) => record.movieId === movie.id) ?? "missing"
+    const status = movie.hasFile === true
+      ? "available"
+      : queued(inputs.radarrQueue, (record) => record.movieId === movie.id) ?? "missing"
     const posterUrl = posterOf(movie.images)
     return [{
       day,
@@ -148,7 +174,8 @@ export const rangeReleases = (firstDay: string, days: number, zone: string, inpu
     left.day.localeCompare(right.day) ||
     (left.release.airsAt ?? Infinity) - (right.release.airsAt ?? Infinity) ||
     left.release.title.localeCompare(right.release.title) ||
-    (left.release.episode ?? "").localeCompare(right.release.episode ?? ""))
+    (left.release.episode ?? "").localeCompare(right.release.episode ?? "")
+  )
 }
 
 /**
@@ -173,7 +200,12 @@ export const activityItems = (releases: ReadonlyArray<DayRelease>): ReadonlyArra
     ...(release.airsAt === undefined ? {} : { at: release.airsAt }),
     state: stateOf(release.status)
   }))
-  return lines.length <= maxItems ? lines : [...lines.filter((line) => line.state !== "done"), ...lines.filter((line) => line.state === "done")].slice(0, maxItems)
+  return lines.length <= maxItems
+    ? lines
+    : [...lines.filter((line) => line.state !== "done"), ...lines.filter((line) => line.state === "done")].slice(
+      0,
+      maxItems
+    )
 }
 
 /** "2 of 5 here" */

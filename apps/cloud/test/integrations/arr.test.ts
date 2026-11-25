@@ -1,11 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
-import { HomeLink } from "../../src/home/HomeLink.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
-import { Journal } from "../../src/journal/Journal.ts"
 import { decodeRadarrWebhook, radarr, radarrEvents } from "../../src/integrations/radarr.ts"
 import { decodeSonarrWebhook, episodeLabel, sonarr, sonarrEvents } from "../../src/integrations/sonarr.ts"
-import { makeFakeHome, type Recording, recordedHome , testLink } from "../fakeHome.ts"
+import { Journal } from "../../src/journal/Journal.ts"
+import { makeFakeHome, recordedHome, type Recording, testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
 const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(testLink))
@@ -13,13 +12,29 @@ const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provi
 const radarrPayload = (name: string) => decodeRadarrWebhook(fixture(`radarr/${name}.json`))
 const sonarrPayload = (name: string) => decodeSonarrWebhook(fixture(`sonarr/${name}.json`))
 const duneLookup = { _tag: "Movie", tmdbId: 693134, imdbId: "tt15239678", title: "Dune: Part Two" }
-const severance = (episodes: Array<{ season: number; episode: number }>) => ({ _tag: "Episodes", tvdbId: 371980, tmdbId: 95396, imdbId: "tt11280740", title: "Severance", episodes })
+const severance = (episodes: Array<{ season: number; episode: number }>) => ({
+  _tag: "Episodes",
+  tvdbId: 371980,
+  tmdbId: 95396,
+  imdbId: "tt11280740",
+  title: "Severance",
+  episodes
+})
 
 describe("Radarr webhooks", () => {
   it.effect("MovieAdded starts a search", () =>
     Effect.gen(function*() {
       expect(radarrEvents(yield* radarrPayload("movie-added"))).toEqual([
-        { type: "media.added", subject: { kind: "media", key: "movie:tmdb:693134", title: "Dune: Part Two", mediaType: "movie", lookup: duneLookup } }
+        {
+          type: "media.added",
+          subject: {
+            kind: "media",
+            key: "movie:tmdb:693134",
+            title: "Dune: Part Two",
+            mediaType: "movie",
+            lookup: duneLookup
+          }
+        }
       ])
     }))
 
@@ -27,7 +42,13 @@ describe("Radarr webhooks", () => {
     Effect.gen(function*() {
       expect(radarrEvents(yield* radarrPayload("grab"))).toEqual([{
         type: "media.grabbed",
-        subject: { kind: "media", key: "movie:tmdb:693134", title: "Dune: Part Two", mediaType: "movie", lookup: duneLookup },
+        subject: {
+          kind: "media",
+          key: "movie:tmdb:693134",
+          title: "Dune: Part Two",
+          mediaType: "movie",
+          lookup: duneLookup
+        },
         downloadId: "8f1c0e3a9b7d6c5e4f3a2b1c0d9e8f7a6b5c4d3e"
       }])
     }))
@@ -36,7 +57,13 @@ describe("Radarr webhooks", () => {
     Effect.gen(function*() {
       expect(radarrEvents(yield* radarrPayload("download"))).toEqual([{
         type: "media.imported",
-        subject: { kind: "media", key: "movie:tmdb:693134", title: "Dune: Part Two", mediaType: "movie", lookup: duneLookup }
+        subject: {
+          kind: "media",
+          key: "movie:tmdb:693134",
+          title: "Dune: Part Two",
+          mediaType: "movie",
+          lookup: duneLookup
+        }
       }])
     }))
 
@@ -68,7 +95,11 @@ describe("Radarr webhooks", () => {
 
   it.effect("a movie added before it is out (Radarr's \"Not Available\") starts nothing", () =>
     Effect.gen(function*() {
-      const announced = (fixture("radarr/movie-by-tmdb.json") as Array<object>).map((movie) => ({ ...movie, status: "announced", isAvailable: false }))
+      const announced = (fixture("radarr/movie-by-tmdb.json") as Array<object>).map((movie) => ({
+        ...movie,
+        status: "announced",
+        isAvailable: false
+      }))
       expect((yield* added({ json: announced })).types).toEqual([])
     }))
 
@@ -112,7 +143,9 @@ describe("Sonarr webhooks", () => {
           lookup: { ...severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }]), imdbId: undefined }
         }
       }])
-      expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((event) => event.type)).toEqual(["media.grabbed"])
+      expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((event) => event.type)).toEqual([
+        "media.grabbed"
+      ])
     }))
 
   it.effect("an import that needs someone says so on the torrent's activity", () =>

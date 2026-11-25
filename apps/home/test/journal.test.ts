@@ -28,7 +28,9 @@ const line = (at: number, overrides: Partial<JournalEntry> = {}): JournalEntry =
 const opened = <A, E>(dir: string, use: (journal: Journal["Service"]) => Effect.Effect<A, E>) =>
   Effect.scoped(Effect.flatMap(Journal.make(join(dir, "journal")), use))
 
-const inTemp = <A, E>(test: (dir: string, fs: FileSystem.FileSystem) => Effect.Effect<A, E, FileSystem.FileSystem | Scope.Scope>) =>
+const inTemp = <A, E>(
+  test: (dir: string, fs: FileSystem.FileSystem) => Effect.Effect<A, E, FileSystem.FileSystem | Scope.Scope>
+) =>
   Effect.gen(function*() {
     yield* TestClock.setTime(morning)
     const dir = yield* tempDir
@@ -57,7 +59,8 @@ describe("home journal", () => {
           }))
         const again = yield* opened(dir, (journal) => journal.read({ limit: 10 }))
         expect(again.entries).toEqual([today, lateYesterday])
-      })))
+      })
+    ))
 
   it.effect("flushes what waits when it stops", () =>
     inTemp((dir) =>
@@ -65,18 +68,23 @@ describe("home journal", () => {
         const entry = line(morning)
         yield* opened(dir, (journal) => journal.append([entry]))
         expect((yield* opened(dir, (journal) => journal.read({ limit: 10 }))).entries).toEqual([entry])
-      })))
+      })
+    ))
 
   it.effect("skips a corrupted line and an id it already has", () =>
     inTemp((dir, fs) =>
       Effect.gen(function*() {
         const good = line(morning)
         yield* fs.makeDirectory(join(dir, "journal"), { recursive: true })
-        yield* fs.writeFileString(join(dir, "journal", journalFile(morning)), `${JSON.stringify(good)}\n{"id":"half\n${JSON.stringify(good)}\nnot json\n`)
+        yield* fs.writeFileString(
+          join(dir, "journal", journalFile(morning)),
+          `${JSON.stringify(good)}\n{"id":"half\n${JSON.stringify(good)}\nnot json\n`
+        )
         const page = yield* opened(dir, (journal) => journal.read({ limit: 10 }))
         expect(page.entries).toEqual([good])
         expect(parseJournal("{}\n\n").skipped).toBe(1)
-      })))
+      })
+    ))
 
   it.effect("keeps 7 days: a new day removes the oldest files", () =>
     inTemp((dir, fs) =>
@@ -94,7 +102,8 @@ describe("home journal", () => {
             expect(yield* files(fs, dir)).toEqual(["2026-11-14.jsonl", "2026-11-21.jsonl"])
             expect((yield* journal.read({ limit: 10 })).entries.at(-1)).toEqual(recent)
           }))
-      })))
+      })
+    ))
 
   it.effect("keeps at most 5000 lines: the oldest go, their file rewritten", () =>
     inTemp((dir, fs) =>
@@ -114,7 +123,8 @@ describe("home journal", () => {
         expect(kept.at(-1)).toEqual(older.at(-1))
         const reopened = yield* opened(dir, (journal) => journal.read({ limit: 200, before: newer[0]!.id }))
         expect(reopened.entries).toHaveLength(Retention.maxEntries - newer.length)
-      })))
+      })
+    ))
 
   it.effect("reads pages newest first with the filters, Cloud's lines and Home's own together", () =>
     inTemp((dir) =>
@@ -127,11 +137,14 @@ describe("home journal", () => {
           const all = yield* journal.read({ limit: 10 })
           expect(all.entries.map((entry) => entry.text)).toEqual(["refused", grabbed.text])
           expect(all.entries[0]!.id).toMatch(/-h/)
-          expect((yield* journal.read({ limit: 10, level: "warn" })).entries.map((entry) => entry.text)).toEqual(["refused"])
+          expect((yield* journal.read({ limit: 10, level: "warn" })).entries.map((entry) => entry.text)).toEqual([
+            "refused"
+          ])
           expect((yield* journal.read({ limit: 10, subject: "movie:tmdb:1" })).entries).toEqual([grabbed])
           expect((yield* journal.read({ limit: 1 })).more).toBe(true)
           expect(yield* journal.noted).toHaveLength(1)
-        }))))
+        }))
+    ))
 })
 
 describe("home journal lines", () => {
@@ -148,19 +161,28 @@ describe("home journal lines", () => {
         yield* Effect.gen(function*() {
           const calls = yield* Calls
           const journal = yield* Journal
-          const status = { _tag: "Call", id: "r", service: "radarr", method: "GET", path: "/api/v3/system/status" } as const
+          const status = {
+            _tag: "Call",
+            id: "r",
+            service: "radarr",
+            method: "GET",
+            path: "/api/v3/system/status"
+          } as const
           yield* calls.run({ ...status, path: "/api/v3/config/host?apikey=x" })
           yield* calls.run(status)
           yield* calls.run(status)
           up = true
           yield* calls.run(status)
           yield* calls.run(status)
-          const texts = (yield* journal.read({ limit: 10 })).entries.map((entry) => `${entry.level} ${entry.source} ${entry.text}`).reverse()
+          const texts = (yield* journal.read({ limit: 10 })).entries.map((entry) =>
+            `${entry.level} ${entry.source} ${entry.text}`
+          ).reverse()
           expect(texts).toEqual([
             "warn radarr Quai Home refused a call outside its allowlist: Radarr GET /api/v3/config/host",
             "warn radarr Quai Home can't reach Radarr: unreachable",
             "info radarr Quai Home reaches Radarr again"
           ])
         }).pipe(Effect.provide(layer))
-      })))
+      })
+    ))
 })

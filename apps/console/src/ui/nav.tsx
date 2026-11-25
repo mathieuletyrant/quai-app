@@ -10,7 +10,9 @@ export interface NavItem {
   readonly icon: IconName
 }
 
-function NavLink({ item, current, onNavigate }: { item: NavItem; current: boolean; onNavigate?: (() => void) | undefined }) {
+function NavLink(
+  { item, current, onNavigate }: { item: NavItem; current: boolean; onNavigate?: (() => void) | undefined }
+) {
   return (
     <a
       href={`#${item.id}`}
@@ -21,7 +23,11 @@ function NavLink({ item, current, onNavigate }: { item: NavItem; current: boolea
         current ? "bg-raised text-text ring-1 ring-line ring-inset" : "text-muted hover:bg-white/4 hover:text-text"
       )}
     >
-      <Icon name={item.icon} size={17} className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"} />
+      <Icon
+        name={item.icon}
+        size={17}
+        className={current ? "text-accent" : "text-faint transition-colors group-hover:text-muted"}
+      />
       {item.label}
     </a>
   )
@@ -62,7 +68,14 @@ export function TopBar({ logo, title, status, menuOpen, onMenu }: {
 }) {
   return (
     <header className="sticky top-0 z-40 flex h-top-bar items-center gap-3 border-b border-line bg-sidebar px-4 md:hidden">
-      <IconButton label="Open menu" icon="menu" className="-ml-2" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={onMenu} />
+      <IconButton
+        label="Open menu"
+        icon="menu"
+        className="-ml-2"
+        aria-haspopup="dialog"
+        aria-expanded={menuOpen}
+        onClick={onMenu}
+      />
       {logo}
       <p className="min-w-0 flex-1 truncate text-heading font-semibold tracking-heading">{title}</p>
       {status}
@@ -77,7 +90,9 @@ const useScrollLock = (locked: boolean) => {
     const root = document.documentElement
     const before = root.style.overflow
     root.style.overflow = "hidden"
-    return () => { root.style.overflow = before }
+    return () => {
+      root.style.overflow = before
+    }
   }, [locked])
 }
 

@@ -138,7 +138,13 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
       // The download left the client before its import (replaced, failed, removed): this activity
       // won't go further. It ends grey, saying so; a new grab starts its own.
       if (event.type === "download.removed") {
-        const ended = pushed({ ...activity, tone: "stalled", values: { ...activity.values, ...event.values }, lastEventAt: now, endedAt: now }, now)
+        const ended = pushed({
+          ...activity,
+          tone: "stalled",
+          values: { ...activity.values, ...event.values },
+          lastEventAt: now,
+          endedAt: now
+        }, now)
         put(activities, ended)
         pushes.push({ _tag: "End", activity: ended })
         continue
@@ -158,7 +164,8 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
         lastEventAt: now
       }
       // A visible change of state goes at once: a download moving again, a pause or a resume.
-      const urgent = (activity.tone === "stalled" && next.tone === "active") || (blocked && activity.tone !== "stalled") ||
+      const urgent = (activity.tone === "stalled" && next.tone === "active") ||
+        (blocked && activity.tone !== "stalled") ||
         (event.values?.paused !== undefined && event.values.paused !== activity.values.paused)
       const throttled = activity.pushedAt !== null && now - activity.pushedAt < Timing.throttleMs
       if ((throttled && !urgent) || fingerprint(next) === activity.pushedFingerprint) {
@@ -224,7 +231,8 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
     }
     if (current.endedAt !== null) continue
 
-    const regrab = index === current.stepIndex && event.downloadId !== undefined && event.downloadId !== current.downloadId
+    const regrab = index === current.stepIndex && event.downloadId !== undefined &&
+      event.downloadId !== current.downloadId
     if (index < current.stepIndex || (index === current.stepIndex && !regrab)) {
       put(activities, { ...current, lookup: widenLookup(current.lookup, lookupOf(subject)), lastEventAt: now })
       continue

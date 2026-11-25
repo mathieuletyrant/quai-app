@@ -15,8 +15,17 @@ import { Context, Data, Effect, Layer, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, requestKey, type Subject } from "../flows/Events.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
-import { type ActionHandler, anyEnabledFlow, type Integration, readJson, readSnapshot, runningWhere, type WatchContext, watchOf } from "./Integration.ts"
 import { epochSeconds, knownYear } from "./arr.ts"
+import {
+  type ActionHandler,
+  anyEnabledFlow,
+  type Integration,
+  readJson,
+  readSnapshot,
+  runningWhere,
+  type WatchContext,
+  watchOf
+} from "./Integration.ts"
 
 /**
  * Seerr (Jellyseerr, Overseerr): the requests of the household. Quai follows only those that wait
@@ -43,7 +52,9 @@ export const detailsPath = (kind: "movie" | "tv", tmdbId: number) => `/api/v1/${
 
 /** TMDB's public poster URL, at the width the app shows. */
 export const posterUrl = (posterPath: string | null | undefined) =>
-  posterPath !== undefined && posterPath !== null && /^\/[\w.-]+$/.test(posterPath) ? `https://image.tmdb.org/t/p/w342${posterPath}` : undefined
+  posterPath !== undefined && posterPath !== null && /^\/[\w.-]+$/.test(posterPath)
+    ? `https://image.tmdb.org/t/p/w342${posterPath}`
+    : undefined
 
 const User = Schema.Struct({
   displayName: Schema.optional(Schema.NullOr(Schema.String)),
@@ -72,7 +83,11 @@ export type SeerrRequest = typeof SeerrRequest.Type
 export const SeerrRequestPage = Schema.Struct({ results: Schema.Array(SeerrRequest) })
 
 /** The requests waiting for approval: read when the app asks, and watched while a request flow is on. */
-export const pendingRead: Read<typeof SeerrRequestPage.Type> = { service: "seerr", path: pendingPath, schema: SeerrRequestPage }
+export const pendingRead: Read<typeof SeerrRequestPage.Type> = {
+  service: "seerr",
+  path: pendingPath,
+  schema: SeerrRequestPage
+}
 
 /** `GET /api/v1/movie/{id}` and `GET /api/v1/tv/{id}`: a movie has a title, a series a name. */
 export const SeerrTitle = Schema.Struct({
@@ -122,7 +137,13 @@ export const requestDetail = (requester: string, kind: TitleKind, options: {
     : seasons.every((season, index) => index === 0 || season === seasons[index - 1]! + 1)
     ? `S${seasons[0]}–${seasons[seasons.length - 1]}`
     : `${seasons.length} seasons`
-  return [requester, kind === "movie" ? "Movie" : "Series", options.year, range, options.is4k === true ? "4K" : undefined]
+  return [
+    requester,
+    kind === "movie" ? "Movie" : "Series",
+    options.year,
+    range,
+    options.is4k === true ? "4K" : undefined
+  ]
     .filter((part) => part !== undefined).join(" · ")
 }
 
@@ -137,15 +158,20 @@ export const toMediaRequest = (request: SeerrRequest, details: TitleDetails | un
     ...(details?.posterUrl === undefined ? {} : { posterUrl: details.posterUrl }),
     requester: requesterOf(request),
     ...(requestedAt === undefined ? {} : { requestedAt }),
-    seasons: kind === "series" ? (request.seasons ?? []).map((season) => season.seasonNumber).sort((left, right) => left - right) : [],
+    seasons: kind === "series"
+      ? (request.seasons ?? []).map((season) => season.seasonNumber).sort((left, right) => left - right)
+      : [],
     is4k: request.is4k === true
   }
 }
 
 /** Only what really waits: a request Seerr approved on its own is never pending. */
-export const waiting = (requests: ReadonlyArray<SeerrRequest>) => requests.filter((request) => request.status === RequestStatus.pending)
+export const waiting = (requests: ReadonlyArray<SeerrRequest>) =>
+  requests.filter((request) => request.status === RequestStatus.pending)
 
-const subjectOf = (request: { readonly id: number; readonly title: string; readonly kind: TitleKind; readonly requester: string }): Subject => ({
+const subjectOf = (
+  request: { readonly id: number; readonly title: string; readonly kind: TitleKind; readonly requester: string }
+): Subject => ({
   kind: "request",
   key: requestKey(request.id),
   title: request.title,
@@ -217,7 +243,15 @@ export const requestIdOf = (subjectKey: string): number | null => {
 // Searching and requesting, from the app's search.
 
 /** Seerr's media statuses (server/constants/media.ts, MediaStatus): a title's or a season's. */
-export const MediaStatus = { unknown: 1, pending: 2, processing: 3, partiallyAvailable: 4, available: 5, blocklisted: 6, deleted: 7 } as const
+export const MediaStatus = {
+  unknown: 1,
+  pending: 2,
+  processing: 3,
+  partiallyAvailable: 4,
+  available: 5,
+  blocklisted: 6,
+  deleted: 7
+} as const
 
 /** Where a title or a season stands, in the app's words. Blocklisted or deleted: as if nobody asked. */
 export const titleState = (status: number | undefined): TitleState => {
@@ -239,7 +273,9 @@ export const titleState = (status: number | undefined): TitleState => {
  * answers 400 to "Ocean's Eleven" unless they're encoded too.
  */
 export const searchPath = (query: string) =>
-  `/api/v1/search?query=${encodeURIComponent(query).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}&page=1`
+  `/api/v1/search?query=${
+    encodeURIComponent(query).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)
+  }&page=1`
 
 /** Seerr's users, enough for a household. */
 export const usersPath = "/api/v1/user?take=100&skip=0&sort=displayname"
@@ -307,7 +343,9 @@ export const SeerrSeries = Schema.Struct({
  * when a request waiting or approved names it.
  */
 export const seasonChoices = (series: typeof SeerrSeries.Type): ReadonlyArray<SeasonChoice> => {
-  const known = new Map((series.mediaInfo?.seasons ?? []).map((season) => [season.seasonNumber, titleState(season.status)]))
+  const known = new Map(
+    (series.mediaInfo?.seasons ?? []).map((season) => [season.seasonNumber, titleState(season.status)])
+  )
   const asked = new Set(
     (series.mediaInfo?.requests ?? [])
       .filter((request) => request.status === RequestStatus.pending || request.status === RequestStatus.approved)
@@ -339,7 +377,9 @@ export const seerrUsers = (page: typeof SeerrUserPage.Type): ReadonlyArray<Seerr
 export const createBody = (request: CreateRequest, userId: number | undefined) => ({
   mediaType: request.kind === "movie" ? "movie" : "tv",
   mediaId: request.tmdbId,
-  ...(request.kind === "series" ? { seasons: [...new Set(request.seasons ?? [])].sort((left, right) => left - right) } : {}),
+  ...(request.kind === "series"
+    ? { seasons: [...new Set(request.seasons ?? [])].sort((left, right) => left - right) }
+    : {}),
   ...(userId === undefined ? {} : { userId })
 })
 
@@ -365,7 +405,10 @@ export class Seerr extends Context.Service<Seerr, {
    * `NotPending`. Seerr not answering, or refusing, is a `RequestFailed` in its words. The caller
    * has the Hub read the requests again, so the Live Activity follows.
    */
-  readonly decide: (id: number, decision: "approve" | "decline") => Effect.Effect<void, HomeOffline | NotPending | RequestFailed>
+  readonly decide: (
+    id: number,
+    decision: "approve" | "decline"
+  ) => Effect.Effect<void, HomeOffline | NotPending | RequestFailed>
   /** The movies and series Seerr finds; None when it didn't answer. */
   readonly search: (query: string) => Effect.Effect<Option.Option<ReadonlyArray<SearchResult>>, HomeOffline>
   /** A series' seasons and where each stands; None when Seerr didn't answer or doesn't know it. */
@@ -376,7 +419,10 @@ export class Seerr extends Context.Service<Seerr, {
    * Requests a movie or a series' seasons, as `userId` or as Seerr's admin. Seerr refusing (already
    * requested, a quota, a user it doesn't know) is a `RequestFailed` in its words.
    */
-  readonly create: (request: CreateRequest, userId: number | undefined) => Effect.Effect<"approved" | "pending", HomeOffline | RequestFailed>
+  readonly create: (
+    request: CreateRequest,
+    userId: number | undefined
+  ) => Effect.Effect<"approved" | "pending", HomeOffline | RequestFailed>
 }>()("quai/Seerr") {
   static readonly layer = Layer.effect(
     Seerr,
@@ -389,7 +435,11 @@ export class Seerr extends Context.Service<Seerr, {
           const key = `${kind}:${request.media.tmdbId}`
           const known = cache.get(key)
           if (known !== undefined) return known
-          const body = yield* reads.read({ service: "seerr", path: detailsPath(kind, request.media.tmdbId), schema: SeerrTitle })
+          const body = yield* reads.read({
+            service: "seerr",
+            path: detailsPath(kind, request.media.tmdbId),
+            schema: SeerrTitle
+          })
           const found = Option.flatMap(body, (title) => Option.fromNullishOr(titleDetails(title)))
           if (Option.isNone(found)) return undefined
           if (cache.size >= 500) cache.clear()
@@ -397,27 +447,52 @@ export class Seerr extends Context.Service<Seerr, {
           return found.value
         })
       const withTitles = (requests: ReadonlyArray<SeerrRequest>) =>
-        Effect.forEach(waiting(requests), (request) => Effect.map(details(request), (found) => toMediaRequest(request, found)), { concurrency: 4 })
-      const current = (id: number) => reads.read<SeerrRequest | "gone">({ service: "seerr", path: requestPath(id), schema: SeerrRequest, notFound: "gone" })
+        Effect.forEach(
+          waiting(requests),
+          (request) => Effect.map(details(request), (found) => toMediaRequest(request, found)),
+          { concurrency: 4 }
+        )
+      const current = (id: number) =>
+        reads.read<SeerrRequest | "gone">({
+          service: "seerr",
+          path: requestPath(id),
+          schema: SeerrRequest,
+          notFound: "gone"
+        })
       return {
         details,
         pending: Effect.flatMap(
           reads.read(pendingRead),
-          Option.match({ onNone: () => Effect.succeed(Option.none()), onSome: (page) => Effect.map(withTitles(page.results), Option.some) })
+          Option.match({
+            onNone: () => Effect.succeed(Option.none()),
+            onSome: (page) => Effect.map(withTitles(page.results), Option.some)
+          })
         ),
         current,
         decide: (id, decision) =>
           Effect.gen(function*() {
             const now = yield* current(id)
             if (Option.isNone(now)) return yield* Effect.fail(new RequestFailed({ message: "Seerr didn't answer" }))
-            if (now.value === "gone" || now.value.status !== RequestStatus.pending) return yield* Effect.fail(new NotPending({ id }))
-            yield* reads.write({ service: "seerr", method: "POST", path: decisionPath(id, decision) }, (message) => new RequestFailed({ message }))
+            if (now.value === "gone" || now.value.status !== RequestStatus.pending) {
+              return yield* Effect.fail(new NotPending({ id }))
+            }
+            yield* reads.write({ service: "seerr", method: "POST", path: decisionPath(id, decision) }, (message) =>
+              new RequestFailed({ message }))
           }),
         search: (query) =>
-          Effect.map(reads.read({ service: "seerr", path: searchPath(query), schema: SeerrSearchPage }), Option.map(searchResults)),
+          Effect.map(
+            reads.read({ service: "seerr", path: searchPath(query), schema: SeerrSearchPage }),
+            Option.map(searchResults)
+          ),
         seasons: (tmdbId) =>
-          Effect.map(reads.read({ service: "seerr", path: detailsPath("tv", tmdbId), schema: SeerrSeries }), Option.map(seasonChoices)),
-        users: Effect.map(reads.read({ service: "seerr", path: usersPath, schema: SeerrUserPage }), Option.map(seerrUsers)),
+          Effect.map(
+            reads.read({ service: "seerr", path: detailsPath("tv", tmdbId), schema: SeerrSeries }),
+            Option.map(seasonChoices)
+          ),
+        users: Effect.map(
+          reads.read({ service: "seerr", path: usersPath, schema: SeerrUserPage }),
+          Option.map(seerrUsers)
+        ),
         create: (request, userId) =>
           Effect.gen(function*() {
             const body = yield* reads.write(
@@ -426,7 +501,9 @@ export class Seerr extends Context.Service<Seerr, {
             )
             // Seerr made it: an answer it can't read is still a request, waiting as far as Quai knows.
             const created = readJson(CreatedRequest, body)
-            return Option.isSome(created) && created.value.status === RequestStatus.approved ? "approved" as const : "pending" as const
+            return Option.isSome(created) && created.value.status === RequestStatus.approved
+              ? "approved" as const
+              : "pending" as const
           })
       }
     })
@@ -436,7 +513,8 @@ export class Seerr extends Context.Service<Seerr, {
 export const pendingWatchId = "seerr:pending"
 
 /** Running activities of request flows: they follow a request still waiting. */
-const followed = (context: WatchContext): ReadonlyArray<Activity> => runningWhere(context, (_, flow) => flow.subject === "request")
+const followed = (context: WatchContext): ReadonlyArray<Activity> =>
+  runningWhere(context, (_, flow) => flow.subject === "request")
 
 /**
  * Whether some request flow on, whose filter takes this request, has no running activity for it
@@ -465,7 +543,13 @@ export const outcome = (activity: Activity, request: SeerrRequest | "gone"): Rea
   }
   if (request.status === RequestStatus.pending) return []
   const requester = requesterOf(request)
-  const subject: Subject = { kind: "request", key: activity.subjectKey, title: activity.title, mediaType: kindOf(request), requester }
+  const subject: Subject = {
+    kind: "request",
+    key: activity.subjectKey,
+    title: activity.title,
+    mediaType: kindOf(request),
+    requester
+  }
   return request.status === RequestStatus.declined
     ? [{ type: "request.declined", subject, values: { detail: "Declined" } }]
     : [{ type: "request.approved", subject, values: { detail: requester } }]
@@ -480,7 +564,8 @@ export const seerr = Effect.gen(function*() {
     if (id === null) return Effect.fail(new InvalidAction({ message: "Not a request." }))
     return requests.decide(id, decision).pipe(
       Effect.catchTags({
-        NotPending: () => Effect.fail(new InvalidAction({ message: "This request was already approved, declined or removed." })),
+        NotPending: () =>
+          Effect.fail(new InvalidAction({ message: "This request was already approved, declined or removed." })),
         RequestFailed: (error) => Effect.fail(new InvalidAction({ message: `Seerr: ${error.message}` })),
         HomeOffline: (error) => Effect.fail(new InvalidAction({ message: `Seerr: ${error.message}` }))
       })
@@ -496,8 +581,7 @@ export const seerr = Effect.gen(function*() {
     service: "seerr",
     webhook: { read: (body) => Effect.map(decodeSeerrWebhook(body), seerrEvents) },
     watcher: {
-      watches: (context) =>
-        anyEnabledFlow(context, "request") ? [watchOf(pendingWatchId, pendingRead, 60)] : [],
+      watches: (context) => anyEnabledFlow(context, "request") ? [watchOf(pendingWatchId, pendingRead, 60)] : [],
       read: (snapshot, context) =>
         Effect.gen(function*() {
           const page = yield* readSnapshot(pendingRead, snapshot)
@@ -505,17 +589,25 @@ export const seerr = Effect.gen(function*() {
           const pending = waiting(page.value.results)
           const started = yield* Effect.forEach(
             pending.filter((request) => unfollowed(context, request)),
-            (request) => Effect.map(requests.details(request), (details) => pendingEvent(toMediaRequest(request, details))),
+            (request) =>
+              Effect.map(requests.details(request), (details) => pendingEvent(toMediaRequest(request, details))),
             { concurrency: 4 }
           )
           // Approved or declined elsewhere (Seerr's own page) and the notification missed: ask.
           const ids = new Set(pending.map((request) => requestKey(request.id)))
-          const left = [...new Map(followed(context).filter((activity) => !ids.has(activity.subjectKey)).map((activity) => [activity.subjectKey, activity])).values()]
+          const left = [...new Map(
+            followed(context).filter((activity) => !ids.has(activity.subjectKey)).map((
+              activity
+            ) => [activity.subjectKey, activity])
+          ).values()]
           const ended = yield* Effect.forEach(left, (activity) => {
             const id = requestIdOf(activity.subjectKey)
             return id === null
               ? Effect.succeed([])
-              : Effect.map(requests.current(id), Option.match({ onNone: () => [], onSome: (found) => outcome(activity, found) }))
+              : Effect.map(
+                requests.current(id),
+                Option.match({ onNone: () => [], onSome: (found) => outcome(activity, found) })
+              )
           }, { concurrency: 4 })
           return [...started, ...ended.flat()]
         }).pipe(Effect.catchTag("HomeOffline", (error) => Effect.as(Effect.logDebug(`seerr: ${error.message}`), [])))

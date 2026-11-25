@@ -91,7 +91,8 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 ```sh
 pnpm install
-pnpm check        # tsc in every package
+pnpm check        # tsc in every package, then ESLint (lint and dprint format)
+pnpm format       # ESLint --fix: writes the format, fixes what it can
 pnpm test         # vitest in every package
 pnpm gen:openapi  # regenerate packages/api/openapi.json
 pnpm gen:client   # the iOS client in apps/ios/Quai/Generated (not committed), needs Swift
@@ -104,6 +105,7 @@ iOS (macOS): `pnpm gen:client && cd apps/ios && xcodegen generate && open Quai.x
 
 ## Before finishing a task
 
-`pnpm check && pnpm test` pass. If `packages/api` changed, `openapi.json` is regenerated and committed.
+`pnpm check && pnpm test` pass. The format is dprint's (through ESLint): `pnpm format` writes it, and in Claude Code the
+`.claude/hooks/lint-file.sh` hook runs it on each edited file and sends back what it can't fix. If `packages/api` changed, `openapi.json` is regenerated and committed.
 
 `apps/site/public/llms.txt` is the full guide to Quai (what it does, the setups, every variable, troubleshooting). Any change to setup, configuration (a `QUAI_*` variable), the images, pairing, the hosted Cloud or what Quai does updates it in the same PR, with the README's settings table. A test fails when a variable Quai Home or Quai Cloud reads is missing from it.

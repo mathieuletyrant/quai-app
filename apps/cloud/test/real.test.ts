@@ -9,19 +9,60 @@
  */
 import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
-import { episodesWithoutSource } from "../src/fixes/series.ts"
 import { moviesWithoutSource } from "../src/fixes/movies.ts"
-import { removalsRead, settingsRead, slowRulesRead, stallRulesRead, strikesRead, queueCleanerJobRead } from "../src/integrations/cleanuparr.ts"
-import { EpisodesResult, hasEpisodes, ItemsResult, libraryUser, matchItem, Users } from "../src/integrations/jellyfin.ts"
+import { episodesWithoutSource } from "../src/fixes/series.ts"
+import {
+  queueCleanerJobRead,
+  removalsRead,
+  settingsRead,
+  slowRulesRead,
+  stallRulesRead,
+  strikesRead
+} from "../src/integrations/cleanuparr.ts"
+import {
+  EpisodesResult,
+  hasEpisodes,
+  ItemsResult,
+  libraryUser,
+  matchItem,
+  Users
+} from "../src/integrations/jellyfin.ts"
 import { progressEvent, Torrents } from "../src/integrations/qbittorrent.ts"
-import { DiskSpaces, libraryMovie, mediaDisk, RadarrCalendar, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
+import {
+  DiskSpaces,
+  libraryMovie,
+  mediaDisk,
+  RadarrCalendar,
+  RadarrGrabs,
+  RadarrMissing,
+  RadarrMovies
+} from "../src/integrations/radarr.ts"
 import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../src/integrations/reclaimerr.ts"
-import { searchResults, seasonChoices, SeerrRequest, SeerrRequestPage, SeerrSearchPage, SeerrSeries, SeerrTitle, SeerrUserPage, seerrUsers, toMediaRequest } from "../src/integrations/seerr.ts"
-import { librarySeries, SonarrCalendar, SonarrEpisodes, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
+import {
+  searchResults,
+  seasonChoices,
+  SeerrRequest,
+  SeerrRequestPage,
+  SeerrSearchPage,
+  SeerrSeries,
+  SeerrTitle,
+  SeerrUserPage,
+  seerrUsers,
+  toMediaRequest
+} from "../src/integrations/seerr.ts"
+import {
+  librarySeries,
+  SonarrCalendar,
+  SonarrEpisodes,
+  SonarrGrabs,
+  SonarrMissing,
+  SonarrSeries
+} from "../src/integrations/sonarr.ts"
 import { dayReleases } from "../src/releases/ReleaseDays.ts"
 import { fixture } from "./fixtures.ts"
 
-const real = <A, I>(schema: Schema.Codec<A, I>, path: string) => Schema.decodeUnknownSync(schema)(fixture(`${path}.json`))
+const real = <A, I>(schema: Schema.Codec<A, I>, path: string) =>
+  Schema.decodeUnknownSync(schema)(fixture(`${path}.json`))
 
 /** 2026-11-24 22:00 in Paris, when they were recorded. */
 const now = Date.parse("2026-11-24T21:00:00Z")
@@ -72,7 +113,12 @@ describe("one title through every service, by its ids", () => {
   it("Sonarr knows it by TVDB and IMDb, not TMDB (0): the library item carries what Sonarr knows", () => {
     expect(ourHouse).toMatchObject({ title: "Our House (2022)", tvdbId: 407046, tmdbId: 0 })
     const item = librarySeries(ourHouse)
-    expect(item).toMatchObject({ id: "series:233", tvdbId: 407046, status: "available", episodes: { have: 4, total: 4 } })
+    expect(item).toMatchObject({
+      id: "series:233",
+      tvdbId: 407046,
+      status: "available",
+      episodes: { have: 4, total: 4 }
+    })
     expect(item.tmdbId).toBeUndefined()
   })
 
@@ -84,14 +130,20 @@ describe("one title through every service, by its ids", () => {
       ["Notre maison", 2022, 157014, 407046, "available"]
     ])
     // The namesakes share the name, not the id.
-    expect(results.filter((result) => result.tvdbId === librarySeries(ourHouse).tvdbId).map((result) => result.tmdbId)).toEqual([157014])
-    expect(seasonChoices(real(SeerrSeries, "real/seerr/tv-our-house"))).toEqual([{ number: 1, episodes: 4, state: "available" }])
+    expect(results.filter((result) => result.tvdbId === librarySeries(ourHouse).tvdbId).map((result) => result.tmdbId))
+      .toEqual([157014])
+    expect(seasonChoices(real(SeerrSeries, "real/seerr/tv-our-house"))).toEqual([{
+      number: 1,
+      episodes: 4,
+      state: "available"
+    }])
   })
 
   it("the grab's download id is qBittorrent's torrent hash, in another case", () => {
     // As Sonarr answered (Quai's schema keeps only what fixes read): S01E01 and S01E02 of the pack.
-    const grabs = (fixture("real/sonarr/history-since.json") as ReadonlyArray<{ episodeId: number; downloadId: string }>)
-      .filter((grab) => grab.episodeId === 6493 || grab.episodeId === 6494)
+    const grabs =
+      (fixture("real/sonarr/history-since.json") as ReadonlyArray<{ episodeId: number; downloadId: string }>)
+        .filter((grab) => grab.episodeId === 6493 || grab.episodeId === 6494)
     expect(grabs).toHaveLength(2)
     // A season pack: one grab per episode, the same download.
     expect(new Set(grabs.map((grab) => grab.downloadId)).size).toBe(1)
@@ -100,17 +152,28 @@ describe("one title through every service, by its ids", () => {
     // The torrent's name isn't the release Sonarr grabbed: only the hash links them.
     const torrent = torrents.find((entry) => entry.hash === hash)
     expect(torrent).toBeDefined()
-    expect(progressEvent(torrent!)).toEqual({ type: "download.progress", downloadId: hash, values: { progress: 1, bytesPerSecond: 0 } })
+    expect(progressEvent(torrent!)).toEqual({
+      type: "download.progress",
+      downloadId: hash,
+      values: { progress: 1, bytesPerSecond: 0 }
+    })
   })
 
   it("Jellyfin lists it as the administrator only, by its ids, with its four episodes on disk", () => {
-    const lookup = { _tag: "Episodes" as const, tvdbId: ourHouse.tvdbId, imdbId: "tt10098728", title: ourHouse.title, episodes: [1, 2, 3, 4].map((episode) => ({ season: 1, episode })) }
+    const lookup = {
+      _tag: "Episodes" as const,
+      tvdbId: ourHouse.tvdbId,
+      imdbId: "tt10098728",
+      title: ourHouse.title,
+      episodes: [1, 2, 3, 4].map((episode) => ({ season: 1, episode }))
+    }
     expect(libraryUser(real(Users, "jellyfin/users"))).toBe("5f2b9c1e8a7d4f3b9e6c0a1d2b3c4e5f")
     expect(matchItem(real(ItemsResult, "jellyfin/latest-series-no-user"), lookup)).toBeNull()
     expect(matchItem(real(ItemsResult, "jellyfin/latest-series"), lookup)).toBe("1d44f2954a4209050a6e45617780e347")
     expect(hasEpisodes(real(EpisodesResult, "jellyfin/episodes-notre-maison"), lookup)).toBe(true)
     // Sonarr's episodes are the same four.
-    expect(real(SonarrEpisodes, "real/sonarr/episodes").map((episode) => [episode.seasonNumber, episode.episodeNumber])).toEqual([[1, 1], [1, 2], [1, 3], [1, 4]])
+    expect(real(SonarrEpisodes, "real/sonarr/episodes").map((episode) => [episode.seasonNumber, episode.episodeNumber]))
+      .toEqual([[1, 1], [1, 2], [1, 3], [1, 4]])
   })
 })
 
@@ -134,15 +197,27 @@ describe("the library", () => {
       // Seasons 1 to 3 aren't monitored: only the missing aired episode of season 4 counts.
       ["Tracker (2024)", "wanted", { have: 6, total: 7 }]
     ])
-    expect(mediaDisk(real(DiskSpaces, "real/radarr/diskspace"))).toEqual({ freeBytes: 786623759360, totalBytes: 1963188352000 })
+    expect(mediaDisk(real(DiskSpaces, "real/radarr/diskspace"))).toEqual({
+      freeBytes: 786623759360,
+      totalBytes: 1963188352000
+    })
   })
 })
 
 describe("today's releases", () => {
-  const inputs = { episodes: real(SonarrCalendar, "real/sonarr/calendar"), movies: real(RadarrCalendar, "real/radarr/calendar"), sonarrQueue: [], radarrQueue: [] }
+  const inputs = {
+    episodes: real(SonarrCalendar, "real/sonarr/calendar"),
+    movies: real(RadarrCalendar, "real/radarr/calendar"),
+    sonarrQueue: [],
+    radarrQueue: []
+  }
 
   it("on the 24th in Paris: the episode already here, the movie out today and still missing", () => {
-    expect(dayReleases("2026-11-24", "Europe/Paris", inputs).map((release) => [release.id, release.title, release.episode, release.status])).toEqual([
+    expect(
+      dayReleases("2026-11-24", "Europe/Paris", inputs).map((
+        release
+      ) => [release.id, release.title, release.episode, release.status])
+    ).toEqual([
       ["episode:6415", "Phony", "S01E07", "available"],
       ["movie:285", "Warrior Kid", undefined, "missing"]
     ])
@@ -169,12 +244,24 @@ describe("to fix", () => {
   })
 
   it("an episode aired two days ago with no release grabbed", () => {
-    const fixes = episodesWithoutSource(real(SonarrMissing, "real/sonarr/wanted-missing").records, [], real(SonarrGrabs, "real/sonarr/history-since"), now)
-    expect(fixes.map((detected) => [detected.fix.id, detected.fix.title, detected.fix.reason])).toEqual([["missing-season-105-4", "Tracker (2024) · S04E07", "No release grabbed since it aired"]])
+    const fixes = episodesWithoutSource(
+      real(SonarrMissing, "real/sonarr/wanted-missing").records,
+      [],
+      real(SonarrGrabs, "real/sonarr/history-since"),
+      now
+    )
+    expect(fixes.map((detected) => [detected.fix.id, detected.fix.title, detected.fix.reason])).toEqual([[
+      "missing-season-105-4",
+      "Tracker (2024) · S04E07",
+      "No release grabbed since it aired"
+    ]])
   })
 
   it("Reclaimerr's scheduled deletions, soonest first, a movie's poster from Radarr when it has it", () => {
-    const deletions = plannedDeletionFixes(plannedDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items), { movies: real(RadarrMovies, "real/radarr/movies") })
+    const deletions = plannedDeletionFixes(
+      plannedDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items),
+      { movies: real(RadarrMovies, "real/radarr/movies") }
+    )
     expect(deletions.map((detected) => [detected.fix.id, detected.fix.title])).toEqual([
       ["deletion-7", "Vampire Diaries S06"],
       ["deletion-8", "Chainsaw Man – Le Film : L'arc de Reze"],
@@ -186,7 +273,15 @@ describe("to fix", () => {
 describe("requests", () => {
   it("the pending request, its requester, and Seerr's users", () => {
     const [request] = real(SeerrRequestPage, "real/seerr/requests-pending").results
-    expect(toMediaRequest(request!, undefined)).toMatchObject({ id: 37, kind: "movie", requester: "admin", seasons: [] })
-    expect(seerrUsers(real(SeerrUserPage, "real/seerr/users"))).toEqual([{ id: 1, name: "guest" }, { id: 2, name: "admin" }])
+    expect(toMediaRequest(request!, undefined)).toMatchObject({
+      id: 37,
+      kind: "movie",
+      requester: "admin",
+      seasons: []
+    })
+    expect(seerrUsers(real(SeerrUserPage, "real/seerr/users"))).toEqual([{ id: 1, name: "guest" }, {
+      id: 2,
+      name: "admin"
+    }])
   })
 })

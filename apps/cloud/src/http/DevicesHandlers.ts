@@ -15,10 +15,13 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
     const actions = yield* ActionRunner
     return handlers
       .handle("pair", ({ payload }) =>
-        Effect.flatMap(devices.pair(payload), Option.match({
-          onNone: () => Effect.fail(new InvalidPairingCode({ message: "This code is unknown, used or expired." })),
-          onSome: Effect.succeed
-        })))
+        Effect.flatMap(
+          devices.pair(payload),
+          Option.match({
+            onNone: () => Effect.fail(new InvalidPairingCode({ message: "This code is unknown, used or expired." })),
+            onSome: Effect.succeed
+          })
+        ))
       .handle("update", ({ payload }) =>
         Effect.gen(function*() {
           const device = yield* CurrentDevice

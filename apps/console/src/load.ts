@@ -44,7 +44,8 @@ export function useLoad<A>(load: () => Promise<A>, deps: DependencyList) {
   return {
     ...state,
     refresh,
-    setData: (update: (data: A) => A) => setState((current) => ({ ...current, data: current.data === null ? null : update(current.data) })),
+    setData: (update: (data: A) => A) =>
+      setState((current) => ({ ...current, data: current.data === null ? null : update(current.data) })),
     setError: (error: unknown) => setState((current) => ({ ...current, error }))
   }
 }

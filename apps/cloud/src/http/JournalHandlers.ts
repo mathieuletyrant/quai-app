@@ -6,7 +6,8 @@ import { Journal } from "../journal/Journal.ts"
 const isSource = Schema.is(JournalSource)
 
 /** `radarr,sonarr` → the sources it names; unknown names are left out. */
-export const sourcesOf = (list: string | undefined) => (list ?? "").split(",").map((source) => source.trim()).filter(isSource)
+export const sourcesOf = (list: string | undefined) =>
+  (list ?? "").split(",").map((source) => source.trim()).filter(isSource)
 
 /** The console's Journal: `/console-api/journal`, history from Quai Home, and the live tail. */
 export const JournalHandlers = HttpApiBuilder.group(QuaiApi, "consoleJournal", (handlers) =>
@@ -39,5 +40,10 @@ export const AppJournalHandlers = HttpApiBuilder.group(QuaiApi, "journal", (hand
         limit: query.limit ?? defaultJournalPage,
         ...(query.before === undefined ? {} : { before: query.before }),
         kinds: appJournalKinds
-      }).pipe(Effect.map((page) => ({ ...page, entries: page.entries.filter((entry) => appJournalKinds.includes(entry.kind)) }))))
+      }).pipe(
+        Effect.map((page) => ({
+          ...page,
+          entries: page.entries.filter((entry) => appJournalKinds.includes(entry.kind))
+        }))
+      ))
   }))

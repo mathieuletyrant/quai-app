@@ -1,11 +1,11 @@
-import { HomeOffline } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { HomeOffline } from "@quai/api"
 import { Effect, Fiber, Layer, Logger, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import { HomeLink, offlineMessage } from "../../src/home/HomeLink.ts"
-import { Journal } from "../../src/journal/Journal.ts"
+import { offlineMessage } from "../../src/home/HomeLink.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
-import { type Answer, makeFakeHome, recordedHome, settle , testLink } from "../fakeHome.ts"
+import { Journal } from "../../src/journal/Journal.ts"
+import { type Answer, makeFakeHome, recordedHome, settle, testLink } from "../fakeHome.ts"
 
 const Status = Schema.Struct({ version: Schema.String })
 const status = { service: "radarr", path: "/api/v3/system/status?secret=x", schema: Status } as const
@@ -15,13 +15,21 @@ const logs: Array<string> = []
 const captured = Logger.layer([Logger.make(({ logLevel, message }) => {
   if (logLevel === "Warn") logs.push((Array.isArray(message) ? message : [message]).map(String).join(" "))
 })])
-const reads = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(testLink), Layer.provideMerge(captured))
+const reads = HomeReads.layer.pipe(
+  Layer.provideMerge(Journal.layer),
+  Layer.provideMerge(testLink),
+  Layer.provideMerge(captured)
+)
 
 /** A home whose status route answers `answer`; not strict, so a refusal can be the answer. */
 const homeAnswering = (answer: Answer) =>
   Effect.gen(function*() {
     logs.length = 0
-    const home = yield* makeFakeHome({ strict: false, services: ["radarr", "sonarr"], answer: recordedHome({ [route]: answer }) })
+    const home = yield* makeFakeHome({
+      strict: false,
+      services: ["radarr", "sonarr"],
+      answer: recordedHome({ [route]: answer })
+    })
     yield* home.connect
     return home
   })
@@ -36,10 +44,26 @@ describe("HomeReads.read", () => {
 
   const nones: ReadonlyArray<readonly [string, Answer, string]> = [
     ["a 404", { status: 404, body: "Not Found" }, "radarr /api/v3/system/status: HTTP 404"],
-    ["a 500", { status: 500, json: { message: "Database is locked, The Godfather" } }, "radarr /api/v3/system/status: HTTP 500"],
-    ["a body that isn't JSON", { body: "<html>The Godfather</html>" }, "radarr /api/v3/system/status: an answer Quai can't read"],
-    ["a body of another shape", { json: { title: "The Godfather" } }, "radarr /api/v3/system/status: an answer Quai can't read"],
-    ["a call Quai Home couldn't make", { failed: "radarr is unreachable" }, "radarr /api/v3/system/status: radarr is unreachable"]
+    [
+      "a 500",
+      { status: 500, json: { message: "Database is locked, The Godfather" } },
+      "radarr /api/v3/system/status: HTTP 500"
+    ],
+    [
+      "a body that isn't JSON",
+      { body: "<html>The Godfather</html>" },
+      "radarr /api/v3/system/status: an answer Quai can't read"
+    ],
+    [
+      "a body of another shape",
+      { json: { title: "The Godfather" } },
+      "radarr /api/v3/system/status: an answer Quai can't read"
+    ],
+    [
+      "a call Quai Home couldn't make",
+      { failed: "radarr is unreachable" },
+      "radarr /api/v3/system/status: radarr is unreachable"
+    ]
   ]
   for (const [what, answer, log] of nones) {
     it.effect(`is None on ${what}, logged once with the service and path, never the body`, () =>
@@ -71,7 +95,9 @@ describe("HomeReads.read", () => {
   it.effect("a 404 can mean something: what the read says it is", () =>
     Effect.gen(function*() {
       yield* homeAnswering({ status: 404, json: { message: "Not found" } })
-      expect(yield* (yield* HomeReads).read({ ...status, notFound: { version: "gone" } })).toEqual(Option.some({ version: "gone" }))
+      expect(yield* (yield* HomeReads).read({ ...status, notFound: { version: "gone" } })).toEqual(
+        Option.some({ version: "gone" })
+      )
     }).pipe(Effect.provide(reads)))
 
   it.effect("fails HomeOffline when Quai Home drops during the read, or isn't there", () =>
@@ -105,7 +131,13 @@ describe("HomeReads.all", () => {
         jellyfin: { service: "jellyfin", path: "/System/Info/Public", schema: Schema.Unknown },
         skipped: null
       }, { optional: ["radarrDisk"] })
-      expect(values).toEqual({ radarr: Option.some({ version: "5" }), radarrDisk: Option.none(), sonarr: Option.none(), jellyfin: Option.none(), skipped: Option.none() })
+      expect(values).toEqual({
+        radarr: Option.some({ version: "5" }),
+        radarrDisk: Option.none(),
+        sonarr: Option.none(),
+        jellyfin: Option.none(),
+        skipped: Option.none()
+      })
       expect(unavailable).toEqual(["sonarr"])
       expect(home.calls.map((call) => call.service).sort()).toEqual(["radarr", "radarr", "sonarr"])
     }).pipe(Effect.provide(reads)))
@@ -113,7 +145,12 @@ describe("HomeReads.all", () => {
 
 describe("HomeReads.write", () => {
   const refused = (message: string) => ({ _tag: "Refused" as const, message })
-  const grab = { service: "radarr", method: "POST", path: "/api/v3/release", body: { guid: "g", indexerId: 1 } } as const
+  const grab = {
+    service: "radarr",
+    method: "POST",
+    path: "/api/v3/release",
+    body: { guid: "g", indexerId: 1 }
+  } as const
 
   it.effect("is the body of a 2xx; otherwise refused, in the service's words or Quai Home's", () =>
     Effect.gen(function*() {

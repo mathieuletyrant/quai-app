@@ -40,11 +40,17 @@ export const deletionRaised = ({ candidate, deletesAt, operation }: PlannedCandi
 }
 
 /** Every deletion Reclaimerr plans on its own, but those the user let go in Quai. */
-export const deletionsState = (candidates: ReadonlyArray<Candidate>, dismissed: ReadonlySet<number>, now: number): AlertState =>
+export const deletionsState = (
+  candidates: ReadonlyArray<Candidate>,
+  dismissed: ReadonlySet<number>,
+  now: number
+): AlertState =>
   alertState(
     "plannedDeletion",
     "reclaimerr",
-    plannedDeletions(candidates).filter(({ candidate }) => !dismissed.has(candidate.id)).map((planned) => deletionRaised(planned, now))
+    plannedDeletions(candidates).filter(({ candidate }) => !dismissed.has(candidate.id)).map((planned) =>
+      deletionRaised(planned, now)
+    )
   )
 
 /** Reclaimerr's candidates every minute, while the Planned deletion alert is on. */

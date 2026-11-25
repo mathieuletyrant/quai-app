@@ -73,7 +73,8 @@ export const dayLabel = (at: number, now: number) => {
 }
 
 /** "21:05:12". */
-export const timeLabel = (at: number) => new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+export const timeLabel = (at: number) =>
+  new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
 /** Lines grouped by day, in the order they come. */
 export const byDay = (lines: ReadonlyArray<JournalEntry>, now: number) => {
@@ -107,7 +108,11 @@ export const sourceName = (source: JournalSource) => journalSourceNames[source]
 
 /** "All sources", "Radarr", "Radarr, Sonarr", "4 sources". */
 export const sourcesLabel = (sources: ReadonlyArray<JournalSource>) =>
-  sources.length === 0 ? "All sources" : sources.length <= 2 ? sources.map(sourceName).join(", ") : `${sources.length} sources`
+  sources.length === 0
+    ? "All sources"
+    : sources.length <= 2
+    ? sources.map(sourceName).join(", ")
+    : `${sources.length} sources`
 
 /** "12 new lines". */
 export const heldLabel = (held: number) => `${held} new line${held === 1 ? "" : "s"}`

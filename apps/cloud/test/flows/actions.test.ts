@@ -1,12 +1,11 @@
-import { testLink } from "../fakeHome.ts"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
-import { Activities } from "../../src/flows/Activities.ts"
 import { ActionRunner } from "../../src/flows/ActionRunner.ts"
-import { HomeLink } from "../../src/home/HomeLink.ts"
+import { Activities } from "../../src/flows/Activities.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
-import { Journal } from "../../src/journal/Journal.ts"
 import { type Integration, Integrations } from "../../src/integrations/Integration.ts"
+import { Journal } from "../../src/journal/Journal.ts"
+import { testLink } from "../fakeHome.ts"
 import { download, engineWith, ev, fixedFlows, playback } from "./helpers.ts"
 
 describe("Live Activity buttons", () => {
@@ -14,7 +13,9 @@ describe("Live Activity buttons", () => {
   const refreshed: Array<string> = []
   const jellyfin: Integration = {
     service: "jellyfin",
-    actions: { "playback.playPause": (activity) => Effect.sync(() => void ran.push(`playPause ${activity.subjectKey}`)) }
+    actions: {
+      "playback.playPause": (activity) => Effect.sync(() => void ran.push(`playPause ${activity.subjectKey}`))
+    }
   }
   const layer = ActionRunner.layer.pipe(
     Layer.provideMerge(engineWith([download, playback])),

@@ -19,14 +19,18 @@ const useHeightVar = (ref: RefObject<HTMLElement | null>, name: string) => {
 }
 
 /** The bar at the top of every page: its title on the left, its actions on the right. Sticks under the phone top bar. */
-export function PageBar({ title, subtitle, children }: { title: ReactNode; subtitle?: ReactNode; children?: ReactNode }) {
+export function PageBar(
+  { title, subtitle, children }: { title: ReactNode; subtitle?: ReactNode; children?: ReactNode }
+) {
   const ref = useRef<HTMLElement>(null)
   useHeightVar(ref, "--page-bar-height")
   return (
     <header ref={ref} className="sticky top-(--top-bar-height) z-30 border-b border-line bg-bg/85 backdrop-blur-xl">
       <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 md:px-8">
         <div className="min-w-[min(100%,13rem)] flex-1">
-          {typeof title === "string" ? <h1 className="text-page leading-7 font-semibold tracking-title">{title}</h1> : title}
+          {typeof title === "string"
+            ? <h1 className="text-page leading-7 font-semibold tracking-title">{title}</h1>
+            : title}
           {subtitle && <p className="mt-0.5 truncate text-body text-muted">{subtitle}</p>}
         </div>
         {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
@@ -37,7 +41,9 @@ export function PageBar({ title, subtitle, children }: { title: ReactNode; subti
 
 /** A page's content, under its bar. */
 export function PageBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx("flex w-full max-w-280 flex-col gap-6 px-4 py-6 md:px-8 md:py-8", className)}>{children}</div>
+  return (
+    <div className={cx("flex w-full max-w-280 flex-col gap-6 px-4 py-6 md:px-8 md:py-8", className)}>{children}</div>
+  )
 }
 
 /** A surface on the page, with an optional header. */
@@ -52,7 +58,13 @@ export function Panel({ title, description, actions, tone, flush, className, chi
   children: ReactNode
 }) {
   return (
-    <section className={cx("flex min-w-0 flex-col rounded-panel border bg-panel", tone === "danger" ? "border-danger/30" : "border-line", className)}>
+    <section
+      className={cx(
+        "flex min-w-0 flex-col rounded-panel border bg-panel",
+        tone === "danger" ? "border-danger/30" : "border-line",
+        className
+      )}
+    >
       {(title || actions) && (
         <header className={cx("flex flex-wrap items-start gap-x-4 gap-y-2 px-5 pt-5", flush ? "pb-4" : "pb-1")}>
           <div className="min-w-0 flex-1">
@@ -113,7 +125,9 @@ export function Workspace({ canvas, inspector }: { canvas: ReactNode; inspector:
 }
 
 /** One part of an inspector: a heading with its tools, then its controls. */
-export function InspectorSection({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function InspectorSection(
+  { title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }
+) {
   return (
     <section className="flex flex-col gap-4 border-b border-line px-5 py-5 last:border-b-0">
       <div className="-my-1 flex min-h-8 items-center gap-1">

@@ -28,7 +28,14 @@ const probe: Integration = {
 }
 
 const layer = (integrations: ReadonlyArray<Integration | Effect.Effect<Integration, never, HomeReads>>) =>
-  cloud(Layer.effect(Integrations, Effect.all(integrations.map((integration) => Effect.isEffect(integration) ? integration : Effect.succeed(integration)))))
+  cloud(
+    Layer.effect(
+      Integrations,
+      Effect.all(
+        integrations.map((integration) => Effect.isEffect(integration) ? integration : Effect.succeed(integration))
+      )
+    )
+  )
     .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
 
 const setWatches = (home: { readonly received: ReadonlyArray<{ readonly _tag: string }> }) =>
@@ -43,10 +50,16 @@ describe("hub", () => {
       expect(setWatches(home)).toBe(1)
 
       yield* home.webhook("radarr", fixture("radarr/grab.json"))
-      expect(home.state.watches.map((watch) => [watch.id, watch.path])).toEqual([["qbittorrent:torrents", `/api/v2/torrents/info?hashes=${hash}`]])
+      expect(home.state.watches.map((watch) => [watch.id, watch.path])).toEqual([[
+        "qbittorrent:torrents",
+        `/api/v2/torrents/info?hashes=${hash}`
+      ]])
       expect(setWatches(home)).toBe(2)
 
-      yield* home.snapshot("qbittorrent:torrents", (fixture("qbittorrent/torrents-info.json") as Array<object>).slice(0, 1))
+      yield* home.snapshot(
+        "qbittorrent:torrents",
+        (fixture("qbittorrent/torrents-info.json") as Array<object>).slice(0, 1)
+      )
       const [activity] = (yield* (yield* Activities).snapshot).activities.values()
       expect(activity?.values.progress).toBe(0.4199)
       // Same watches after the snapshot and after a heartbeat: nothing sent again.

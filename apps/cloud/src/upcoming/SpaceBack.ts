@@ -66,13 +66,15 @@ const kindOf = (key: TitleKey): TitleKind => LibraryId.parse(key)?.kind ?? "seri
 const titleOf = LibraryId.titleOf
 
 /** Whether deleting `deleted` takes the files of `files`: the same title, or a season of the series deleted. */
-export const covers = (deleted: TitleKey, files: TitleKey) => deleted === files || (deleted === titleOf(deleted) && titleOf(files) === deleted)
+export const covers = (deleted: TitleKey, files: TitleKey) =>
+  deleted === files || (deleted === titleOf(deleted) && titleOf(files) === deleted)
 
 /** Whether two titles may share files: one covers the other. */
 const overlap = (left: TitleKey, right: TitleKey) => covers(left, right) || covers(right, left)
 
 /** Torrents with the same name and size hold the same files: a cross-seed of the other. */
-const sameFiles = (left: TorrentInput, right: TorrentInput) => left.size === right.size && left.name.toLowerCase() === right.name.toLowerCase()
+const sameFiles = (left: TorrentInput, right: TorrentInput) =>
+  left.size === right.size && left.name.toLowerCase() === right.name.toLowerCase()
 
 /** Torrents holding the same files, and the title they are in the library. */
 export interface FileSet {
@@ -82,7 +84,10 @@ export interface FileSet {
 }
 
 /** The torrents grouped by the files they share, each set with the title it is in the library. */
-export const fileSets = (input: Pick<SpaceBackInput, "grabs" | "unlinkedCategory">, torrents: ReadonlyArray<TorrentInput>): ReadonlyArray<FileSet> => {
+export const fileSets = (
+  input: Pick<SpaceBackInput, "grabs" | "unlinkedCategory">,
+  torrents: ReadonlyArray<TorrentInput>
+): ReadonlyArray<FileSet> => {
   const sets: Array<Array<TorrentInput>> = []
   for (const torrent of torrents) {
     const set = sets.find((candidate) => candidate.some((member) => sameFiles(member, torrent)))
@@ -96,7 +101,8 @@ export const fileSets = (input: Pick<SpaceBackInput, "grabs" | "unlinkedCategory
     }))
     if (keys.size > 1) return { torrents: members, key: undefined }
     if (keys.size === 1) return { torrents: members, key: [...keys][0]! }
-    const unlinked = input.unlinkedCategory !== undefined && members.some((member) => member.category === input.unlinkedCategory)
+    const unlinked = input.unlinkedCategory !== undefined &&
+      members.some((member) => member.category === input.unlinkedCategory)
     return { torrents: members, key: unlinked ? null : undefined }
   })
 }
@@ -133,7 +139,8 @@ export const surelyLast = (copies: ReadonlyArray<Going>): Going | undefined => {
 const sameSizeShare = 0.05
 
 /** The words of a title or a release name, lowercase, without accents. */
-const tokensOf = (text: string) => text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word !== "")
+const tokensOf = (text: string) =>
+  text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word !== "")
 
 /** A title's telling words: no years or one-letter words, unless that's all it has ("1917", "X"). */
 const titleWords = (title: string) => {
@@ -169,7 +176,10 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
   const torrents = new Map<string, number>()
   if (input.torrents === undefined) return { deletions, torrents }
   const sets = fileSets(input, input.torrents)
-  const deletionOf = (key: TitleKey) => input.deletions.filter((deletion) => deletion.key !== undefined && covers(deletion.key, key)).sort((left, right) => left.at - right.at)[0]
+  const deletionOf = (key: TitleKey) =>
+    input.deletions.filter((deletion) => deletion.key !== undefined && covers(deletion.key, key)).sort((left, right) =>
+      left.at - right.at
+    )[0]
 
   for (const set of sets) {
     if (set.key === undefined) continue
@@ -178,8 +188,9 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
     const copies: Array<Going> = set.torrents.map(torrentGoing)
     if (hardlinked && set.key !== null) {
       const deletion = deletionOf(set.key)
-      if (deletion !== undefined) copies.push({ row: { deletion: deletion.candidateId }, earliest: deletion.at, latest: deletion.at })
-      else if (input.inLibrary(set.key)) continue
+      if (deletion !== undefined) {
+        copies.push({ row: { deletion: deletion.candidateId }, earliest: deletion.at, latest: deletion.at })
+      } else if (input.inLibrary(set.key)) continue
     }
     const last = surelyLast(copies)
     if (last === undefined) continue

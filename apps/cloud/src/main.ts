@@ -5,8 +5,8 @@ import { createServer } from "node:http"
 import { HomeApp } from "./App.ts"
 import { HomeLinks, HomeRoute } from "./home/HomeLink.ts"
 import { Homes, HomesRoute } from "./home/Homes.ts"
-import { Apns } from "./push/Apns.ts"
 import { PublicAccess } from "./PublicAccess.ts"
+import { Apns } from "./push/Apns.ts"
 import { ServerInfo } from "./Version.ts"
 
 // All configuration comes from environment variables. Nothing about a home is kept here: it

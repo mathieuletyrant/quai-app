@@ -1,7 +1,7 @@
 import type { UpcomingItem } from "@quai/api"
 import type { Detected } from "../fixes/Detected.ts"
-import type { SeedCleanup } from "../integrations/cleanuparr.ts"
 import { dayOf, instantOf } from "../home/Day.ts"
+import type { SeedCleanup } from "../integrations/cleanuparr.ts"
 import type { DayRelease } from "../releases/ReleaseDays.ts"
 
 /**
@@ -25,7 +25,10 @@ export const episodeRange = (codes: ReadonlyArray<string>): string | undefined =
  * The releases still to come, as Upcoming rows: a title without its file, an episode at its air
  * time (a series' episodes of one day are one row, at the first one's time), a movie on its day.
  */
-export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease; readonly day: string }>, zone: string): ReadonlyArray<UpcomingItem> => {
+export const releaseItems = (
+  dated: ReadonlyArray<{ readonly release: DayRelease; readonly day: string }>,
+  zone: string
+): ReadonlyArray<UpcomingItem> => {
   const rows = new Map<string, { readonly day: string; readonly releases: Array<DayRelease> }>()
   for (const { release, day } of dated) {
     if (release.status === "available") continue
@@ -62,7 +65,11 @@ export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease
 export const dueAt = (atSeconds: number, now: number): number => Math.max(atSeconds, Math.floor(now / 1000))
 
 /** Reclaimerr's planned deletions; one whose date passed goes at its next run, shown now. */
-export const plannedDeletionItems = (detected: ReadonlyArray<Detected>, now: number, frees: ReadonlyMap<number, number>): ReadonlyArray<UpcomingItem> =>
+export const plannedDeletionItems = (
+  detected: ReadonlyArray<Detected>,
+  now: number,
+  frees: ReadonlyMap<number, number>
+): ReadonlyArray<UpcomingItem> =>
   detected.flatMap((found): ReadonlyArray<UpcomingItem> => {
     if (found.fix.deletion === undefined || found.target.kind !== "candidate") return []
     const freesBytes = frees.get(found.target.candidateId)
@@ -130,7 +137,9 @@ export const seedItems = (
       kind: "seedCleanup",
       service: "cleanuparr",
       title: torrents(members.length),
-      ...(dates.length === 0 ? {} : { at: Math.floor(Math.min(...dates) / 1000), until: Math.floor(Math.max(...dates) / 1000) }),
+      ...(dates.length === 0
+        ? {}
+        : { at: Math.floor(Math.min(...dates) / 1000), until: Math.floor(Math.max(...dates) / 1000) }),
       timed: false,
       earliest: members.some((member) => member.timing === "from"),
       count: members.length,

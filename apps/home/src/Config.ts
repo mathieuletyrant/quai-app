@@ -76,7 +76,9 @@ export class HomeConfig extends Context.Service<HomeConfig, {
         const prefix = service.toUpperCase()
         const url = yield* opt(`QUAI_${prefix}_URL`)
         const apiKey = yield* opt(`QUAI_${prefix}_API_KEY`)
-        if (Option.isSome(url) && url.value.trim() !== "" && Option.isNone(apiKey)) suggestedUrls[service] = trimSlash(url.value.trim())
+        if (Option.isSome(url) && url.value.trim() !== "" && Option.isNone(apiKey)) {
+          suggestedUrls[service] = trimSlash(url.value.trim())
+        }
       }
       const qbUrl = yield* opt("QUAI_QBITTORRENT_URL")
       const qbUser = yield* opt("QUAI_QBITTORRENT_USERNAME")
@@ -85,14 +87,22 @@ export class HomeConfig extends Context.Service<HomeConfig, {
       const webUrlsOf = (prefix: string) =>
         Effect.map(
           Effect.all([opt(`QUAI_${prefix}_WEB_URL`), opt(`QUAI_${prefix}_PUBLIC_URL`)]),
-          (urls) => urls.flatMap((url) => Option.isSome(url) && url.value.trim() !== "" ? [trimSlash(url.value.trim())] : [])
+          (urls) =>
+            urls.flatMap((url) => Option.isSome(url) && url.value.trim() !== "" ? [trimSlash(url.value.trim())] : [])
         )
       const radarrWebUrls = yield* webUrlsOf("RADARR")
       const sonarrWebUrls = yield* webUrlsOf("SONARR")
-      const nonEmpty = (value: Option.Option<string>) => Option.filter(Option.map(value, (text) => text.trim()), (text) => text !== "")
+      const nonEmpty = (value: Option.Option<string>) =>
+        Option.filter(Option.map(value, (text) => text.trim()), (text) => text !== "")
       const password = yield* secret("QUAI_HOME_PASSWORD")
       return {
-        cloudUrl: Option.getOrNull(nonEmpty(yield* Config.option(Config.schema(Schema.String.check(Schema.isPattern(/^\s*(wss?:\/\/.*)?$/)), "QUAI_CLOUD_URL")))),
+        cloudUrl: Option.getOrNull(
+          nonEmpty(
+            yield* Config.option(
+              Config.schema(Schema.String.check(Schema.isPattern(/^\s*(wss?:\/\/.*)?$/)), "QUAI_CLOUD_URL")
+            )
+          )
+        ),
         cloudAppUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CLOUD_APP_URL")), trimSlash)),
         consolePublicUrl: Option.getOrNull(Option.map(nonEmpty(yield* opt("QUAI_CONSOLE_PUBLIC_URL")), trimSlash)),
         password: Option.getOrNull(Option.filter(password, (redacted) => Redacted.value(redacted) !== "")),

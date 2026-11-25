@@ -33,7 +33,12 @@ export const apnsBody = (delivery: Exclude<Delivery, { _tag: "None" }>, now: num
       return { aps: { timestamp, event: "update", "content-state": delivery.content } }
     case "End":
       return {
-        aps: { timestamp, event: "end", "content-state": delivery.content, "dismissal-date": seconds(delivery.dismissAt) }
+        aps: {
+          timestamp,
+          event: "end",
+          "content-state": delivery.content,
+          "dismissal-date": seconds(delivery.dismissAt)
+        }
       }
   }
 }

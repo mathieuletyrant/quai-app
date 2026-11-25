@@ -56,7 +56,8 @@ describe("space back, with hardlinks", () => {
   it("gives nothing while one copy stays: in the library, or a torrent no rule takes, or that keeps its files", () => {
     expect(claims(base({ deletions: [] }))).toEqual(nothing)
     expect(claims(base({ torrents: [movieTorrent({ cleanup: undefined })] }))).toEqual(nothing)
-    expect(claims(base({ torrents: [movieTorrent({ cleanup: { at: T2, timing: "at", freesFiles: false } })] }))).toEqual(nothing)
+    expect(claims(base({ torrents: [movieTorrent({ cleanup: { at: T2, timing: "at", freesFiles: false } })] })))
+      .toEqual(nothing)
   })
 
   it("a seed waiting for seeders or inactivity may never go: nothing", () => {
@@ -71,14 +72,26 @@ describe("space back, with hardlinks", () => {
   })
 
   it("a seed whose title left the library comes back when it goes", () => {
-    expect(claims(base({ deletions: [], inLibrary: () => false }))).toEqual({ deletions: [], torrents: [["aaa", 58e9]] })
+    expect(claims(base({ deletions: [], inLibrary: () => false }))).toEqual({
+      deletions: [],
+      torrents: [["aaa", 58e9]]
+    })
   })
 
   it("a cross-seed holds the same files: back when the last of the two goes", () => {
-    const cross = movieTorrent({ hash: "bbb", category: "cross-seed-link", cleanup: { at: T2 + day, timing: "at", freesFiles: true } })
-    expect(claims(base({ deletions: [], inLibrary: () => false, torrents: [movieTorrent(), cross] }))).toEqual({ deletions: [], torrents: [["bbb", 58e9]] })
+    const cross = movieTorrent({
+      hash: "bbb",
+      category: "cross-seed-link",
+      cleanup: { at: T2 + day, timing: "at", freesFiles: true }
+    })
+    expect(claims(base({ deletions: [], inLibrary: () => false, torrents: [movieTorrent(), cross] }))).toEqual({
+      deletions: [],
+      torrents: [["bbb", 58e9]]
+    })
     const forever = movieTorrent({ hash: "bbb", category: "cross-seed-link", cleanup: undefined })
-    expect(claims(base({ deletions: [], inLibrary: () => false, torrents: [movieTorrent(), forever] }))).toEqual(nothing)
+    expect(claims(base({ deletions: [], inLibrary: () => false, torrents: [movieTorrent(), forever] }))).toEqual(
+      nothing
+    )
   })
 
   it("a torrent Quai can't place that may hold the title keeps its deletion from freeing anything", () => {
@@ -97,13 +110,29 @@ describe("space back, with hardlinks", () => {
   })
 
   it("a torrent Quai can't place that can't hold the title doesn't keep it from freeing", () => {
-    const unrelated = movieTorrent({ hash: "zzz", name: "Paddington.in.Peru.2024.1080p", size: 9e9, cleanup: undefined })
+    const unrelated = movieTorrent({
+      hash: "zzz",
+      name: "Paddington.in.Peru.2024.1080p",
+      size: 9e9,
+      cleanup: undefined
+    })
     expect(claims(base({ torrents: [unrelated] }))).toEqual({ deletions: [[9, 57e9]], torrents: [] })
   })
 
   it("a translated title still matches the release by its size", () => {
-    const reze = { candidateId: 8, title: "Chainsaw Man – Le Film : L'arc de Reze", key: "movie:2", at: T1, sizeBytes: 5.45e9 }
-    const release = movieTorrent({ hash: "zzz", name: "Chainsaw.Man.The.Movie.Reze.Arc.2025.1080p", size: 5.5e9, cleanup: undefined })
+    const reze = {
+      candidateId: 8,
+      title: "Chainsaw Man – Le Film : L'arc de Reze",
+      key: "movie:2",
+      at: T1,
+      sizeBytes: 5.45e9
+    }
+    const release = movieTorrent({
+      hash: "zzz",
+      name: "Chainsaw.Man.The.Movie.Reze.Arc.2025.1080p",
+      size: 5.5e9,
+      cleanup: undefined
+    })
     expect(claims(base({ deletions: [reze], torrents: [release], grabs: new Map() }))).toEqual(nothing)
   })
 
@@ -120,7 +149,10 @@ describe("space back, with hardlinks", () => {
 
 describe("space back, with copies", () => {
   it("each copy is its own space", () => {
-    expect(claims(base({ hardlinks: { movie: false, series: true } }))).toEqual({ deletions: [[9, 57e9]], torrents: [["aaa", 58e9]] })
+    expect(claims(base({ hardlinks: { movie: false, series: true } }))).toEqual({
+      deletions: [[9, 57e9]],
+      torrents: [["aaa", 58e9]]
+    })
   })
 })
 
@@ -132,12 +164,32 @@ describe("space back says nothing it can't be sure of", () => {
 
   it("a torrent no hardlink holds (Cleanuparr's unlinked category) is its own files, whatever the setting", () => {
     const unlinked = movieTorrent({ hash: "ccc", category: "cleanuparr-unlinked" })
-    expect(claims(base({ deletions: [], torrents: [unlinked], grabs: new Map(), hardlinks: { movie: undefined, series: undefined } })))
+    expect(
+      claims(
+        base({
+          deletions: [],
+          torrents: [unlinked],
+          grabs: new Map(),
+          hardlinks: { movie: undefined, series: undefined }
+        })
+      )
+    )
       .toEqual({ deletions: [], torrents: [["ccc", 58e9]] })
   })
 
   it("a deletion of an unknown title, or with no size, frees nothing", () => {
-    expect(claims(base({ deletions: [{ candidateId: 9, title: "Dune", key: undefined, at: T1, sizeBytes: 57e9 }], torrents: [] }))).toEqual(nothing)
-    expect(claims(base({ deletions: [{ candidateId: 9, title: "Dune", key: "movie:1", at: T1, sizeBytes: undefined }], torrents: [] }))).toEqual(nothing)
+    expect(
+      claims(
+        base({ deletions: [{ candidateId: 9, title: "Dune", key: undefined, at: T1, sizeBytes: 57e9 }], torrents: [] })
+      )
+    ).toEqual(nothing)
+    expect(
+      claims(
+        base({
+          deletions: [{ candidateId: 9, title: "Dune", key: "movie:1", at: T1, sizeBytes: undefined }],
+          torrents: []
+        })
+      )
+    ).toEqual(nothing)
   })
 })

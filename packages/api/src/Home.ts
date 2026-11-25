@@ -307,7 +307,8 @@ export type CloudMessage = typeof CloudMessage.Type
  * they can't collide on a case-insensitive disk. A key and a folder may share a name (`flows` and
  * `flows/download`): they are separate documents, and `StoreList("flows")` returns both.
  */
-export const isStoreKey = (key: string) => /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/.test(key) && key.length <= 200
+export const isStoreKey = (key: string) =>
+  /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/.test(key) && key.length <= 200
 
 /** One allowlisted endpoint of a service. */
 export interface AllowRule {
@@ -366,10 +367,14 @@ const isAny = () => true
 /** The same JSON value: what two answers parsed from JSON hold, keys in any order. */
 const sameJson = (left: unknown, right: unknown): boolean => {
   if (left === right) return true
-  if (Array.isArray(left)) return Array.isArray(right) && left.length === right.length && left.every((value, index) => sameJson(value, right[index]))
+  if (Array.isArray(left)) {
+    return Array.isArray(right) && left.length === right.length &&
+      left.every((value, index) => sameJson(value, right[index]))
+  }
   if (!isRecord(left) || !isRecord(right)) return false
   const keys = Object.keys(left)
-  return keys.length === Object.keys(right).length && keys.every((key) => Object.hasOwn(right, key) && sameJson(left[key], right[key]))
+  return keys.length === Object.keys(right).length &&
+    keys.every((key) => Object.hasOwn(right, key) && sameJson(left[key], right[key]))
 }
 
 /**
@@ -415,13 +420,24 @@ const manualImportBody = (media: TitleKind) =>
     importMode: (value) => value === "auto",
     files: (value) =>
       Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(shape(
-        { path: isString, downloadId: isString, ...(media === "movie" ? { movieId: isId } : { seriesId: isId, episodeIds: isIds }) },
-        { ...(media === "series" ? { seasonNumber: (value: unknown) => typeof value === "number" } : {}), quality: isAny, languages: isAny, releaseGroup: isString, indexerFlags: isAny }
+        {
+          path: isString,
+          downloadId: isString,
+          ...(media === "movie" ? { movieId: isId } : { seriesId: isId, episodeIds: isIds })
+        },
+        {
+          ...(media === "series" ? { seasonNumber: (value: unknown) => typeof value === "number" } : {}),
+          quality: isAny,
+          languages: isAny,
+          releaseGroup: isString,
+          indexerFlags: isAny
+        }
       ))
   })
 
 const isSeasons = (value: unknown) =>
-  Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(isId) && new Set(value).size === value.length
+  Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every(isId) &&
+  new Set(value).size === value.length
 
 /**
  * A request Quai makes in Seerr: a movie, or some seasons of a series (never `"all"`, which would
@@ -507,7 +523,12 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v1\/request\/\d+$/ },
     { method: "POST", path: /^\/api\/v1\/request\/\d+\/(approve|decline)$/ },
     // Seerr reads the title from TMDB, and sends an auto-approved request to Radarr or Sonarr, before answering.
-    { method: "POST", path: /^\/api\/v1\/request$/, body: (body) => requestBody(body), timeoutSeconds: checkedWriteTimeoutSeconds },
+    {
+      method: "POST",
+      path: /^\/api\/v1\/request$/,
+      body: (body) => requestBody(body),
+      timeoutSeconds: checkedWriteTimeoutSeconds
+    },
     { method: "GET", path: /^\/api\/v1\/search$/ },
     { method: "GET", path: /^\/api\/v1\/user$/ },
     { method: "GET", path: /^\/api\/v1\/movie\/\d+$/ },
