@@ -281,7 +281,7 @@ final class Connection {
             library = try await requiredClient().getLibrary().ok.body.json
             libraryError = nil
         } catch {
-            libraryError = error.quaiMessage
+            libraryError = error.message(replacing: libraryError)
         }
     }
 
@@ -292,7 +292,7 @@ final class Connection {
             fixes = try await requiredClient().listFixes().ok.body.json
             fixesError = nil
         } catch {
-            fixesError = error.quaiMessage
+            fixesError = error.message(replacing: fixesError)
         }
     }
 
@@ -349,7 +349,7 @@ final class Connection {
             upcoming = try await requiredClient().getUpcoming().ok.body.json
             upcomingError = nil
         } catch {
-            upcomingError = error.quaiMessage
+            upcomingError = error.message(replacing: upcomingError)
         }
     }
 
@@ -370,7 +370,7 @@ final class Connection {
             journalHasMore = page.more
             journalError = nil
         } catch {
-            journalError = error.quaiMessage
+            journalError = error.message(replacing: journalError)
         }
     }
 
@@ -383,7 +383,7 @@ final class Connection {
             journalHasMore = page.more
             journalError = nil
         } catch {
-            journalError = error.quaiMessage
+            journalError = error.message(replacing: journalError)
         }
     }
 
@@ -404,7 +404,7 @@ final class Connection {
             requests = try await requiredClient().listRequests().ok.body.json
             requestsError = nil
         } catch {
-            requestsError = error.quaiMessage
+            requestsError = error.message(replacing: requestsError)
         }
     }
 

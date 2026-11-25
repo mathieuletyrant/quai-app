@@ -106,6 +106,12 @@ extension Error {
         return false
     }
 
+    /// What a screen's read shows after failing: a cancelled call (the screen read again, closed) keeps
+    /// what it showed, since another read follows or nobody sees it.
+    func message(replacing shown: String?) -> String? {
+        isCancellation ? shown : quaiMessage
+    }
+
     var isBlockedByProxy: Bool {
         if case .blockedByProxy? = quaiError as? ConnectionError { return true }
         return false
