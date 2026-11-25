@@ -41,6 +41,53 @@ export default tseslint.config(
     // Fakes hold what the code under test sent, whatever its shape.
     rules: { "@typescript-eslint/no-explicit-any": "off" }
   },
+  {
+    files: ["**/*.{ts,tsx}"],
+    // A function a reader takes in at once: few branches, shallow, few parameters.
+    rules: {
+      complexity: ["error", 15],
+      "max-depth": ["error", 3],
+      "max-params": ["error", 4],
+      "max-nested-callbacks": ["error", 5]
+    }
+  },
+  {
+    files: ["apps/cloud/src/**/*.ts", "apps/home/src/**/*.ts", "packages/api/src/**/*.ts"],
+    // AGENTS.md, Effect: everything is an Effect, errors are tagged, time goes through Clock.
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "CallExpression[callee.object.name='Date'][callee.property.name='now']",
+          message: "Time goes through Clock (Clock.currentTimeMillis), so TestClock moves it."
+        },
+        { selector: "ThrowStatement", message: "Fail with a Data.TaggedError (Effect.fail), never throw." },
+        { selector: ":function[async=true]", message: "No async on the server: write an Effect." },
+        { selector: "NewExpression[callee.name='Promise']", message: "No Promise on the server: write an Effect." },
+        {
+          selector: "CallExpression[callee.property.name='then']",
+          message: "No Promise on the server: write an Effect."
+        }
+      ]
+    }
+  },
+  {
+    files: ["apps/console/src/**/*.tsx"],
+    // AGENTS.md, Console: theme tokens only, no arbitrary colour, type size or radius.
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/\\[#[0-9a-fA-F]{3,8}\\]|text-\\[\\d+px\\]|rounded-\\[\\d+px\\]/]",
+          message: "Use a theme token from styles.css (add one if needed), not an arbitrary value."
+        },
+        {
+          selector: "TemplateElement[value.raw=/\\[#[0-9a-fA-F]{3,8}\\]|text-\\[\\d+px\\]|rounded-\\[\\d+px\\]/]",
+          message: "Use a theme token from styles.css (add one if needed), not an arbitrary value."
+        }
+      ]
+    }
+  },
   { files: [".github/**/*.mjs"], languageOptions: { globals: globals.node } },
   {
     files: ["apps/console/**/*.tsx"],

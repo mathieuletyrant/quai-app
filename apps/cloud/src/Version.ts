@@ -7,6 +7,7 @@ export class ServerInfo extends Context.Service<ServerInfo, {
 }>()("quai/ServerInfo") {
   static readonly layer = Layer.sync(ServerInfo, () => ({
     version: process.env.QUAI_VERSION ?? "dev",
+    // eslint-disable-next-line no-restricted-syntax -- AGENTS.md's one exception: when the server started
     startedAt: Date.now()
   }))
 }
