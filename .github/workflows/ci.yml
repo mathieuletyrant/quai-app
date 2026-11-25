@@ -148,7 +148,7 @@ jobs:
   # ios job. The generator comes from the cache that swift-tools.yml keeps on main.
   # Swift's format and lint, on its own: it starts with the other jobs and needs nothing built (static binaries pinned
   # in apps/ios/tools.env), so its answer comes in under a minute, and a style fix never holds back the macOS build.
-  # TypeScript's lint runs in `typescript` (pnpm check: tsc, then ESLint).
+  # TypeScript's lint runs in `lint` (pnpm check: tsc, then ESLint).
   swift-lint:
     runs-on: ubuntu-latest
     steps:
