@@ -80,6 +80,7 @@ export const spaceInputs = (reads: SpaceReads): SpaceBackInput => {
   return {
     deletions: reads.candidates.map((candidate) => ({
       candidateId: candidate.id,
+      title: candidate.title,
       key: candidateTitleKey(candidate, sources),
       at: Math.max((epochSeconds(candidate.auto_delete_eligible_at) ?? 0) * 1000, reads.now),
       sizeBytes: candidate.size_bytes ?? undefined

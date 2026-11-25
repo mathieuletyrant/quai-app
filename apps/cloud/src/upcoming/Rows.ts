@@ -23,13 +23,13 @@ export const episodeRange = (codes: ReadonlyArray<string>): string | undefined =
 
 /**
  * The releases still to come, as Upcoming rows: a title without its file, an episode at its air
- * time (a series' episodes airing together are one row), a movie on its day.
+ * time (a series' episodes of one day are one row, at the first one's time), a movie on its day.
  */
 export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease; readonly day: string }>, zone: string): ReadonlyArray<UpcomingItem> => {
   const rows = new Map<string, { readonly day: string; readonly releases: Array<DayRelease> }>()
   for (const { release, day } of dated) {
     if (release.status === "available") continue
-    const key = release.kind === "episode" ? `${release.libraryId}@${release.airsAt ?? day}` : release.id
+    const key = release.kind === "episode" ? `${release.libraryId}@${day}` : release.id
     const row = rows.get(key)
     if (row === undefined) rows.set(key, { day, releases: [release] })
     else row.releases.push(release)
@@ -45,6 +45,7 @@ export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease
       title: first.title,
       ...(episode === undefined ? {} : { episode }),
       ...(first.posterUrl === undefined ? {} : { posterUrl: first.posterUrl }),
+      libraryId: first.libraryId,
       at,
       timed: first.airsAt !== undefined,
       earliest: false

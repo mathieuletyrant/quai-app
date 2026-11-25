@@ -10,17 +10,19 @@ shows: acting on a row happens where it already can (To fix). No console page.
 - Filters **All / Coming / Going**, then periods **Today**, **This week** (next 7 days), **This month**
   (next 30 days), **Later**. Rolling from today, not calendar weeks or months.
 - A row: the service's name in small coloured capitals above the title (blue for what comes, orange for
-  what goes), the title (with the episode), the date. Today shows the time only; elsewhere the weekday and
+  what goes), the title (cut when long, the episode always shown), the date. Today shows the time only; elsewhere the weekday and
   date ("Wed Dec 16", a range "Thu–Sun, Nov 26–29", across months "Mon Nov 30 – Sun Dec 6"). The date line
   never wraps. Nothing about the download's progress.
 - On the right, **+74 GB** in green, only when the space really comes back at that row's moment (see
   Space back). Otherwise nothing.
-- A deletion or a stuck removal opens To fix, where its card is. A seed cleanup opens nothing.
+- A release opens its title, as the Library does. A deletion or a stuck removal opens To fix, where its
+  card is. A seed cleanup opens nothing.
 
 ## Coming
 
 Monitored movies and episodes **without a file** that Radarr and Sonarr release in the next 14 days. A
-title leaves the list once imported, even on its day. Seerr requests: later.
+title leaves the list once imported, even on its day. A series' episodes of one day are one row ("S02E05–E06"), at the
+first one's time. Seerr requests: later.
 
 ## Going
 
@@ -44,7 +46,8 @@ deletion whose torrent still seeds shows nothing, and its size shows on the week
   files: not gone.
 - A Reclaimerr movie version is the Radarr movie only when they weigh the same (within 2 %).
 - Cross-seeds: same name and size in qBittorrent. A torrent Quai can't place (no grab: added by hand,
-  older than the history, another name) may hold any title: no hardlinked deletion frees anything then.
+  older than the history, another name) keeps a hardlinked deletion from freeing anything when it may
+  hold its files: about the same size (within 5 %), or every word of the title in its name.
 - A seed cleanup's date is exact for a seed time; the latest for a rule with a ratio too; the earliest
   (maybe never) for a rule that waits for seeders or inactivity. A row gets the space only when its
   moment is surely the last copy going.

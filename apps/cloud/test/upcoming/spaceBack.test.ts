@@ -15,7 +15,7 @@ const movieTorrent = (overrides: Partial<TorrentInput> = {}): TorrentInput => ({
 })
 
 const base = (overrides: Partial<SpaceBackInput> = {}): SpaceBackInput => ({
-  deletions: [{ candidateId: 9, key: "movie:1", at: T1, sizeBytes: 57e9 }],
+  deletions: [{ candidateId: 9, title: "Dune", key: "movie:1", at: T1, sizeBytes: 57e9 }],
   torrents: [movieTorrent()],
   grabs: new Map([["aaa", "movie:1"]]),
   inLibrary: () => true,
@@ -81,16 +81,36 @@ describe("space back, with hardlinks", () => {
     expect(claims(base({ deletions: [], inLibrary: () => false, torrents: [movieTorrent(), forever] }))).toEqual(nothing)
   })
 
-  it("a torrent Quai can't place may hold the title: no deletion frees anything by itself", () => {
-    // Added by hand, older than the grabs read, or a cross-seed under another name.
-    const unplaced = movieTorrent({ hash: "zzz", name: "Dune.Part.One.MULTi", cleanup: undefined })
-    expect(claims(base({ torrents: [unplaced] }))).toEqual(nothing)
+  it("a torrent Quai can't place that may hold the title keeps its deletion from freeing anything", () => {
+    // Added by hand, older than the grabs read, or a cross-seed under another name: the same size…
+    const sameSize = movieTorrent({ hash: "zzz", name: "Some.Other.Name.MULTi", cleanup: undefined })
+    expect(claims(base({ torrents: [sameSize] }))).toEqual(nothing)
+    // …or every word of the title in its name.
+    const named = movieTorrent({ hash: "zzz", name: "Dune.2021.MULTi.2160p", size: 90e9, cleanup: undefined })
+    expect(claims(base({ torrents: [named] }))).toEqual(nothing)
+  })
+
+  it("a title that's only a year or a letter still matches by name", () => {
+    const year = { candidateId: 10, title: "1917", key: "movie:3", at: T1, sizeBytes: 5e9 }
+    const release = movieTorrent({ hash: "zzz", name: "1917.2019.2160p.UHD", size: 30e9, cleanup: undefined })
+    expect(claims(base({ deletions: [year], torrents: [release], grabs: new Map() }))).toEqual(nothing)
+  })
+
+  it("a torrent Quai can't place that can't hold the title doesn't keep it from freeing", () => {
+    const unrelated = movieTorrent({ hash: "zzz", name: "Paddington.in.Peru.2024.1080p", size: 9e9, cleanup: undefined })
+    expect(claims(base({ torrents: [unrelated] }))).toEqual({ deletions: [[9, 57e9]], torrents: [] })
+  })
+
+  it("a translated title still matches the release by its size", () => {
+    const reze = { candidateId: 8, title: "Chainsaw Man – Le Film : L'arc de Reze", key: "movie:2", at: T1, sizeBytes: 5.45e9 }
+    const release = movieTorrent({ hash: "zzz", name: "Chainsaw.Man.The.Movie.Reze.Arc.2025.1080p", size: 5.5e9, cleanup: undefined })
+    expect(claims(base({ deletions: [reze], torrents: [release], grabs: new Map() }))).toEqual(nothing)
   })
 
   it("a season pack placed on the whole series holds every season", () => {
     const pack = movieTorrent({ hash: "ppp", name: "Show.S01-S03", category: "tv-sonarr", cleanup: undefined })
     const input = base({
-      deletions: [{ candidateId: 7, key: "series:5:s2", at: T1, sizeBytes: 2e10 }],
+      deletions: [{ candidateId: 7, title: "Show", key: "series:5:s2", at: T1, sizeBytes: 2e10 }],
       torrents: [pack],
       grabs: new Map([["ppp", "series:5"]])
     })
@@ -117,7 +137,7 @@ describe("space back says nothing it can't be sure of", () => {
   })
 
   it("a deletion of an unknown title, or with no size, frees nothing", () => {
-    expect(claims(base({ deletions: [{ candidateId: 9, key: undefined, at: T1, sizeBytes: 57e9 }], torrents: [] }))).toEqual(nothing)
-    expect(claims(base({ deletions: [{ candidateId: 9, key: "movie:1", at: T1, sizeBytes: undefined }], torrents: [] }))).toEqual(nothing)
+    expect(claims(base({ deletions: [{ candidateId: 9, title: "Dune", key: undefined, at: T1, sizeBytes: 57e9 }], torrents: [] }))).toEqual(nothing)
+    expect(claims(base({ deletions: [{ candidateId: 9, title: "Dune", key: "movie:1", at: T1, sizeBytes: undefined }], torrents: [] }))).toEqual(nothing)
   })
 })

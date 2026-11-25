@@ -61,8 +61,7 @@ describe("upcoming route", () => {
       expect(upcoming.homeOutdated).toBe(false)
       expect(kinds(upcoming.items)).toEqual([
         "release Warrior Kid",
-        "release The Lord of the Rings: The Rings of Power S03E07",
-        "release The Lord of the Rings: The Rings of Power S03E08",
+        "release The Lord of the Rings: The Rings of Power S03E07–E08",
         "deletion Vampire Diaries S06",
         "deletion Chainsaw Man – Le Film : L'arc de Reze",
         "deletion Runner",

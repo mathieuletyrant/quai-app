@@ -102,7 +102,7 @@ describe("space back's input", () => {
   it("deletions at their date (now when past), torrents with the cleaner's plan", () => {
     const cleanup = { torrent: finished, at: now + day, timing: "at", freesFiles: true } as unknown as SeedCleanup
     const input = spaceInputs(reads({ cleanups: [cleanup] }))
-    expect(input.deletions).toEqual([{ candidateId: 9, key: "movie:55", at: Date.parse("2026-11-30T10:00:05Z"), sizeBytes: 7268360548 }])
+    expect(input.deletions).toEqual([{ candidateId: 9, title: "Runner", key: "movie:55", at: Date.parse("2026-11-30T10:00:05Z"), sizeBytes: 7268360548 }])
     expect(input.torrents).toEqual([{ hash: "AAA", name: "Runner.2026.1080p", size: 7e9, category: "radarr", cleanup: { at: now + day, timing: "at", freesFiles: true } }])
     expect([...input.grabs]).toEqual([["aaa", "movie:55"]])
   })
