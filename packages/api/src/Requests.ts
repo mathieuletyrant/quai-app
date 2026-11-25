@@ -1,8 +1,9 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { TitleKind } from "./Title.ts"
 
-export const RequestKind = Schema.Literals(["movie", "series"]).annotate({ identifier: "RequestKind" })
+export const RequestKind = TitleKind.annotate({ identifier: "RequestKind" })
 export type RequestKind = typeof RequestKind.Type
 
 /**

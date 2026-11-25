@@ -1,17 +1,21 @@
 import { Schema } from "effect"
+import type { PlannedDeletion } from "@quai/api"
 import type { Detected } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
+import type { Read } from "../home/HomeReads.ts"
 import { epochSeconds, knownYear, posterOf } from "./arr.ts"
 import type { RadarrMovie } from "./radarr.ts"
 import type { SonarrSeries } from "./sonarr.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 
 /**
  * Reclaimerr (github.com/jessielw/Reclaimerr): rule-based cleanup for Jellyfin, Plex and Emby. Its
  * external API, `/api/v1`, takes a scoped bearer token (Settings > Integrations); Quai needs
  * `candidates:manage` (which grants `candidates:read`), and `system:read` for its health check.
  *
- * No events and no Live Activity action: it feeds the To fix list, read when the list is asked for,
- * and the Planned deletion alert (`deletions.ts`), which reads the candidates every minute.
+ * No events and no Live Activity action. Its planned deletions (`plannedDeletions`) are decided here
+ * once and shown three ways: a fix on the To fix list, the Planned deletion alert
+ * (`plannedDeletionAlert.ts`) and a row of Upcoming.
  */
 
 /** The cleanup candidates, newest first. 200 is the API's largest page. */
@@ -48,6 +52,9 @@ const Candidate = Schema.Struct({
 export type Candidate = typeof Candidate.Type
 
 export const CandidatePage = Schema.Struct({ items: Schema.Array(Candidate) })
+
+/** The candidates, as the To fix list, Upcoming and the Planned deletion alert's watch read them. */
+export const candidatesRead: Read<typeof CandidatePage.Type> = { service: "reclaimerr", path: candidatesPath, schema: CandidatePage }
 
 /**
  * A candidate's reason, readable: Reclaimerr writes its rule's name, then each condition with what it
@@ -107,13 +114,23 @@ const withDays = (text: string) => text.replace(/(\d{4}-\d{2}-\d{2})[ T]\d{2}:\d
 /** The states in which Reclaimerr deletes the title on its own, at a known date. */
 const deleting = new Set(["scheduled", "eligible", "postponed"])
 
-/** The candidates Reclaimerr is going to delete (or move) by itself: a known date, not protected. */
-export const deletionCandidates = (candidates: ReadonlyArray<Candidate>): ReadonlyArray<Candidate> =>
-  candidates.filter((candidate) =>
-    deleting.has(candidate.auto_delete_state) &&
-    epochSeconds(candidate.auto_delete_eligible_at) !== undefined &&
-    candidate.blockers?.includes("protected") !== true
-  )
+/**
+ * A planned deletion: a candidate Reclaimerr is going to delete (or move) by itself, at `deletesAt`
+ * (epoch seconds, as Reclaimerr planned it: it may be past, then it goes at the next run).
+ */
+export interface PlannedCandidate extends PlannedDeletion {
+  readonly candidate: Candidate
+}
+
+/** Every planned deletion: a deleting state, a known date, not protected. Soonest first. */
+export const plannedDeletions = (candidates: ReadonlyArray<Candidate>): ReadonlyArray<PlannedCandidate> =>
+  candidates
+    .flatMap((candidate): ReadonlyArray<PlannedCandidate> => {
+      const deletesAt = epochSeconds(candidate.auto_delete_eligible_at)
+      if (!deleting.has(candidate.auto_delete_state) || deletesAt === undefined || candidate.blockers?.includes("protected") === true) return []
+      return [{ candidate, deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }]
+    })
+    .sort((a, b) => a.deletesAt - b.deletesAt)
 
 /** A movie candidate is Radarr's; a series, a season or an episode is Sonarr's. */
 export const isMovie = (candidate: Candidate) => candidate.media_type === "movie"
@@ -156,52 +173,49 @@ const sameSizeShare = 0.02
  * of it goes (an episode; a movie version other than Radarr's whole file), or when Reclaimerr moves
  * it (its files go elsewhere).
  */
-export const candidateTitleKey = (candidate: Candidate, sources: PosterSources): string | undefined => {
-  if (candidate.delete_operation === "move") return undefined
+export const candidateTitleKey = ({ candidate, operation }: PlannedCandidate, sources: PosterSources): LibraryId.LibraryId | undefined => {
+  if (operation === "move") return undefined
   const scope = candidate.scope ?? (isMovie(candidate) ? "movie" : "series")
   if (isMovie(candidate)) {
     const movie = sources.movies === undefined ? undefined : matching(candidate, sources.movies) as RadarrMovie | undefined
     if (movie === undefined) return undefined
-    if (scope === "movie") return `movie:${movie.id}`
+    if (scope === "movie") return LibraryId.movie(movie.id)
     // One version among those the media server has: Radarr's file only when it weighs the same.
     const size = candidate.size_bytes ?? 0
     const onDisk = movie.sizeOnDisk ?? 0
-    return scope === "version" && size > 0 && Math.abs(size - onDisk) <= onDisk * sameSizeShare ? `movie:${movie.id}` : undefined
+    return scope === "version" && size > 0 && Math.abs(size - onDisk) <= onDisk * sameSizeShare ? LibraryId.movie(movie.id) : undefined
   }
   const series = sources.series === undefined ? undefined : matching(candidate, sources.series)
   if (series === undefined) return undefined
-  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) return `series:${series.id}:s${candidate.season_number}`
-  return ["series", "show", "tv"].includes(scope) ? `series:${series.id}` : undefined
+  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) return LibraryId.season(series.id, candidate.season_number)
+  return ["series", "show", "tv"].includes(scope) ? LibraryId.series(series.id) : undefined
 }
 
 /** The candidate's poster, from the Radarr movie or Sonarr series it is. */
-export const candidatePoster = (candidate: Candidate, sources: PosterSources): string | undefined => {
+export const candidatePoster = (candidate: Candidate, sources: PosterSources): LibraryId.LibraryId | undefined => {
   const listed = isMovie(candidate) ? sources.movies : sources.series
   return listed === undefined ? undefined : posterOf(matching(candidate, listed)?.images)
 }
 
-/** The titles Reclaimerr is going to delete (or move) by itself, soonest first, with their posters when found. */
-export const scheduledDeletions = (candidates: ReadonlyArray<Candidate>, sources: PosterSources = {}): ReadonlyArray<Detected> =>
-  deletionCandidates(candidates)
-    .map((candidate): Detected => {
-      const deletesAt = epochSeconds(candidate.auto_delete_eligible_at)!
-      const year = knownYear(candidate.year ?? undefined)
-      const since = epochSeconds(candidate.created_at)
-      const posterUrl = candidatePoster(candidate, sources)
-      return {
-        fix: {
-          id: FixId.deletion(candidate.id),
-          kind: "scheduledDeletion",
-          service: "reclaimerr",
-          title: candidate.title,
-          ...(year === undefined ? {} : { year }),
-          ...(posterUrl === undefined ? {} : { posterUrl }),
-          reason: reasonSummary(candidate.reason),
-          ...(since === undefined ? {} : { since }),
-          actions: ["keep", "dismiss"],
-          deletion: { deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }
-        },
-        target: { kind: "candidate", candidateId: candidate.id }
-      }
-    })
-    .sort((a, b) => (a.fix.deletion?.deletesAt ?? 0) - (b.fix.deletion?.deletesAt ?? 0))
+/** Planned deletions as fixes, soonest first, with their posters when found. */
+export const plannedDeletionFixes = (planned: ReadonlyArray<PlannedCandidate>, sources: PosterSources = {}): ReadonlyArray<Detected> =>
+  planned.map(({ candidate, deletesAt, operation }): Detected => {
+    const year = knownYear(candidate.year ?? undefined)
+    const since = epochSeconds(candidate.created_at)
+    const posterUrl = candidatePoster(candidate, sources)
+    return {
+      fix: {
+        id: FixId.deletion(candidate.id),
+        kind: "scheduledDeletion",
+        service: "reclaimerr",
+        title: candidate.title,
+        ...(year === undefined ? {} : { year }),
+        ...(posterUrl === undefined ? {} : { posterUrl }),
+        reason: reasonSummary(candidate.reason),
+        ...(since === undefined ? {} : { since }),
+        actions: ["keep", "dismiss"],
+        deletion: { deletesAt, operation }
+      },
+      target: { kind: "candidate", candidateId: candidate.id }
+    }
+  })

@@ -9,7 +9,7 @@ import {
 } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { createHash, randomBytes, randomUUID } from "node:crypto"
-import { isTimeZone } from "../releases/Day.ts"
+import { isTimeZone } from "./Day.ts"
 import * as DeviceToken from "./DeviceToken.ts"
 import { HomeDocuments, toOffline } from "./HomeLink.ts"
 

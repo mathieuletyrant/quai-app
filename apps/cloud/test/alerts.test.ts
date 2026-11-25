@@ -6,7 +6,7 @@ import { generateKeyPairSync } from "node:crypto"
 import { Alerts, alertState, reconcile } from "../src/alerts/Alerts.ts"
 import { Devices } from "../src/home/Devices.ts"
 import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
-import { deletionsState, deletionsWatchId } from "../src/integrations/deletions.ts"
+import { deletionsState, deletionsWatchId } from "../src/integrations/plannedDeletionAlert.ts"
 import { diskDetail, diskState } from "../src/integrations/disk.ts"
 import { CandidatePage, reasonSummary } from "../src/integrations/reclaimerr.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
@@ -65,14 +65,14 @@ describe("alerts", () => {
       const { items } = yield* Schema.decodeUnknownEffect(CandidatePage)(fixture("reclaimerr/candidates.json"))
       const fiveDaysBefore = Date.parse("2026-11-19T03:00:00Z")
       const planned = deletionsState(items, new Set(), fiveDaysBefore).raised
-      // Up is scheduled; Cars 2 is eligible (its date passed: today); Coco is protected, Lost and Brave aren't deleting.
+      // Soonest first. Cars 2 is eligible (its date passed: today); Up is scheduled; Coco is protected, Lost and Brave aren't deleting.
       expect(planned.map((r) => [r.what, r.title])).toEqual([
-        ["42", "Up will be deleted in 5 days"],
-        ["43:last-day", "Cars 2 will be moved today"]
+        ["43:last-day", "Cars 2 will be moved today"],
+        ["42", "Up will be deleted in 5 days"]
       ])
-      expect(planned[0]).toMatchObject({ detail: "Unwatched for a year · Last watched more than 365 days ago", silentOver: true })
+      expect(planned[1]).toMatchObject({ detail: "Unwatched for a year · Last watched more than 365 days ago", silentOver: true })
       const lastDay = deletionsState(items, new Set(), Date.parse("2026-11-23T05:00:00Z")).raised
-      expect(lastDay.map((r) => [r.what, r.title])[0]).toEqual(["42:last-day", "Up will be deleted tomorrow"])
+      expect(lastDay.map((r) => [r.what, r.title])[1]).toEqual(["42:last-day", "Up will be deleted tomorrow"])
       expect(deletionsState(items, new Set([42, 43]), fiveDaysBefore).raised).toEqual([])
     }))
 

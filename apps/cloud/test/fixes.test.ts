@@ -9,7 +9,7 @@ import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
 import { blockedMovie, moviesWithoutSource } from "../src/fixes/movies.ts"
 import { blockedEpisodes, episodesWithoutSource } from "../src/fixes/series.ts"
 import { RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
-import { candidatePoster, CandidatePage, scheduledDeletions } from "../src/integrations/reclaimerr.ts"
+import { candidatePoster, CandidatePage, plannedDeletionFixes, plannedDeletions } from "../src/integrations/reclaimerr.ts"
 import { SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHome, type FakeHomeOptions, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
@@ -173,7 +173,7 @@ describe("To fix rules", () => {
   })
 
   it("scheduled deletion: what Reclaimerr deletes on its own, soonest first, never what's protected", () => {
-    const deletions = scheduledDeletions(decode(CandidatePage, "reclaimerr/candidates.json").items)
+    const deletions = plannedDeletionFixes(plannedDeletions(decode(CandidatePage, "reclaimerr/candidates.json").items))
     // Lost: no rule deletes it on its own. Coco: protected. Brave: canceled.
     expect(deletions.map((d) => [d.fix.title, d.fix.deletion])).toEqual([
       ["Cars 2", { deletesAt: Date.parse("2026-11-18T03:00:00Z") / 1000, operation: "move" }],
@@ -186,7 +186,7 @@ describe("To fix rules", () => {
   it("scheduled deletion: the poster of the Radarr movie it is, by TMDB id, else by title and year", () => {
     const candidates = decode(CandidatePage, "reclaimerr/candidates.json").items
     const movies = Schema.decodeUnknownSync(RadarrMovies)(moviesWithCandidates())
-    const deletions = scheduledDeletions(candidates, { movies })
+    const deletions = plannedDeletionFixes(plannedDeletions(candidates), { movies })
     // Up: same TMDB id. Cars 2: Radarr has another TMDB id for it, its title and year match.
     expect(deletions.map((d) => [d.fix.id, d.fix.posterUrl])).toEqual([["deletion-43", carsPoster], ["deletion-42", upPoster]])
   })

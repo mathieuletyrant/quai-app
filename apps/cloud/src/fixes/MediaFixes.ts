@@ -1,4 +1,4 @@
-import { type EpisodeChoice, type FixFailed, type HomeOffline, type ImportFile, InvalidFix } from "@quai/api"
+import { type EpisodeChoice, type FixFailed, type HomeOffline, type ImportFile, InvalidFix, type TitleKind } from "@quai/api"
 import { type Effect, type Option, Result } from "effect"
 import type { HomeReads, Read } from "../home/HomeReads.ts"
 import { fileOf, type ManualImportRow, qualityName, type QueuePage, type QueueRecord, type ReleaseRecord, rejectionsOf } from "../integrations/arr.ts"
@@ -9,8 +9,8 @@ import type { Detected } from "./Detected.ts"
  * (its queue row), or titles without a source (to search releases for).
  */
 export type MediaTarget =
-  | { readonly kind: "movie" | "series"; readonly _tag: "Queue"; readonly queueId: number; readonly downloadId: string | undefined }
-  | { readonly kind: "movie" | "series"; readonly _tag: "Missing" }
+  | { readonly kind: TitleKind; readonly _tag: "Queue"; readonly queueId: number; readonly downloadId: string | undefined }
+  | { readonly kind: TitleKind; readonly _tag: "Missing" }
 
 export type QueuedOf<T extends MediaTarget> = Extract<T, { readonly _tag: "Queue" }>
 export type MissingOf<T extends MediaTarget> = Extract<T, { readonly _tag: "Missing" }>

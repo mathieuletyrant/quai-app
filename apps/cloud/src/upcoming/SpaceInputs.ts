@@ -2,9 +2,11 @@ import { epochSeconds, seasonOfRelease } from "../integrations/arr.ts"
 import type { SeedCleanup } from "../integrations/cleanuparr.ts"
 import type { FinishedTorrent } from "../integrations/qbittorrent.ts"
 import type { RadarrGrabs, RadarrMovie } from "../integrations/radarr.ts"
-import { type Candidate, candidateTitleKey } from "../integrations/reclaimerr.ts"
+import { candidateTitleKey, type PlannedCandidate } from "../integrations/reclaimerr.ts"
+import { dueAt } from "./Rows.ts"
 import type { SonarrGrabs, SonarrSeries } from "../integrations/sonarr.ts"
 import type { SpaceBackInput, TitleKey, TorrentInput } from "./SpaceBack.ts"
+import * as LibraryId from "../library/LibraryId.ts"
 
 /**
  * What space back is decided on, from what Upcoming read. Pure. A read is `null` when its service
@@ -13,7 +15,7 @@ import type { SpaceBackInput, TitleKey, TorrentInput } from "./SpaceBack.ts"
 export interface SpaceReads {
   readonly now: number
   /** Reclaimerr's planned deletions. */
-  readonly candidates: ReadonlyArray<Candidate>
+  readonly planned: ReadonlyArray<PlannedCandidate>
   readonly movies: ReadonlyArray<RadarrMovie> | null | undefined
   readonly series: ReadonlyArray<SonarrSeries> | null | undefined
   readonly radarrGrabs: typeof RadarrGrabs.Type | null | undefined
@@ -28,10 +30,10 @@ export interface SpaceReads {
 
 /** The title a grab was for, as space back keys it: a series' season when the release names one. */
 export const grabKey = (grab: { readonly movieId?: number | undefined; readonly seriesId?: number | undefined; readonly sourceTitle?: string | undefined }): TitleKey | undefined => {
-  if (grab.movieId !== undefined) return `movie:${grab.movieId}`
+  if (grab.movieId !== undefined) return LibraryId.movie(grab.movieId)
   if (grab.seriesId === undefined) return undefined
   const season = grab.sourceTitle === undefined ? undefined : seasonOfRelease(grab.sourceTitle)
-  return season === undefined ? `series:${grab.seriesId}` : `series:${grab.seriesId}:s${season}`
+  return season === undefined ? LibraryId.series(grab.seriesId) : LibraryId.season(grab.seriesId, season)
 }
 
 /** Each torrent's hash (lowercase) to the title it was grabbed for. */
@@ -49,12 +51,13 @@ export const grabsByHash = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs
  * file is surely gone: one they don't list may have been removed without its files.
  */
 export const libraryHolds = (reads: Pick<SpaceReads, "movies" | "series">) => (key: TitleKey): boolean => {
-  const [kind, id] = key.split(":")
-  if (kind === "movie") {
-    const movie = reads.movies?.find((m) => m.id === Number(id))
+  const parsed = LibraryId.parse(key)
+  if (parsed === undefined) return true
+  if (parsed.kind === "movie") {
+    const movie = reads.movies?.find((m) => m.id === parsed.id)
     return movie === undefined || movie.hasFile !== false
   }
-  const series = reads.series?.find((s) => s.id === Number(id))
+  const series = reads.series?.find((s) => s.id === parsed.id)
   return series === undefined || (series.statistics?.sizeOnDisk ?? 1) > 0
 }
 
@@ -78,12 +81,12 @@ export const spaceInputs = (reads: SpaceReads): SpaceBackInput => {
   const placeable = reads.radarrGrabs !== undefined && reads.sonarrGrabs !== undefined
   const sources = { movies: reads.movies ?? undefined, series: reads.series ?? undefined }
   return {
-    deletions: reads.candidates.map((candidate) => ({
-      candidateId: candidate.id,
-      title: candidate.title,
-      key: candidateTitleKey(candidate, sources),
-      at: Math.max((epochSeconds(candidate.auto_delete_eligible_at) ?? 0) * 1000, reads.now),
-      sizeBytes: candidate.size_bytes ?? undefined
+    deletions: reads.planned.map((planned) => ({
+      candidateId: planned.candidate.id,
+      title: planned.candidate.title,
+      key: candidateTitleKey(planned, sources),
+      at: dueAt(planned.deletesAt, reads.now) * 1000,
+      sizeBytes: planned.candidate.size_bytes ?? undefined
     })),
     torrents: reads.torrents === null ? [] : reads.torrents === undefined || !placeable ? undefined : torrentInputs(reads.torrents, reads.cleanups),
     grabs: grabsByHash(reads),

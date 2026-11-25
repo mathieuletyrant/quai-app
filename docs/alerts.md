@@ -20,7 +20,7 @@ alerts without a notification and stops its reads.
 
 ## How it works
 
-- Each source is an integration's `alertWatcher` (`health.ts`, `disk.ts`, `arrHealth.ts`, `deletions.ts`): its
+- Each source is an integration's `alertWatcher` (`health.ts`, `disk.ts`, `arrHealth.ts`, `plannedDeletionAlert.ts`): its
   reading is an `AlertState`, *every alert of this kind and scope going on now* (scope: a service,
   or `disk`). Those not listed are over. A reading that knows nothing new says nothing. A planned
   deletion is one alert per title, its id changing on the last day: the first days' alert ends

@@ -12,14 +12,13 @@ import { Schema } from "effect"
 import { episodesWithoutSource } from "../src/fixes/series.ts"
 import { moviesWithoutSource } from "../src/fixes/movies.ts"
 import { removalsRead, settingsRead, slowRulesRead, stallRulesRead, strikesRead, queueCleanerJobRead } from "../src/integrations/cleanuparr.ts"
-import { candidatesRead } from "../src/integrations/deletions.ts"
 import { EpisodesResult, hasEpisodes, ItemsResult, libraryUser, matchItem, Users } from "../src/integrations/jellyfin.ts"
 import { progressEvent, Torrents } from "../src/integrations/qbittorrent.ts"
 import { DiskSpaces, libraryMovie, mediaDisk, RadarrCalendar, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
-import { scheduledDeletions } from "../src/integrations/reclaimerr.ts"
+import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../src/integrations/reclaimerr.ts"
 import { searchResults, seasonChoices, SeerrRequest, SeerrRequestPage, SeerrSearchPage, SeerrSeries, SeerrTitle, SeerrUserPage, seerrUsers, toMediaRequest } from "../src/integrations/seerr.ts"
 import { librarySeries, SonarrCalendar, SonarrEpisodes, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
-import { dayReleases } from "../src/releases/Today.ts"
+import { dayReleases } from "../src/releases/ReleaseDays.ts"
 import { fixture } from "./fixtures.ts"
 
 const real = <A, I>(schema: Schema.Codec<A, I>, path: string) => Schema.decodeUnknownSync(schema)(fixture(`${path}.json`))
@@ -175,7 +174,7 @@ describe("to fix", () => {
   })
 
   it("Reclaimerr's scheduled deletions, soonest first, a movie's poster from Radarr when it has it", () => {
-    const deletions = scheduledDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items, { movies: real(RadarrMovies, "real/radarr/movies") })
+    const deletions = plannedDeletionFixes(plannedDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items), { movies: real(RadarrMovies, "real/radarr/movies") })
     expect(deletions.map((d) => [d.fix.id, d.fix.title])).toEqual([
       ["deletion-7", "Vampire Diaries S06"],
       ["deletion-8", "Chainsaw Man – Le Film : L'arc de Reze"],

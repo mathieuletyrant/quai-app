@@ -1,4 +1,4 @@
-import { type ActionType, type AlertSettings, type Flow, type HomeProtocol, InvalidAction, type ServiceName } from "@quai/api"
+import { type ActionType, type AlertSettings, type Flow, type HomeProtocol, InvalidAction, type IntegrationSource } from "@quai/api"
 import { Context, Effect, Option, Schema } from "effect"
 import type { AlertState } from "../alerts/Alerts.ts"
 import type { Activity } from "../flows/Engine.ts"
@@ -76,8 +76,8 @@ export const actionCall = (reads: HomeReads["Service"], service: string, call: C
  * webhook or watches) and the actions it runs. Adding a service is adding an integration.
  */
 export interface Integration {
-  /** Its service: one a flow can name, or one Quai Home reaches that only the journal hears from (Cleanuparr). */
-  readonly service: ServiceName | HomeProtocol.HomeService
+  /** Its service (Cleanuparr only feeds the journal), or `quai` for Quai's own checks. */
+  readonly service: IntegrationSource
   readonly webhook?: Webhook
   readonly watcher?: Watcher
   /** Readings that say whether an alert is going on (alerts/Alerts.ts), rather than flow events. */

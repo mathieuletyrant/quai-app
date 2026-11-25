@@ -4003,10 +4003,10 @@
             "$ref": "#/components/schemas/BlockedDownload"
           },
           "deletion": {
-            "$ref": "#/components/schemas/ScheduledDeletion"
+            "$ref": "#/components/schemas/PlannedDeletion"
           },
           "removal": {
-            "$ref": "#/components/schemas/PlannedRemoval"
+            "$ref": "#/components/schemas/StuckRemoval"
           },
           "missing": {
             "$ref": "#/components/schemas/MissingMedia"
@@ -4037,7 +4037,7 @@
         ],
         "additionalProperties": false
       },
-      "PlannedRemoval": {
+      "StuckRemoval": {
         "type": "object",
         "properties": {
           "release": {
@@ -4078,7 +4078,7 @@
           "errored"
         ]
       },
-      "ScheduledDeletion": {
+      "PlannedDeletion": {
         "type": "object",
         "properties": {
           "deletesAt": {

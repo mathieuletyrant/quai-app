@@ -2,8 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
 import type { Detected } from "../../src/fixes/Detected.ts"
 import { DownloadCleanerSettings, type SeedCleanup, type SeedingTorrent } from "../../src/integrations/cleanuparr.ts"
-import { deletionItems, episodeRange, mondayOf, releaseItems, removalItems, seedItems } from "../../src/upcoming/Rows.ts"
-import type { DayRelease } from "../../src/releases/Today.ts"
+import { plannedDeletionItems, episodeRange, mondayOf, releaseItems, stuckRemovalItems, seedItems } from "../../src/upcoming/Rows.ts"
+import type { DayRelease } from "../../src/releases/ReleaseDays.ts"
 import { fixture } from "../fixtures.ts"
 
 const paris = "Europe/Paris"
@@ -59,7 +59,7 @@ describe("deletion and removal rows", () => {
   })
 
   it("a deletion is a day, with the space it gives back when known; a past one goes now", () => {
-    expect(deletionItems([deletion(now / 1000 + day / 1000)], now, new Map([[9, 7e9]]))).toEqual([{
+    expect(plannedDeletionItems([deletion(now / 1000 + day / 1000)], now, new Map([[9, 7e9]]))).toEqual([{
       id: "deletion-9",
       kind: "deletion",
       service: "reclaimerr",
@@ -71,8 +71,8 @@ describe("deletion and removal rows", () => {
       freesBytes: 7e9,
       fixId: "deletion-9"
     }])
-    expect(deletionItems([deletion(now / 1000 - 60)], now, new Map())[0]).toMatchObject({ at: now / 1000 })
-    expect(deletionItems([deletion(now / 1000)], now, new Map())[0]?.freesBytes).toBeUndefined()
+    expect(plannedDeletionItems([deletion(now / 1000 - 60)], now, new Map())[0]).toMatchObject({ at: now / 1000 })
+    expect(plannedDeletionItems([deletion(now / 1000)], now, new Map())[0]?.freesBytes).toBeUndefined()
   })
 
   const removal = (removesAt: number | undefined): Detected => ({
@@ -89,9 +89,9 @@ describe("deletion and removal rows", () => {
   })
 
   it("a stuck removal is at the earliest; one whose run is past goes at the next, soon: now, with no time", () => {
-    expect(removalItems([removal(now / 1000 + 600)], now)[0]).toMatchObject({ at: now / 1000 + 600, timed: true, earliest: true, fixId: "removal-1" })
-    expect(removalItems([removal(now / 1000 - 600)], now)[0]).toMatchObject({ at: now / 1000, timed: false })
-    expect(removalItems([removal(undefined)], now)[0]).toMatchObject({ at: now / 1000, timed: false })
+    expect(stuckRemovalItems([removal(now / 1000 + 600)], now)[0]).toMatchObject({ at: now / 1000 + 600, timed: true, earliest: true, fixId: "removal-1" })
+    expect(stuckRemovalItems([removal(now / 1000 - 600)], now)[0]).toMatchObject({ at: now / 1000, timed: false })
+    expect(stuckRemovalItems([removal(undefined)], now)[0]).toMatchObject({ at: now / 1000, timed: false })
   })
 })
 

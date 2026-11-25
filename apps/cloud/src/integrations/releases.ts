@@ -1,7 +1,7 @@
 import type { HomeProtocol } from "@quai/api"
 import { Effect, Option } from "effect"
 import type { FlowEvent, Subject } from "../flows/Events.ts"
-import { dayOf } from "../releases/Day.ts"
+import { dayOf } from "../home/Day.ts"
 import {
   activityItems,
   allAvailable,
@@ -13,7 +13,7 @@ import {
   startsAt,
   summary,
   type DayRelease
-} from "../releases/Today.ts"
+} from "../releases/ReleaseDays.ts"
 import { anyEnabledFlow, type Integration, readSnapshot, type WatchContext, watchOf } from "./Integration.ts"
 
 /** One activity for the day: `day:2026-11-20`. */

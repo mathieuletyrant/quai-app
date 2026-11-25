@@ -3,12 +3,8 @@ import { type AlertState, alertState, type Raised } from "../alerts/Alerts.ts"
 import { dismissedKey } from "../fixes/Fixes.ts"
 import * as FixId from "../fixes/FixId.ts"
 import { HomeDocuments } from "../home/HomeLink.ts"
-import type { Read } from "../home/HomeReads.ts"
-import { epochSeconds } from "./arr.ts"
 import { type Integration, readSnapshot, watchOf } from "./Integration.ts"
-import { type Candidate, CandidatePage, candidatesPath, deletionCandidates, reasonSummary } from "./reclaimerr.ts"
-
-export const candidatesRead: Read<typeof CandidatePage.Type> = { service: "reclaimerr", path: candidatesPath, schema: CandidatePage }
+import { type Candidate, candidatesRead, type PlannedCandidate, plannedDeletions, reasonSummary } from "./reclaimerr.ts"
 
 /** How often Quai Home reads Reclaimerr's candidates while the alert is on. */
 export const deletionsEverySeconds = 60
@@ -30,10 +26,10 @@ const when = (deletesAtMs: number, now: number) => {
  * alert of the first days ends without a word and the last day's starts). It ends without a
  * notification once Reclaimerr deletes it, the user keeps it or lets it go.
  */
-export const deletionRaised = (candidate: Candidate, now: number): Raised => {
-  const deletesAtMs = epochSeconds(candidate.auto_delete_eligible_at)! * 1000
+export const deletionRaised = ({ candidate, deletesAt, operation }: PlannedCandidate, now: number): Raised => {
+  const deletesAtMs = deletesAt * 1000
   const lastDay = deletesAtMs - now <= dayMs
-  const verb = candidate.delete_operation === "move" ? "moved" : "deleted"
+  const verb = operation === "move" ? "moved" : "deleted"
   return {
     what: `${candidate.id}${lastDay ? ":last-day" : ""}`,
     title: `${candidate.title} will be ${verb} ${when(deletesAtMs, now)}`,
@@ -48,11 +44,11 @@ export const deletionsState = (candidates: ReadonlyArray<Candidate>, dismissed: 
   alertState(
     "deletionPlanned",
     "reclaimerr",
-    deletionCandidates(candidates).filter((candidate) => !dismissed.has(candidate.id)).map((candidate) => deletionRaised(candidate, now))
+    plannedDeletions(candidates).filter(({ candidate }) => !dismissed.has(candidate.id)).map((planned) => deletionRaised(planned, now))
   )
 
 /** Reclaimerr's candidates every minute, while the Planned deletion alert is on. */
-export const deletions = Effect.gen(function*() {
+export const plannedDeletionAlert = Effect.gen(function*() {
   const documents = yield* HomeDocuments
 
   const letGo = (candidates: ReadonlyArray<Candidate>) =>

@@ -15,7 +15,7 @@ import { HomeReads } from "../home/HomeReads.ts"
 import { byPreference, epochSeconds, ManualImportRows, type QueueRecord, ReleaseRecords, toRelease } from "../integrations/arr.ts"
 import { excluding, settingsRead } from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
-import { CandidatePage, candidatesPath, protectPath, protectReason, scheduledDeletions } from "../integrations/reclaimerr.ts"
+import { candidatesRead, plannedDeletionFixes, plannedDeletions, protectPath, protectReason } from "../integrations/reclaimerr.ts"
 import { Journal } from "../journal/Journal.ts"
 import type { Detected, FixTarget, RemovalTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
@@ -30,7 +30,7 @@ import {
   type QueuedOf
 } from "./MediaFixes.ts"
 import { movies } from "./movies.ts"
-import { deletionsWithPosters, plannedRemovalsRead } from "./Planned.ts"
+import { deletionsWithPosters, stuckRemovalsRead } from "./Planned.ts"
 import { series } from "./series.ts"
 
 /** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
@@ -114,8 +114,8 @@ export class Fixes extends Context.Service<Fixes, {
           const asked = (service: FixService) => (only === undefined || only === service) && reached.includes(service)
           const none = Effect.succeed(Option.none<never>())
           const [candidates, planned, ...found] = yield* Effect.all([
-            asked("reclaimerr") ? reads.read({ service: "reclaimerr", path: candidatesPath, schema: CandidatePage }) : none,
-            asked("cleanuparr") ? plannedRemovalsRead(reads) : none,
+            asked("reclaimerr") ? reads.read(candidatesRead) : none,
+            asked("cleanuparr") ? stuckRemovalsRead(reads) : none,
             ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
           ], { concurrency: "unbounded" })
           const outcomes: ReadonlyArray<readonly [FixService, Option.Option<unknown>]> = [
@@ -124,12 +124,11 @@ export class Fixes extends Context.Service<Fixes, {
             ...media.map((adapter, i) => [adapter.service, found[i]!] as const)
           ]
           const unavailable = outcomes.flatMap(([service, value]) => asked(service) && Option.isNone(value) ? [service] : [])
-          const deletions = Option.isNone(candidates)
-            ? []
-            : only === undefined
-            ? yield* deletionsWithPosters(reads, candidates.value.items)
+          const due = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
+          const deletions = only === undefined
+            ? yield* deletionsWithPosters(reads, due)
             // Acting on a deletion needs no poster.
-            : scheduledDeletions(candidates.value.items)
+            : plannedDeletionFixes(due)
           const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) => Option.getOrElse(problems, () => []))
           return {
             detected: [...deletions, ...Option.getOrElse(planned, () => []), ...detected].sort(byUrgency),

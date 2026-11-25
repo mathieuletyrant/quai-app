@@ -1,5 +1,7 @@
 import { Schema } from "effect"
 import { JournalEntry, JournalQuery } from "./Journal.ts"
+import { Service } from "./Service.ts"
+import type { TitleKind } from "./Title.ts"
 
 /**
  * The Quai Home ↔ Quai Cloud protocol (docs/spec-v2-hosted.md). The Home runs at home, next to the
@@ -50,8 +52,8 @@ export const searchProtocolVersion = 8
 export const upcomingProtocolVersion = 9
 
 /** The services a Home can reach. */
-export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"])
-export type HomeService = typeof HomeService.Type
+export const HomeService = Service
+export type HomeService = Service
 
 /** The services whose webhooks the Home receives and forwards. Jellyfin is polled (its sessions). */
 export const webhookServices: ReadonlyArray<HomeService> = ["radarr", "sonarr", "seerr"]
@@ -407,7 +409,7 @@ const grabBody = shape({ guid: isString, indexerId: isId })
  * or copy as the download client allows). Every other command (a library rescan, a backup, a
  * search of every title) is refused.
  */
-const manualImportBody = (media: "movie" | "series") =>
+const manualImportBody = (media: TitleKind) =>
   shape({
     name: (value) => value === "ManualImport",
     importMode: (value) => value === "auto",
@@ -432,7 +434,7 @@ export const requestBody = (body: unknown): boolean =>
     : body.mediaType === "tv" && shape({ mediaType: isAny, mediaId: isId, seasons: isSeasons }, { userId: isId })(body))
 
 /** What both *arr allow for the To fix list: the queue, what's missing, the grabs, releases and imports. */
-const arrFixes = (media: "movie" | "series"): ReadonlyArray<AllowRule> => [
+const arrFixes = (media: TitleKind): ReadonlyArray<AllowRule> => [
   { method: "GET", path: /^\/api\/v3\/queue$/ },
   { method: "DELETE", path: /^\/api\/v3\/queue\/\d+$/ },
   { method: "GET", path: /^\/api\/v3\/wanted\/missing$/ },

@@ -1,5 +1,5 @@
 import { Config, Context, Effect, Layer, Option } from "effect"
-import { Devices } from "../home/Devices.ts"
+import { Devices } from "./Devices.ts"
 import { isTimeZone } from "./Day.ts"
 
 /**

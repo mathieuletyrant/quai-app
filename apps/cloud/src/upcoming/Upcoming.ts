@@ -1,19 +1,18 @@
 import { HomeOffline, HomeProtocol, type Upcoming as UpcomingList, upcomingReleaseDays, type UpcomingService } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option } from "effect"
-import { plannedRemovalsRead } from "../fixes/Planned.ts"
+import { stuckRemovalsRead } from "../fixes/Planned.ts"
 import { HomeLink, offlineMessage } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
 import { epochSeconds, mediaManagementRead } from "../integrations/arr.ts"
 import { downloadCleanerJobRead, downloadCleanerRead, seedCleanups, unlinkedCategory } from "../integrations/cleanuparr.ts"
-import { candidatesRead } from "../integrations/deletions.ts"
 import { finishedTorrentsRead } from "../integrations/qbittorrent.ts"
 import { radarrGrabsRead, radarrMoviesRead } from "../integrations/radarr.ts"
-import { deletionCandidates, scheduledDeletions } from "../integrations/reclaimerr.ts"
+import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../integrations/reclaimerr.ts"
 import { sonarrGrabsRead, sonarrSeriesRead } from "../integrations/sonarr.ts"
-import { dayOf } from "../releases/Day.ts"
-import { HomeTime } from "../releases/HomeTime.ts"
-import { rangeReads, rangeReleases } from "../releases/Today.ts"
-import { byDate, deletionItems, releaseItems, removalItems, seedItems } from "./Rows.ts"
+import { dayOf } from "../home/Day.ts"
+import { HomeTime } from "../home/HomeTime.ts"
+import { rangeReads, rangeReleases } from "../releases/ReleaseDays.ts"
+import { byDate, plannedDeletionItems, releaseItems, seedItems, stuckRemovalItems } from "./Rows.ts"
 import { spaceBack } from "./SpaceBack.ts"
 import { spaceInputs } from "./SpaceInputs.ts"
 
@@ -60,12 +59,12 @@ export class Upcoming extends Context.Service<Upcoming, {
         const [calendars, candidates, removals, cleaner, job, finished] = yield* Effect.all([
           reads.all({ episodes: calendar.episodes, movies: calendar.movies }),
           has("reclaimerr") ? reads.read(candidatesRead) : none,
-          has("cleanuparr") ? plannedRemovalsRead(reads) : none,
+          has("cleanuparr") ? stuckRemovalsRead(reads) : none,
           cleaning ? reads.read(downloadCleanerRead) : none,
           cleaning ? reads.read(downloadCleanerJobRead) : none,
           has("qbittorrent") ? reads.read(finishedTorrentsRead) : none
         ], { concurrency: "unbounded" })
-        const planned = Option.match(candidates, { onNone: () => [], onSome: (page) => deletionCandidates(page.items) })
+        const planned = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
         const nextRunAt = Option.getOrUndefined(Option.flatMap(job, (j) => Option.fromNullishOr(epochSeconds(j.nextRunTime ?? undefined))))
         const cleanups = Option.isSome(cleaner) && Option.isSome(finished)
           ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunAt === undefined ? undefined : nextRunAt * 1000, now })
@@ -85,7 +84,7 @@ export class Upcoming extends Context.Service<Upcoming, {
           : undefined
         const frees = library === undefined ? nothingBack : spaceBack(spaceInputs({
           now,
-          candidates: planned,
+          planned,
           movies: known(has("radarr"), library.movies),
           series: known(has("sonarr"), library.series),
           radarrGrabs: known(has("radarr"), library.radarrGrabs),
@@ -116,8 +115,8 @@ export class Upcoming extends Context.Service<Upcoming, {
               episodes: Option.getOrUndefined(calendars.values.episodes),
               movies: Option.getOrUndefined(calendars.values.movies)
             }), zone),
-            ...deletionItems(scheduledDeletions(planned, posters), now, frees.deletions),
-            ...removalItems(Option.getOrElse(removals, () => []), now),
+            ...plannedDeletionItems(plannedDeletionFixes(planned, posters), now, frees.deletions),
+            ...stuckRemovalItems(Option.getOrElse(removals, () => []), now),
             ...seedItems(cleanups, zone, frees.torrents)
           ].sort(byDate),
           unavailable,

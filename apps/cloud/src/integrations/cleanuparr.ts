@@ -196,7 +196,7 @@ export const struckDownloads = (input: Pick<RemovalInput, "downloads" | "setting
  * strike that reaches the limit; a download that recovers loses its strikes instead (when its rule
  * says so), and goes from the list.
  */
-export const plannedRemovals = (input: RemovalInput): ReadonlyArray<Detected<RemovalTarget>> =>
+export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<RemovalTarget>> =>
   struckDownloads(input).flatMap((download): ReadonlyArray<Detected<RemovalTarget>> => {
     const found = input.queued(download.downloadId)
     if (found === undefined) return []

@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { Service } from "./Service.ts"
 
 /**
  * What a row of Upcoming is (docs/upcoming.md):
@@ -13,7 +14,7 @@ export const UpcomingKind = Schema.Literals(["release", "deletion", "stuckRemova
 export type UpcomingKind = typeof UpcomingKind.Type
 
 /** Who does it: the row's tag. */
-export const UpcomingService = Schema.Literals(["radarr", "sonarr", "reclaimerr", "cleanuparr", "qbittorrent"]).annotate({
+export const UpcomingService = Service.pick(["radarr", "sonarr", "reclaimerr", "cleanuparr", "qbittorrent"]).annotate({
   identifier: "UpcomingService"
 })
 export type UpcomingService = typeof UpcomingService.Type

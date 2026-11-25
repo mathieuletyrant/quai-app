@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/http-api"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { Service } from "./Service.ts"
 
 /**
  * The To fix list: problems found by fixed rules (no AI) in what Quai Home reads, each with its own
@@ -8,15 +9,19 @@ import { DeviceAuth, HomeRequired } from "./Devices.ts"
  * kept at home.
  *
  * - `importBlocked`: a finished download Radarr or Sonarr won't import.
- * - `scheduledDeletion`: a title Reclaimerr is going to delete.
- * - `removalPlanned`: a download Cleanuparr removes from the queue at its next strike.
+ * - `scheduledDeletion`: a planned deletion, a title Reclaimerr is going to delete.
+ * - `removalPlanned`: a stuck removal, a download Cleanuparr removes from the queue at its next strike.
  * - `noSource`: a monitored title still without a file, and no release grabbed for it, 2 hours
  *   after it was added or became available (aired, for an episode).
+ */
+/**
+ * The values predate the glossary's words (Planned deletion, Stuck removal) and stay as they are:
+ * installed apps decode them.
  */
 export const FixKind = Schema.Literals(["importBlocked", "scheduledDeletion", "removalPlanned", "noSource"]).annotate({ identifier: "FixKind" })
 export type FixKind = typeof FixKind.Type
 
-export const FixService = Schema.Literals(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({ identifier: "FixService" })
+export const FixService = Service.pick(["radarr", "sonarr", "reclaimerr", "cleanuparr"]).annotate({ identifier: "FixService" })
 export type FixService = typeof FixService.Type
 
 /**
@@ -43,12 +48,13 @@ export const BlockedDownload = Schema.Struct({
   downloadClient: Schema.optionalKey(Schema.String)
 }).annotate({ identifier: "BlockedDownload" })
 
-/** `scheduledDeletion`: when Reclaimerr deletes (or moves) the title. */
-export const ScheduledDeletion = Schema.Struct({
+/** `scheduledDeletion`, a planned deletion: when Reclaimerr deletes (or moves) the title. */
+export const PlannedDeletion = Schema.Struct({
   /** Epoch seconds. In the past: it goes at Reclaimerr's next cleanup run. */
   deletesAt: Schema.Finite,
   operation: Schema.Literals(["delete", "move"])
-}).annotate({ identifier: "ScheduledDeletion" })
+}).annotate({ identifier: "PlannedDeletion" })
+export type PlannedDeletion = typeof PlannedDeletion.Type
 
 /**
  * Why Cleanuparr strikes a download: stalled, downloading too slowly (or too long), an import that
@@ -59,8 +65,8 @@ export const RemovalReason = Schema.Literals(["stalled", "slow", "failedImport",
 })
 export type RemovalReason = typeof RemovalReason.Type
 
-/** `removalPlanned`: the download, its strikes, and when Cleanuparr strikes again. */
-export const PlannedRemoval = Schema.Struct({
+/** `removalPlanned`, a stuck removal: the download, its strikes, and when Cleanuparr strikes again. */
+export const StuckRemoval = Schema.Struct({
   /** The release, as the download client names it. */
   release: Schema.String,
   reason: RemovalReason,
@@ -69,8 +75,8 @@ export const PlannedRemoval = Schema.Struct({
   maxStrikes: Schema.Int,
   /** Epoch seconds of Cleanuparr's next queue cleaning, when it's scheduled: the strike that removes it. */
   removesAt: Schema.optionalKey(Schema.Finite)
-}).annotate({ identifier: "PlannedRemoval" })
-export type PlannedRemoval = typeof PlannedRemoval.Type
+}).annotate({ identifier: "StuckRemoval" })
+export type StuckRemoval = typeof StuckRemoval.Type
 
 /** `noSource`: what has no file. A series' missing episodes are grouped by season. */
 export const MissingMedia = Schema.Struct({
@@ -98,8 +104,8 @@ export const Fix = Schema.Struct({
   /** The actions offered, the main one first. */
   actions: Schema.Array(FixAction),
   download: Schema.optionalKey(BlockedDownload),
-  deletion: Schema.optionalKey(ScheduledDeletion),
-  removal: Schema.optionalKey(PlannedRemoval),
+  deletion: Schema.optionalKey(PlannedDeletion),
+  removal: Schema.optionalKey(StuckRemoval),
   missing: Schema.optionalKey(MissingMedia)
 }).annotate({ identifier: "Fix" })
 export type Fix = typeof Fix.Type

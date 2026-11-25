@@ -8,6 +8,7 @@ import {
   type SearchResult,
   type SeasonChoice,
   type SeerrUser,
+  TitleKind,
   type TitleState
 } from "@quai/api"
 import { Context, Data, Effect, Layer, Option, Schema } from "effect"
@@ -89,7 +90,7 @@ export interface TitleDetails {
   readonly posterUrl?: string | undefined
 }
 
-export const kindOf = (request: SeerrRequest): "movie" | "series" =>
+export const kindOf = (request: SeerrRequest): TitleKind =>
   (request.type ?? request.media.mediaType) === "tv" ? "series" : "movie"
 
 /** How Seerr names a user: its display name, else a username or the email. */
@@ -108,7 +109,7 @@ export const titleDetails = (body: typeof SeerrTitle.Type): TitleDetails | undef
 }
 
 /** "Julie · Movie · 2024", "Julie · Series · S1–2 · 4K". */
-export const requestDetail = (requester: string, kind: "movie" | "series", options: {
+export const requestDetail = (requester: string, kind: TitleKind, options: {
   readonly year?: number | undefined
   readonly seasons?: ReadonlyArray<number>
   readonly is4k?: boolean | undefined
@@ -144,7 +145,7 @@ export const toMediaRequest = (request: SeerrRequest, details: TitleDetails | un
 /** Only what really waits: a request Seerr approved on its own is never pending. */
 export const waiting = (requests: ReadonlyArray<SeerrRequest>) => requests.filter((r) => r.status === RequestStatus.pending)
 
-const subjectOf = (request: { readonly id: number; readonly title: string; readonly kind: "movie" | "series"; readonly requester: string }): Subject => ({
+const subjectOf = (request: { readonly id: number; readonly title: string; readonly kind: TitleKind; readonly requester: string }): Subject => ({
   kind: "request",
   key: requestKey(request.id),
   title: request.title,
@@ -456,7 +457,7 @@ const unfollowed = (context: WatchContext, request: SeerrRequest) => {
 export const outcome = (activity: Activity, request: SeerrRequest | "gone"): ReadonlyArray<FlowEvent> => {
   if (request === "gone") {
     // Deleted: what it was is gone too, so every request flow, whatever its filter, ends it.
-    return (["movie", "series"] as const).map((mediaType) => ({
+    return TitleKind.literals.map((mediaType) => ({
       type: "request.declined" as const,
       subject: { kind: "request" as const, key: activity.subjectKey, title: activity.title, mediaType, requester: "" },
       values: { detail: "Removed" }

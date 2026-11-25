@@ -14,7 +14,7 @@ import { IntegrationsLive } from "../src/integrations/All.ts"
 import { Journal } from "../src/journal/Journal.ts"
 import type { Integrations } from "../src/integrations/Integration.ts"
 import { Notifier } from "../src/push/Notifier.ts"
-import { HomeTime } from "../src/releases/HomeTime.ts"
+import { HomeTime } from "../src/home/HomeTime.ts"
 import { fixture } from "./fixtures.ts"
 
 type Call = typeof HomeProtocol.Call.Type
