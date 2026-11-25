@@ -56,15 +56,26 @@ export const grabsByHash = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs
  * Whether a title's files may still be in the library. Only a title Radarr or Sonarr lists with no
  * file is surely gone: one they don't list may have been removed without its files.
  */
-export const libraryHolds = (reads: Pick<SpaceReads, "movies" | "series">) => (key: TitleKey): boolean => {
-  const parsed = LibraryId.parse(key)
-  if (parsed === undefined) return true
-  if (parsed.kind === "movie") {
-    const movie = reads.movies?.find((listed) => listed.id === parsed.id)
-    return movie === undefined || movie.hasFile !== false
+export const libraryHolds = (reads: Pick<SpaceReads, "movies" | "series">) => {
+  const movies = byId(reads.movies ?? [])
+  const series = byId(reads.series ?? [])
+  return (key: TitleKey): boolean => {
+    const parsed = LibraryId.parse(key)
+    if (parsed === undefined) return true
+    if (parsed.kind === "movie") {
+      const movie = movies.get(parsed.id)
+      return movie === undefined || movie.hasFile !== false
+    }
+    const show = series.get(parsed.id)
+    return show === undefined || (show.statistics?.sizeOnDisk ?? 1) > 0
   }
-  const series = reads.series?.find((show) => show.id === parsed.id)
-  return series === undefined || (series.statistics?.sizeOnDisk ?? 1) > 0
+}
+
+/** A list by id, the first of each id, as `find` would. */
+const byId = <A extends { readonly id: number }>(list: ReadonlyArray<A>): ReadonlyMap<number, A> => {
+  const found = new Map<number, A>()
+  for (const item of list) if (!found.has(item.id)) found.set(item.id, item)
+  return found
 }
 
 /** The torrents as space back takes them, with what the download cleaner plans for each. */

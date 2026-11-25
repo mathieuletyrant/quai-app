@@ -5,9 +5,11 @@ import {
   echoed,
   epochSeconds,
   fileOf,
+  grabbedSince,
   grabLookbackMs,
   isImportBlocked,
   knownYear,
+  latestGrabs,
   posterOf,
   queueMessages,
   QueuePage,
@@ -118,6 +120,7 @@ export const episodesWithoutSource = (
   const queued = new Set(
     queue.flatMap((record) => record.episodeId === undefined || record.episodeId === null ? [] : [record.episodeId])
   )
+  const grabbed = latestGrabs(grabs, (grab) => grab.episodeId)
   const seasons = new Map<string, { since: number; aired: boolean; episodes: Array<MissingEpisode> }>()
   for (const episode of missing) {
     if (
@@ -128,11 +131,7 @@ export const episodesWithoutSource = (
     if (aired === undefined) continue
     const since = added === undefined ? aired : Math.max(added, aired)
     if (nowMs - since * 1000 < noSourceAfterMs) continue
-    const grabbed = grabs.some((grab) =>
-      grab.episodeId === episode.id && (grab.eventType ?? "grabbed") === "grabbed" &&
-      (epochSeconds(grab.date) ?? 0) >= since
-    )
-    if (grabbed) continue
+    if (grabbedSince(grabbed, episode.id, since)) continue
     const key = `${episode.seriesId}-${episode.seasonNumber}`
     const season = seasons.get(key) ?? { since, aired: since === aired, episodes: [] }
     season.episodes.push(episode)

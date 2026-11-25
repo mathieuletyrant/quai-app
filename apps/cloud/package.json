@@ -10,7 +10,8 @@
     "start": "node --disable-warning=ExperimentalWarning dist/main.js",
     "check": "tsc -p .",
     "test": "vitest run",
-    "preview": "tsx test/preview.ts"
+    "preview": "tsx test/preview.ts",
+    "bench": "vitest bench --run --reporter=verbose"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",

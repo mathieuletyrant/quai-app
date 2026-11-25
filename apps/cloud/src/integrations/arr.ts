@@ -91,6 +91,28 @@ export const grabsSincePath = (ms: number) =>
 export const grabLookbackMs = 30 * 24 * 3600_000
 
 /**
+ * Each title's latest grab (epoch seconds, 0 for a date the *arr doesn't know), by the id `idOf`
+ * reads: a movie's, an episode's. Made once, so the rules look a title up instead of scanning the grabs.
+ */
+export const latestGrabs = <G extends { readonly date: string; readonly eventType?: string | undefined }>(
+  grabs: ReadonlyArray<G>,
+  idOf: (grab: G) => number
+): ReadonlyMap<number, number> => {
+  const latest = new Map<number, number>()
+  for (const grab of grabs) {
+    if ((grab.eventType ?? "grabbed") !== "grabbed") continue
+    const at = epochSeconds(grab.date) ?? 0
+    const id = idOf(grab)
+    if (at > (latest.get(id) ?? -Infinity)) latest.set(id, at)
+  }
+  return latest
+}
+
+/** Whether a title was grabbed at `since` or after. */
+export const grabbedSince = (latest: ReadonlyMap<number, number>, id: number, since: number) =>
+  (latest.get(id) ?? -Infinity) >= since
+
+/**
  * A finished download the *arr won't import on its own: blocked (a sample, not an upgrade, no
  * match), or waiting for a manual import with a warning ("name doesn't match any episode").
  */
