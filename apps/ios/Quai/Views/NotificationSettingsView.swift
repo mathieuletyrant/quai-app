@@ -72,7 +72,7 @@ struct NotificationSettingsView: View {
         do {
             preferences = try await connection.preferences()
         } catch {
-            status = error.quaiMessage
+            status = error.message(replacing: status)
         }
     }
 
@@ -88,7 +88,7 @@ struct NotificationSettingsView: View {
                 try await connection.save(saved)
                 status = nil
             } catch {
-                status = error.quaiMessage
+                status = error.message(replacing: status)
             }
         }
     }

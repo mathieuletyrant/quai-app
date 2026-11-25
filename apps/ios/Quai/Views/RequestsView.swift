@@ -99,7 +99,7 @@ struct RequestsView: View {
     private func run(_ request: MediaRequest, _ work: @escaping @MainActor () async throws -> Void) {
         working = request.id
         Task {
-            do { try await work() } catch { failure = error.quaiMessage }
+            do { try await work() } catch { failure = error.message(replacing: failure) }
             working = nil
         }
     }

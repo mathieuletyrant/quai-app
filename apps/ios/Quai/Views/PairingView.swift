@@ -97,7 +97,7 @@ struct PairingView: View {
             try await connection.pair(target, name: name)
             error = nil
         } catch {
-            self.error = error.quaiMessage
+            self.error = error.message(replacing: self.error)
         }
     }
 }

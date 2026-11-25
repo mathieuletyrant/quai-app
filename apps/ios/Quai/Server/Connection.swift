@@ -222,7 +222,7 @@ final class Connection {
             do {
                 try await readActivities()
             } catch {
-                if !error.isCancellation { lastError = error.quaiMessage }
+                lastError = error.message(replacing: lastError)
             }
         }
     }
@@ -277,23 +277,13 @@ final class Connection {
     // MARK: Library
 
     func loadLibrary() async {
-        do {
-            library = try await requiredClient().getLibrary().ok.body.json
-            libraryError = nil
-        } catch {
-            libraryError = error.message(replacing: libraryError)
-        }
+        await read(\.library, failure: \.libraryError) { try await $0.getLibrary().ok.body.json }
     }
 
     // MARK: To fix
 
     func loadFixes() async {
-        do {
-            fixes = try await requiredClient().listFixes().ok.body.json
-            fixesError = nil
-        } catch {
-            fixesError = error.message(replacing: fixesError)
-        }
+        await read(\.fixes, failure: \.fixesError) { try await $0.listFixes().ok.body.json }
     }
 
     /// Takes the download out of the queue and the download client; `blocklist` also bans the release.
@@ -345,12 +335,7 @@ final class Connection {
     // MARK: Upcoming
 
     func loadUpcoming() async {
-        do {
-            upcoming = try await requiredClient().getUpcoming().ok.body.json
-            upcomingError = nil
-        } catch {
-            upcomingError = error.message(replacing: upcomingError)
-        }
+        await read(\.upcoming, failure: \.upcomingError) { try await $0.getUpcoming().ok.body.json }
     }
 
     // MARK: Alerts
@@ -400,12 +385,7 @@ final class Connection {
     // MARK: Requests
 
     func loadRequests() async {
-        do {
-            requests = try await requiredClient().listRequests().ok.body.json
-            requestsError = nil
-        } catch {
-            requestsError = error.message(replacing: requestsError)
-        }
+        await read(\.requests, failure: \.requestsError) { try await $0.listRequests().ok.body.json }
     }
 
     /// Approves the request in Seerr: Radarr or Sonarr take it from there.
@@ -545,12 +525,27 @@ final class Connection {
 
     // MARK: Plumbing
 
+    /// Every screen's read follows one rule: what it read and no failure, or why it failed. A cancelled
+    /// read (the screen read again, or closed) changes nothing.
+    private func read<Value>(
+        _ value: ReferenceWritableKeyPath<Connection, Value?>,
+        failure: ReferenceWritableKeyPath<Connection, String?>,
+        _ call: (Client) async throws -> Value
+    ) async {
+        do {
+            self[keyPath: value] = try await call(requiredClient())
+            self[keyPath: failure] = nil
+        } catch {
+            self[keyPath: failure] = error.message(replacing: self[keyPath: failure])
+        }
+    }
+
     private func send(_ call: (Client) async throws -> Void) async {
         guard let client = await authenticatedClient() else { return }
         do {
             try await call(client)
         } catch {
-            if !error.isCancellation { lastError = error.quaiMessage }
+            lastError = error.message(replacing: lastError)
         }
     }
 
