@@ -16,7 +16,6 @@ import { Journal } from "./journal/Journal.ts"
 import { Library } from "./library/Library.ts"
 import { Notifier } from "./push/Notifier.ts"
 import { HomeTime } from "./releases/HomeTime.ts"
-import { Releases } from "./releases/Releases.ts"
 import { Requests } from "./requests/Requests.ts"
 import { Upcoming } from "./upcoming/Upcoming.ts"
 
@@ -30,7 +29,7 @@ const HomeData = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
  * What all homes share comes from outside: the APNs key (`Apns`), the public access, the server's facts.
  */
 export const HomeServices = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
-  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Releases.layer, Upcoming.layer)),
+  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Upcoming.layer)),
   Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
   Layer.provideMerge(Activities.layer),
   Layer.provideMerge(Layer.mergeAll(IntegrationsLive, HomeTime.layer)),

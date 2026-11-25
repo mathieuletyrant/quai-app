@@ -290,44 +290,7 @@ describe("Today's releases flow", () => {
     }).pipe(Effect.provide(engine)))
 })
 
-describe("releases route", () => {
-  it.effect("lists today's releases in the iPhone's time zone", () =>
-    Effect.gen(function*() {
-      yield* TestClock.setTime(Date.parse("2026-11-20T12:00:00Z"))
-      const home = yield* makeFakeHome({
-        services: ["radarr", "sonarr"],
-        answer: recordedHome(calendars)
-      })
-      yield* home.connect
-      const console = yield* HttpApiTest.groups(QuaiApi, ["console"])
-      const qr = yield* console.console.createPairingCode({ payload: { serverUrls: [] } })
-      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
-        payload: { name: "iPhone", apnsEnvironment: "development", code: qr.code, timeZone: paris }
-      })
-      const api = yield* HttpApiTest.groups(QuaiApi, ["releases"]).pipe(
-        Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
-      )
-      const today = yield* api.releases.today()
-      expect(today.day).toBe("2026-11-20")
-      expect(today.timeZone).toBe(paris)
-      expect(today.unavailable).toEqual([])
-      expect(today.items.map((r) => r.status)).toEqual(["available", "downloading", "missing", "grabbed"])
-    }).pipe(Effect.provide(TestApp)))
-
-  it.effect("Quai Home dropping while the calendars are read is 503 HomeOffline, not a service unavailable", () =>
-    Effect.gen(function*() {
-      const home = yield* makeFakeHome({ services: ["radarr", "sonarr"], answer: recordedHome(calendars) })
-      yield* home.connect
-      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
-      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
-        payload: { name: "iPhone", apnsEnvironment: "development", code: qr.code }
-      })
-      const api = yield* HttpApiTest.groups(QuaiApi, ["releases"]).pipe(
-        Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
-      )
-      expect((yield* Effect.flip(api.releases.today()))._tag).toBe("HomeOffline")
-    }).pipe(Effect.provide(testAppDroppingOn("radarr GET /api/v3/calendar"))))
-
+describe("the home's time zone", () => {
   it.effect("an iPhone that reports a time zone that doesn't exist is ignored: UTC", () =>
     Effect.gen(function*() {
       yield* TestClock.setTime(Date.parse("2026-11-20T23:30:00Z"))

@@ -1,9 +1,34 @@
-import { type ActivityItem, type DayRelease, defaultStartsAt } from "@quai/api"
+import { type ActivityItem, defaultStartsAt } from "@quai/api"
 import type { Read } from "../home/HomeReads.ts"
 import { epochSeconds, posterOf, QueuePage, type QueueRecord } from "../integrations/arr.ts"
 import { RadarrCalendar, radarrCalendarPath, radarrCalendarQueuePath, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
 import { episodeCode, SonarrCalendar, sonarrCalendarPath, sonarrCalendarQueuePath, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
 import { dayOf, dayRange, instantOf, nextDay } from "./Day.ts"
+
+/**
+ * Where a release of the day stands: `available` (its file is there), `downloading` (in the
+ * queue, downloading), `grabbed` (in the queue, not downloading yet), `missing` (nothing yet:
+ * not aired, or no release found).
+ */
+export type DayReleaseStatus = "missing" | "grabbed" | "downloading" | "available"
+
+/** One title out on a day: an episode airing (Sonarr) or a movie's digital or physical release (Radarr). */
+export interface DayRelease {
+  /** `episode:<sonarr id>` or `movie:<radarr id>`. */
+  readonly id: string
+  readonly kind: "episode" | "movie"
+  /** The library title it belongs to: `series:<sonarr id>` for an episode, `movie:<radarr id>`. */
+  readonly libraryId: string
+  /** The series' or the movie's title. */
+  readonly title: string
+  /** "S02E03" */
+  readonly episode?: string
+  readonly episodeTitle?: string
+  /** Epoch seconds it airs at; a movie's release has a day, no time. */
+  readonly airsAt?: number
+  readonly posterUrl?: string
+  readonly status: DayReleaseStatus
+}
 
 /** What Radarr and Sonarr said about the day; a list left out wasn't read (yet). */
 export interface DayInputs {

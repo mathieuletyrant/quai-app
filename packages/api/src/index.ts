@@ -4,7 +4,6 @@ import { ConnectionGroup, ConsoleGroup, DevicesGroup, FlowsGroup, PushGroup } fr
 import { FixesGroup } from "./Fixes.ts"
 import { ConsoleJournalGroup, JournalGroup } from "./Journal.ts"
 import { LibraryGroup } from "./Library.ts"
-import { ReleasesGroup } from "./Releases.ts"
 import { RequestsGroup } from "./Requests.ts"
 import { SystemGroup } from "./System.ts"
 import { UpcomingGroup } from "./Upcoming.ts"
@@ -17,11 +16,10 @@ export * from "./Catalog.ts"
 export * from "./Fixes.ts"
 export * from "./Journal.ts"
 export * from "./Library.ts"
-export * from "./Releases.ts"
 export * from "./Requests.ts"
 export * from "./System.ts"
 export * from "./Upcoming.ts"
 
 /** The single contract: implemented by apps/cloud, imported by apps/console, exported as OpenAPI for apps/ios. */
-export class QuaiApi extends HttpApi.make("quai").add(SystemGroup).add(DevicesGroup).add(LibraryGroup).add(FixesGroup).add(RequestsGroup).add(ReleasesGroup).add(UpcomingGroup).add(ConsoleGroup).add(PushGroup).add(ConnectionGroup).add(FlowsGroup).add(ConsoleJournalGroup).add(JournalGroup).add(AlertsGroup).add(ConsoleAlertsGroup) {}
+export class QuaiApi extends HttpApi.make("quai").add(SystemGroup).add(DevicesGroup).add(LibraryGroup).add(FixesGroup).add(RequestsGroup).add(UpcomingGroup).add(ConsoleGroup).add(PushGroup).add(ConnectionGroup).add(FlowsGroup).add(ConsoleJournalGroup).add(JournalGroup).add(AlertsGroup).add(ConsoleAlertsGroup) {}
 export * from "./HomeConsole.ts"

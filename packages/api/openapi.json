@@ -1693,52 +1693,6 @@
         }
       }
     },
-    "/api/releases/today": {
-      "get": {
-        "tags": [
-          "releases"
-        ],
-        "operationId": "getTodayReleases",
-        "parameters": [],
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "DayReleases",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DayReleases"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "HomeOffline",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HomeOfflineEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/upcoming": {
       "get": {
         "tags": [
@@ -3378,96 +3332,6 @@
           "seedCleanup"
         ]
       },
-      "DayReleases": {
-        "type": "object",
-        "properties": {
-          "day": {
-            "type": "string"
-          },
-          "timeZone": {
-            "type": "string"
-          },
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DayRelease"
-            }
-          },
-          "unavailable": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/LibraryService"
-            }
-          }
-        },
-        "required": [
-          "day",
-          "timeZone",
-          "items",
-          "unavailable"
-        ],
-        "additionalProperties": false
-      },
-      "LibraryService": {
-        "type": "string",
-        "enum": [
-          "radarr",
-          "sonarr"
-        ]
-      },
-      "DayRelease": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "episode",
-              "movie"
-            ]
-          },
-          "libraryId": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "episode": {
-            "type": "string"
-          },
-          "episodeTitle": {
-            "type": "string"
-          },
-          "airsAt": {
-            "type": "number"
-          },
-          "posterUrl": {
-            "type": "string"
-          },
-          "status": {
-            "$ref": "#/components/schemas/DayReleaseStatus"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "libraryId",
-          "title",
-          "status"
-        ],
-        "additionalProperties": false
-      },
-      "DayReleaseStatus": {
-        "type": "string",
-        "enum": [
-          "missing",
-          "grabbed",
-          "downloading",
-          "available"
-        ]
-      },
       "RequestFailedEncoded": {
         "type": "object",
         "properties": {
@@ -4298,6 +4162,13 @@
         ],
         "additionalProperties": false
       },
+      "LibraryService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr"
+        ]
+      },
       "DiskSpace": {
         "type": "object",
         "properties": {
@@ -4861,9 +4732,6 @@
     },
     {
       "name": "requests"
-    },
-    {
-      "name": "releases"
     },
     {
       "name": "upcoming"

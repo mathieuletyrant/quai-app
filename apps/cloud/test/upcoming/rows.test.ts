@@ -1,9 +1,9 @@
-import type { DayRelease } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
 import { Schema } from "effect"
 import type { Detected } from "../../src/fixes/Detected.ts"
 import { DownloadCleanerSettings, type SeedCleanup, type SeedingTorrent } from "../../src/integrations/cleanuparr.ts"
 import { deletionItems, episodeRange, mondayOf, releaseItems, removalItems, seedItems } from "../../src/upcoming/Rows.ts"
+import type { DayRelease } from "../../src/releases/Today.ts"
 import { fixture } from "../fixtures.ts"
 
 const paris = "Europe/Paris"

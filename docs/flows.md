@@ -122,8 +122,8 @@ push nothing and write nothing.
 **Time zone.** A home has no clock of its own and Quai Cloud may serve homes anywhere, so the day
 follows the iPhones: each reports its time zone (IANA) when it pairs and whenever the app comes to
 the front; the most recently seen iPhone's wins. Before any did, Quai Cloud's `QUAI_TZ`, else UTC.
-The app writes air times in its own time. `GET /api/releases/today` lists the same day for the
-app's Today tile, hidden when nothing comes out.
+The app writes air times in its own time. The day's releases are computed once for this flow and
+the app's Upcoming screen (`rangeReleases`: one day here, 14 there; docs/upcoming.md).
 
 ### Seerr requests
 

@@ -1,7 +1,8 @@
-import type { DayRelease, UpcomingItem } from "@quai/api"
+import type { UpcomingItem } from "@quai/api"
 import type { Detected } from "../fixes/Detected.ts"
 import type { SeedCleanup } from "../integrations/cleanuparr.ts"
 import { dayOf, instantOf } from "../releases/Day.ts"
+import type { DayRelease } from "../releases/Today.ts"
 
 /**
  * Upcoming's rows (packages/api `Upcoming.ts`), made from what the services plan. Pure: each
