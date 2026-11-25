@@ -10,7 +10,7 @@ import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { Journal } from "../src/Journal.ts"
 import { CloudSeen } from "../src/CloudSeen.ts"
-import { Link } from "../src/Link.ts"
+import { heldWebhooksLimit, Link } from "../src/Link.ts"
 import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
 import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
@@ -199,19 +199,46 @@ describe("link", () => {
         expect(yield* Queue.take(second.sent)).toMatchObject({ _tag: "Hello" })
       })))
 
-  it.effect("sends webhooks while linked, drops them while not", () =>
+  it.effect("sends webhooks while linked, holds them while not and sends them once welcomed again", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const link = yield* Link
         const connection = yield* linked(connections)
-        const webhook = { _tag: "WebhookReceived", service: "radarr", receivedAt: 0, body: { eventType: "Grab" } } as const
-        yield* link.send(webhook)
-        expect(yield* Queue.take(connection.sent)).toEqual(webhook)
+        const webhook = (eventType: string) => ({ _tag: "WebhookReceived", service: "sonarr", receivedAt: 0, body: { eventType } }) as const
+        yield* link.send(webhook("Grab"))
+        expect(yield* Queue.take(connection.sent)).toEqual(webhook("Grab"))
 
+        // The hosted Cloud's link drops for a few seconds: a grab in between isn't lost.
         yield* Queue.offer(connection.incoming, close)
         yield* settle
-        yield* link.send(webhook)
+        yield* link.send(webhook("Download"))
+        yield* link.send(webhook("ManualInteractionRequired"))
         expect(yield* nothingSent(connection)).toBe(true)
+        yield* TestClock.adjust("1 second")
+        const next = yield* Queue.take(connections)
+        yield* Queue.take(next.sent)
+        // Nothing before the Cloud welcomes the home.
+        expect(yield* nothingSent(next)).toBe(true)
+        yield* cloud(next, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
+        yield* settle
+        expect(yield* Queue.take(next.sent)).toEqual(webhook("Download"))
+        expect(yield* Queue.take(next.sent)).toEqual(webhook("ManualInteractionRequired"))
+      })))
+
+  it.effect(`holds at most ${heldWebhooksLimit} webhooks, the newest`, () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        for (let i = 0; i < heldWebhooksLimit + 5; i++) {
+          yield* link.send({ _tag: "WebhookReceived", service: "radarr", receivedAt: i, body: {} })
+        }
+        const connection = yield* linked(connections)
+        yield* settle
+        const sent: Array<any> = []
+        while ((yield* Queue.size(connection.sent)) > 0) sent.push(yield* Queue.take(connection.sent))
+        const webhooks = sent.filter((m) => m._tag === "WebhookReceived")
+        expect(webhooks).toHaveLength(heldWebhooksLimit)
+        expect(webhooks[0].receivedAt).toBe(5)
       })))
 
   it.effect("runs store operations in order and answers each", () =>

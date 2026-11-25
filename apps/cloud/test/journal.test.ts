@@ -192,6 +192,10 @@ describe("what the Cloud logs", () => {
         // A progress changes numbers only: no line.
         yield* home.snapshot(torrentsWatchId, (fixture("qbittorrent/torrents-info.json") as Array<object>).slice(0, 1))
         yield* home.disconnect
+        // A reconnection takes seconds: only an outage past a minute is news.
+        yield* TestClock.adjust("55 seconds")
+        expect(texts((yield* journal.since(undefined)).entries)).not.toContain("warn home Quai Home went offline: nothing can be read or pushed until it's back")
+        yield* TestClock.adjust("10 seconds")
 
         const lines = (yield* journal.since(undefined)).entries
         expect(texts(lines)).toEqual([
@@ -214,6 +218,25 @@ describe("what the Cloud logs", () => {
         expect(home.journal.map((e) => e.text)).toEqual(lines.slice(0, -1).map((e) => e.text))
       }).pipe(Effect.provide(cloudLive.pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))
+
+  it.effect("a link back within a minute is a reconnection: nothing in the journal", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome()
+      yield* home.connect
+      const journal = yield* Journal
+      const kinds = () => journal.since(undefined).pipe(Effect.map((page) => page.entries.map((e) => e.kind)))
+      expect(yield* kinds()).toEqual(["home.linked"])
+      yield* home.disconnect
+      yield* TestClock.adjust("3 seconds")
+      yield* home.connect
+      yield* TestClock.adjust("2 minutes")
+      expect(yield* kinds()).toEqual(["home.linked"])
+      // Away for good: logged once a minute is over, then the return.
+      yield* home.disconnect
+      yield* TestClock.adjust("2 minutes")
+      yield* home.connect
+      expect(yield* kinds()).toEqual(["home.linked", "home.offline", "home.linked"])
+    }).pipe(Effect.provide(quietCloud)))
 })
 
 describe("journal routes", () => {
