@@ -26,11 +26,12 @@ const names = [
 ] as const satisfies ReadonlyArray<keyof CloudSettings>
 
 /**
- * Node's heap limit, in MiB, for the `lite` instance (`wrangler.jsonc`: 256 MiB in all). Node doesn't size its heap to
- * the container: without a limit the heap grows until the container is killed; with one, the garbage collector works
- * harder first. The rest of the 256 MiB is for what lives outside the heap (code, buffers, the WebSocket frames).
+ * Node's heap, sized for the `lite` instance (`wrangler.jsonc`: 256 MiB in all). Node doesn't size its heap to the
+ * container: without a limit it grows until the container is killed; with one, the garbage collector works harder
+ * first. 160 MiB of old generation and 8 MiB semi-spaces make a 184 MiB heap (`v8.getHeapStatistics()`), which leaves
+ * about 70 MiB for what lives outside it (code, buffers, the WebSocket frames).
  */
-export const heapLimitMiB = 160
+export const nodeOptions = "--max-old-space-size=160 --max-semi-space-size=8"
 
 /**
  * The container's environment: Quai Cloud's own `QUAI_*` settings, the ones that are set and not
@@ -39,7 +40,7 @@ export const heapLimitMiB = 160
 export const containerEnvironment = (settings: CloudSettings): Record<string, string> => {
   const environment: Record<string, string> = {
     QUAI_PORT: "8787",
-    NODE_OPTIONS: `--max-old-space-size=${heapLimitMiB}`
+    NODE_OPTIONS: nodeOptions
   }
   for (const name of names) {
     const value = settings[name]?.trim()
