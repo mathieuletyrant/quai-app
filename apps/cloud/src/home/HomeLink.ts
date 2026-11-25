@@ -40,7 +40,6 @@ export const toOffline = (error: HomeError) =>
 
 /** A home Quai Cloud serves, once its documents are loaded. */
 export interface LinkedHome {
-  /** The home this link is to. */
   readonly homeId: string
   /** The services this Quai Home reaches (from its Hello). */
   readonly services: ReadonlyArray<HomeService>
@@ -165,6 +164,7 @@ export const verifyProof = (publicKey: string, nonce: string, signature: string)
  * (see `Homes`): it never sees another home.
  */
 export class HomeLink extends Context.Service<HomeLink, {
+  /** The home this link is to. */
   readonly homeId: string
   /** The home, once its documents are loaded; None while its Quai Home isn't connected. */
   readonly home: Effect.Effect<Option.Option<LinkedHome>>
