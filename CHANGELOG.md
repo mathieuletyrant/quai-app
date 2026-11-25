@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.29.0](https://github.com/mathieuletyrant/quai-app/compare/v0.28.3...v0.29.0) (2026-11-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* the code and the contract speak the glossary's words ([#125](https://github.com/mathieuletyrant/quai-app/issues/125))
+
+### 🐛 Fixes
+
+* **ci:** the release PR gets its checks even when release-please leaves it alone ([#134](https://github.com/mathieuletyrant/quai-app/issues/134)) ([77f352e](https://github.com/mathieuletyrant/quai-app/commit/77f352e5c8dbf9913d404cdb70c38c745e5597b1))
+* **deploy:** the hosted Cloud's Node heap stays under the lite instance's 256 MiB ([#130](https://github.com/mathieuletyrant/quai-app/issues/130)) ([8f25465](https://github.com/mathieuletyrant/quai-app/commit/8f254650f29a0bca5a035a4bc81bc6b08a29a356))
+
+
+### ⚡ Performance
+
+* **cloud:** Upcoming and To fix stay linear in the home's size ([#129](https://github.com/mathieuletyrant/quai-app/issues/129)) ([39e4665](https://github.com/mathieuletyrant/quai-app/commit/39e466505d96c284c94eb547fec756b0446e94c5))
+
+
+### ♻️ Refactoring
+
+* the code and the contract speak the glossary's words ([#125](https://github.com/mathieuletyrant/quai-app/issues/125)) ([1389e6c](https://github.com/mathieuletyrant/quai-app/commit/1389e6c29f5d9d9ff88d621a3c737eb536f3fcb2))
+
 ## [0.28.3](https://github.com/mathieuletyrant/quai-app/compare/v0.28.2...v0.28.3) (2026-11-25)
 
 
