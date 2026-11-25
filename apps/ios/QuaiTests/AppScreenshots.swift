@@ -111,6 +111,9 @@ struct AppScreenshots {
             NavigationStack { NotificationSettingsView() }.tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
+        // Its toggles show once the iPhone's notification settings and the preferences are read:
+        // a fixed wait took the picture before, while the other screens' tests loaded alongside.
+        try await Self.until("the notification toggles") { Self.hasSwitch(in: notifications) }
         try await Self.settle()
         Self.screenshot(notifications, "05-settings-notifications")
     }
@@ -211,6 +214,11 @@ struct AppScreenshots {
         window.makeKeyAndVisible()
         windows.append(window)
         return window
+    }
+
+    /// Whether a toggle (a UISwitch under SwiftUI's) shows anywhere in the view.
+    private static func hasSwitch(in view: UIView) -> Bool {
+        view is UISwitch || view.subviews.contains { hasSwitch(in: $0) }
     }
 
     /// The first scroll view that scrolls vertically, depth first: a screen's content.

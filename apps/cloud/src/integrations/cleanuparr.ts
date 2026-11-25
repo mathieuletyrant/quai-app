@@ -1,11 +1,13 @@
 import { HomeProtocol, type JournalNote, type RemovalReason } from "@quai/api"
-import { Clock, Effect, Option, Schema } from "effect"
+import { Effect, Option, Schema } from "effect"
 import type { Detected, RemovalTarget } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
 import type { QueuedMedia } from "../fixes/MediaFixes.ts"
+import { type GoneItem, goneItem } from "../gone/Gone.ts"
 import type { Read } from "../home/HomeReads.ts"
 import type { Journal } from "../journal/Journal.ts"
 import { epochSeconds, type QueueRecord } from "./arr.ts"
+import { eventFeed, unseenSince } from "./EventFeed.ts"
 import { type Integration, readSnapshot, watchOf } from "./Integration.ts"
 
 /**
@@ -13,8 +15,8 @@ import { type Integration, readSnapshot, watchOf } from "./Integration.ts"
  * errored downloads from the *arr queues once they have enough strikes. Its API takes the account's
  * key as `X-Api-Key` (Settings > Account); every route but `/health` needs it.
  *
- * It feeds the To fix list (a download it removes at its next strike) and the journal (what it
- * removed, polled from its events): no flow event, no Live Activity action.
+ * It feeds the To fix list (a download it removes at its next strike), the journal and Gone (what it
+ * removed or cleaned, polled from its events): no flow event, no Live Activity action.
  */
 
 const Rest = [Schema.Record(Schema.String, Schema.Unknown)] as const
@@ -118,6 +120,27 @@ export const removalsRead: Read<{ readonly items: ReadonlyArray<RemovalEvent> }>
   service: "cleanuparr",
   path: "/api/events?page=1&pageSize=50&eventType=QueueItemDeleted",
   schema: Schema.Struct({ items: Schema.Array(RemovalEvent) })
+}
+
+/** `EventListItem` of a `DownloadCleaned` event: a finished torrent the download cleaner took out of the client. */
+const CleanedEvent = Schema.Struct({
+  id: Schema.String,
+  timestamp: Schema.String,
+  itemTitle: Schema.optional(Schema.NullOr(Schema.String)),
+  itemHash: Schema.optional(Schema.NullOr(Schema.String)),
+  /** `CleanReason`: MaxRatioReached, MaxSeedTimeReached. */
+  cleanReason: Schema.optional(Schema.NullOr(Schema.String)),
+  seedRatio: Schema.optional(Schema.NullOr(Schema.Number)),
+  seedingTimeHours: Schema.optional(Schema.NullOr(Schema.Number)),
+  isDryRun: Schema.optional(Schema.Boolean)
+})
+export type CleanedEvent = typeof CleanedEvent.Type
+
+/** The last torrents the download cleaner took out of the client, newest first. */
+export const cleanedRead: Read<{ readonly items: ReadonlyArray<CleanedEvent> }> = {
+  service: "cleanuparr",
+  path: "/api/events?page=1&pageSize=50&eventType=DownloadCleaned",
+  schema: Schema.Struct({ items: Schema.Array(CleanedEvent) })
 }
 
 // The To fix list: what Cleanuparr removes at its next strike.
@@ -543,13 +566,67 @@ export const removalNote = (event: RemovalEvent): JournalNote => {
   }
 }
 
-/** Cleanuparr's removals are read this often. */
+/** "Cleanuparr took Dune.Part.Two.2024.1080p-FLUX out of qBittorrent after seeding (ratio 2.1, 14 days)". */
+export const cleanedNote = (event: CleanedEvent): JournalNote => {
+  const title = event.itemTitle ?? "a torrent"
+  return {
+    level: "info",
+    source: "cleanuparr",
+    kind: "cleanuparr.cleaned",
+    text: `Cleanuparr took ${title} out of qBittorrent after seeding${seededText(event)}`,
+    ...(event.itemTitle ? { title: event.itemTitle } : {})
+  }
+}
+
+/** " (ratio 2.1, 14 days)": what it seeded, as far as Cleanuparr says. */
+const seededText = (event: CleanedEvent) => {
+  const parts = [
+    ...(event.seedRatio === undefined || event.seedRatio === null ? [] : [`ratio ${event.seedRatio.toFixed(1)}`]),
+    ...(event.seedingTimeHours === undefined || event.seedingTimeHours === null
+      ? []
+      : [seedingTimeText(event.seedingTimeHours)])
+  ]
+  return parts.length === 0 ? "" : ` (${parts.join(", ")})`
+}
+
+const seedingTimeText = (hours: number) => {
+  if (hours < 48) return `${Math.round(hours)} hours`
+  return `${Math.round(hours / 24)} days`
+}
+
+/** A removal, gone: "Cleanuparr took it out of the queue: stalled". */
+export const removalGone = (event: RemovalEvent, at: number): GoneItem => {
+  const why = removedBecause[event.deleteReason ?? ""]
+  return goneItem({
+    kind: "stuckRemoval",
+    source: "cleanuparr",
+    at,
+    title: event.itemTitle ?? "A download",
+    detail: `Cleanuparr took it out of the queue${why === undefined ? "" : `: ${why}`}`
+  })
+}
+
+/** A seed cleanup, gone: "Cleanuparr took it out of qBittorrent after seeding". */
+export const cleanedGone = (event: CleanedEvent, at: number): GoneItem =>
+  goneItem({
+    kind: "seedCleanup",
+    source: "cleanuparr",
+    at,
+    title: event.itemTitle ?? "A torrent",
+    detail: "Cleanuparr took it out of qBittorrent after seeding"
+  })
+
+/** Cleanuparr's events are read this often. */
 export const removalsEverySeconds = 300
 
 export const removalsWatchId = "cleanuparr:removals"
 
-/** On a first read with nothing in the journal yet, the removals of the last hour are logged, not the whole history. */
-export const firstLookBackMs = 3600_000
+export const cleanedWatchId = "cleanuparr:cleaned"
+
+/** An event as its feed dates it, never a dry run. */
+const dated = <E extends { readonly timestamp: string; readonly isDryRun?: boolean | undefined }>(
+  events: ReadonlyArray<E>
+) => events.filter((event) => event.isDryRun !== true).map((event) => ({ ...event, at: Date.parse(event.timestamp) }))
 
 /**
  * The removals not logged yet: newer than `after` (epoch milliseconds), not seen before, never a dry
@@ -559,39 +636,40 @@ export const newRemovals = (
   events: ReadonlyArray<RemovalEvent>,
   after: number,
   seen: ReadonlySet<string>
-): ReadonlyArray<RemovalEvent> =>
-  events
-    .filter((event) => event.isDryRun !== true && !seen.has(event.id) && Date.parse(event.timestamp) > after)
-    .sort((left, right) => Date.parse(left.timestamp) - Date.parse(right.timestamp))
+) => unseenSince(dated(events), after, seen)
 
 /**
- * The journal's Cleanuparr lines: its removals, read every 5 minutes while Quai Home reaches it, each
- * logged once. A Cloud that starts again knows where it was from the journal itself: what's newer
- * than its last removal line is new (the last hour, when there is none).
+ * What Cleanuparr did on its own, read every 5 minutes while Quai Home reaches it: the downloads it
+ * removed from a queue and the torrents it cleaned after seeding. Each is logged once in the
+ * journal, and is gone (a stuck removal, a seed cleanup).
  */
 export const cleanuparr = (journal: Journal["Service"]): Integration => {
-  const seen = new Set<string>()
-  let after: number | undefined
-  const lastLogged = Effect.gen(function*() {
-    const page = yield* journal.history({ limit: 200, sources: ["cleanuparr"] })
-    const last = page.entries.find((entry) => entry.kind === "cleanuparr.removed")
-    return last === undefined ? (yield* Clock.currentTimeMillis) - firstLookBackMs : last.at
-  })
+  const removals = eventFeed(journal, { source: "cleanuparr", kinds: ["cleanuparr.removed"] })
+  const cleaned = eventFeed(journal, { source: "cleanuparr", kinds: ["cleanuparr.cleaned"] })
   return {
     service: "cleanuparr",
-    watcher: {
+    goneWatcher: {
       watches: (context) =>
-        context.services.includes("cleanuparr") ? [watchOf(removalsWatchId, removalsRead, removalsEverySeconds)] : [],
+        context.services.includes("cleanuparr")
+          ? [
+            watchOf(removalsWatchId, removalsRead, removalsEverySeconds),
+            watchOf(cleanedWatchId, cleanedRead, removalsEverySeconds)
+          ]
+          : [],
       read: (snapshot) =>
         Effect.gen(function*() {
+          if (snapshot.watch.id === cleanedWatchId) {
+            const events = yield* readSnapshot(cleanedRead, snapshot)
+            if (Option.isNone(events)) return []
+            const fresh = yield* cleaned.fresh(dated(events.value.items))
+            yield* Effect.forEach(fresh, (event) => journal.log(cleanedNote(event)), { discard: true })
+            return fresh.map((event) => cleanedGone(event, event.at))
+          }
           const events = yield* readSnapshot(removalsRead, snapshot)
           if (Option.isNone(events)) return []
-          after ??= yield* lastLogged
-          const fresh = newRemovals(events.value.items, after, seen)
-          for (const event of events.value.items) seen.add(event.id)
-          if (seen.size > 1000) { for (const id of [...seen].slice(0, seen.size - 1000)) seen.delete(id) }
+          const fresh = yield* removals.fresh(dated(events.value.items))
           yield* Effect.forEach(fresh, (event) => journal.log(removalNote(event)), { discard: true })
-          return []
+          return fresh.map((event) => removalGone(event, event.at))
         })
     },
     actions: {}

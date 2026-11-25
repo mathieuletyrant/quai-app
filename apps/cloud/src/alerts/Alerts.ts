@@ -16,7 +16,8 @@ import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect
 import { Devices } from "../home/Devices.ts"
 import { HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { Journal } from "../journal/Journal.ts"
-import { Apns, ApnsError } from "../push/Apns.ts"
+import { Apns } from "../push/Apns.ts"
+import { sendPlain } from "../push/PlainNotification.ts"
 
 /** One alert a reading found: `what` tells it apart from the others of its kind and scope. */
 export interface Raised {
@@ -165,35 +166,10 @@ export class Alerts extends Context.Service<Alerts, {
         Effect.mapError(store.put(activeKey, alerts), toOffline)
 
       const notify = (alert: StoredAlert, title: string, body: string | undefined) =>
-        Effect.gen(function*() {
-          for (const recipient of yield* devices.alertRecipients(alert.kind)) {
-            yield* apns.send({
-              pushType: "alert",
-              environment: recipient.apnsEnvironment,
-              deviceToken: recipient.token,
-              priority: 10,
-              body: {
-                aps: {
-                  alert: body === undefined ? { title } : { title, body },
-                  sound: "default",
-                  "thread-id": alert.kind
-                }
-              }
-            }).pipe(
-              Effect.catchTag("ApnsError", (error: ApnsError) =>
-                Effect.andThen(
-                  journal.log({
-                    level: "error",
-                    source: "apple",
-                    kind: "push.refused",
-                    text: `Apple refused the alert for ${recipient.name}: ${error.reason}`,
-                    deviceName: recipient.name
-                  }),
-                  error.tokenGone ? devices.dropToken(recipient.token).pipe(Effect.ignore) : Effect.void
-                ))
-            )
-          }
-        })
+        Effect.flatMap(
+          devices.alertRecipients(alert.kind),
+          (recipients) => sendPlain({ apns, devices, journal }, recipients, { title, body, thread: alert.kind })
+        )
 
       const apply = (state: AlertState) =>
         Semaphore.withPermits(lock, 1)(Effect.gen(function*() {

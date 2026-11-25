@@ -6,6 +6,7 @@ import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject,
 import { Alerts } from "../src/alerts/Alerts.ts"
 import { Activities } from "../src/flows/Activities.ts"
 import { FlowStore } from "../src/flows/FlowStore.ts"
+import { Gone } from "../src/gone/Gone.ts"
 import { Devices } from "../src/home/Devices.ts"
 import { HomeError, HomeLink, HomeLinks, offlineMessage } from "../src/home/HomeLink.ts"
 import { HomeReads } from "../src/home/HomeReads.ts"
@@ -108,7 +109,7 @@ export const recordedHome = (
  * (`HomeProtocol.minProtocolVersion`). Protocol 2 added Reclaimerr and `DELETE`, protocol 3 Seerr
  * and the calendars, protocol 5 Cleanuparr and `PUT`, protocol 6 Prowlarr and the *arr health
  * checks, protocol 8 Seerr's search, users and new requests, protocol 9 Cleanuparr's download
- * cleaner and the *arr media management setting.
+ * cleaner and the *arr media management setting, protocol 10 Reclaimerr's event feed.
  */
 type Allowed = Pick<Call, "service" | "method" | "path">
 
@@ -116,6 +117,7 @@ const pathOf = (call: Allowed) => call.path.split("?")[0]!
 
 /** Newest first: the first protocol whose rule matches the call. */
 const protocolRules: ReadonlyArray<readonly [number, (call: Allowed) => boolean]> = [
+  [10, (call) => call.service === "reclaimerr" && pathOf(call) === "/api/v1/events"],
   [
     9,
     (call) =>
@@ -416,7 +418,7 @@ export const cloud = <E, R>(
   link: Layer.Layer<HomeLink | HomeLinks> = testLink
 ) =>
   Hub.layerFed.pipe(
-    Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer)),
+    Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer, Gone.layer)),
     Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
     Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
     Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),

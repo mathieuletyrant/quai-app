@@ -19,7 +19,9 @@ The To fix reads follow Radarr v5 and Sonarr v4's `GET /api/v3/queue` (with `inc
 `includeSeries` and `includeEpisode`), `GET /api/v3/wanted/missing`, `GET /api/v3/history/since`,
 `GET /api/v3/release`, `GET /api/v3/manualimport` and Sonarr's `GET /api/v3/episode`;
 `reclaimerr/candidates.json` follows Reclaimerr 0.6's `GET /api/v1/candidates`
-(`CandidateListResponse`, backend/models/api_v1/candidates.py). Hashes, guids and magnets are
+(`CandidateListResponse`, backend/models/api_v1/candidates.py); `reclaimerr/events-deleted.json` its
+`GET /api/v1/events?event_type=candidate.deleted` (`EventFeedResponse`, models/api_v1/events.py,
+the payload a `CandidateFileEvent`): Severance's first season, then Up. Hashes, guids and magnets are
 masked.
 
 `seerr/` follows Jellyseerr 2's API (`overseerr-api.yml`): `GET /api/v1/request?filter=pending`
@@ -47,5 +49,6 @@ Mouse struck once; Dune struck only in dry run; Night of the Living Dead no long
 Movie already removed), `GET /api/configuration/queue_cleaner` (`queue-cleaner.json`,
 `QueueCleanerConfigResponse`), `GET /api/queue-rules/stall` and `/slow` (`StallRuleResponse`,
 `SlowRuleResponse`), `GET /api/jobs/QueueCleaner` (`job-queue-cleaner.json`, `JobInfo`) and
-`GET /api/events?eventType=QueueItemDeleted` (`events-removed.json`, `PaginatedResult<EventListItem>`,
+`GET /api/events?eventType=DownloadCleaned` (`events-cleaned.json`: Fool Night cleaned after
+seeding, and a dry run), `GET /api/events?eventType=QueueItemDeleted` (`events-removed.json`, `PaginatedResult<EventListItem>`,
 one of them a dry run). Their download ids are the Radarr and Sonarr queue fixtures'.

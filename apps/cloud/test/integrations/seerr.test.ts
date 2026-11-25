@@ -207,7 +207,7 @@ describe("Seerr requests", () => {
       const watch = { id: pendingWatchId, service: "seerr" as const, path: "/api/v1/request", everySeconds: 60 }
       const events = yield* integration.watcher!.read(
         { watch, status: 200, body: JSON.stringify(fixture("seerr/requests-pending.json")) },
-        { flows: [series], running: [], services, now, timeZone: "UTC", alerts: defaultAlertSettings }
+        { flows: [series], running: [], services, now, timeZone: "UTC", alerts: defaultAlertSettings, gone: [] }
       )
       expect(events.map((event) => event.subject?.key)).toEqual(["request:13"])
     }).pipe(Effect.provide(engine)))

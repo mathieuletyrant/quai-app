@@ -2,6 +2,7 @@ import {
   type ActionType,
   type AlertSettings,
   type Flow,
+  type GoneKind,
   type HomeProtocol,
   type IntegrationSource,
   InvalidAction
@@ -10,6 +11,7 @@ import { Context, Effect, Option, Schema } from "effect"
 import type { AlertState } from "../alerts/Alerts.ts"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
+import type { GoneItem } from "../gone/Gone.ts"
 import type { CallRequest } from "../home/HomeLink.ts"
 import type { HomeReads, Read } from "../home/HomeReads.ts"
 
@@ -26,14 +28,18 @@ export interface WatchContext {
   readonly timeZone: string
   /** Which alerts are on, and their thresholds. */
   readonly alerts: AlertSettings
+  /** The kinds of gone an iPhone turned on: their feeds are watched only then. */
+  readonly gone: ReadonlyArray<GoneKind>
   /** The linked Home's protocol version; absent: the current one. */
   readonly protocol?: number
 }
 
-/** What a reading means: catalog events for the flows, or the state of an alert. */
-export type Signal = FlowEvent | AlertState
+/** What a reading means: catalog events for the flows, the state of an alert, or something gone. */
+export type Signal = FlowEvent | AlertState | GoneItem
 
 export const isAlertState = (signal: Signal): signal is AlertState => "_tag" in signal && signal._tag === "AlertState"
+
+export const isGone = (signal: Signal): signal is GoneItem => "_tag" in signal && signal._tag === "Gone"
 
 /** What Quai Home read for one watch, sent because it changed (or is the first read). */
 export interface Snapshot {
@@ -100,6 +106,8 @@ export interface Integration {
   readonly watcher?: Watcher
   /** Readings that say whether an alert is going on (alerts/Alerts.ts), rather than flow events. */
   readonly alertWatcher?: Watcher<AlertState>
+  /** Readings of what the service did on its own (gone/Gone.ts): logged by the integration, notified by Gone. */
+  readonly goneWatcher?: Watcher<GoneItem>
   readonly actions: Partial<Record<ActionType, ActionHandler>>
 }
 

@@ -6,8 +6,9 @@ struct LiveActivitySettingsView: View {
     @Environment(Connection.self) private var connection
     @State private var flows: [Components.Schemas.FlowSummary] = []
     @State private var preferences: [String: Components.Schemas.FlowPreference] = [:]
-    /// Kept as loaded: saved again with the flows, so this screen never unmutes an alert.
-    @State private var mutedAlerts: [Components.Schemas.AlertKind]?
+    /// Kept as loaded: saved again with the flows, so this screen never changes the alerts, what is
+    /// gone or the requester.
+    @State private var loadedPreferences: Components.Schemas.DevicePreferences?
     @State private var status: String?
     @State private var loaded = false
 
@@ -56,7 +57,7 @@ struct LiveActivitySettingsView: View {
             flows = try await all
             let read = try await saved
             preferences = read.flows.additionalProperties
-            mutedAlerts = read.mutedAlerts
+            loadedPreferences = read
             loaded = true
         } catch {
             status = error.message(replacing: status)
@@ -68,11 +69,13 @@ struct LiveActivitySettingsView: View {
         var next = preference(id)
         change(&next)
         preferences[id] = next
-        let all = preferences
-        let muted = mutedAlerts
+        var saved = loadedPreferences ?? .init(flows: .init(additionalProperties: [:]))
+        saved.flows = .init(additionalProperties: preferences)
+        loadedPreferences = saved
+        let toSave = saved
         Task {
             do {
-                try await connection.save(.init(flows: .init(additionalProperties: all), mutedAlerts: muted))
+                try await connection.save(toSave)
                 status = nil
             } catch {
                 status = error.message(replacing: status)

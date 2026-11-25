@@ -5,6 +5,8 @@ filling up, a problem an *arr reports about itself. It isn't a Live Activity, wh
 something that moves and ends soon (a download, a playback): a Live Activity left on the Lock
 Screen for days says nothing new, and iOS ends it after 8 hours anyway. An alert is a plain
 notification when it starts, another when it's over, and a line on the app's Home while it lasts.
+What the stack has done on its own (a deletion carried out) is not an alert but *gone*: see
+[ADR 2](adr/0002-gone-is-not-an-alert.md).
 
 ## The alerts
 

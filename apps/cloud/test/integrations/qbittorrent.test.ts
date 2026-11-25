@@ -38,7 +38,8 @@ const ctx = (running: ReadonlyArray<Activity>): WatchContext => ({
   services: ["qbittorrent"],
   now: 0,
   timeZone: "UTC",
-  alerts: defaultAlertSettings
+  alerts: defaultAlertSettings,
+  gone: []
 })
 
 describe("qBittorrent", () => {

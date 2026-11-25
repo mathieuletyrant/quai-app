@@ -11,7 +11,8 @@ const context = (alerts = defaultAlertSettings): WatchContext => ({
   services: ["radarr", "qbittorrent"],
   now: 0,
   timeZone: "UTC",
-  alerts
+  alerts,
+  gone: []
 })
 const fiveMinutes = 5 * 60_000
 const off = { ...defaultAlertSettings, serviceDown: { enabled: false, afterMinutes: 5 } }

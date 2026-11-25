@@ -281,3 +281,86 @@ export const plannedDeletionFixes = (
       target: { kind: "candidate", candidateId: candidate.id }
     }
   })
+
+// Gone: what Reclaimerr carried out, from its event feed.
+
+/** The feed's file events Gone reads: a title deleted, or moved elsewhere. */
+export const fileEventTypes = ["candidate.deleted", "candidate.moved"] as const
+export type FileEventType = typeof fileEventTypes[number]
+
+/**
+ * `EventResponse` (models/api_v1/events.py) of a file event: its payload is `CandidateFileEvent`
+ * (models/lifecycle_events.py), only the fields Quai reads. Its own `candidate_id` is always null for
+ * these: the candidate is in the payload.
+ */
+const FileEvent = Schema.Struct({
+  id: Schema.String,
+  type: Schema.String,
+  occurred_at: Schema.String,
+  payload: Schema.Struct({
+    action: Schema.optional(Schema.NullOr(Schema.String)),
+    media_type: Schema.optional(Schema.NullOr(Schema.String)),
+    /** The movie's or the series' title: a season or an episode is in its own fields. */
+    title: Schema.optional(Schema.NullOr(Schema.String)),
+    tmdb_id: Schema.optional(Schema.NullOr(Schema.Number)),
+    candidate_id: Schema.optional(Schema.NullOr(Schema.Number)),
+    season_number: Schema.optional(Schema.NullOr(Schema.Number)),
+    episode_number: Schema.optional(Schema.NullOr(Schema.Number))
+  })
+})
+export type FileEvent = typeof FileEvent.Type
+
+/** The feed, oldest first: 200 is its largest page. */
+const EventFeed = Schema.Struct({ items: Schema.Array(FileEvent) })
+
+/** How far back the feed is read: the hour Gone notifies, and the hour it started in. */
+const feedWindowMs = 3600_000
+
+/**
+ * The feed's events of one type since the start of the hour before `now`. The feed lists the oldest
+ * first, so it is read from a recent point: the path changes once an hour, not at each read.
+ */
+export const fileEventsRead = (type: FileEventType, now: number): Read<typeof EventFeed.Type> => {
+  const since = new Date(Math.floor((now - feedWindowMs) / feedWindowMs) * feedWindowMs).toISOString()
+  return {
+    service: "reclaimerr",
+    path: `/api/v1/events?event_type=${type}&limit=200&occurred_after=${encodeURIComponent(since)}`,
+    schema: EventFeed
+  }
+}
+
+const twoDigits = (value: number) => String(value).padStart(2, "0")
+
+/** "Vampire Diaries S07", "Percy Jackson S03E04": a season or an episode after its series' title. */
+export const fileEventTitle = (event: FileEvent): string => {
+  const title = event.payload.title ?? "A title"
+  const season = event.payload.season_number ?? undefined
+  if (season === undefined) return title
+  const episode = event.payload.episode_number ?? undefined
+  return `${title} S${twoDigits(season)}${episode === undefined ? "" : `E${twoDigits(episode)}`}`
+}
+
+/**
+ * The candidate a file event carried out, as Reclaimerr last listed it (`known`), else from the
+ * event: what space back is decided on. Its size is only known from the list.
+ */
+export const carriedOut = (event: FileEvent, known: Candidate | undefined, now: number): PlannedCandidate => {
+  const payload = event.payload
+  const episode = payload.episode_number ?? undefined
+  const season = payload.season_number ?? undefined
+  const candidate: Candidate = known ?? {
+    id: payload.candidate_id ?? 0,
+    media_type: payload.media_type ?? "movie",
+    title: fileEventTitle(event),
+    tmdb_id: payload.tmdb_id ?? null,
+    scope: episode !== undefined ? "episode" : season !== undefined ? "season" : payload.media_type ?? "movie",
+    season_number: season ?? null,
+    reason: "",
+    auto_delete_state: "eligible"
+  }
+  return {
+    candidate,
+    deletesAt: Math.floor(now / 1000),
+    operation: event.type === "candidate.moved" ? "move" : "delete"
+  }
+}

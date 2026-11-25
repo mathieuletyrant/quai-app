@@ -6,6 +6,8 @@ import {
   type DeviceId,
   type DevicePreferences,
   DevicePreferences as DevicePreferencesSchema,
+  type GoneKind,
+  goneKinds,
   type HomeOffline
 } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
@@ -96,6 +98,22 @@ export const DeviceDocument = Schema.Struct({
 })
 export type DeviceDocument = typeof DeviceDocument.Type
 
+/** The iPhones that allowed notifications and want this one, as the pushes and the journal name them. */
+const notified = (
+  devices: ReadonlyArray<DeviceDocument>,
+  wants: (device: DeviceDocument) => boolean
+): ReadonlyArray<AlertRecipient> =>
+  devices.flatMap((device): ReadonlyArray<AlertRecipient> =>
+    device.notificationToken === undefined || !wants(device)
+      ? []
+      : [{
+        deviceId: device.id as DeviceId,
+        name: device.name,
+        apnsEnvironment: device.apnsEnvironment,
+        token: device.notificationToken
+      }]
+  )
+
 /** `pairing/<SHA-256 of the code>`: a code not used yet. Spending it deletes it. */
 export const PairingDocument = Schema.Struct({ expiresAt: Schema.Number })
 
@@ -185,6 +203,10 @@ export class Devices extends Context.Service<Devices, {
   readonly dropToken: (token: string) => Effect.Effect<void, HomeOffline>
   /** The iPhones that get an alert of this kind: notifications allowed, the alert not muted. */
   readonly alertRecipients: (kind: AlertKind) => Effect.Effect<ReadonlyArray<AlertRecipient>, HomeOffline>
+  /** The iPhones that get this kind once gone: notifications allowed, the kind turned on. */
+  readonly goneRecipients: (kind: GoneKind) => Effect.Effect<ReadonlyArray<AlertRecipient>, HomeOffline>
+  /** The kinds of gone at least one iPhone turned on: what is worth watching. */
+  readonly goneWanted: Effect.Effect<ReadonlyArray<GoneKind>, HomeOffline>
 }>()("quai/Devices") {
   /** The paired iPhones, as home documents. */
   static readonly layer = Layer.effect(
@@ -397,18 +419,21 @@ export class Devices extends Context.Service<Devices, {
         alertRecipients: (kind) =>
           Effect.map(
             all,
-            (devices) =>
-              devices.flatMap((device): ReadonlyArray<AlertRecipient> =>
-                device.notificationToken === undefined || (device.preferences.mutedAlerts ?? []).includes(kind)
-                  ? []
-                  : [{
-                    deviceId: device.id as DeviceId,
-                    name: device.name,
-                    apnsEnvironment: device.apnsEnvironment,
-                    token: device.notificationToken
-                  }]
+            (devices) => notified(devices, (device) => !(device.preferences.mutedAlerts ?? []).includes(kind))
+          ),
+
+        goneRecipients: (kind) =>
+          Effect.map(all, (devices) => notified(devices, (device) => (device.preferences.gone ?? []).includes(kind))),
+
+        goneWanted: Effect.map(
+          all,
+          (devices) =>
+            goneKinds.filter((kind) =>
+              devices.some((device) =>
+                device.notificationToken !== undefined && (device.preferences.gone ?? []).includes(kind)
               )
-          )
+            )
+        )
       }
     })
   )
