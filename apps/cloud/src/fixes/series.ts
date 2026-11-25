@@ -21,6 +21,7 @@ import {
   type MissingEpisode,
   SonarrEpisodes,
   SonarrGrabs,
+  sonarrGrabsRead,
   SonarrMissing,
   sonarrMissingPath,
   sonarrQueuePath
@@ -201,7 +202,7 @@ export const series: MediaFixes<SeriesTarget> = {
       reads.all({
         queue: sonarrQueue,
         missing: { service: "sonarr", path: sonarrMissingPath, schema: SonarrMissing },
-        grabs: { service: "sonarr", path: grabsSincePath(nowMs - grabLookbackMs), schema: SonarrGrabs }
+        grabs: sonarrGrabsRead(nowMs - grabLookbackMs)
       }),
       ({ values }) =>
         // The rules need all three reads.

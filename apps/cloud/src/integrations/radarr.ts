@@ -2,7 +2,7 @@ import type { DiskSpace, LibraryItem } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { knownId, movieKey } from "../flows/Events.ts"
-import { ArrImage, epochSeconds, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
+import { ArrImage, epochSeconds, grabsSincePath, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
 import type { Integration } from "./Integration.ts"
 
@@ -115,6 +115,9 @@ const LibraryMovie = Schema.Struct({
 export const RadarrMovies = Schema.Array(LibraryMovie)
 export type RadarrMovie = typeof LibraryMovie.Type
 
+/** Every movie: the library, the posters of Reclaimerr's deletions, Upcoming's space back. */
+export const radarrMoviesRead: Read<typeof RadarrMovies.Type> & { readonly service: "radarr" } = { service: "radarr", path: "/api/v3/movie", schema: RadarrMovies }
+
 export const DiskSpaces = Schema.Array(Schema.Struct({
   path: Schema.optional(Schema.String),
   freeSpace: Schema.Number,
@@ -197,8 +200,15 @@ export const RadarrMissing = Schema.Struct({ records: Schema.Array(MissingMovie)
 export const RadarrGrabs = Schema.Array(Schema.Struct({
   movieId: Schema.Number,
   date: Schema.String,
-  eventType: Schema.optional(Schema.String)
+  eventType: Schema.optional(Schema.String),
+  /** The release's name. */
+  sourceTitle: Schema.optional(Schema.String),
+  /** The download's id: a torrent's hash. */
+  downloadId: Schema.optional(Schema.NullOr(Schema.String))
 }))
+
+/** The grabs since `ms`: what To fix knows was grabbed, what Upcoming ties each torrent to. */
+export const radarrGrabsRead = (ms: number): Read<typeof RadarrGrabs.Type> & { readonly service: "radarr" } => ({ service: "radarr", path: grabsSincePath(ms), schema: RadarrGrabs })
 
 // Today's releases: the movies out today, `GET /api/v3/calendar`.
 

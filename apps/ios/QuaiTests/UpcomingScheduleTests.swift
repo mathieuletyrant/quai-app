@@ -27,6 +27,9 @@ struct UpcomingScheduleTests {
         #expect(schedule.when(week) == "Thu–Sun, Nov 26–29")
         let acrossMonths = try item(#"{"id":"s2","kind":"seedCleanup","service":"cleanuparr","title":"2 torrents","at":1796032800,"until":1796547600,"timed":false,"earliest":false,"count":2}"#)
         #expect(schedule.when(acrossMonths) == "Mon Nov 30 – Sun Dec 6")
+        // A week starting today still says its days.
+        let thisWeek = try item(#"{"id":"s4","kind":"seedCleanup","service":"cleanuparr","title":"3 torrents","at":1795613400,"until":1795942800,"timed":false,"earliest":false,"count":3}"#)
+        #expect(schedule.when(thisWeek) == "Wed–Sun, Nov 25–29")
         let byRatio = try item(#"{"id":"s3","kind":"seedCleanup","service":"cleanuparr","title":"1 torrent","timed":false,"earliest":false,"count":1}"#)
         #expect(schedule.period(byRatio) == .byRatio)
     }

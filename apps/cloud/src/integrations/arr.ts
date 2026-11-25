@@ -1,5 +1,6 @@
 import type { Release } from "@quai/api"
 import { Schema } from "effect"
+import type { Read } from "../home/HomeReads.ts"
 
 /**
  * What Radarr and Sonarr share: they run on the same framework, so their images, dates, queue,
@@ -205,23 +206,23 @@ export const echoed = (row: ManualImportRow) => ({
 })
 
 
-// Upcoming's space coming back: which download each title came from, and whether imports are hardlinks.
-
-/** A grab in the history: the title it was for and the download's id (a torrent's hash). */
-export const DownloadGrabs = Schema.Array(Schema.Struct({
-  movieId: Schema.optional(Schema.Number),
-  seriesId: Schema.optional(Schema.Number),
-  /** The release's name: "Severance.S02.1080p…". */
-  sourceTitle: Schema.optional(Schema.String),
-  downloadId: Schema.optional(Schema.NullOr(Schema.String))
-}))
-export type DownloadGrab = (typeof DownloadGrabs.Type)[number]
+// Upcoming's space coming back: whether imports are hardlinks, and which season a release is.
 
 /** `GET /api/v3/config/mediamanagement`: whether imports are hardlinks (the same files) or copies. */
 export const MediaManagement = Schema.Struct({ copyUsingHardlinks: Schema.Boolean })
 
-/** The season a release name covers ("S02", "S02E05"), when it says one. */
+export const mediaManagementRead = <S extends "radarr" | "sonarr">(service: S): Read<typeof MediaManagement.Type> & { readonly service: S } => ({
+  service,
+  path: "/api/v3/config/mediamanagement",
+  schema: MediaManagement
+})
+
+/**
+ * The one season a release name covers ("S02", "S02E05"). Undefined when it names none or several
+ * ("S01-S03", "S01.S02", "Complete"): the release is the whole series, as far as Quai can tell.
+ */
 export const seasonOfRelease = (name: string): number | undefined => {
-  const match = /(?:^|[^a-z0-9])s(\d{1,2})(?:e\d{1,3})?(?:[^a-z0-9]|$)/i.exec(name)
-  return match === null ? undefined : Number(match[1])
+  if (/(?:^|[^a-z0-9])s\d{1,2}\s*[-–]\s*s?\d{1,2}(?:[^a-z0-9]|$)/i.test(name)) return undefined
+  const seasons = new Set([...name.matchAll(/(?:^|[^a-z0-9])s(\d{1,2})(?:e\d{1,3})*(?=[^a-z0-9]|$)/gi)].map((m) => Number(m[1])))
+  return seasons.size === 1 ? [...seasons][0] : undefined
 }

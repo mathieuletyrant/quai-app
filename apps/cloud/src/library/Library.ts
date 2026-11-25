@@ -5,8 +5,8 @@ import type { Activity } from "../flows/Engine.ts"
 import { movieKey, seriesKey } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import { DiskSpaces, libraryMovie, mediaDisk, RadarrMovies } from "../integrations/radarr.ts"
-import { librarySeries, SonarrSeries } from "../integrations/sonarr.ts"
+import { DiskSpaces, libraryMovie, mediaDisk, radarrMoviesRead } from "../integrations/radarr.ts"
+import { librarySeries, sonarrSeriesRead } from "../integrations/sonarr.ts"
 
 /** A torrent of this title is being downloaded: its activity sits on the step a grab enters. */
 const downloadsOf = (running: ReadonlyArray<Activity>, flows: ReadonlyArray<Flow>) => {
@@ -47,8 +47,8 @@ export class Library extends Context.Service<Library, {
 
       const list = Effect.gen(function*() {
         const { values, unavailable } = yield* reads.all({
-          movies: { service: "radarr", path: "/api/v3/movie", schema: RadarrMovies },
-          series: { service: "sonarr", path: "/api/v3/series", schema: SonarrSeries },
+          movies: radarrMoviesRead,
+          series: sonarrSeriesRead,
           radarrDisk: { service: "radarr", path: "/api/v3/diskspace", schema: DiskSpaces }
         }, { optional: ["radarrDisk"] })
         const { movies, series, radarrDisk } = values

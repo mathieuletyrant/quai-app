@@ -12,9 +12,9 @@ import {
   strikesRead,
   struckDownloads
 } from "../integrations/cleanuparr.ts"
-import { type RadarrMovie, RadarrMovies } from "../integrations/radarr.ts"
+import { radarrMoviesRead } from "../integrations/radarr.ts"
 import { type Candidate, deletionCandidates, isMovie, scheduledDeletions } from "../integrations/reclaimerr.ts"
-import { type SonarrSeries as SonarrSeriesOne, SonarrSeries } from "../integrations/sonarr.ts"
+import { sonarrSeriesRead } from "../integrations/sonarr.ts"
 import type { Detected } from "./Detected.ts"
 import { movies } from "./movies.ts"
 import { series } from "./series.ts"
@@ -24,30 +24,20 @@ import { series } from "./series.ts"
  * Reclaimerr plans and the downloads Cleanuparr's queue cleaner removes at its next strike.
  */
 
-/** The Radarr movies and Sonarr series Reclaimerr's planned deletions are, read only when one is planned. */
-export interface CandidateLibrary {
-  readonly movies?: ReadonlyArray<RadarrMovie> | undefined
-  readonly series?: ReadonlyArray<SonarrSeriesOne> | undefined
-}
-
-/** The libraries the planned deletions need; one that can't be read is left out. */
-export const candidateLibrary = (reads: HomeReads["Service"], candidates: ReadonlyArray<Candidate>) =>
-  Effect.gen(function*(): Effect.fn.Return<CandidateLibrary, HomeOffline> {
-    const due = deletionCandidates(candidates)
-    const { values } = yield* reads.all({
-      movies: due.some(isMovie) ? { service: "radarr", path: "/api/v3/movie", schema: RadarrMovies } : null,
-      series: due.some((c) => !isMovie(c)) ? { service: "sonarr", path: "/api/v3/series", schema: SonarrSeries } : null
-    }, { optional: ["movies", "series"] })
-    return { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) }
-  })
-
 /**
  * Reclaimerr gives no poster: its scheduled deletions take theirs from the Radarr movie or Sonarr
- * series they are. A library that can't be read leaves the deletion without a poster; Quai Home gone
- * offline fails, like every other read.
+ * series they are, read only when one is planned. A library that can't be read leaves the deletion
+ * without a poster; Quai Home gone offline fails, like every other read.
  */
 export const deletionsWithPosters = (reads: HomeReads["Service"], candidates: ReadonlyArray<Candidate>) =>
-  Effect.map(candidateLibrary(reads, candidates), (library) => scheduledDeletions(candidates, library))
+  Effect.gen(function*(): Effect.fn.Return<ReadonlyArray<Detected>, HomeOffline> {
+    const due = deletionCandidates(candidates)
+    const { values } = yield* reads.all({
+      movies: due.some(isMovie) ? radarrMoviesRead : null,
+      series: due.some((c) => !isMovie(c)) ? sonarrSeriesRead : null
+    }, { optional: ["movies", "series"] })
+    return scheduledDeletions(candidates, { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) })
+  })
 
 /**
  * Cleanuparr's planned removals: its strikes, limits and next run, then, when a download is struck,

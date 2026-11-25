@@ -14,17 +14,6 @@ extension Components.Schemas.UpcomingItem {
     /// "Severance · S02E05", "Dune", "14 torrents"
     var headline: String { episode.map { "\(title) · \($0)" } ?? title }
 
-    /// Who does it, the row's tag.
-    var serviceName: String {
-        switch service {
-        case .radarr: "Radarr"
-        case .sonarr: "Sonarr"
-        case .reclaimerr: "Reclaimerr"
-        case .cleanuparr: "Cleanuparr"
-        case .qbittorrent: "qBittorrent"
-        }
-    }
-
     /// The symbol a row without a poster shows.
     var symbol: String {
         switch kind {
@@ -105,12 +94,13 @@ struct UpcomingSchedule {
         guard let at = item.at else { return "No date: by ratio" }
         let date = Date(timeIntervalSince1970: at)
         let earliest = item.earliest ? "Earliest " : ""
+        // A week of seed cleanups starting today still says its days.
+        if let until = item.until.map(Date.init(timeIntervalSince1970:)), !calendar.isDate(date, inSameDayAs: until) {
+            return earliest + range(date, until)
+        }
         if daysAhead(date) == 0 {
             if item.timed { return earliest + format("HH:mm", date) }
             return item.isComing ? "Out today" : earliest + "Today"
-        }
-        if let until = item.until.map(Date.init(timeIntervalSince1970:)), !calendar.isDate(date, inSameDayAs: until) {
-            return earliest + range(date, until)
         }
         return earliest + format("EEE MMM d", date)
     }
@@ -277,12 +267,12 @@ struct UpcomingRow: View {
             }
             .frame(width: posterWidth, height: posterWidth * 1.5)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.serviceName.uppercased())
-                    .font(.system(size: 11, weight: .bold))
+                Text(item.service.name.uppercased())
+                    .font(QuaiFont.tag)
                     .tracking(0.6)
                     .foregroundStyle(item.tint)
                 Text(item.headline)
-                    .font(.system(size: compact ? 15 : 16, weight: .semibold))
+                    .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
                     .foregroundStyle(Palette.primaryText)
                     .lineLimit(1)
                 Text(when)
@@ -293,7 +283,7 @@ struct UpcomingRow: View {
             Spacer(minLength: 8)
             if let freesBytes = item.freesBytes {
                 Text("+" + Format.bytes(freesBytes))
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(QuaiFont.subheadline.weight(.semibold))
                     .foregroundStyle(Palette.ok)
                     .accessibilityLabel("Frees \(Format.bytes(freesBytes))")
             }

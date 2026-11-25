@@ -19,7 +19,7 @@ export const UpcomingService = Schema.Literals(["radarr", "sonarr", "reclaimerr"
 export type UpcomingService = typeof UpcomingService.Type
 
 export const UpcomingItem = Schema.Struct({
-  /** Stable while it's planned: `release-episode-<id>`, `deletion-<candidate id>`, `removal-<id>`, `seed-<week day>-<rule>`. */
+  /** Stable while it's planned: `release-episode-<id>`, `release-movie-<id>`, `deletion-<candidate id>`, `removal-<id>`, `seed-<Monday of its week>`, `seed-ratio`. */
   id: Schema.String,
   kind: UpcomingKind,
   service: UpcomingService,

@@ -2,7 +2,8 @@ import type { LibraryItem } from "@quai/api"
 import { Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { knownId, seriesKey } from "../flows/Events.ts"
-import { ArrImage, epochSeconds, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
+import type { Read } from "../home/HomeReads.ts"
+import { ArrImage, epochSeconds, grabsSincePath, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import type { Integration } from "./Integration.ts"
 
 const Series = Schema.Struct({
@@ -111,6 +112,9 @@ const LibrarySeries = Schema.Struct({
 export const SonarrSeries = Schema.Array(LibrarySeries)
 export type SonarrSeries = typeof LibrarySeries.Type
 
+/** Every series: the library, the posters of Reclaimerr's deletions, Upcoming's space back. */
+export const sonarrSeriesRead: Read<typeof SonarrSeries.Type> & { readonly service: "sonarr" } = { service: "sonarr", path: "/api/v3/series", schema: SonarrSeries }
+
 /**
  * A series as the library lists it. `episodeCount` is Sonarr's own count: its monitored episodes
  * that aired, plus every episode that has a file (monitored or not), 0 when none.
@@ -190,9 +194,17 @@ export const SonarrMissing = Schema.Struct({ records: Schema.Array(MissingEpisod
 
 export const SonarrGrabs = Schema.Array(Schema.Struct({
   episodeId: Schema.Number,
+  seriesId: Schema.optional(Schema.Number),
   date: Schema.String,
-  eventType: Schema.optional(Schema.String)
+  eventType: Schema.optional(Schema.String),
+  /** The release's name: "Severance.S02.1080p…". */
+  sourceTitle: Schema.optional(Schema.String),
+  /** The download's id: a torrent's hash. */
+  downloadId: Schema.optional(Schema.NullOr(Schema.String))
 }))
+
+/** The grabs since `ms`: what To fix knows was grabbed, what Upcoming ties each torrent to. */
+export const sonarrGrabsRead = (ms: number): Read<typeof SonarrGrabs.Type> & { readonly service: "sonarr" } => ({ service: "sonarr", path: grabsSincePath(ms), schema: SonarrGrabs })
 
 export const SonarrEpisodes = Schema.Array(Schema.Struct({
   id: Schema.Number,

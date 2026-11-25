@@ -12,6 +12,8 @@ enum QuaiFont {
     static let bodyEmphasized = Font.system(size: 16, weight: .semibold)
     static let subheadline = Font.system(size: 15)
     static let caption = Font.system(size: 13)
+    /// A service's name over a title, in small capitals.
+    static let tag = Font.system(size: 11, weight: .bold)
 }
 
 enum Metrics {

@@ -37,10 +37,20 @@ With hardlinks a title's space comes back only when its library copy and every t
 files (cross-seeds too) are gone. So the "+X GB" sits on the row of the **last** of these: a Reclaimerr
 deletion whose torrent still seeds shows nothing, and its size shows on the week its seed cleanup lands.
 
-- Library → torrent: the *arr history's `downloadId` (the torrent hash).
+- Library → torrent: the *arr history's grabs (`downloadId`, the torrent hash), read from a day before
+  the oldest torrent. A season pack names its season; a multi-season pack is the whole series.
 - Hardlinks or copies: Radarr's and Sonarr's media management setting.
-- Cross-seeds: same name and size in qBittorrent (`cross-seed-link`); unsure → no "+X GB".
-- qBittorrent didn't answer: every row stays, the "+X GB" that depend on seeding go, and a line says so.
+- A title the *arr lists with no file is gone; one it doesn't list may have been removed without its
+  files: not gone.
+- A Reclaimerr movie version is the Radarr movie only when they weigh the same (within 2 %).
+- Cross-seeds: same name and size in qBittorrent. A torrent Quai can't place (no grab: added by hand,
+  older than the history, another name) may hold any title: no hardlinked deletion frees anything then.
+- A seed cleanup's date is exact for a seed time; the latest for a rule with a ratio too; the earliest
+  (maybe never) for a rule that waits for seeders or inactivity. A row gets the space only when its
+  moment is surely the last copy going.
+- A Cleanuparr rule Quai can't evaluate (trackers, privacy unknown) before the one that matches: the
+  torrent has no plan. A stopped torrent gets no closer to its limits.
+- qBittorrent didn't answer: every row stays, the "+X GB" go, and a line says so.
 
 ## States
 
@@ -51,8 +61,11 @@ A service Quai Home doesn't reach is never mentioned. One that didn't answer get
 
 - Releases are read for a range of days; Today's releases, the tile and the Live Activity read one day.
 - Deletions and stuck removals come from the functions that feed To fix and the Planned deletion alert.
-- Allowlist additions (Quai Home update needed): Cleanuparr `GET /api/configuration/download_cleaner` and
-  `GET /api/jobs/DownloadCleaner`; Radarr and Sonarr history and `/api/v3/config/mediamanagement`.
+- Allowlist additions (Quai Home protocol 9): Cleanuparr `GET /api/configuration/download_cleaner` and
+  `GET /api/jobs/DownloadCleaner`, Radarr's and Sonarr's `GET /api/v3/config/mediamanagement`. The
+  history and the finished torrents were already allowed.
+- Code: `upcoming/Rows.ts` (the rows), `upcoming/SpaceInputs.ts` and `upcoming/SpaceBack.ts` (the space),
+  `seedCleanups` in `integrations/cleanuparr.ts`, all pure and tested; `upcoming/Upcoming.ts` only reads.
 
 ## Later
 
