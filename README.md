@@ -37,7 +37,7 @@ You choose which ones run, and what each step shows, in a small flow editor in t
 
 **Alerts**
 - 🚨 **Notifications** for what may last: a service that stops answering, the media disk running low, a problem Radarr, Sonarr or Prowlarr report. One when it starts, one when it's over; set up in the console, muted per iPhone.
-- 🧹 **Gone**: a notification once Reclaimerr deleted a title, or Cleanuparr removed a stuck download or cleaned a torrent after seeding, with the space that came back. Off until turned on, per iPhone.
+- 🧹 **Gone**: a notification once Reclaimerr deleted a title (with the space that came back, when it surely did), or Cleanuparr removed a stuck download or cleaned a torrent after seeding. Off until turned on, per iPhone.
 
 The app is for living with Quai, the console for setting it up: services, flows and iPhones, plus the alerts and the journal of what Quai did.
 
