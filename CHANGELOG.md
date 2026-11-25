@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.1](https://github.com/mathieuletyrant/quai-app/compare/v0.29.0...v0.29.1) (2026-11-25)
+
+
+### 🐛 Fixes
+
+* **home:** the link to Quai Cloud stays up after a console answer ([#137](https://github.com/mathieuletyrant/quai-app/issues/137)) ([10cda0b](https://github.com/mathieuletyrant/quai-app/commit/10cda0b48d8fba6bf64d2468621327385f3bcf96))
+
 ## [0.29.0](https://github.com/mathieuletyrant/quai-app/compare/v0.28.3...v0.29.0) (2026-11-25)
 
 
