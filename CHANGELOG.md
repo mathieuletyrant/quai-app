@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.1](https://github.com/mathieuletyrant/quai-app/compare/v0.28.0...v0.28.1) (2026-11-25)
+
+
+### 🐛 Fixes
+
+* Upcoming always shows the episode, opens a release's title, frees space past unrelated torrents ([#117](https://github.com/mathieuletyrant/quai-app/issues/117)) ([9b18a15](https://github.com/mathieuletyrant/quai-app/commit/9b18a15f4b64003f1692fab88fee6ac004d1e2ba))
+
 ## [0.28.0](https://github.com/mathieuletyrant/quai-app/compare/v0.27.6...v0.28.0) (2026-11-25)
 
 
