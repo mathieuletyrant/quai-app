@@ -95,7 +95,6 @@ jobs:
   live-activity-pushes:
     needs: changes
     if: >
-      github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.pushes == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -181,7 +180,6 @@ jobs:
   ios:
     needs: [changes, ios-client]
     if: >
-      github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.ios == 'true'
     runs-on: macos-26
     timeout-minutes: 30

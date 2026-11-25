@@ -25,7 +25,8 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
       # The release PR is opened and updated with GITHUB_TOKEN, which starts no pull_request run: dispatch ci on its
-      # branch so the PR gets its checks, `required` among them, and can merge.
+      # branch so the PR gets its checks, `required` among them, and can merge. It changes the changelog and the
+      # versions only, so the iOS build and the push model, which run on what a branch changes, stay skipped.
       - name: CI on the release PR
         if: steps.release.outputs.pr
         env:
