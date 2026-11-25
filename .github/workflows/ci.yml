@@ -233,10 +233,10 @@ jobs:
         env:
           UDID: ${{ steps.simulator.outputs.udid }}
         run: |
-          # A compiler warning fails the build here (not in Xcode, where it would stop work in progress).
+          # A compiler warning in the app's targets fails the build here, not in Xcode (project.yml).
           eval xcodebuild build-for-testing $XCODE_FLAGS \
             -destination "'generic/platform=iOS Simulator'" ARCHS=arm64 \
-            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES > build.log 2>&1 &
+            CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO QUAI_WARNINGS_AS_ERRORS=YES > build.log 2>&1 &
           build=$!
           until grep -qE '^(SwiftCompile|CompileSwift|SwiftDriver) ' build.log || ! kill -0 "$build" 2> /dev/null; do sleep 1; done
           echo "Booting the simulator at $(date -u +%T)"
