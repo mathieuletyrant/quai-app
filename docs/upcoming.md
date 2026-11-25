@@ -13,7 +13,7 @@ shows: acting on a row happens where it already can (To fix). No console page.
   what goes), the title (cut when long, the episode always shown), the date. Today shows the time only; elsewhere the weekday and
   date ("Wed Dec 16", a range "Thu–Sun, Nov 26–29", across months "Mon Nov 30 – Sun Dec 6"). The date line
   never wraps. Nothing about the download's progress.
-- On the right, **+74 GB** in green, only when the space really comes back at that row's moment (see
+- After the date, **· +74 GB** in green, only when the space really comes back at that row's moment (see
   Space back). Otherwise nothing.
 - A release opens its title, as the Library does. A deletion or a stuck removal opens To fix, where its
   card is. A seed cleanup opens nothing.

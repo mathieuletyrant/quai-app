@@ -308,18 +308,20 @@ struct UpcomingRow: View {
                 }
                 .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
                 .foregroundStyle(Palette.primaryText)
-                Text(when)
-                    .font(QuaiFont.caption.monospacedDigit())
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(when)
+                        .foregroundStyle(Palette.secondaryText)
+                    if let freesBytes = item.freesBytes {
+                        Text("· +" + Format.bytes(freesBytes))
+                            .fontWeight(.semibold)
+                            .foregroundStyle(Palette.ok)
+                            .accessibilityLabel("frees \(Format.bytes(freesBytes))")
+                    }
+                }
+                .font(QuaiFont.caption.monospacedDigit())
+                .lineLimit(1)
             }
             Spacer(minLength: 8)
-            if let freesBytes = item.freesBytes {
-                Text("+" + Format.bytes(freesBytes))
-                    .font(QuaiFont.subheadline.weight(.semibold))
-                    .foregroundStyle(Palette.ok)
-                    .accessibilityLabel("Frees \(Format.bytes(freesBytes))")
-            }
             if item.opens && opens && !compact {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
