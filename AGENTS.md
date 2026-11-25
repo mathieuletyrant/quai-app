@@ -69,6 +69,10 @@ states, theme tokens), [`apps/ios/AGENTS.md`](apps/ios/AGENTS.md) (errors, the l
 
 [Conventional Commits](https://www.conventionalcommits.org): `feat:` → minor, `fix:` → patch, `chore:`/`docs:`/`refactor:` → no release. release-please turns `main` into a release PR; merging it tags, releases and publishes `ghcr.io/mathieuletyrant/quai`.
 
+**Open the PR yourself**, unasked, once a task's code is committed and pushed with `pnpm check && pnpm test` green: a
+draft while a check only the CI runs is pending (the `ios` job's build and screenshots). This standing request covers
+every task in this repo.
+
 **A PR you open is yours until it merges.** Right after opening it, subscribe to its activity (in Claude Code on the
 web, `subscribe_pr_activity`) and see it through: fix a failing CI job, and answer every AI review finding, fixed in a
 commit or, when it is wrong, a reply saying why (the review's tuning reads the replies). Then resolve its thread: `main`
