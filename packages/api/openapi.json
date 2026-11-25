@@ -1739,6 +1739,52 @@
         }
       }
     },
+    "/api/upcoming": {
+      "get": {
+        "tags": [
+          "upcoming"
+        ],
+        "operationId": "getUpcoming",
+        "parameters": [],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upcoming",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upcoming"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/console-api/pairing-codes": {
       "post": {
         "tags": [
@@ -3228,6 +3274,110 @@
         ],
         "additionalProperties": false
       },
+      "Upcoming": {
+        "type": "object",
+        "properties": {
+          "timeZone": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingItem"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingService"
+            }
+          },
+          "homeOutdated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "timeZone",
+          "items",
+          "unavailable",
+          "homeOutdated"
+        ],
+        "additionalProperties": false
+      },
+      "UpcomingService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr",
+          "reclaimerr",
+          "cleanuparr",
+          "qbittorrent"
+        ]
+      },
+      "UpcomingItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/UpcomingKind"
+          },
+          "service": {
+            "$ref": "#/components/schemas/UpcomingService"
+          },
+          "title": {
+            "type": "string"
+          },
+          "episode": {
+            "type": "string"
+          },
+          "posterUrl": {
+            "type": "string"
+          },
+          "at": {
+            "type": "number"
+          },
+          "timed": {
+            "type": "boolean"
+          },
+          "until": {
+            "type": "number"
+          },
+          "earliest": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "freesBytes": {
+            "type": "number"
+          },
+          "fixId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "service",
+          "title",
+          "timed",
+          "earliest"
+        ],
+        "additionalProperties": false
+      },
+      "UpcomingKind": {
+        "type": "string",
+        "enum": [
+          "release",
+          "deletion",
+          "stuckRemoval",
+          "seedCleanup"
+        ]
+      },
       "DayReleases": {
         "type": "object",
         "properties": {
@@ -4714,6 +4864,9 @@
     },
     {
       "name": "releases"
+    },
+    {
+      "name": "upcoming"
     },
     {
       "name": "console"

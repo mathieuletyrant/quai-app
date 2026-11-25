@@ -3,7 +3,7 @@ import type { Read } from "../home/HomeReads.ts"
 import { epochSeconds, posterOf, QueuePage, type QueueRecord } from "../integrations/arr.ts"
 import { RadarrCalendar, radarrCalendarPath, radarrCalendarQueuePath, type RadarrCalendarMovie, releasedOn } from "../integrations/radarr.ts"
 import { episodeCode, SonarrCalendar, sonarrCalendarPath, sonarrCalendarQueuePath, type SonarrCalendarEpisode } from "../integrations/sonarr.ts"
-import { dayRange, instantOf } from "./Day.ts"
+import { dayOf, dayRange, instantOf, nextDay } from "./Day.ts"
 
 /** What Radarr and Sonarr said about the day; a list left out wasn't read (yet). */
 export interface DayInputs {
@@ -25,12 +25,13 @@ export interface DayReads {
 export type DayValue<K extends keyof DayReads> = DayReads[K] extends Read<infer A> ? A : never
 
 /**
- * What is read of a day in the home's time zone, defined once for the app's Today tile (read
- * when asked) and the day flows (watched).
+ * What is read of some days in the home's time zone (`days` from `firstDay`), defined once for the
+ * app's Today tile and Upcoming (read when asked) and the day flows (watched).
  */
-export const dayReads = (day: string, zone: string): DayReads => {
-  const { start, end } = dayRange(day, zone)
-  // Radarr's dates are days at midnight UTC: a day wider each side, then the home's day is kept.
+export const rangeReads = (firstDay: string, days: number, zone: string): DayReads => {
+  const { start } = dayRange(firstDay, zone)
+  const { end } = dayRange(lastDayOf(firstDay, days), zone)
+  // Radarr's dates are days at midnight UTC: a day wider each side, then the home's days are kept.
   const wide = 24 * 3600_000
   return {
     episodes: { service: "sonarr", path: sonarrCalendarPath(start, end), schema: SonarrCalendar },
@@ -38,6 +39,16 @@ export const dayReads = (day: string, zone: string): DayReads => {
     movies: { service: "radarr", path: radarrCalendarPath(start - wide, end + wide), schema: RadarrCalendar },
     radarrQueue: { service: "radarr", path: radarrCalendarQueuePath, schema: QueuePage }
   }
+}
+
+/** What is read of a day. */
+export const dayReads = (day: string, zone: string): DayReads => rangeReads(day, 1, zone)
+
+/** The day `days - 1` after `firstDay`. */
+const lastDayOf = (firstDay: string, days: number) => {
+  let day = firstDay
+  for (let i = 1; i < days; i++) day = nextDay(day)
+  return day
 }
 
 /** What was read of the day (a read left out wasn't), as the releases take it. */
@@ -54,45 +65,72 @@ const queued = (queue: ReadonlyArray<QueueRecord> | undefined, matches: (r: Queu
   return rows.some((r) => r.status === "downloading") ? "downloading" : "grabbed"
 }
 
+/** A release and the home's day it's out on. */
+export interface DatedRelease {
+  readonly release: DayRelease
+  readonly day: string
+}
+
 /**
- * The day's releases, in the home's time zone: monitored episodes airing that day, monitored
- * movies whose digital or physical release is that day. By air time, movies (a day, no time) last.
+ * The releases of some days (`days` from `firstDay`), in the home's time zone: monitored episodes
+ * airing then, monitored movies whose digital or physical release falls on one of the days (the
+ * first one). By air time, a movie (a day, no time) after the episodes of its day.
  */
-export const dayReleases = (day: string, zone: string, inputs: DayInputs): ReadonlyArray<DayRelease> => {
-  const { start, end } = dayRange(day, zone)
-  const episodes = (inputs.episodes ?? []).flatMap((e): ReadonlyArray<DayRelease> => {
+export const rangeReleases = (firstDay: string, days: number, zone: string, inputs: DayInputs): ReadonlyArray<DatedRelease> => {
+  const { start } = dayRange(firstDay, zone)
+  const { end } = dayRange(lastDayOf(firstDay, days), zone)
+  const covered: Array<string> = [firstDay]
+  for (let i = 1; i < days; i++) covered.push(nextDay(covered[i - 1]!))
+  const episodes = (inputs.episodes ?? []).flatMap((e): ReadonlyArray<DatedRelease> => {
     const airs = epochSeconds(e.airDateUtc)
     if (e.monitored === false || airs === undefined || airs * 1000 < start || airs * 1000 >= end) return []
     const status = e.hasFile === true ? "available" : queued(inputs.sonarrQueue, (r) => r.episodeId === e.id) ?? "missing"
     const posterUrl = posterOf(e.series?.images)
     return [{
-      id: `episode:${e.id}`,
-      kind: "episode",
-      libraryId: `series:${e.seriesId}`,
-      title: e.series?.title ?? "Unknown series",
-      episode: episodeCode(e.seasonNumber, e.episodeNumber),
-      ...(e.title === undefined || e.title === "" || e.title === "TBA" ? {} : { episodeTitle: e.title }),
-      airsAt: airs,
-      ...(posterUrl === undefined ? {} : { posterUrl }),
-      status
+      day: dayOf(airs * 1000, zone),
+      release: {
+        id: `episode:${e.id}`,
+        kind: "episode",
+        libraryId: `series:${e.seriesId}`,
+        title: e.series?.title ?? "Unknown series",
+        episode: episodeCode(e.seasonNumber, e.episodeNumber),
+        ...(e.title === undefined || e.title === "" || e.title === "TBA" ? {} : { episodeTitle: e.title }),
+        airsAt: airs,
+        ...(posterUrl === undefined ? {} : { posterUrl }),
+        status
+      }
     }]
   })
-  const movies = (inputs.movies ?? []).flatMap((m): ReadonlyArray<DayRelease> => {
-    if (m.monitored === false || !releasedOn(m, day)) return []
+  const movies = (inputs.movies ?? []).flatMap((m): ReadonlyArray<DatedRelease> => {
+    const day = m.monitored === false ? undefined : covered.find((d) => releasedOn(m, d))
+    if (day === undefined) return []
     const status = m.hasFile === true ? "available" : queued(inputs.radarrQueue, (r) => r.movieId === m.id) ?? "missing"
     const posterUrl = posterOf(m.images)
     return [{
-      id: `movie:${m.id}`,
-      kind: "movie",
-      libraryId: `movie:${m.id}`,
-      title: m.title,
-      ...(posterUrl === undefined ? {} : { posterUrl }),
-      status
+      day,
+      release: {
+        id: `movie:${m.id}`,
+        kind: "movie",
+        libraryId: `movie:${m.id}`,
+        title: m.title,
+        ...(posterUrl === undefined ? {} : { posterUrl }),
+        status
+      }
     }]
   })
   return [...episodes, ...movies].sort((a, b) =>
-    (a.airsAt ?? Infinity) - (b.airsAt ?? Infinity) || a.title.localeCompare(b.title) || (a.episode ?? "").localeCompare(b.episode ?? ""))
+    a.day.localeCompare(b.day) ||
+    (a.release.airsAt ?? Infinity) - (b.release.airsAt ?? Infinity) ||
+    a.release.title.localeCompare(b.release.title) ||
+    (a.release.episode ?? "").localeCompare(b.release.episode ?? ""))
 }
+
+/**
+ * The day's releases, in the home's time zone: monitored episodes airing that day, monitored
+ * movies whose digital or physical release is that day. By air time, movies (a day, no time) last.
+ */
+export const dayReleases = (day: string, zone: string, inputs: DayInputs): ReadonlyArray<DayRelease> =>
+  rangeReleases(day, 1, zone, inputs).map((r) => r.release)
 
 /** The Live Activity shows this many lines: 4 keep the push far under 4 KB and fit the Lock Screen. */
 export const maxItems = 4

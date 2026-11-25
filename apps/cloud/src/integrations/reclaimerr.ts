@@ -30,6 +30,11 @@ const Candidate = Schema.Struct({
   year: Schema.optional(Schema.NullOr(Schema.Number)),
   /** The title's TMDB id, a movie's or a series'. */
   tmdb_id: Schema.optional(Schema.NullOr(Schema.Number)),
+  /** What goes: a movie, one of its versions, a series, a season, an episode. */
+  scope: Schema.optional(Schema.NullOr(Schema.String)),
+  season_number: Schema.optional(Schema.NullOr(Schema.Number)),
+  /** What the files weigh. */
+  size_bytes: Schema.optional(Schema.NullOr(Schema.Number)),
   /** The matched rules, in words: "Old and unwatched: Last watched over 365 days ago". */
   reason: Schema.String,
   delete_operation: Schema.optional(Schema.String),
@@ -123,6 +128,7 @@ export interface PosterSources {
 const normalized = (title: string) => title.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "")
 
 interface Listed {
+  readonly id: number
   readonly title: string
   readonly year?: number | undefined
   readonly tmdbId?: number | undefined
@@ -139,6 +145,22 @@ const matching = (candidate: Candidate, listed: ReadonlyArray<Listed>): Listed |
   const named = listed.filter((l) => normalized(l.title) === title)
   const dated = year === undefined ? named : named.filter((l) => knownYear(l.year) === undefined || knownYear(l.year) === year)
   return dated.length === 1 ? dated[0] : undefined
+}
+
+/**
+ * The library title a candidate deletes whole, as Upcoming's space back keys it: `movie:<radarr id>`,
+ * `series:<sonarr id>`, a season `series:<id>:s<n>`. Undefined when it isn't found, when only an
+ * episode goes, or when Reclaimerr moves it (its files go elsewhere).
+ */
+export const candidateTitleKey = (candidate: Candidate, sources: PosterSources): string | undefined => {
+  if (candidate.delete_operation === "move") return undefined
+  const listed = isMovie(candidate) ? sources.movies : sources.series
+  const found = listed === undefined ? undefined : matching(candidate, listed)
+  if (found === undefined) return undefined
+  if (isMovie(candidate)) return `movie:${found.id}`
+  const scope = candidate.scope ?? "series"
+  if (scope === "season" && candidate.season_number !== undefined && candidate.season_number !== null) return `series:${found.id}:s${candidate.season_number}`
+  return ["series", "show", "tv"].includes(scope) ? `series:${found.id}` : undefined
 }
 
 /** The candidate's poster, from the Radarr movie or Sonarr series it is. */

@@ -13,30 +13,9 @@ import { HttpApiError } from "effect/http-api"
 import { type CallRequest, HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
 import { byPreference, epochSeconds, ManualImportRows, type QueueRecord, ReleaseRecords, toRelease } from "../integrations/arr.ts"
-import {
-  excluding,
-  plannedRemovals,
-  queueCleanerJobRead,
-  queuedByDownload,
-  settingsRead,
-  slowRulesRead,
-  stallRulesRead,
-  strikesRead,
-  struckDownloads
-} from "../integrations/cleanuparr.ts"
+import { excluding, settingsRead } from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
-import { RadarrMovies } from "../integrations/radarr.ts"
-import {
-  type Candidate,
-  CandidatePage,
-  candidatesPath,
-  deletionCandidates,
-  isMovie,
-  protectPath,
-  protectReason,
-  scheduledDeletions
-} from "../integrations/reclaimerr.ts"
-import { SonarrSeries } from "../integrations/sonarr.ts"
+import { CandidatePage, candidatesPath, protectPath, protectReason, scheduledDeletions } from "../integrations/reclaimerr.ts"
 import { Journal } from "../journal/Journal.ts"
 import type { Detected, FixTarget, RemovalTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
@@ -51,6 +30,7 @@ import {
   type QueuedOf
 } from "./MediaFixes.ts"
 import { movies } from "./movies.ts"
+import { deletionsWithPosters, plannedRemovalsRead } from "./Planned.ts"
 import { series } from "./series.ts"
 
 /** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
@@ -116,57 +96,6 @@ export class Fixes extends Context.Service<Fixes, {
       const write = (call: CallRequest, options?: { readonly timeoutMs?: number }) =>
         reads.write(call, (message) => new FixFailed({ message }), options)
 
-      /**
-       * Reclaimerr gives no poster: its scheduled deletions take theirs from the Radarr movie or
-       * Sonarr series they are, read only when one is listed (the To fix reads don't hold titles
-       * with a file). A library that can't be read leaves the deletion without a poster; Quai Home
-       * gone offline fails the list, like every other read.
-       */
-      const deletionsWithPosters = (candidates: ReadonlyArray<Candidate>) =>
-        Effect.gen(function*() {
-          const due = deletionCandidates(candidates)
-          const { values } = yield* reads.all({
-            movies: due.some(isMovie) ? { service: "radarr", path: "/api/v3/movie", schema: RadarrMovies } : null,
-            series: due.some((c) => !isMovie(c)) ? { service: "sonarr", path: "/api/v3/series", schema: SonarrSeries } : null
-          }, { optional: ["movies", "series"] })
-          return scheduledDeletions(candidates, { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) })
-        })
-
-      /**
-       * Cleanuparr's planned removals: its strikes, limits and next run, then, when a download is
-       * struck, the queues of the *arr that hold it (its title and poster; one no queue has is gone).
-       * None when Cleanuparr didn't answer; a queue that can't be read leaves its downloads out.
-       */
-      const removals = Effect.gen(function*(): Effect.fn.Return<Option.Option<ReadonlyArray<Detected>>, HomeOffline> {
-        const { values } = yield* reads.all({
-          strikes: strikesRead,
-          settings: settingsRead,
-          stallRules: stallRulesRead,
-          slowRules: slowRulesRead,
-          job: queueCleanerJobRead
-        }, { optional: ["job"] })
-        const needed = Option.all([values.strikes, values.settings, values.stallRules, values.slowRules])
-        if (Option.isNone(needed)) return Option.none()
-        const [strikes, settings, stallRules, slowRules] = needed.value
-        if (struckDownloads({ downloads: strikes.items, settings }).length === 0) return Option.some([])
-        const reached = yield* reads.services
-        const queues = yield* Effect.forEach(media, (adapter) => {
-          const queued = adapter.queued
-          return reached.includes(adapter.service)
-            ? Effect.map(reads.read(adapter.queue), (page) => ({ queued, records: Option.match(page, { onNone: () => [], onSome: (p) => p.records }) }))
-            : Effect.succeed({ queued, records: [] as ReadonlyArray<QueueRecord> })
-        }, { concurrency: "unbounded" })
-        const job = Option.getOrUndefined(values.job)
-        return Option.some(plannedRemovals({
-          downloads: strikes.items,
-          settings,
-          stallRules,
-          slowRules,
-          nextRunAt: epochSeconds(job?.nextRunTime ?? undefined),
-          queued: queuedByDownload(queues)
-        }))
-      })
-
       /** Keep: Cleanuparr's queue cleaner leaves the download alone, its other settings as they are. */
       const exclude = (target: RemovalTarget) =>
         Effect.gen(function*() {
@@ -186,7 +115,7 @@ export class Fixes extends Context.Service<Fixes, {
           const none = Effect.succeed(Option.none<never>())
           const [candidates, planned, ...found] = yield* Effect.all([
             asked("reclaimerr") ? reads.read({ service: "reclaimerr", path: candidatesPath, schema: CandidatePage }) : none,
-            asked("cleanuparr") ? removals : none,
+            asked("cleanuparr") ? plannedRemovalsRead(reads) : none,
             ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
           ], { concurrency: "unbounded" })
           const outcomes: ReadonlyArray<readonly [FixService, Option.Option<unknown>]> = [
@@ -198,7 +127,7 @@ export class Fixes extends Context.Service<Fixes, {
           const deletions = Option.isNone(candidates)
             ? []
             : only === undefined
-            ? yield* deletionsWithPosters(candidates.value.items)
+            ? yield* deletionsWithPosters(reads, candidates.value.items)
             // Acting on a deletion needs no poster.
             : scheduledDeletions(candidates.value.items)
           const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) => Option.getOrElse(problems, () => []))

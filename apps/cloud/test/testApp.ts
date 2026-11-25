@@ -17,6 +17,8 @@ import { LibraryHandlers } from "../src/http/LibraryHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
 import { ReleasesHandlers } from "../src/http/ReleasesHandlers.ts"
 import { RequestsHandlers } from "../src/http/RequestsHandlers.ts"
+import { UpcomingHandlers } from "../src/http/UpcomingHandlers.ts"
+import { Upcoming } from "../src/upcoming/Upcoming.ts"
 import { Requests } from "../src/requests/Requests.ts"
 import { Seerr } from "../src/integrations/seerr.ts"
 import { Releases } from "../src/releases/Releases.ts"
@@ -29,9 +31,9 @@ import { ServerInfo } from "../src/Version.ts"
 import { cloud, linkDroppingOn, makeFakeHome, testLink } from "./fakeHome.ts"
 
 /** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
-export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink | HomeLinks> = testLink) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers, AppJournalHandlers, AlertsHandlers, ConsoleAlertsHandlers).pipe(
+export const testAppWith = <E>(publicAccess: Layer.Layer<PublicAccess, E>, link: Layer.Layer<HomeLink | HomeLinks> = testLink) => Layer.mergeAll(SystemHandlers, DevicesHandlers, LibraryHandlers, FixesHandlers, RequestsHandlers, ReleasesHandlers, UpcomingHandlers, ConsoleHandlers, ConnectionHandlers, PushHandlers, FlowsHandlers, JournalHandlers, AppJournalHandlers, AlertsHandlers, ConsoleAlertsHandlers).pipe(
   Layer.provideMerge(Layer.mergeAll(DeviceAuthLive, HomeRequiredLive)),
-  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer, Requests.layer.pipe(Layer.provide(Seerr.layer)), Releases.layer)),
+  Layer.provideMerge(Layer.mergeAll(TestRunner.layer, Library.layer, Fixes.layer, Requests.layer.pipe(Layer.provide(Seerr.layer)), Releases.layer, Upcoming.layer)),
   // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
   Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
   Layer.provideMerge(cloud(IntegrationsLive, link)),

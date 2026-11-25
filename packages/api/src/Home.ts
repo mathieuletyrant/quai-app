@@ -12,7 +12,7 @@ import { JournalEntry, JournalQuery } from "./Journal.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 8
+export const protocolVersion = 9
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -27,7 +27,10 @@ export const protocolVersion = 8
  * `ConsoleResponse`) and `ServicesChanged`: the console is served by Quai Home, and an older Home
  * sends neither, so its console is the one the Cloud no longer serves. Protocol 8 added Seerr's
  * search, its users and creating a request: the Cloud doesn't ask an older Home for them
- * (`searchProtocolVersion`), and the app says to update it.
+ * (`searchProtocolVersion`), and the app says to update it. Protocol 9 added, for Upcoming, Cleanuparr's
+ * download cleaner (its rules and next run) and Radarr's and Sonarr's media management setting
+ * (hardlinks or copies): the Cloud doesn't ask an older Home for them (`upcomingProtocolVersion`), and
+ * Upcoming shows no seed cleanup and no space coming back.
  */
 export const minProtocolVersion = 1
 
@@ -42,6 +45,9 @@ export const consoleProtocolVersion = 7
 
 /** The first protocol whose Home allows Seerr's search, its users and creating a request. */
 export const searchProtocolVersion = 8
+
+/** The first protocol whose Home allows the download cleaner's rules and the *arr media management setting. */
+export const upcomingProtocolVersion = 9
 
 /** The services a Home can reach. */
 export const HomeService = Schema.Literals(["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"])
@@ -450,6 +456,8 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/health$/ },
+    // Whether imports are hardlinks or copies, for the space Upcoming says comes back. No secret in it.
+    { method: "GET", path: /^\/api\/v3\/config\/mediamanagement$/ },
     ...arrFixes("movie")
   ],
   sonarr: [
@@ -459,6 +467,7 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
     { method: "GET", path: /^\/api\/v3\/health$/ },
+    { method: "GET", path: /^\/api\/v3\/config\/mediamanagement$/ },
     ...arrFixes("series")
   ],
   prowlarr: [
@@ -503,7 +512,8 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v1\/tv\/\d+$/ }
   ],
   // Cleanuparr (X-Api-Key): its health, the downloads with strikes, the queue cleaner's settings
-  // and rules (strike limits and schedule, no secret in them), its next run, the events (what it
+  // and rules (strike limits and schedule, no secret in them), the download cleaner's seeding
+  // rules (no secret either), both jobs' next run, the events (what it
   // removed), and excluding one download from the queue cleaner. Its settings take no partial
   // update: the exclusion sends them all back, and the Home checks that only the ignore list
   // grew, by one download id.
@@ -512,7 +522,8 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/strikes$/ },
     { method: "GET", path: /^\/api\/configuration\/queue_cleaner$/ },
     { method: "GET", path: /^\/api\/queue-rules\/(stall|slow)$/ },
-    { method: "GET", path: /^\/api\/jobs\/QueueCleaner$/ },
+    { method: "GET", path: /^\/api\/jobs\/(QueueCleaner|DownloadCleaner)$/ },
+    { method: "GET", path: /^\/api\/configuration\/download_cleaner$/ },
     { method: "GET", path: /^\/api\/events$/ },
     {
       method: "PUT",

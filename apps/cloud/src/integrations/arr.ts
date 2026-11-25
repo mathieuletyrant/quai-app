@@ -204,3 +204,24 @@ export const echoed = (row: ManualImportRow) => ({
   ...(row.indexerFlags === undefined ? {} : { indexerFlags: row.indexerFlags })
 })
 
+
+// Upcoming's space coming back: which download each title came from, and whether imports are hardlinks.
+
+/** A grab in the history: the title it was for and the download's id (a torrent's hash). */
+export const DownloadGrabs = Schema.Array(Schema.Struct({
+  movieId: Schema.optional(Schema.Number),
+  seriesId: Schema.optional(Schema.Number),
+  /** The release's name: "Severance.S02.1080p…". */
+  sourceTitle: Schema.optional(Schema.String),
+  downloadId: Schema.optional(Schema.NullOr(Schema.String))
+}))
+export type DownloadGrab = (typeof DownloadGrabs.Type)[number]
+
+/** `GET /api/v3/config/mediamanagement`: whether imports are hardlinks (the same files) or copies. */
+export const MediaManagement = Schema.Struct({ copyUsingHardlinks: Schema.Boolean })
+
+/** The season a release name covers ("S02", "S02E05"), when it says one. */
+export const seasonOfRelease = (name: string): number | undefined => {
+  const match = /(?:^|[^a-z0-9])s(\d{1,2})(?:e\d{1,3})?(?:[^a-z0-9]|$)/i.exec(name)
+  return match === null ? undefined : Number(match[1])
+}
