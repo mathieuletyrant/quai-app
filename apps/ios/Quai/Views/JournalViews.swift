@@ -10,6 +10,7 @@ extension JournalEntry {
         case "media.grabbed": ("arrow.down.circle.fill", Palette.downloads)
         case "media.imported": ("tray.and.arrow.down.fill", Palette.downloads)
         case "media.importBlocked": ("exclamationmark.triangle.fill", Palette.toFix)
+        case "download.removed": ("xmark.circle.fill", Palette.stalled)
         case "media.available": ("checkmark.circle.fill", Palette.ok)
         case "playback.started", "playback.stopped": ("play.fill", Palette.playback)
         case "alert.raised": ("exclamationmark.triangle.fill", Palette.incident)

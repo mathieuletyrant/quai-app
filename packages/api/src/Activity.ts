@@ -16,6 +16,7 @@ export const EventType = Schema.Literals([
   "media.importBlocked",
   "media.available",
   "download.progress",
+  "download.removed",
   "playback.started",
   "playback.progress",
   "playback.stopped",

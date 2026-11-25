@@ -121,10 +121,18 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
         forget(activities, pushes, activity, now)
         continue
       }
-      const concerned = event.type === "download.progress"
+      const concerned = event.type === "download.progress" || event.type === "download.removed"
         ? event.downloadId !== undefined && activity.downloadId === event.downloadId && step.show.progress === true
         : event.subject !== undefined && activity.subjectKey === event.subject.key
       if (!concerned) continue
+      // The download left the client before its import (replaced, failed, removed): this activity
+      // won't go further. It ends grey, saying so; a new grab starts its own.
+      if (event.type === "download.removed") {
+        const ended = pushed({ ...activity, tone: "stalled", values: { ...activity.values, ...event.values }, lastEventAt: now, endedAt: now }, now)
+        put(activities, ended)
+        pushes.push({ _tag: "End", activity: ended })
+        continue
+      }
       // A progress reading replaces the whole download reading: an ETA that turns unknown (paused,
       // no peers) is left out of the event and must not keep the last one on screen.
       const { remainingSeconds: _, ...kept } = activity.values
@@ -160,7 +168,12 @@ export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: F
     if (event.flowId !== undefined && flow.id !== event.flowId) continue
     if (!matches(flow, subject)) continue
     const key = activityKey(flow.id, subject.key)
-    const current = activities.get(key)
+    const previous = activities.get(key)
+    // A new download for an ended activity (its release removed, or an upgrade) starts it again.
+    const current = previous !== undefined && previous.endedAt !== null && event.downloadId !== undefined &&
+        event.downloadId !== previous.downloadId && flow.endOn !== event.type
+      ? undefined
+      : previous
 
     if (flow.endOn === event.type) {
       if (current === undefined || current.endedAt !== null) continue

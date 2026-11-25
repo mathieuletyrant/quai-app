@@ -125,6 +125,7 @@ private struct LiveBarLabel: View {
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Palette.primaryText)
                     .lineLimit(1)
+                    .truncationMode(.middle)
                 if !compact {
                     Text(item.subtitle)
                         .font(.system(size: 12))

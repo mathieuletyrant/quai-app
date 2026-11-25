@@ -55,6 +55,7 @@ Events are normalized by the adapters; flows only see these. Each belongs to a s
 | `media.importBlocked` | media (*data*) | Radarr / Sonarr ManualInteractionRequired | "Import blocked · see To fix": the activity turns grey until the next step |
 | `media.available` | media | Jellyfin (polled after an import: its latest titles, listed as an administrator since without a user Jellyfin leaves recent titles out, matched by any id both know: TMDB, TVDB or IMDb) | title |
 | `download.progress` | media (by torrent id) | qBittorrent (polled) | progress, speed, eta |
+| `download.removed` | media (by torrent id) | qBittorrent (polled: a grab the client no longer has, a minute after its step began) | detail; ends the activity grey, the next grab starts it again |
 | `playback.started` | playback | Jellyfin sessions (polled) | title, device, end time |
 | `playback.progress` | playback | Jellyfin sessions (polled) | end time, paused |
 | `playback.stopped` | playback | Jellyfin sessions (polled) | |
@@ -94,7 +95,7 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | --- | --- | --- | --- |
 | `radarr` | `media.added`, `download.grabbed`, `download.imported` | — | — |
 | `sonarr` | same, for episodes | — | — |
-| `qbittorrent` | — | download progress, every 5 s, while a download runs | — |
+| `qbittorrent` | — | download progress and downloads gone before their import, every 5 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
 | `reclaimerr` | — | — | — (only feeds the To fix list) |
 | `cleanuparr` | — | its `QueueItemDeleted` events, every 5 min, while Quai Home reaches it: each removal one journal line, no flow event | — (and feeds the To fix list) |

@@ -139,6 +139,21 @@ describe("download flow", () => {
       expect(imported[0]!.activity.values.detail).toBeUndefined()
     })))
 
+  it.effect("a download gone from the client ends its activity grey; the next grab starts its own", () =>
+    run(Effect.gen(function*() {
+      const engine = yield* Activities
+      yield* engine.handle(ev.grabbed("first"))
+      yield* TestClock.adjust("2 minutes")
+      const removed = yield* engine.handle({ type: "download.removed", downloadId: "first", values: { detail: "Removed from the download client" } })
+      expect(tags(removed)).toEqual(["End:1"])
+      expect(removed[0]!.activity.tone).toBe("stalled")
+      expect(removed[0]!.activity.values.detail).toBe("Removed from the download client")
+      // Another download's removal leaves it alone, and so does a second one.
+      expect(yield* engine.handle({ type: "download.removed", downloadId: "first" })).toEqual([])
+      const regrab = yield* engine.handle(ev.grabbed("second"))
+      expect(regrab.map((p) => [p._tag, p.activity.downloadId])).toEqual([["Start", "second"]])
+    })))
+
   it.effect("grey after 2 h without progress, back when it moves", () =>
     run(Effect.gen(function*() {
       const engine = yield* Activities

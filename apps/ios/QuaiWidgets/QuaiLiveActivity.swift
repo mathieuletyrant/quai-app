@@ -77,7 +77,7 @@ struct QuaiLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(context.attributes.title).font(.headline).lineLimit(1)
+                        Text(context.attributes.title).font(.headline).lineLimit(1).truncationMode(.middle)
                         Text(model.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,7 +116,8 @@ struct LockScreenBanner: View {
             HStack(spacing: 12) {
                 GlyphTile(model: model, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(model.attributes.title).font(.headline).lineLimit(1)
+                    // Cut in the middle: a long series name keeps its "· S03E07" in sight.
+                    Text(model.attributes.title).font(.headline).lineLimit(1).truncationMode(.middle)
                     Text(model.subtitle).font(.subheadline).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
                 }
                 Spacer(minLength: 8)
