@@ -124,7 +124,7 @@ export const moviesWithoutSource = (
         ...(posterUrl === undefined ? {} : { posterUrl }),
         reason: added !== undefined && since > added ? "No release grabbed since it came out" : "No release grabbed since it was added",
         since,
-        actions: ["searchReleases", "snooze"],
+        actions: ["searchReleases", "ignoreAndWait"],
         missing: { episodes: [] }
       },
       target: { kind: "movie", _tag: "Missing", movieId: movie.id }

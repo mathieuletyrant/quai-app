@@ -11,6 +11,12 @@ import { DeviceAuth, HomeRequired } from "./Devices.ts"
 
 export const alertKinds: ReadonlyArray<AlertKind> = AlertKind.literals
 
+/** Alert kinds a home may have stored under an older name (settings, alerts going on, muted alerts). */
+const renamedAlertKinds: Readonly<Record<string, AlertKind>> = { deletionPlanned: "plannedDeletion" }
+
+/** A kind as a home stored it, under its current name: `deletionPlanned` is `plannedDeletion`. */
+export const currentAlertKind = (kind: unknown): unknown => typeof kind === "string" ? renamedAlertKinds[kind] ?? kind : kind
+
 /** Which alerts are on, and their thresholds. Set in the console's Alerts page, kept by Quai Home. */
 export const AlertSettings = Schema.Struct({
   serviceDown: Schema.Struct({
@@ -29,7 +35,7 @@ export const AlertSettings = Schema.Struct({
     level: Schema.Literals(["warning", "error"])
   }),
   /** A title Reclaimerr is going to delete (or move) on its own: when it's planned, and the day before. */
-  deletionPlanned: Schema.Struct({
+  plannedDeletion: Schema.Struct({
     enabled: Schema.Boolean
   })
 }).annotate({ identifier: "AlertSettings" })
@@ -39,7 +45,7 @@ export const defaultAlertSettings: AlertSettings = {
   serviceDown: { enabled: true, afterMinutes: 5 },
   diskLow: { enabled: true, belowPercent: 10 },
   arrHealth: { enabled: true, level: "error" },
-  deletionPlanned: { enabled: true }
+  plannedDeletion: { enabled: true }
 }
 
 /** The free space, in points above the threshold, at which a low disk is over: it doesn't flap around it. */

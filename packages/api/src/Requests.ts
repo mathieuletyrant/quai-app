@@ -3,8 +3,6 @@ import { HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/htt
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
 import { TitleKind } from "./Title.ts"
 
-export const RequestKind = TitleKind.annotate({ identifier: "RequestKind" })
-export type RequestKind = typeof RequestKind.Type
 
 /**
  * A request made in Seerr that waits for an admin's approval. Requests Seerr approved on its own
@@ -13,7 +11,7 @@ export type RequestKind = typeof RequestKind.Type
 export const MediaRequest = Schema.Struct({
   /** Seerr's request id. */
   id: Schema.Int,
-  kind: RequestKind,
+  kind: TitleKind,
   title: Schema.String,
   year: Schema.optionalKey(Schema.Int),
   /** The poster's public URL (TMDB). */
@@ -69,7 +67,7 @@ export type TitleState = typeof TitleState.Type
 
 /** A movie or a series Seerr found. */
 export const SearchResult = Schema.Struct({
-  kind: RequestKind,
+  kind: TitleKind,
   /** TMDB's id: what a request names. */
   tmdbId: Schema.Int,
   /** A series' TVDB id, when Seerr knows it: Sonarr may not know the TMDB id. */
@@ -110,7 +108,7 @@ export type SeriesSeasons = typeof SeriesSeasons.Type
  * or Seerr's admin when it chose none.
  */
 export const CreateRequest = Schema.Struct({
-  kind: RequestKind,
+  kind: TitleKind,
   tmdbId: Schema.Int.check(Schema.isGreaterThan(0)),
   seasons: Schema.optionalKey(Schema.Array(Schema.Int.check(Schema.isGreaterThan(0))))
 }).annotate({ identifier: "CreateRequest" })

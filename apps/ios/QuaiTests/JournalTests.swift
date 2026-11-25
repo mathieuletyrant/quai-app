@@ -30,9 +30,9 @@ struct AlertTests {
     }
 
     @Test func decodesAPlannedDeletion() throws {
-        let json = #"{"items":[{"id":"deletionPlanned:reclaimerr:42","kind":"deletionPlanned","title":"Up will be deleted in 5 days","detail":"Unwatched for a year · Last watched more than 365 days ago","since":1795150800000}],"enabled":["deletionPlanned"]}"#
+        let json = #"{"items":[{"id":"plannedDeletion:reclaimerr:42","kind":"plannedDeletion","title":"Up will be deleted in 5 days","detail":"Unwatched for a year · Last watched more than 365 days ago","since":1795150800000}],"enabled":["plannedDeletion"]}"#
         let alerts = try JSONDecoder().decode(Components.Schemas.ActiveAlerts.self, from: Data(json.utf8))
-        #expect(alerts.items.map(\.kind) == [.deletionPlanned])
-        #expect(AlertKind.deletionPlanned.label == "Reclaimerr plans to delete a title")
+        #expect(alerts.items.map(\.kind) == [.plannedDeletion])
+        #expect(AlertKind.plannedDeletion.label == "Reclaimerr plans to delete a title")
     }
 }

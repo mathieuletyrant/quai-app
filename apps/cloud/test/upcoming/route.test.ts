@@ -60,11 +60,11 @@ describe("upcoming route", () => {
       expect(upcoming.unavailable).toEqual([])
       expect(upcoming.homeOutdated).toBe(false)
       expect(kinds(upcoming.items)).toEqual([
-        "release Warrior Kid",
-        "release The Lord of the Rings: The Rings of Power S03E07–E08",
-        "deletion Vampire Diaries S06",
-        "deletion Chainsaw Man – Le Film : L'arc de Reze",
-        "deletion Runner",
+        "releaseDay Warrior Kid",
+        "releaseDay The Lord of the Rings: The Rings of Power S03E07–E08",
+        "plannedDeletion Vampire Diaries S06",
+        "plannedDeletion Chainsaw Man – Le Film : L'arc de Reze",
+        "plannedDeletion Runner",
         "seedCleanup 2 torrents"
       ])
       const seed = upcoming.items.find((i) => i.kind === "seedCleanup")!
@@ -73,7 +73,7 @@ describe("upcoming route", () => {
       expect(seed.count).toBe(2)
       expect(seed.freesBytes).toBeUndefined()
       expect(seed.at).toBe(Math.floor((now + (2160 * 3600 - 41034) * 1000) / 1000))
-      const deletion = upcoming.items.find((i) => i.kind === "deletion" && i.title === "Runner")!
+      const deletion = upcoming.items.find((i) => i.kind === "plannedDeletion" && i.title === "Runner")!
       expect(deletion.fixId).toBe("deletion-9")
       expect(deletion.at).toBe(Date.parse("2026-11-30T10:00:05Z") / 1000)
     }).pipe(Effect.provide(TestApp)))
@@ -87,7 +87,7 @@ describe("upcoming route", () => {
       expect(upcoming.homeOutdated).toBe(true)
       expect(upcoming.items.filter((i) => i.kind === "seedCleanup")).toEqual([])
       expect(upcoming.items.filter((i) => i.freesBytes !== undefined)).toEqual([])
-      expect(upcoming.items.some((i) => i.kind === "deletion")).toBe(true)
+      expect(upcoming.items.some((i) => i.kind === "plannedDeletion")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service that didn't answer is unavailable, the rest still shows", () =>
@@ -100,8 +100,8 @@ describe("upcoming route", () => {
       yield* home.connect
       const upcoming = yield* (yield* pairedApi).upcoming.list()
       expect(upcoming.unavailable).toEqual(["reclaimerr", "qbittorrent"])
-      expect(upcoming.items.some((i) => i.kind === "release")).toBe(true)
-      expect(upcoming.items.filter((i) => i.kind === "seedCleanup" || i.kind === "deletion")).toEqual([])
+      expect(upcoming.items.some((i) => i.kind === "releaseDay")).toBe(true)
+      expect(upcoming.items.filter((i) => i.kind === "seedCleanup" || i.kind === "plannedDeletion")).toEqual([])
       expect(upcoming.items.filter((i) => i.freesBytes !== undefined)).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
@@ -112,7 +112,7 @@ describe("upcoming route", () => {
       yield* home.connect
       const upcoming = yield* (yield* pairedApi).upcoming.list()
       expect(upcoming.unavailable).toEqual([])
-      expect(upcoming.items.map((i) => i.kind)).toEqual(["release"])
+      expect(upcoming.items.map((i) => i.kind)).toEqual(["releaseDay"])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("Quai Home dropping while reading is 503 HomeOffline", () =>

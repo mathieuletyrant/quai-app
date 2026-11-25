@@ -4,8 +4,6 @@ import { DeviceAuth, HomeRequired } from "./Devices.ts"
 import { Service } from "./Service.ts"
 import { TitleKind } from "./Title.ts"
 
-export const LibraryKind = TitleKind.annotate({ identifier: "LibraryKind" })
-export type LibraryKind = typeof LibraryKind.Type
 
 /**
  * Where a title stands:
@@ -34,7 +32,7 @@ export const EpisodeCount = Schema.Struct({
 export const LibraryItem = Schema.Struct({
   /** `movie:<radarr id>` or `series:<sonarr id>`: unique in the list. */
   id: Schema.String,
-  kind: LibraryKind,
+  kind: TitleKind,
   title: Schema.String,
   year: Schema.optionalKey(Schema.Int),
   /** The title's TMDB id, when Radarr or Sonarr knows it: how a search result finds it in the library. */

@@ -1,6 +1,6 @@
 import { Effect, Option } from "effect"
 import { type AlertState, alertState, type Raised } from "../alerts/Alerts.ts"
-import { dismissedKey } from "../fixes/Fixes.ts"
+import { letGoKey } from "../fixes/Fixes.ts"
 import * as FixId from "../fixes/FixId.ts"
 import { HomeDocuments } from "../home/HomeLink.ts"
 import { type Integration, readSnapshot, watchOf } from "./Integration.ts"
@@ -42,7 +42,7 @@ export const deletionRaised = ({ candidate, deletesAt, operation }: PlannedCandi
 /** Every deletion Reclaimerr plans on its own, but those the user let go in Quai. */
 export const deletionsState = (candidates: ReadonlyArray<Candidate>, dismissed: ReadonlySet<number>, now: number): AlertState =>
   alertState(
-    "deletionPlanned",
+    "plannedDeletion",
     "reclaimerr",
     plannedDeletions(candidates).filter(({ candidate }) => !dismissed.has(candidate.id)).map((planned) => deletionRaised(planned, now))
   )
@@ -54,7 +54,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
   const letGo = (candidates: ReadonlyArray<Candidate>) =>
     Effect.map(
       Effect.forEach(candidates, (candidate) =>
-        documents.get(dismissedKey(FixId.deletion(candidate.id))).pipe(
+        documents.get(letGoKey(FixId.deletion(candidate.id))).pipe(
           Effect.map((doc) => Option.isSome(doc) ? [candidate.id] : []),
           Effect.orElseSucceed(() => [])
         )),
@@ -65,7 +65,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
     service: "quai",
     alertWatcher: {
       watches: (context) =>
-        context.alerts.deletionPlanned.enabled && context.services.includes("reclaimerr")
+        context.alerts.plannedDeletion.enabled && context.services.includes("reclaimerr")
           ? [watchOf(deletionsWatchId, candidatesRead, deletionsEverySeconds)]
           : [],
       read: (snapshot, context) =>

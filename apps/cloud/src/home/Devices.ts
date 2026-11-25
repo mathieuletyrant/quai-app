@@ -2,6 +2,7 @@ import {
   type AlertKind,
   type ApnsEnvironment,
   ApnsEnvironment as ApnsEnvironmentSchema,
+  currentAlertKind,
   type DeviceId,
   type DevicePreferences,
   DevicePreferences as DevicePreferencesSchema,
@@ -101,7 +102,17 @@ export const deviceKey = (id: string) => `devices/${id}`
 const normalizedCode = (code: string) => code.trim().toUpperCase()
 export const pairingKey = (code: string) => `pairing/${sha256(code)}`
 
-const decodeDevice = Schema.decodeUnknownOption(DeviceDocument)
+const decodeDeviceDocument = Schema.decodeUnknownOption(DeviceDocument)
+
+/** An iPhone stored with alerts muted under an older kind's name: read under the current one. */
+const withCurrentAlertKinds = (doc: unknown): unknown => {
+  if (typeof doc !== "object" || doc === null || !("preferences" in doc)) return doc
+  const preferences = doc.preferences
+  if (typeof preferences !== "object" || preferences === null || !("mutedAlerts" in preferences) || !Array.isArray(preferences.mutedAlerts)) return doc
+  return { ...doc, preferences: { ...preferences, mutedAlerts: preferences.mutedAlerts.map(currentAlertKind) } }
+}
+
+const decodeDevice = (doc: unknown) => decodeDeviceDocument(withCurrentAlertKinds(doc))
 const decodePairing = Schema.decodeUnknownOption(PairingDocument)
 
 const toDevice = (d: DeviceDocument): Device => ({

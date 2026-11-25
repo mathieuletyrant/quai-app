@@ -97,7 +97,7 @@ function InlineNumber({ label, value, min, max, onSave }: {
 
 /** The alerts, each saved as soon as it changes. */
 function AlertList({ settings, onSave }: { settings: AlertSettings; onSave: (next: AlertSettings) => void }) {
-  const { serviceDown, diskLow, arrHealth, deletionPlanned } = settings
+  const { serviceDown, diskLow, arrHealth, plannedDeletion } = settings
   return (
     <Panel flush>
       <ul className="divide-y divide-line">
@@ -157,8 +157,8 @@ function AlertList({ settings, onSave }: { settings: AlertSettings; onSave: (nex
           icon="trash"
           title="Planned deletion"
           description="A title Reclaimerr is going to delete or move on its own, with its reason. Checked every 30 minutes."
-          enabled={deletionPlanned.enabled}
-          onToggle={(enabled) => onSave({ ...settings, deletionPlanned: { enabled } })}
+          enabled={plannedDeletion.enabled}
+          onToggle={(enabled) => onSave({ ...settings, plannedDeletion: { enabled } })}
         >
           <span>Notify when it's planned, and again on its last day</span>
         </AlertRow>

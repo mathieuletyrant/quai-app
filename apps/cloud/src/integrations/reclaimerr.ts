@@ -206,14 +206,14 @@ export const plannedDeletionFixes = (planned: ReadonlyArray<PlannedCandidate>, s
     return {
       fix: {
         id: FixId.deletion(candidate.id),
-        kind: "scheduledDeletion",
+        kind: "plannedDeletion",
         service: "reclaimerr",
         title: candidate.title,
         ...(year === undefined ? {} : { year }),
         ...(posterUrl === undefined ? {} : { posterUrl }),
         reason: reasonSummary(candidate.reason),
         ...(since === undefined ? {} : { since }),
-        actions: ["keep", "dismiss"],
+        actions: ["keep", "letGo"],
         deletion: { deletesAt, operation }
       },
       target: { kind: "candidate", candidateId: candidate.id }

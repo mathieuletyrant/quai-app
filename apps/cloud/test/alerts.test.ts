@@ -4,7 +4,7 @@ import { Effect, Layer, Redacted, Schema } from "effect"
 import { HomeDocuments } from "../src/home/HomeLink.ts"
 import { generateKeyPairSync } from "node:crypto"
 import { Alerts, alertState, reconcile } from "../src/alerts/Alerts.ts"
-import { Devices } from "../src/home/Devices.ts"
+import { deviceKey, Devices } from "../src/home/Devices.ts"
 import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
 import { deletionsState, deletionsWatchId } from "../src/integrations/plannedDeletionAlert.ts"
 import { diskDetail, diskState } from "../src/integrations/disk.ts"
@@ -97,7 +97,7 @@ describe("alerts", () => {
         const upIn = (hours: number) => ({ items: [{ ...up, auto_delete_eligible_at: new Date(hours * 3600_000).toISOString() }] })
 
         yield* home.snapshot(deletionsWatchId, upIn(5 * 24))
-        expect(apple.hits.map((h) => [h.body.aps.alert.title, h.body.aps["thread-id"]])).toEqual([["Up will be deleted in 5 days", "deletionPlanned"]])
+        expect(apple.hits.map((h) => [h.body.aps.alert.title, h.body.aps["thread-id"]])).toEqual([["Up will be deleted in 5 days", "plannedDeletion"]])
 
         // The next days: the text follows, no new notification.
         yield* home.snapshot(deletionsWatchId, upIn(4 * 24))
@@ -119,9 +119,34 @@ describe("alerts", () => {
     Effect.gen(function*() {
       const home = yield* makeFakeHome()
       yield* home.connect
-      const { deletionPlanned: _, ...older } = { ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } }
+      const { plannedDeletion: _, ...older } = { ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } }
       yield* (yield* HomeDocuments).put("alerts/settings", older)
       expect(yield* (yield* Alerts).settings).toEqual({ ...defaultAlertSettings, diskLow: { enabled: false, belowPercent: 7 } })
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
+
+  it.effect("what a home stored under an alert kind's older name reads under the new one", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome()
+      yield* home.connect
+      const documents = yield* HomeDocuments
+      const { plannedDeletion: _, ...rest } = defaultAlertSettings
+      yield* documents.put("alerts/settings", { ...rest, deletionPlanned: { enabled: false } })
+      yield* documents.put("alerts/active", [
+        { id: "deletionPlanned:reclaimerr:42", kind: "deletionPlanned", scope: "reclaimerr", title: "Up will be deleted in 5 days", over: "Up: no deletion planned anymore", since: 1 }
+      ])
+      const alerts = yield* Alerts
+      expect((yield* alerts.settings).plannedDeletion).toEqual({ enabled: false })
+      yield* documents.put("alerts/settings", defaultAlertSettings)
+      expect((yield* alerts.active).items.map((a) => [a.id, a.kind])).toEqual([["plannedDeletion:reclaimerr:42", "plannedDeletion"]])
+
+      const devices = yield* Devices
+      const { code } = yield* devices.createPairingCode
+      const paired = yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development" })
+      if (paired._tag === "None") return yield* Effect.die("pairing failed")
+      const key = deviceKey(paired.value.deviceId)
+      const stored = (yield* documents.get(key)).pipe((doc) => doc._tag === "Some" ? doc.value as Record<string, unknown> : {})
+      yield* documents.put(key, { ...stored, preferences: { flows: {}, mutedAlerts: ["deletionPlanned", "diskLow"] } })
+      expect((yield* devices.preferences(paired.value.deviceId)).mutedAlerts).toEqual(["plannedDeletion", "diskLow"])
     }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
 
   it.effect("watched, notified once to the iPhones that allowed it and didn't mute it, ended once, kept at home", () =>
@@ -179,7 +204,7 @@ describe("alerts", () => {
 
         // Turned off: its alerts end without a notification, and its watches go.
         yield* alerts.saveSettings({ ...defaultAlertSettings, arrHealth: { enabled: false, level: "error" } })
-        expect((yield* alerts.active)).toEqual({ items: [], enabled: ["serviceDown", "diskLow", "deletionPlanned"] })
+        expect((yield* alerts.active)).toEqual({ items: [], enabled: ["serviceDown", "diskLow", "plannedDeletion"] })
         expect(apple.hits).toHaveLength(5)
       }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))

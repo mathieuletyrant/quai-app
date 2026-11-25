@@ -33,12 +33,15 @@ import { movies } from "./movies.ts"
 import { deletionsWithPosters, stuckRemovalsRead } from "./Planned.ts"
 import { series } from "./series.ts"
 
-/** Where what the user hid is kept, at home: `fixes/snoozed/<fix id>`, `fixes/dismissed/<fix id>`. */
+/**
+ * Where what the user hid is kept, at home: `fixes/snoozed/<fix id>` (ignored for now),
+ * `fixes/dismissed/<fix id>` (let go). The paths are older than the names and stay as they are.
+ */
 export const hiddenPrefix = "fixes/"
-const snoozedKey = (id: string) => `fixes/snoozed/${id}`
-export const dismissedKey = (id: string) => `fixes/dismissed/${id}`
+const ignoredKey = (id: string) => `fixes/snoozed/${id}`
+export const letGoKey = (id: string) => `fixes/dismissed/${id}`
 
-/** A snooze: until a date, or (no `until`) until the problem goes away, a release grabbed. */
+/** Ignored for now: until a date, or (no `until`) until the problem goes away, a release grabbed. */
 const Hidden = Schema.Struct({ at: Schema.Number, until: Schema.optional(Schema.Number) })
 const decodeHidden = Schema.decodeUnknownOption(Hidden)
 
@@ -47,7 +50,7 @@ const releaseSearchTimeoutMs = 55_000
 
 type FixError = HomeOffline | HttpApiError.NotFound | InvalidFix | FixFailed
 
-const order: Record<Fix["kind"], number> = { scheduledDeletion: 0, removalPlanned: 1, noSource: 2, importBlocked: 3 }
+const order: Record<Fix["kind"], number> = { plannedDeletion: 0, stuckRemoval: 1, noSource: 2, importBlocked: 3 }
 const goesAt = (fix: Fix) => fix.deletion?.deletesAt ?? fix.removal?.removesAt ?? 0
 const byUrgency = (a: Detected, b: Detected) =>
   order[a.fix.kind] - order[b.fix.kind] ||
@@ -80,8 +83,8 @@ export class Fixes extends Context.Service<Fixes, {
   readonly importPreview: (id: string) => Effect.Effect<ImportPreview, FixError>
   readonly importDownload: (id: string, assignments: ImportAssignments) => Effect.Effect<void, FixError>
   readonly keep: (id: string) => Effect.Effect<void, FixError>
-  readonly dismiss: (id: string) => Effect.Effect<void, FixError>
-  readonly snooze: (id: string, days: number | undefined) => Effect.Effect<void, FixError>
+  readonly letGo: (id: string) => Effect.Effect<void, FixError>
+  readonly ignoreAndWait: (id: string, days: number | undefined) => Effect.Effect<void, FixError>
   readonly releases: (id: string) => Effect.Effect<Releases, FixError>
   readonly grab: (id: string, release: { readonly guid: string; readonly indexerId: number }) => Effect.Effect<void, FixError>
 }>()("quai/Fixes") {
@@ -274,20 +277,20 @@ export class Fixes extends Context.Service<Fixes, {
             }
           }),
 
-        dismiss: (id) =>
+        letGo: (id) =>
           Effect.gen(function*() {
-            const found = yield* offering(id, "dismiss")
+            const found = yield* offering(id, "letGo")
             const at = yield* Clock.currentTimeMillis
-            yield* acted("dismiss", "Dismissed", found, Effect.mapError(documents.put(dismissedKey(id), { at }), toOffline))
+            yield* acted("letGo", "Let go", found, Effect.mapError(documents.put(letGoKey(id), { at }), toOffline))
           }),
 
-        snooze: (id, days) =>
+        ignoreAndWait: (id, days) =>
           Effect.gen(function*() {
-            const found = yield* offering(id, "snooze")
+            const found = yield* offering(id, "ignoreAndWait")
             const at = yield* Clock.currentTimeMillis
-            yield* acted("snooze", days === undefined ? "Snoozed until a release is grabbed" : `Snoozed for ${days} day${days === 1 ? "" : "s"}`,
+            yield* acted("ignoreAndWait", days === undefined ? "Ignored until a release is grabbed" : `Ignored for ${days} day${days === 1 ? "" : "s"}`,
               found,
-              Effect.mapError(documents.put(snoozedKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
+              Effect.mapError(documents.put(ignoredKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
             )
           }),
 

@@ -232,7 +232,7 @@ export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<Remov
     return [{
       fix: {
         id: FixId.removal(download.downloadItemId),
-        kind: "removalPlanned",
+        kind: "stuckRemoval",
         service: "cleanuparr",
         title: media.title,
         ...(media.year === undefined ? {} : { year: media.year }),
@@ -240,7 +240,7 @@ export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<Remov
         reason: kind.reason === "failedImport" ? media.messages[0] ?? kind.words : kind.words,
         ...(Number.isFinite(since) ? { since } : {}),
         // Keep adds the download id to the ignore list: only a torrent hash or a SABnzbd job, which Quai Home lets through.
-        actions: HomeProtocol.isDownloadId(download.downloadId) ? ["keep", "dismiss"] : ["dismiss"],
+        actions: HomeProtocol.isDownloadId(download.downloadId) ? ["keep", "letGo"] : ["letGo"],
         removal: {
           release: download.title,
           reason: kind.reason,

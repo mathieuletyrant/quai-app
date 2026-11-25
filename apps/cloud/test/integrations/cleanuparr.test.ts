@@ -110,14 +110,14 @@ describe("Cleanuparr: what it removes next", () => {
     expect(mouse).toEqual({
       fix: {
         id: "removal-0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09",
-        kind: "removalPlanned",
+        kind: "stuckRemoval",
         service: "cleanuparr",
         title: "Mouse",
         year: 2025,
         posterUrl: "https://image.tmdb.org/t/p/original/6WYrOc6VZbmBbEhAMuB7vKWd8oY.jpg",
         reason: "Stalled, no progress",
         since: Date.parse("2026-11-19T11:10:00Z") / 1000,
-        actions: ["keep", "dismiss"],
+        actions: ["keep", "letGo"],
         removal: { release: "Mouse.2025.MULTi.1080p.WEB.H264-SUPPLY", reason: "stalled", strikes: 2, maxStrikes: 3, removesAt: 1_700_000_000 }
       },
       target: { kind: "removal", downloadItemId: "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d09", downloadId: "C3D4E5F60718293A4B5C6D7E8F90123456789012" }
@@ -158,8 +158,8 @@ describe("Cleanuparr: what it removes next", () => {
     const nzbget = "4711"
     const queued = () => ({ media: { title: "Mouse", messages: [] }, records: radarrQueue().slice(2, 3) })
     const [mouse] = stuckRemovals(input([struck(["Stalled", "Stalled"], { downloadId: nzbget })], { queued }))
-    expect(mouse?.fix.actions).toEqual(["dismiss"])
-    expect(stuckRemovals(input([struck(["Stalled", "Stalled"])]))[0]?.fix.actions).toEqual(["keep", "dismiss"])
+    expect(mouse?.fix.actions).toEqual(["letGo"])
+    expect(stuckRemovals(input([struck(["Stalled", "Stalled"])]))[0]?.fix.actions).toEqual(["keep", "letGo"])
   })
 })
 

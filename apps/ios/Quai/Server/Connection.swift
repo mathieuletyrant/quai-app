@@ -311,14 +311,14 @@ final class Connection {
     }
 
     /// Lets the deletion or the removal happen: Quai stops showing it.
-    func dismiss(_ fix: Components.Schemas.Fix) async throws {
-        _ = try await requiredClient().dismissFix(path: .init(id: fix.id)).noContent
+    func letGo(_ fix: Components.Schemas.Fix) async throws {
+        _ = try await requiredClient().letGoFix(path: .init(id: fix.id)).noContent
         await didFix(fix)
     }
 
-    /// Hides the problem until a release is grabbed (`days` nil), or for some days.
-    func snooze(_ fix: Components.Schemas.Fix, days: Int?) async throws {
-        _ = try await requiredClient().snoozeFix(path: .init(id: fix.id), body: .json(.init(days: days))).noContent
+    /// Hides the fix until a release is grabbed (`days` nil), or for some days.
+    func ignoreAndWait(_ fix: Components.Schemas.Fix, days: Int?) async throws {
+        _ = try await requiredClient().ignoreAndWaitFix(path: .init(id: fix.id), body: .json(.init(days: days))).noContent
         await didFix(fix)
     }
 

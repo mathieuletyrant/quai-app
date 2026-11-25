@@ -210,11 +210,11 @@ interaction, or a pending import with a warning.
 
 **No source**. A monitored title out for 2 hours, with no file, nothing in the queue and no grab.
 
-**Ignore and wait** (`snooze`). Hiding a fix until a release is grabbed for it, or for some days.
-_Avoid_: snooze in words people read
+**Ignore and wait** (`ignoreAndWait`). Hiding a fix until a release is grabbed for it, or for some days.
+_Avoid_: snooze
 
-**Let it go** (`dismiss`). Letting a planned deletion or a stuck removal happen, and hiding its fix.
-_Avoid_: dismiss in words people read
+**Let it go** (`letGo`). Letting a planned deletion or a stuck removal happen, and hiding its fix.
+_Avoid_: dismiss
 
 **Keep**. Stopping a planned deletion (Reclaimerr protects the title) or a stuck removal (Cleanuparr
 ignores the download), for good.

@@ -8,7 +8,7 @@ struct SearchMatchTests {
         try JSONDecoder().decode(Components.Schemas.Library.self, from: Data(json.utf8))
     }
 
-    private func result(_ kind: Components.Schemas.RequestKind, _ tmdbId: Int) -> SearchResult {
+    private func result(_ kind: Components.Schemas.TitleKind, _ tmdbId: Int) -> SearchResult {
         SearchResult(kind: kind, tmdbId: tmdbId, title: "Title", year: nil, posterUrl: nil, overview: nil, state: .requested)
     }
 

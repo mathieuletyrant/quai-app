@@ -40,7 +40,7 @@ export const releaseItems = (dated: ReadonlyArray<{ readonly release: DayRelease
     const at = first.airsAt ?? instantOf(day, "00:00", zone) / 1000
     return {
       id: `release-${first.id.replace(":", "-")}`,
-      kind: "release",
+      kind: "releaseDay",
       service: first.kind === "episode" ? "sonarr" : "radarr",
       title: first.title,
       ...(episode === undefined ? {} : { episode }),
@@ -68,7 +68,7 @@ export const plannedDeletionItems = (detected: ReadonlyArray<Detected>, now: num
     const freesBytes = frees.get(d.target.candidateId)
     return [{
       id: d.fix.id,
-      kind: "deletion",
+      kind: "plannedDeletion",
       service: "reclaimerr",
       title: d.fix.title,
       ...(d.fix.posterUrl === undefined ? {} : { posterUrl: d.fix.posterUrl }),
