@@ -12,9 +12,13 @@ concurrency:
   group: ci-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
+# The release PR (a release-please--* branch) holds the changelog and the version numbers only, on code that every PR
+# merged into main already ran through this workflow: its jobs are skipped (the ones that need them follow), and
+# `required` passes in seconds.
 jobs:
   # TypeScript's types, lint and format: pnpm check (tsc in every package, then ESLint with dprint).
   lint:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +31,7 @@ jobs:
       - run: pnpm check
 
   test:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +63,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
 
   changes:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -149,6 +155,7 @@ jobs:
   # in apps/ios/tools.env), so its answer comes in under a minute, and a style fix never holds back the macOS build.
   # TypeScript's lint runs in `lint` (pnpm check: tsc, then ESLint).
   swift-lint:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -162,6 +169,7 @@ jobs:
         run: apps/ios/scripts/lint.sh --strict --reporter github-actions-logging
 
   ios-client:
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'release-please--') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
