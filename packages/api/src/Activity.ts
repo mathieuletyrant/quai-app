@@ -67,12 +67,12 @@ export type StepShow = typeof StepShow.Type
 
 const Slug = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,39}$/))
 const Hex = Schema.String.check(Schema.isPattern(/^#[0-9A-Fa-f]{6}$/))
-const Symbol = Schema.String.check(Schema.isPattern(/^[a-z0-9.]{1,60}$/))
+const SymbolName = Schema.String.check(Schema.isPattern(/^[a-z0-9.]{1,60}$/))
 
 export const FlowStep = Schema.Struct({
   id: Slug,
   label: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(24)),
-  icon: Symbol,
+  icon: SymbolName,
   on: EventType,
   show: StepShow,
   actions: Schema.optionalKey(Schema.Array(ActionType))
@@ -98,7 +98,7 @@ export const Flow = Schema.Struct({
   builtIn: Schema.Boolean,
   enabled: Schema.Boolean,
   color: Hex,
-  icon: Symbol,
+  icon: SymbolName,
   subject: FlowSubject,
   filter: FlowFilter,
   steps: Schema.Array(FlowStep).check(Schema.isMinLength(1), Schema.isMaxLength(6)),
@@ -167,7 +167,7 @@ export const ActivityContent = Schema.Struct({
   startsAt: Schema.optionalKey(Schema.Finite),
   /** Playback paused: the bar holds at `progress` and the button shows Play. */
   paused: Schema.optionalKey(Schema.Boolean),
-  /** Epoch seconds the step began (time since an incident). */
+  /** Epoch seconds the step began, for its timer (how long a service hasn't answered). */
   since: Schema.optionalKey(Schema.Finite),
   detail: Schema.optionalKey(Schema.String),
   /** At most 4 lines (the day's releases): the push stays well under APNs' 4 KB. */
