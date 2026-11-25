@@ -95,7 +95,6 @@ jobs:
   live-activity-pushes:
     needs: changes
     if: >
-      github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.pushes == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -181,7 +180,6 @@ jobs:
   ios:
     needs: [changes, ios-client]
     if: >
-      github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.ios == 'true'
     runs-on: macos-26
     timeout-minutes: 30
@@ -286,8 +284,10 @@ jobs:
 
   # The one check branch protection requires: it passes when every job passed or was skipped (a PR that doesn't
   # touch its files), so adding a job never means editing the protection rules.
+  # It runs on a dispatch too: release-please's PR is updated with GITHUB_TOKEN, which starts no pull_request run, so
+  # release.yml dispatches this workflow on its branch and `required` reports there (a skipped one would pass).
   required:
-    if: always() && github.event_name == 'pull_request'
+    if: always()
     needs: [lint, test, swift-lint, docker, changes, live-activity-pushes, ios-client, ios]
     runs-on: ubuntu-latest
     steps:
