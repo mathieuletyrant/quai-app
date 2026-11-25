@@ -196,7 +196,7 @@ struct FixesView: View {
     private func run(_ fix: Fix, _ work: @escaping @MainActor () async throws -> Void) {
         working = fix.id
         Task {
-            do { try await work() } catch { failure = error.quaiMessage }
+            do { try await work() } catch { failure = error.message(replacing: failure) }
             working = nil
         }
     }
@@ -377,7 +377,7 @@ private struct ReleasesSheet: View {
         .scrollIndicators(.hidden)
         .background(Palette.background.ignoresSafeArea())
         .task {
-            do { releases = try await connection.releases(fix) } catch { failure = error.quaiMessage }
+            do { releases = try await connection.releases(fix) } catch { failure = error.message(replacing: failure) }
         }
         .alert(
             "Grab it anyway?",
@@ -398,7 +398,7 @@ private struct ReleasesSheet: View {
                 try await connection.grab(release, for: fix)
                 dismiss()
             } catch {
-                failure = error.quaiMessage
+                failure = error.message(replacing: failure)
             }
             grabbing = nil
         }
@@ -529,7 +529,7 @@ private struct ImportSheet: View {
         .scrollIndicators(.hidden)
         .background(Palette.background.ignoresSafeArea())
         .task {
-            do { preview = try await connection.importPreview(fix) } catch { failure = error.quaiMessage }
+            do { preview = try await connection.importPreview(fix) } catch { failure = error.message(replacing: failure) }
         }
         .alert("Import anyway?", isPresented: $confirming) {
             Button("Import") { runImport() }
@@ -552,7 +552,7 @@ private struct ImportSheet: View {
                 try await connection.importDownload(fix, episodes: chosen)
                 dismiss()
             } catch {
-                failure = error.quaiMessage
+                failure = error.message(replacing: failure)
             }
             importing = false
         }

@@ -59,7 +59,7 @@ struct LiveActivitySettingsView: View {
             mutedAlerts = read.mutedAlerts
             loaded = true
         } catch {
-            status = error.quaiMessage
+            status = error.message(replacing: status)
             loaded = true
         }
     }
@@ -75,7 +75,7 @@ struct LiveActivitySettingsView: View {
                 try await connection.save(.init(flows: .init(additionalProperties: all), mutedAlerts: muted))
                 status = nil
             } catch {
-                status = error.quaiMessage
+                status = error.message(replacing: status)
             }
         }
     }

@@ -39,4 +39,10 @@ struct QuaiErrorsTests {
         #expect(!URLError(.timedOut).isCancellation)
         #expect(!ConnectionError.unreachable.isCancellation)
     }
+
+    @Test func aCancelledReadKeepsWhatTheScreenShowed() {
+        #expect(CancellationError().message(replacing: nil) == nil)
+        #expect(URLError(.cancelled).message(replacing: "Earlier failure") == "Earlier failure")
+        #expect(ConnectionError.unreachable.message(replacing: nil) == ConnectionError.unreachable.quaiMessage)
+    }
 }

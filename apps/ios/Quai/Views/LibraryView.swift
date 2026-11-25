@@ -58,7 +58,6 @@ struct LibraryView: View {
     @State private var scope = LibraryScope.all
     @Binding var filter: LibraryFilter
     @State private var selected: LibraryItem?
-    @State private var loading = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 3)
 
@@ -89,9 +88,7 @@ struct LibraryView: View {
             .refreshable { await connection.loadLibrary() }
             .task {
                 guard connection.library == nil else { return }
-                loading = true
                 await connection.loadLibrary()
-                loading = false
             }
         }
         .sheet(item: $selected) { item in
@@ -104,8 +101,7 @@ struct LibraryView: View {
     /// "137 titles · 759 GB free"; "Loading…" while it loads, "Not loaded" after a failure.
     private var summary: String {
         guard let library = connection.library else {
-            if loading { return "Loading…" }
-            return connection.libraryError == nil ? "" : "Not loaded"
+            return connection.libraryError == nil ? "Loading…" : "Not loaded"
         }
         var parts = [library.items.count == 1 ? "1 title" : "\(library.items.count) titles"]
         if let disk = library.disk {
@@ -144,7 +140,7 @@ struct LibraryView: View {
                 systemImage: "film.stack",
                 color: Palette.accent
             )
-        } else if connection.library == nil && loading {
+        } else if connection.library == nil && connection.libraryError == nil {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
         } else {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {

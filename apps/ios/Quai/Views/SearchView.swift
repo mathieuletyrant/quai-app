@@ -200,8 +200,8 @@ struct SearchView: View {
             states = [:]
             error = nil
         } catch {
-            guard !Task.isCancelled, !error.isCancellation else { return }
-            self.error = error.quaiMessage
+            guard !Task.isCancelled else { return }
+            self.error = error.message(replacing: self.error)
         }
     }
 
@@ -243,7 +243,7 @@ struct SearchView: View {
                     : "\(result.title) waits for approval in Seerr."
                 await connection.loadLibrary()
             } catch {
-                failure = error.quaiMessage
+                failure = error.message(replacing: failure)
             }
             working = nil
         }
@@ -511,7 +511,7 @@ struct SeasonPicker: View {
                 seasons = read
                 chosen = Self.firstChoice(read)
             } catch {
-                self.error = error.quaiMessage
+                self.error = error.message(replacing: self.error)
             }
         }
     }

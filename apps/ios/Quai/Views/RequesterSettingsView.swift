@@ -61,7 +61,7 @@ struct RequesterSettingsView: View {
             users = listed
             status = nil
         } catch {
-            status = error.quaiMessage
+            status = error.message(replacing: status)
         }
     }
 
@@ -75,7 +75,7 @@ struct RequesterSettingsView: View {
                 try await connection.save(saved)
                 status = nil
             } catch {
-                status = error.quaiMessage
+                status = error.message(replacing: status)
             }
         }
     }
