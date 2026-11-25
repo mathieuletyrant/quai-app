@@ -1,24 +1,6 @@
 {
-  "originHash" : "7ed4530a364a7942d3318888ca13142fbb3eb19ebc5488907efab534e9e21063",
+  "originHash" : "0bc100424855bc54e39ed8c8fe4285059bc7a0580805de71ee78c5dd17ae2af1",
   "pins" : [
-    {
-      "identity" : "collectionconcurrencykit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/JohnSundell/CollectionConcurrencyKit.git",
-      "state" : {
-        "revision" : "b4f23e24b5a1bff301efc5e70871083ca029ff95",
-        "version" : "0.2.0"
-      }
-    },
-    {
-      "identity" : "cryptoswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/krzyzanowskim/CryptoSwift.git",
-      "state" : {
-        "revision" : "f2a627b84c1ff96f21ac2fcb623ab36142dd5512",
-        "version" : "1.10.0"
-      }
-    },
     {
       "identity" : "openapikit",
       "kind" : "remoteSourceControl",
@@ -26,15 +8,6 @@
       "state" : {
         "revision" : "5b72eb9a6b23b1fec439d9a0bf38f115400421f9",
         "version" : "6.4.0"
-      }
-    },
-    {
-      "identity" : "sourcekitten",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jpsim/SourceKitten.git",
-      "state" : {
-        "revision" : "1cde6e9fb78e64f9b9d38c4992cac4f071d7eb63",
-        "version" : "0.39.0"
       }
     },
     {
@@ -56,15 +29,6 @@
       }
     },
     {
-      "identity" : "swift-filename-matcher",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ileitch/swift-filename-matcher",
-      "state" : {
-        "revision" : "eef5ac0b6b3cdc64b3039b037bed2def8a1edaeb",
-        "version" : "2.0.1"
-      }
-    },
-    {
       "identity" : "swift-numerics",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-numerics.git",
@@ -80,51 +44,6 @@
       "state" : {
         "revision" : "fbf4512ebc69ccbca33aa3c5fa4393887e687b76",
         "version" : "1.14.4"
-      }
-    },
-    {
-      "identity" : "swift-syntax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
-      "state" : {
-        "revision" : "a8b1c535647243d603b6772e7e8306c993a0c188",
-        "version" : "605.0.0-prerelease-2026-06-26"
-      }
-    },
-    {
-      "identity" : "swiftformat",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/nicklockwood/SwiftFormat",
-      "state" : {
-        "revision" : "d5ca3e440886ea8b3d5b405928b1dae5e80d7ce2",
-        "version" : "0.64.7"
-      }
-    },
-    {
-      "identity" : "swiftlint",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/realm/SwiftLint",
-      "state" : {
-        "revision" : "6aba03e3d8302b33f106e0f922210f35ca4b52cf",
-        "version" : "0.65.1"
-      }
-    },
-    {
-      "identity" : "swiftytexttable",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/scottrhoyt/SwiftyTextTable.git",
-      "state" : {
-        "revision" : "c6df6cf533d120716bff38f8ff9885e1ce2a4ac3",
-        "version" : "0.9.0"
-      }
-    },
-    {
-      "identity" : "swxmlhash",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/drmohundro/SWXMLHash.git",
-      "state" : {
-        "revision" : "a853604c9e9a83ad9954c7e3d2a565273982471f",
-        "version" : "7.0.2"
       }
     },
     {

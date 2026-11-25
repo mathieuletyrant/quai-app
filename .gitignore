@@ -13,3 +13,4 @@ apps/ios/DerivedData/
 xcuserdata/
 apps/ios/Tools/.build/
 apps/ios/Quai/Generated/
+apps/ios/.tools/
