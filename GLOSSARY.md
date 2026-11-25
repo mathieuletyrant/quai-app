@@ -97,3 +97,7 @@ queue once it has enough strikes.
 
 **Seed cleanup**. Cleanuparr's download cleaner takes a finished torrent out of qBittorrent once it
 has seeded long enough (or reached its ratio), with its files.
+
+**Space back**. When a title's room on the disk really comes back: once its copy in the library and
+every torrent seeding the same files (cross-seeds too) are gone. With hardlinks, a deletion or a
+seed cleanup alone may give nothing back.
