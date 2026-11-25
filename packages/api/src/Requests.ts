@@ -3,7 +3,6 @@ import { HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/htt
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
 import { TitleKind } from "./Title.ts"
 
-
 /**
  * A request made in Seerr that waits for an admin's approval. Requests Seerr approved on its own
  * (an auto-approve user) never wait, so they're never listed.
@@ -32,7 +31,9 @@ export type MediaRequest = typeof MediaRequest.Type
  * - `unavailable`: Quai Home reaches Seerr but it didn't answer this time;
  * - `notConfigured`: Quai Home has no Seerr (`QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY`).
  */
-export const RequestsStatus = Schema.Literals(["ok", "unavailable", "notConfigured"]).annotate({ identifier: "RequestsStatus" })
+export const RequestsStatus = Schema.Literals(["ok", "unavailable", "notConfigured"]).annotate({
+  identifier: "RequestsStatus"
+})
 
 export const MediaRequests = Schema.Struct({
   /** Oldest first: the one waiting longest comes first. */
@@ -52,7 +53,9 @@ export class RequestFailed extends Schema.TaggedError<RequestFailed>()("RequestF
  * - `notConfigured`: Quai Home has no Seerr;
  * - `outdated`: Quai Home is too old to search or request (before protocol 8): update it.
  */
-export const SearchStatus = Schema.Literals(["ok", "unavailable", "notConfigured", "outdated"]).annotate({ identifier: "SearchStatus" })
+export const SearchStatus = Schema.Literals(["ok", "unavailable", "notConfigured", "outdated"]).annotate({
+  identifier: "SearchStatus"
+})
 export type SearchStatus = typeof SearchStatus.Type
 
 /**
@@ -62,7 +65,9 @@ export type SearchStatus = typeof SearchStatus.Type
  * - `partial`: a series with some seasons in the library: the others can still be requested;
  * - `available`: in the library.
  */
-export const TitleState = Schema.Literals(["requestable", "requested", "partial", "available"]).annotate({ identifier: "TitleState" })
+export const TitleState = Schema.Literals(["requestable", "requested", "partial", "available"]).annotate({
+  identifier: "TitleState"
+})
 export type TitleState = typeof TitleState.Type
 
 /** A movie or a series Seerr found. */
@@ -143,19 +148,36 @@ const id = { id: Schema.String }
 export class RequestsGroup extends HttpApiGroup.make("requests")
   .add(
     HttpApiEndpoint.get("list", "/requests", { success: MediaRequests }).annotate(OpenApi.Identifier, "listRequests"),
-    HttpApiEndpoint.post("approve", "/requests/:id/approve", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("approve", "/requests/:id/approve", {
+      params: id,
+      error: [RequestFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "approveRequest"),
-    HttpApiEndpoint.post("decline", "/requests/:id/decline", { params: id, error: [RequestFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("decline", "/requests/:id/decline", {
+      params: id,
+      error: [RequestFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "declineRequest"),
-    HttpApiEndpoint.post("create", "/requests", { payload: CreateRequest, success: RequestCreated, error: [RequestFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("create", "/requests", {
+      payload: CreateRequest,
+      success: RequestCreated,
+      error: [RequestFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "createRequest"),
-    HttpApiEndpoint.get("users", "/requests/users", { success: SeerrUsers }).annotate(OpenApi.Identifier, "listSeerrUsers"),
+    HttpApiEndpoint.get("users", "/requests/users", { success: SeerrUsers }).annotate(
+      OpenApi.Identifier,
+      "listSeerrUsers"
+    ),
     HttpApiEndpoint.get("search", "/search", { query: { query: Schema.String }, success: SearchResults })
       .annotate(OpenApi.Identifier, "searchTitles"),
-    HttpApiEndpoint.get("seasons", "/search/series/:tmdbId", { params: { tmdbId: Schema.String }, success: SeriesSeasons, error: [RequestFailed, HttpApiError.NotFound] })
+    HttpApiEndpoint.get("seasons", "/search/series/:tmdbId", {
+      params: { tmdbId: Schema.String },
+      success: SeriesSeasons,
+      error: [RequestFailed, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "listSeasons")
   )
   .middleware(DeviceAuth)
   .middleware(HomeRequired)
-  .prefix("/api") {}
-
+  .prefix("/api")
+{}

@@ -12,21 +12,93 @@ export const catalog: ReadonlyArray<{
   readonly services: ReadonlyArray<ServiceName>
 }> = [
   { type: "media.added", subject: "media", label: "Added (Radarr)", data: false, services: ["radarr"] },
-  { type: "media.grabbed", subject: "media", label: "Release grabbed (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
-  { type: "media.imported", subject: "media", label: "Imported (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
-  { type: "media.importBlocked", subject: "media", label: "Import needs you (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
+  {
+    type: "media.grabbed",
+    subject: "media",
+    label: "Release grabbed (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "media.imported",
+    subject: "media",
+    label: "Imported (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "media.importBlocked",
+    subject: "media",
+    label: "Import needs you (Radarr, Sonarr)",
+    data: true,
+    services: ["radarr", "sonarr"]
+  },
   { type: "media.available", subject: "media", label: "Available in Jellyfin", data: false, services: ["jellyfin"] },
-  { type: "download.progress", subject: "media", label: "Download progress (qBittorrent)", data: true, services: ["qbittorrent"] },
-  { type: "download.removed", subject: "media", label: "Download gone before its import (qBittorrent)", data: true, services: ["qbittorrent"] },
-  { type: "playback.started", subject: "playback", label: "Playback started (Jellyfin)", data: false, services: ["jellyfin"] },
-  { type: "playback.progress", subject: "playback", label: "Playback position (Jellyfin)", data: true, services: ["jellyfin"] },
-  { type: "playback.stopped", subject: "playback", label: "Playback stopped (Jellyfin)", data: false, services: ["jellyfin"] },
-  { type: "request.pending", subject: "request", label: "Request waiting for approval (Seerr)", data: false, services: ["seerr"] },
+  {
+    type: "download.progress",
+    subject: "media",
+    label: "Download progress (qBittorrent)",
+    data: true,
+    services: ["qbittorrent"]
+  },
+  {
+    type: "download.removed",
+    subject: "media",
+    label: "Download gone before its import (qBittorrent)",
+    data: true,
+    services: ["qbittorrent"]
+  },
+  {
+    type: "playback.started",
+    subject: "playback",
+    label: "Playback started (Jellyfin)",
+    data: false,
+    services: ["jellyfin"]
+  },
+  {
+    type: "playback.progress",
+    subject: "playback",
+    label: "Playback position (Jellyfin)",
+    data: true,
+    services: ["jellyfin"]
+  },
+  {
+    type: "playback.stopped",
+    subject: "playback",
+    label: "Playback stopped (Jellyfin)",
+    data: false,
+    services: ["jellyfin"]
+  },
+  {
+    type: "request.pending",
+    subject: "request",
+    label: "Request waiting for approval (Seerr)",
+    data: false,
+    services: ["seerr"]
+  },
   { type: "request.approved", subject: "request", label: "Request approved (Seerr)", data: false, services: ["seerr"] },
   { type: "request.declined", subject: "request", label: "Request declined (Seerr)", data: false, services: ["seerr"] },
-  { type: "releases.today", subject: "day", label: "Today's releases begin (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
-  { type: "releases.progress", subject: "day", label: "A release grabbed or available (Radarr, Sonarr)", data: true, services: ["radarr", "sonarr"] },
-  { type: "releases.available", subject: "day", label: "Every release available (Radarr, Sonarr)", data: false, services: ["radarr", "sonarr"] },
+  {
+    type: "releases.today",
+    subject: "day",
+    label: "Today's releases begin (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "releases.progress",
+    subject: "day",
+    label: "A release grabbed or available (Radarr, Sonarr)",
+    data: true,
+    services: ["radarr", "sonarr"]
+  },
+  {
+    type: "releases.available",
+    subject: "day",
+    label: "Every release available (Radarr, Sonarr)",
+    data: false,
+    services: ["radarr", "sonarr"]
+  },
   { type: "releases.dayOver", subject: "day", label: "Midnight", data: false, services: ["quai"] }
 ]
 
@@ -43,7 +115,8 @@ export const actionCatalog: ReadonlyArray<{
   { type: "request.decline", subject: "request", label: "Decline", service: "seerr" }
 ]
 
-export const actionSubject = (type: ActionType): FlowSubject => actionCatalog.find((action) => action.type === type)!.subject
+export const actionSubject = (type: ActionType): FlowSubject =>
+  actionCatalog.find((action) => action.type === type)!.subject
 
 export const subjectOf = (type: EventType): FlowSubject => catalog.find((event) => event.type === type)!.subject
 export const isDataEvent = (type: EventType): boolean => catalog.find((event) => event.type === type)!.data
@@ -57,36 +130,53 @@ export const stepShows: Record<FlowSubject, ReadonlyArray<keyof StepShow>> = {
   day: ["list"]
 }
 
-/**
- * The rules the schema alone can't check (docs/flows.md, Model), or null when the flow is valid.
- * The server refuses a flow that breaks one; the console shows it before saving.
- */
-export const flowProblem = (flow: Flow): string | null => {
-  const ids = new Set(flow.steps.map((step) => step.id))
-  if (ids.size !== flow.steps.length) return "Two steps have the same id."
+const sameIdProblem = (flow: Flow) =>
+  new Set(flow.steps.map((step) => step.id)).size !== flow.steps.length ? "Two steps have the same id." : null
+
+/** A step starts on an event that starts a step of this kind of flow. */
+const stepEventProblem = (flow: Flow) => {
   for (const step of flow.steps) {
     if (isDataEvent(step.on)) return `“${step.label}” uses a data event: pick an event that starts a step.`
     if (subjectOf(step.on) !== flow.subject) return `“${step.label}” uses an event for another kind of flow.`
   }
-  for (const step of flow.steps) {
-    for (const action of step.actions ?? []) {
-      if (actionSubject(action) !== flow.subject) return `“${step.label}” has a button for another kind of flow.`
-    }
-  }
-  // A request waits as long as it waits: an expiry would forget it and start it again at the next poll.
-  if (flow.subject === "request" && flow.expireAfterMinutes !== undefined) {
-    return "A request flow ends when the request is approved, declined or deleted, not after no news."
-  }
-  const events = new Set(flow.steps.map((step) => step.on))
-  if (events.size !== flow.steps.length) return "Two steps start on the same event."
-  if (flow.endOn !== undefined) {
-    if (isDataEvent(flow.endOn) || subjectOf(flow.endOn) !== flow.subject) return "The end event doesn't fit this flow."
-    if (events.has(flow.endOn)) return "The end event is also a step's event."
-  } else if (flow.steps.length < 2 && flow.expireAfterMinutes === undefined) {
-    return "A one-step flow needs an end event or an end after no news."
-  }
   return null
 }
+
+const buttonProblem = (flow: Flow) => {
+  const step = flow.steps.find((candidate) =>
+    (candidate.actions ?? []).some((action) => actionSubject(action) !== flow.subject)
+  )
+  return step === undefined ? null : `“${step.label}” has a button for another kind of flow.`
+}
+
+// A request waits as long as it waits: an expiry would forget it and start it again at the next poll.
+const requestExpiryProblem = (flow: Flow) =>
+  flow.subject === "request" && flow.expireAfterMinutes !== undefined
+    ? "A request flow ends when the request is approved, declined or deleted, not after no news."
+    : null
+
+const sameEventProblem = (flow: Flow) =>
+  new Set(flow.steps.map((step) => step.on)).size !== flow.steps.length ? "Two steps start on the same event." : null
+
+/** A flow ends on an event of its kind that no step starts on, or, with one step, after no news. */
+const endProblem = (flow: Flow) => {
+  if (flow.endOn === undefined) {
+    return flow.steps.length < 2 && flow.expireAfterMinutes === undefined
+      ? "A one-step flow needs an end event or an end after no news."
+      : null
+  }
+  if (isDataEvent(flow.endOn) || subjectOf(flow.endOn) !== flow.subject) return "The end event doesn't fit this flow."
+  return flow.steps.some((step) => step.on === flow.endOn) ? "The end event is also a step's event." : null
+}
+
+/**
+ * The rules the schema alone can't check (docs/flows.md, Model), or null when the flow is valid.
+ * The server refuses a flow that breaks one; the console shows it before saving. The first broken
+ * rule is the one told.
+ */
+export const flowProblem = (flow: Flow): string | null =>
+  sameIdProblem(flow) ?? stepEventProblem(flow) ?? buttonProblem(flow) ?? requestExpiryProblem(flow) ??
+    sameEventProblem(flow) ?? endProblem(flow)
 
 /** When a day flow starts, in the home's time zone, unless a release airs earlier. */
 export const defaultStartsAt = "18:00"
@@ -104,7 +194,13 @@ export const builtInFlows: ReadonlyArray<Flow> = [
     filter: { mediaType: "any" },
     steps: [
       { id: "searching", label: "Searching", icon: "magnifyingglass", on: "media.added", show: {} },
-      { id: "downloading", label: "Downloading", icon: "arrow.down", on: "media.grabbed", show: { progress: true, speed: true, eta: true } },
+      {
+        id: "downloading",
+        label: "Downloading",
+        icon: "arrow.down",
+        on: "media.grabbed",
+        show: { progress: true, speed: true, eta: true }
+      },
       { id: "importing", label: "Importing", icon: "tray.and.arrow.down.fill", on: "media.imported", show: {} },
       { id: "available", label: "Ready to watch", icon: "checkmark", on: "media.available", show: {} }
     ],

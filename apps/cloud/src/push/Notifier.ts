@@ -10,15 +10,30 @@ import { apnsBody } from "./ApnsPayload.ts"
 
 const iphones = (count: number) => `${count} iPhone${count === 1 ? "" : "s"}`
 
+/** Where an activity's change went: to how many iPhones, and whether Quai Cloud has an APNs key at all. */
+export interface Reach {
+  readonly pushed: number
+  readonly configured: boolean
+}
+
 /** "· pushed to 2 iPhones": where an activity's change went. */
-const reach = (pushed: number, configured: boolean) =>
-  !configured ? " · not pushed: no APNs key" : pushed === 0 ? " · no iPhone to push to" : ` · pushed to ${iphones(pushed)}`
+const reach = ({ configured, pushed }: Reach) =>
+  !configured
+    ? " · not pushed: no APNs key"
+    : pushed === 0
+    ? " · no iPhone to push to"
+    : ` · pushed to ${iphones(pushed)}`
 
 /**
  * The journal's line for an activity that started, moved to another step or ended; null for an
  * update within its step (a progress), which only changes numbers.
  */
-export const activityNote = (push: Push, flow: Flow, previousStep: number | undefined, pushed: number, configured: boolean) => {
+export const activityNote = (
+  push: Push,
+  flow: Flow,
+  previousStep: number | undefined,
+  reached: Reach
+) => {
   const { activity } = push
   const step = flow.steps[activity.stepIndex]?.label ?? "?"
   const what = push._tag === "Start"
@@ -33,7 +48,7 @@ export const activityNote = (push: Push, flow: Flow, previousStep: number | unde
     level: "info" as const,
     source: "cloud" as const,
     kind: what.kind,
-    text: what.text + reach(pushed, configured),
+    text: what.text + reach(reached),
     subject: activity.subjectKey,
     title: activity.title,
     flowId: flow.id
@@ -60,10 +75,10 @@ export class Notifier extends Context.Service<Notifier, {
       const shown = new Set<string>()
       const key = (deviceId: string, activityKey: string) => `${deviceId}\u0000${activityKey}`
 
-      const logged = (push: Push, flow: Flow, pushed: number, configured: boolean) =>
+      const logged = (push: Push, flow: Flow, reached: Reach) =>
         Effect.suspend(() => {
           const key = push.activity.key
-          const note = activityNote(push, flow, loggedStep.get(key), pushed, configured)
+          const note = activityNote(push, flow, loggedStep.get(key), reached)
           if (push._tag === "End") loggedStep.delete(key)
           else loggedStep.set(key, push.activity.stepIndex)
           return note === null ? Effect.void : journal.log(note)
@@ -73,10 +88,12 @@ export class Notifier extends Context.Service<Notifier, {
         Effect.gen(function*() {
           const flow = (yield* flowStore.all).find((candidate) => candidate.id === push.activity.flowId)
           if (flow === undefined) return
-          if (!(yield* apns.configured)) return yield* logged(push, flow, 0, false)
+          if (!(yield* apns.configured)) return yield* logged(push, flow, { pushed: 0, configured: false })
           const activityKey = push.activity.key
           const now = yield* Clock.currentTimeMillis
-          const targets = (yield* devices.targets(activityKey)).filter((target) => only === null || target.deviceId === only)
+          const targets = (yield* devices.targets(activityKey)).filter((target) =>
+            only === null || target.deviceId === only
+          )
           let pushed = 0
           yield* Effect.forEach(targets, (target: PushTarget) =>
             Effect.gen(function*() {
@@ -89,13 +106,23 @@ export class Notifier extends Context.Service<Notifier, {
                 dismissed: target.dismissed
               }, now)
               // The activity is over: nothing left to show again.
-              if (push._tag === "End" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
-              if (delivery._tag === "None") return
+              if (push._tag === "End" && target.dismissed !== null) {
+                yield* devices.clearDismissed(target.deviceId, activityKey)
+              }
+              if (delivery._tag === "None") {
+                return
+              }
               if (delivery._tag === "Start") shown.add(shownKey)
-              if (delivery._tag === "Start" && target.dismissed !== null) yield* devices.clearDismissed(target.deviceId, activityKey)
-              if (delivery._tag === "End") shown.delete(shownKey)
+              if (delivery._tag === "Start" && target.dismissed !== null) {
+                yield* devices.clearDismissed(target.deviceId, activityKey)
+              }
+              if (delivery._tag === "End") {
+                shown.delete(shownKey)
+              }
               const step = flow.steps[push.activity.stepIndex]?.id ?? "?"
-              const progress = delivery.content.progress === undefined ? "" : ` ${Math.round(delivery.content.progress * 100)} %`
+              const progress = delivery.content.progress === undefined
+                ? ""
+                : ` ${Math.round(delivery.content.progress * 100)} %`
               yield* apns.send({
                 environment: target.apnsEnvironment,
                 deviceToken: delivery.token,
@@ -103,7 +130,9 @@ export class Notifier extends Context.Service<Notifier, {
                 // High priority: low priority let iOS hold updates back until the app opened.
                 priority: 10
               }).pipe(
-                Effect.tap(() => Effect.logInfo(`push ${delivery._tag} ${activityKey} ${step}${progress} → ${target.deviceId}`)),
+                Effect.tap(() =>
+                  Effect.logInfo(`push ${delivery._tag} ${activityKey} ${step}${progress} → ${target.deviceId}`)
+                ),
                 Effect.tap(() => Effect.sync(() => pushed++)),
                 Effect.catchTag("ApnsError", (error) =>
                   Effect.gen(function*() {
@@ -112,7 +141,9 @@ export class Notifier extends Context.Service<Notifier, {
                       level: "warn",
                       source: "apple",
                       kind: "push.refused",
-                      text: `Apple refused the push to ${target.name}: ${error.reason}${error.tokenGone ? " (its token is gone: dropped)" : ""}`,
+                      text: `Apple refused the push to ${target.name}: ${error.reason}${
+                        error.tokenGone ? " (its token is gone: dropped)" : ""
+                      }`,
                       subject: push.activity.subjectKey,
                       title: push.activity.title,
                       flowId: flow.id,
@@ -122,7 +153,7 @@ export class Notifier extends Context.Service<Notifier, {
                   }))
               )
             }), { concurrency: 4, discard: true })
-          yield* logged(push, flow, pushed, true)
+          yield* logged(push, flow, { pushed, configured: true })
         }).pipe(
           // No home, no iPhone to push to: the activities live there too.
           Effect.catchTag("HomeOffline", (error) => Effect.logDebug(`push skipped: ${error.message}`))

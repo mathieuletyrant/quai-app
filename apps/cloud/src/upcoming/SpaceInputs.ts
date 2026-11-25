@@ -1,12 +1,12 @@
-import { epochSeconds, seasonOfRelease } from "../integrations/arr.ts"
+import { seasonOfRelease } from "../integrations/arr.ts"
 import type { SeedCleanup } from "../integrations/cleanuparr.ts"
 import type { FinishedTorrent } from "../integrations/qbittorrent.ts"
 import type { RadarrGrabs, RadarrMovie } from "../integrations/radarr.ts"
 import { candidateTitleKey, type PlannedCandidate } from "../integrations/reclaimerr.ts"
-import { dueAt } from "./Rows.ts"
 import type { SonarrGrabs, SonarrSeries } from "../integrations/sonarr.ts"
-import type { SpaceBackInput, TitleKey, TorrentInput } from "./SpaceBack.ts"
 import * as LibraryId from "../library/LibraryId.ts"
+import { dueAt } from "./Rows.ts"
+import type { SpaceBackInput, TitleKey, TorrentInput } from "./SpaceBack.ts"
 
 /**
  * What space back is decided on, from what Upcoming read. Pure. A read is `null` when its service
@@ -29,7 +29,13 @@ export interface SpaceReads {
 }
 
 /** The title a grab was for, as space back keys it: a series' season when the release names one. */
-export const grabKey = (grab: { readonly movieId?: number | undefined; readonly seriesId?: number | undefined; readonly sourceTitle?: string | undefined }): TitleKey | undefined => {
+export const grabKey = (
+  grab: {
+    readonly movieId?: number | undefined
+    readonly seriesId?: number | undefined
+    readonly sourceTitle?: string | undefined
+  }
+): TitleKey | undefined => {
   if (grab.movieId !== undefined) return LibraryId.movie(grab.movieId)
   if (grab.seriesId === undefined) return undefined
   const season = grab.sourceTitle === undefined ? undefined : seasonOfRelease(grab.sourceTitle)
@@ -62,7 +68,10 @@ export const libraryHolds = (reads: Pick<SpaceReads, "movies" | "series">) => (k
 }
 
 /** The torrents as space back takes them, with what the download cleaner plans for each. */
-export const torrentInputs = (torrents: ReadonlyArray<FinishedTorrent>, cleanups: ReadonlyArray<SeedCleanup>): ReadonlyArray<TorrentInput> => {
+export const torrentInputs = (
+  torrents: ReadonlyArray<FinishedTorrent>,
+  cleanups: ReadonlyArray<SeedCleanup>
+): ReadonlyArray<TorrentInput> => {
   const cleanupOf = new Map(cleanups.map((cleanup) => [cleanup.torrent.hash.toLowerCase(), cleanup]))
   return torrents.map((torrent) => {
     const cleanup = cleanupOf.get(torrent.hash.toLowerCase())
@@ -71,7 +80,9 @@ export const torrentInputs = (torrents: ReadonlyArray<FinishedTorrent>, cleanups
       name: torrent.name,
       size: torrent.size,
       category: torrent.category,
-      cleanup: cleanup === undefined ? undefined : { at: cleanup.at, timing: cleanup.timing, freesFiles: cleanup.freesFiles }
+      cleanup: cleanup === undefined
+        ? undefined
+        : { at: cleanup.at, timing: cleanup.timing, freesFiles: cleanup.freesFiles }
     }
   })
 }
@@ -88,7 +99,11 @@ export const spaceInputs = (reads: SpaceReads): SpaceBackInput => {
       at: dueAt(planned.deletesAt, reads.now) * 1000,
       sizeBytes: planned.candidate.size_bytes ?? undefined
     })),
-    torrents: reads.torrents === null ? [] : reads.torrents === undefined || !placeable ? undefined : torrentInputs(reads.torrents, reads.cleanups),
+    torrents: reads.torrents === null
+      ? []
+      : reads.torrents === undefined || !placeable
+      ? undefined
+      : torrentInputs(reads.torrents, reads.cleanups),
     grabs: grabsByHash(reads),
     inLibrary: libraryHolds(reads),
     hardlinks: reads.hardlinks,

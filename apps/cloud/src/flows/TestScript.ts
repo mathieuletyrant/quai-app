@@ -31,16 +31,13 @@ const sampleItems = (at: number, done: number): Values => {
 }
 
 /** What a step shows in the test, with values like a real run's. */
-const sampleValues = (flow: Flow, step: Flow["steps"][number], at: number, last: boolean): Values =>
-  step.show.timer
-    ? { paused: false, startsAt: at, endsAt: at + 40_000, detail: "TV Salon" }
-    : step.show.since
-    ? { since: at, detail: "Not answering" }
-    : step.show.list
-    ? sampleItems(at, last ? 4 : 1)
-    : flow.subject === "request"
-    ? { detail: last ? "Julie" : "Julie · Movie · 2008" }
-    : {}
+const sampleValues = (flow: Flow, step: Flow["steps"][number], at: number, last: boolean): Values => {
+  if (step.show.timer) return { paused: false, startsAt: at, endsAt: at + 40_000, detail: "TV Salon" }
+  if (step.show.since) return { since: at, detail: "Not answering" }
+  if (step.show.list) return sampleItems(at, last ? 4 : 1)
+  if (flow.subject === "request") return { detail: last ? "Julie" : "Julie · Movie · 2008" }
+  return {}
+}
 
 export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<Beat> => {
   const subjectKey = `test:${id}`
@@ -82,7 +79,9 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
     })
     if (step.show.progress && !ends) {
       for (const progress of [0.12, 0.31, 0.52, 0.74, 0.93, 1]) {
-        beat(4_000, "Update", { values: { progress, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - progress) * 24) } })
+        beat(4_000, "Update", {
+          values: { progress, bytesPerSecond: 11_534_336, remainingSeconds: Math.round((1 - progress) * 24) }
+        })
       }
     }
     if (step.show.list && !ends) {
@@ -91,7 +90,9 @@ export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<B
     if (step.actions?.includes("playback.playPause")) {
       // Shows the button's two states: a pause, then playing again from where it was.
       beat(8_000, "Update", { values: { paused: true, progress: 0.2, detail: "TV Salon" } })
-      beat(5_000, "Update", { values: { paused: false, startsAt: clock + 5_000 - 8_000, endsAt: clock + 5_000 + 32_000, detail: "TV Salon" } })
+      beat(5_000, "Update", {
+        values: { paused: false, startsAt: clock + 5_000 - 8_000, endsAt: clock + 5_000 + 32_000, detail: "TV Salon" }
+      })
     }
   })
   if (activity.endedAt === null) beat(8_000, "End", { endedAt: clock + 8_000, tone: "done" })

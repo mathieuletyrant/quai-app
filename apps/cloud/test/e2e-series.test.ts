@@ -14,7 +14,12 @@ const keyPem = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKe
   .export({ type: "pkcs8", format: "pem" }).toString()
 
 const series = { id: 233, title: "Our House (2022)", tvdbId: 407046, tmdbId: 157014, imdbId: "tt10098728", year: 2022 }
-const episode = (episodeNumber: number) => ({ id: 9000 + episodeNumber, seasonNumber: 1, episodeNumber, title: `Episode ${episodeNumber}` })
+const episode = (episodeNumber: number) => ({
+  id: 9000 + episodeNumber,
+  seasonNumber: 1,
+  episodeNumber,
+  title: `Episode ${episodeNumber}`
+})
 const downloadId = "ABCDEF0123456789ABCDEF0123456789ABCDEF01"
 const subjectKey = "series:tvdb:407046:dl:abcdef0123456789abcdef0123456789abcdef01"
 
@@ -35,11 +40,20 @@ describe("end to end, a series", () => {
         yield* home.connect
         const devices = yield* Devices
         const { code } = yield* devices.createPairingCode
-        const paired = yield* devices.pair({ code, name: "iPhone", apnsEnvironment: "development", pushToStartToken: "pts" })
+        const paired = yield* devices.pair({
+          code,
+          name: "iPhone",
+          apnsEnvironment: "development",
+          pushToStartToken: "pts"
+        })
         const deviceId = paired._tag === "Some" ? paired.value.deviceId : yield* Effect.die("no pairing")
         const sonarr = (eventType: string, episodes: ReadonlyArray<number>) =>
           home.webhook("sonarr", { eventType, series, episodes: episodes.map(episode), downloadId })
-        const activity = () => Effect.map(Effect.flatMap(Activities, (activities) => activities.snapshot), (state) => [...state.activities.values()][0])
+        const activity = () =>
+          Effect.map(
+            Effect.flatMap(Activities, (activities) => activities.snapshot),
+            (state) => [...state.activities.values()][0]
+          )
 
         yield* sonarr("Grab", [1, 2, 3, 4])
         yield* devices.setActivityToken(deviceId, `download|${subjectKey}`, "act")
@@ -90,7 +104,12 @@ describe("end to end, a series", () => {
           tone: "active",
           values: {},
           downloadId: downloadId.toLowerCase(),
-          lookup: { _tag: "Episodes", tvdbId: 407046, title: "Our House (2022)", episodes: [{ season: 1, episode: 3 }] },
+          lookup: {
+            _tag: "Episodes",
+            tvdbId: 407046,
+            title: "Our House (2022)",
+            episodes: [{ season: 1, episode: 3 }]
+          },
           enteredAt: 0,
           movedAt: 0,
           lastEventAt: 0,

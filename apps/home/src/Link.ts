@@ -1,5 +1,5 @@
 import { HomeProtocol } from "@quai/api"
-import { Clock, Context, Deferred, Effect, Layer, PubSub, Queue, Ref, Schema, Semaphore } from "effect"
+import { Clock, Context, Deferred, Effect, Layer, PubSub, Queue, Ref, Schema, type Scope, Semaphore } from "effect"
 import { Socket } from "effect/socket"
 import { Calls } from "./Calls.ts"
 import { CloudSeen } from "./CloudSeen.ts"
@@ -13,6 +13,10 @@ import { homeVersion } from "./Version.ts"
 import { Watches } from "./Watches.ts"
 
 type HomeMessage = HomeProtocol.HomeMessage
+type CloudMessageOf<Tag extends HomeProtocol.CloudMessage["_tag"]> = Extract<
+  HomeProtocol.CloudMessage,
+  { readonly _tag: Tag }
+>
 type StoreRequest = Extract<HomeProtocol.CloudMessage, { readonly _tag: "StoreList" | "StorePut" | "StoreDelete" }>
 
 const HomeJson = Schema.fromJsonString(HomeProtocol.HomeMessage)
@@ -59,7 +63,9 @@ export class Link extends Context.Service<Link, {
   /** Whether the cloud welcomed this connection. */
   readonly linked: Effect.Effect<boolean>
   /** Relays one of the console's requests to the Cloud, and its answer back. */
-  readonly console: (request: ConsoleRequest) => Effect.Effect<{ readonly status: number; readonly body: string }, CloudUnreachable>
+  readonly console: (
+    request: ConsoleRequest
+  ) => Effect.Effect<{ readonly status: number; readonly body: string }, CloudUnreachable>
 }>()("quai-home/Link") {
   /** No `QUAI_CLOUD_URL`: nothing to link to, every console request says so. */
   static readonly unlinked = Layer.succeed(Link, {
@@ -102,12 +108,18 @@ export class Link extends Context.Service<Link, {
       const runStore = (request: StoreRequest): Effect.Effect<HomeMessage> => {
         const done = HomeProtocol.StoreDone.make({ id: request.id })
         const operation: Effect.Effect<HomeMessage, StoreError> = request._tag === "StoreList"
-          ? Effect.map(store.list(request.prefix), (documents) => HomeProtocol.StoreDocuments.make({ id: request.id, documents }))
+          ? Effect.map(
+            store.list(request.prefix),
+            (documents) => HomeProtocol.StoreDocuments.make({ id: request.id, documents })
+          )
           : request._tag === "StorePut"
           ? Effect.as(store.put(request.key, request.value), done)
           : Effect.as(store.delete(request.key), done)
         return operation.pipe(
-          Effect.catchTag("StoreError", (error) => Effect.succeed(HomeProtocol.Failed.make({ id: request.id, reason: error.message })))
+          Effect.catchTag(
+            "StoreError",
+            (error) => Effect.succeed(HomeProtocol.Failed.make({ id: request.id, reason: error.message }))
+          )
         )
       }
 
@@ -123,7 +135,11 @@ export class Link extends Context.Service<Link, {
         const watcher = yield* watches.make(write)
         // Store operations run one at a time, in the order the cloud sent them.
         const storeQueue = yield* Queue.unbounded<StoreRequest>()
-        yield* Effect.forkScoped(Effect.forever(Effect.flatMap(Queue.take(storeQueue), (storeRequest) => Effect.flatMap(runStore(storeRequest), write))))
+        yield* Effect.forkScoped(
+          Effect.forever(
+            Effect.flatMap(Queue.take(storeQueue), (storeRequest) => Effect.flatMap(runStore(storeRequest), write))
+          )
+        )
         const lastPing = yield* Ref.make(yield* Clock.currentTimeMillis)
 
         yield* write(yield* hello)
@@ -136,7 +152,8 @@ export class Link extends Context.Service<Link, {
               yield* Deferred.fail(answer, new CloudUnreachable({ message: notLinkedMessage }))
             }
             consolePending.clear()
-          }))
+          })
+        )
         // A service set or removed from the console: the Cloud hears which services this home reaches now.
         const changes = yield* settings.changes
         yield* Effect.forkScoped(Effect.forever(Effect.gen(function*() {
@@ -145,69 +162,99 @@ export class Link extends Context.Service<Link, {
           yield* write(HomeProtocol.ServicesChanged.make({ services: configuredServices(yield* settings.current) }))
         })))
 
+        /** The Cloud welcomed this home: what waited goes, the watches start over, the journal streams. */
+        const welcomed = (message: CloudMessageOf<"Welcome">) =>
+          Effect.gen(function*() {
+            if (message.homeId !== key.homeId) {
+              yield* Effect.logWarning(`the cloud welcomed home ${message.homeId}, this is ${key.homeId}`)
+            }
+            yield* Effect.logInfo(`linked as home ${key.homeId}`)
+            yield* Ref.set(failures, 0)
+            yield* gate.withPermit(Effect.gen(function*() {
+              yield* Ref.set(linked, true)
+              if (held.length > 0) {
+                yield* Effect.logInfo(`sending ${held.length} message(s) held while the link was down`)
+              }
+              for (const waiting of held.splice(0)) yield* write(waiting)
+            }))
+            // On disk, without holding up the link.
+            yield* Effect.forkDetach(cloudSeen.linked)
+            yield* watcher.reset
+            // Quai Home's own journal lines, for the Cloud's live view: they're kept here already.
+            yield* Effect.forkScoped(
+              Effect.forever(
+                Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))
+              )
+            )
+          })
+
+        /** The Cloud's answer to a console request still waiting on this connection. */
+        const answered = (message: CloudMessageOf<"ConsoleResponse">) =>
+          Effect.suspend(() => {
+            const answer = consolePending.get(message.id)
+            if (answer === undefined) return Effect.void
+            consolePending.delete(message.id)
+            return Deferred.succeed(answer, message)
+          })
+
+        const journalPage = (message: CloudMessageOf<"JournalRead">) =>
+          Effect.flatMap(
+            journal.read(message.query),
+            (page) => write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
+          )
+
+        /** One message from the Cloud; an outcome when it ends the connection. */
+        const handle = (message: HomeProtocol.CloudMessage): Effect.Effect<Outcome | void, never, Scope.Scope> => {
+          switch (message._tag) {
+            case "Challenge":
+              return write(HomeProtocol.Proof.make({ signature: key.sign(message.nonce) }))
+            case "Welcome":
+              return welcomed(message)
+            case "Refused":
+              return Effect.succeed(
+                {
+                  _tag: "Refused",
+                  reason: message.reason,
+                  retryAfterSeconds: message.retryAfterSeconds
+                } satisfies Outcome
+              )
+            case "Ping":
+              return Effect.flatMap(
+                Effect.flatMap(Clock.currentTimeMillis, (now) => Ref.set(lastPing, now)),
+                () => write(HomeProtocol.Pong.make({ at: message.at }))
+              )
+            case "Call":
+              return Effect.asVoid(Effect.forkScoped(semaphore.withPermit(Effect.flatMap(calls.run(message), write))))
+            case "SetWatches":
+              return watcher.set(message.watches)
+            case "StoreList":
+            case "StorePut":
+            case "StoreDelete":
+              return Effect.asVoid(Queue.offer(storeQueue, message))
+            // In memory, so in the order sent: a read after an append sees it.
+            case "JournalAppend":
+              return journal.append(message.entries)
+            case "ConsoleResponse":
+              return answered(message)
+            case "JournalRead":
+              return journalPage(message)
+          }
+        }
+
+        /** One frame from the Cloud: anything not part of the protocol is logged and left. */
+        const receive = (frame: string) => {
+          const decoded = decodeCloudMessage(frame)
+          if (decoded._tag === "None") {
+            return Effect.logWarning("ignored a message from the cloud that isn't part of the protocol")
+          }
+          return handle(decoded.value)
+        }
+
         const read = Effect.gen(function*() {
           while (true) {
             for (const frame of yield* pull) {
-              const decoded = decodeCloudMessage(frame)
-              if (decoded._tag === "None") {
-                yield* Effect.logWarning("ignored a message from the cloud that isn't part of the protocol")
-                continue
-              }
-              const message = decoded.value
-              switch (message._tag) {
-                case "Challenge":
-                  yield* write(HomeProtocol.Proof.make({ signature: key.sign(message.nonce) }))
-                  break
-                case "Welcome":
-                  if (message.homeId !== key.homeId) yield* Effect.logWarning(`the cloud welcomed home ${message.homeId}, this is ${key.homeId}`)
-                  yield* Effect.logInfo(`linked as home ${key.homeId}`)
-                  yield* Ref.set(failures, 0)
-                  yield* gate.withPermit(Effect.gen(function*() {
-                    yield* Ref.set(linked, true)
-                    if (held.length > 0) yield* Effect.logInfo(`sending ${held.length} message(s) held while the link was down`)
-                    for (const message of held.splice(0)) yield* write(message)
-                  }))
-                  // On disk, without holding up the link.
-                  yield* Effect.forkDetach(cloudSeen.linked)
-                  yield* watcher.reset
-                  // Quai Home's own journal lines, for the Cloud's live view: they're kept here already.
-                  yield* Effect.forkScoped(Effect.forever(Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))))
-                  break
-                case "Refused":
-                  return { _tag: "Refused", reason: message.reason, retryAfterSeconds: message.retryAfterSeconds } satisfies Outcome
-                case "Ping":
-                  yield* Ref.set(lastPing, yield* Clock.currentTimeMillis)
-                  yield* write(HomeProtocol.Pong.make({ at: message.at }))
-                  break
-                case "Call":
-                  yield* Effect.forkScoped(semaphore.withPermit(Effect.flatMap(calls.run(message), write)))
-                  break
-                case "SetWatches":
-                  yield* watcher.set(message.watches)
-                  break
-                case "StoreList":
-                case "StorePut":
-                case "StoreDelete":
-                  yield* Queue.offer(storeQueue, message)
-                  break
-                // In memory, so in the order sent: a read after an append sees it.
-                case "JournalAppend":
-                  yield* journal.append(message.entries)
-                  break
-                case "ConsoleResponse": {
-                  const answer = consolePending.get(message.id)
-                  if (answer !== undefined) {
-                    consolePending.delete(message.id)
-                    yield* Deferred.succeed(answer, message)
-                  }
-                  break
-                }
-                case "JournalRead": {
-                  const page = yield* journal.read(message.query)
-                  yield* write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
-                  break
-                }
-              }
+              const outcome = yield* receive(frame)
+              if (outcome !== undefined) return outcome
             }
           }
         })
@@ -225,7 +272,10 @@ export class Link extends Context.Service<Link, {
         return yield* Effect.raceFirst(read, heartbeat)
       }).pipe(
         Effect.scoped,
-        Effect.catchTag("SocketError", (error) => Effect.succeed({ _tag: "Closed", reason: error.message } satisfies Outcome))
+        Effect.catchTag(
+          "SocketError",
+          (error) => Effect.succeed({ _tag: "Closed", reason: error.message } satisfies Outcome)
+        )
       )
 
       const loop = Effect.gen(function*() {
@@ -249,7 +299,9 @@ export class Link extends Context.Service<Link, {
         console: (request) =>
           Effect.gen(function*() {
             const write = yield* Ref.get(current)
-            if (write === null || !(yield* Ref.get(linked))) return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
+            if (write === null || !(yield* Ref.get(linked))) {
+              return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
+            }
             const id = `c${yield* Ref.updateAndGet(consoleCount, (count) => count + 1)}`
             const answer = yield* Deferred.make<HomeProtocol.ConsoleResponse, CloudUnreachable>()
             consolePending.set(id, answer)

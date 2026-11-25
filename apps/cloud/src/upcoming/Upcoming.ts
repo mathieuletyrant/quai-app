@@ -1,19 +1,36 @@
-import { HomeOffline, HomeProtocol, type Upcoming as UpcomingList, upcomingReleaseDays, type UpcomingService } from "@quai/api"
+import {
+  HomeOffline,
+  HomeProtocol,
+  type Upcoming as UpcomingList,
+  upcomingReleaseDays,
+  type UpcomingService
+} from "@quai/api"
 import { Clock, Context, Effect, Layer, Option } from "effect"
 import { stuckRemovalsRead } from "../fixes/Planned.ts"
-import { HomeLink, offlineMessage } from "../home/HomeLink.ts"
+import { dayOf } from "../home/Day.ts"
+import { HomeLink, type LinkedHome, offlineMessage } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
+import { HomeTime } from "../home/HomeTime.ts"
 import { epochSeconds, mediaManagementRead } from "../integrations/arr.ts"
-import { downloadCleanerJobRead, downloadCleanerRead, seedCleanups, unlinkedCategory } from "../integrations/cleanuparr.ts"
+import {
+  downloadCleanerJobRead,
+  downloadCleanerRead,
+  type SeedCleanup,
+  seedCleanups,
+  unlinkedCategory
+} from "../integrations/cleanuparr.ts"
 import { finishedTorrentsRead } from "../integrations/qbittorrent.ts"
 import { radarrGrabsRead, radarrMoviesRead } from "../integrations/radarr.ts"
-import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../integrations/reclaimerr.ts"
+import {
+  candidatesRead,
+  type PlannedCandidate,
+  plannedDeletionFixes,
+  plannedDeletions
+} from "../integrations/reclaimerr.ts"
 import { sonarrGrabsRead, sonarrSeriesRead } from "../integrations/sonarr.ts"
-import { dayOf } from "../home/Day.ts"
-import { HomeTime } from "../home/HomeTime.ts"
-import { rangeReads, rangeReleases } from "../releases/ReleaseDays.ts"
+import { type DayReads, rangeReads, rangeReleases } from "../releases/ReleaseDays.ts"
 import { byDate, plannedDeletionItems, releaseItems, seedItems, stuckRemovalItems } from "./Rows.ts"
-import { spaceBack } from "./SpaceBack.ts"
+import { type SpaceBack, spaceBack } from "./SpaceBack.ts"
 import { spaceInputs } from "./SpaceInputs.ts"
 
 /** A torrent older than this is never looked up in the *arr history. */
@@ -24,9 +41,160 @@ export const grabsSince = (addedOn: ReadonlyArray<number>, now: number) =>
   Math.max(Math.min(now, ...addedOn.map((seconds) => seconds * 1000)) - 24 * 3600_000, now - maxGrabLookbackMs)
 
 /** A read's value as space back takes it: `null` when its service isn't reached, `undefined` when it didn't answer. */
-const known = <A>(reached: boolean, value: Option.Option<A>): A | null | undefined => reached ? Option.getOrUndefined(value) : null
+const known = <A>(reached: boolean, value: Option.Option<A>): A | null | undefined =>
+  reached ? Option.getOrUndefined(value) : null
 
-const nothingBack = { deletions: new Map<number, number>(), torrents: new Map<string, number>() }
+const nothingBack: SpaceBack = { deletions: new Map<number, number>(), torrents: new Map<string, number>() }
+
+/** What the linked Quai Home lets Upcoming read. */
+export interface Reach {
+  readonly has: (service: HomeProtocol.HomeService) => boolean
+  /** A Quai Home recent enough to read the download cleaner and the media management setting. */
+  readonly recent: boolean
+  /** Seed cleanups can be planned: Cleanuparr and qBittorrent reached by a recent Quai Home. */
+  readonly cleaning: boolean
+}
+
+export const reachOf = (home: Pick<LinkedHome, "services" | "protocol">): Reach => {
+  const has = (service: HomeProtocol.HomeService) => home.services.includes(service)
+  // An older Quai Home refuses the download cleaner and the media management setting.
+  const recent = home.protocol >= HomeProtocol.upcomingProtocolVersion
+  return { has, recent, cleaning: recent && has("cleanuparr") && has("qbittorrent") }
+}
+
+/** The reads Upcoming always makes, at once: the calendars, and what each service plans to remove. */
+const readStack = (reads: HomeReads["Service"], reach: Reach, calendar: DayReads) => {
+  const none = Effect.succeed(Option.none<never>())
+  return Effect.all({
+    calendars: reads.all({ episodes: calendar.episodes, movies: calendar.movies }),
+    candidates: reach.has("reclaimerr") ? reads.read(candidatesRead) : none,
+    removals: reach.has("cleanuparr") ? stuckRemovalsRead(reads) : none,
+    cleaner: reach.cleaning ? reads.read(downloadCleanerRead) : none,
+    job: reach.cleaning ? reads.read(downloadCleanerJobRead) : none,
+    finished: reach.has("qbittorrent") ? reads.read(finishedTorrentsRead) : none
+  }, { concurrency: "unbounded" })
+}
+
+export type StackReads = Effect.Success<ReturnType<typeof readStack>>
+
+/** The library, its grabs since `since` and its hardlink settings: what space back is decided on. */
+const readLibrary = (reads: HomeReads["Service"], reach: Reach, since: number) =>
+  reads.all({
+    movies: reach.has("radarr") ? radarrMoviesRead : null,
+    series: reach.has("sonarr") ? sonarrSeriesRead : null,
+    radarrGrabs: reach.has("radarr") ? radarrGrabsRead(since) : null,
+    sonarrGrabs: reach.has("sonarr") ? sonarrGrabsRead(since) : null,
+    radarrSettings: reach.recent && reach.has("radarr") ? mediaManagementRead("radarr") : null,
+    sonarrSettings: reach.recent && reach.has("sonarr") ? mediaManagementRead("sonarr") : null
+  }, { optional: ["movies", "series", "radarrGrabs", "sonarrGrabs", "radarrSettings", "sonarrSettings"] }).pipe(
+    Effect.map(({ values }) => values)
+  )
+
+export type LibraryReads = Effect.Success<ReturnType<typeof readLibrary>>
+
+/** What frees space: Reclaimerr's planned deletions and the download cleaner's seed cleanups. */
+export interface Plans {
+  readonly planned: ReadonlyArray<PlannedCandidate>
+  readonly cleanups: ReadonlyArray<SeedCleanup>
+}
+
+/** Epoch milliseconds of the download cleaner's next run, when scheduled. */
+const nextRunOf = (job: StackReads["job"]): number | undefined => {
+  const seconds = Option.getOrUndefined(
+    Option.flatMap(job, (scheduled) => Option.fromNullishOr(epochSeconds(scheduled.nextRunTime ?? undefined)))
+  )
+  return seconds === undefined ? undefined : seconds * 1000
+}
+
+export const plansOf = (stack: StackReads, now: number): Plans => {
+  const { candidates, cleaner, finished } = stack
+  return {
+    planned: Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) }),
+    cleanups: Option.isSome(cleaner) && Option.isSome(finished)
+      ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunOf(stack.job), now })
+      : []
+  }
+}
+
+/** Space back is only decided when something plans to free space: the library is read for it. */
+const freesSpace = (plans: Plans) => plans.planned.length > 0 || plans.cleanups.length > 0
+
+/** When each finished torrent was added, epoch seconds. */
+const addedOnOf = (finished: StackReads["finished"]) =>
+  Option.match(finished, { onNone: () => [], onSome: (list) => list.flatMap((torrent) => torrent.added_on ?? []) })
+
+/** Everything Upcoming read, as it is put together. */
+export interface Gathered {
+  readonly reach: Reach
+  readonly zone: string
+  readonly today: string
+  readonly now: number
+  readonly stack: StackReads
+  readonly plans: Plans
+  /** Undefined when nothing frees space, so it wasn't read. */
+  readonly library: LibraryReads | undefined
+}
+
+const hardlinksOf = (library: LibraryReads) => ({
+  movie: Option.getOrUndefined(Option.map(library.radarrSettings, (settings) => settings.copyUsingHardlinks)),
+  series: Option.getOrUndefined(Option.map(library.sonarrSettings, (settings) => settings.copyUsingHardlinks))
+})
+
+/** The space each planned deletion and seed cleanup gives back. */
+export const spaceFreed = ({ library, now, plans, reach, stack }: Gathered): SpaceBack => {
+  if (library === undefined) return nothingBack
+  return spaceBack(spaceInputs({
+    now,
+    planned: plans.planned,
+    movies: known(reach.has("radarr"), library.movies),
+    series: known(reach.has("sonarr"), library.series),
+    radarrGrabs: known(reach.has("radarr"), library.radarrGrabs),
+    sonarrGrabs: known(reach.has("sonarr"), library.sonarrGrabs),
+    hardlinks: hardlinksOf(library),
+    torrents: known(reach.has("qbittorrent"), stack.finished),
+    cleanups: plans.cleanups,
+    unlinkedCategory: Option.getOrUndefined(Option.map(stack.cleaner, unlinkedCategory))
+  }))
+}
+
+const postersOf = (library: LibraryReads | undefined) =>
+  library === undefined
+    ? {}
+    : { movies: Option.getOrUndefined(library.movies), series: Option.getOrUndefined(library.series) }
+
+/** The services reached that didn't answer, in the order the app shows them. */
+export const unavailableOf = ({ reach, stack }: Pick<Gathered, "reach" | "stack">): Array<UpcomingService> => {
+  const cleanuparrDown = Option.isNone(stack.removals) || (reach.cleaning && Option.isNone(stack.cleaner))
+  const down: ReadonlyArray<readonly [UpcomingService, boolean]> = [
+    ["radarr", stack.calendars.unavailable.includes("radarr")],
+    ["sonarr", stack.calendars.unavailable.includes("sonarr")],
+    ["reclaimerr", reach.has("reclaimerr") && Option.isNone(stack.candidates)],
+    ["cleanuparr", reach.has("cleanuparr") && cleanuparrDown],
+    ["qbittorrent", reach.has("qbittorrent") && Option.isNone(stack.finished)]
+  ]
+  return down.flatMap(([service, isDown]) => isDown ? [service] : [])
+}
+
+/** Upcoming's rows, by date, from what was read. Pure. */
+export const upcomingOf = (gathered: Gathered): UpcomingList => {
+  const { library, now, plans, reach, stack, today, zone } = gathered
+  const frees = spaceFreed(gathered)
+  const releases = rangeReleases(today, upcomingReleaseDays, zone, {
+    episodes: Option.getOrUndefined(stack.calendars.values.episodes),
+    movies: Option.getOrUndefined(stack.calendars.values.movies)
+  })
+  return {
+    timeZone: zone,
+    items: [
+      ...releaseItems(releases, zone),
+      ...plannedDeletionItems(plannedDeletionFixes(plans.planned, postersOf(library)), now, frees.deletions),
+      ...stuckRemovalItems(Option.getOrElse(stack.removals, () => []), now),
+      ...seedItems(plans.cleanups, zone, frees.torrents)
+    ].sort(byDate),
+    unavailable: unavailableOf(gathered),
+    homeOutdated: !reach.recent && (reach.has("cleanuparr") || reach.has("reclaimerr"))
+  }
+}
 
 /**
  * Upcoming (docs/upcoming.md): what the stack will do on its own, read when the app asks, nothing
@@ -49,79 +217,13 @@ export class Upcoming extends Context.Service<Upcoming, {
         const zone = yield* time.zone
         const now = yield* Clock.currentTimeMillis
         const today = dayOf(now, zone)
-        const has = (service: HomeProtocol.HomeService) => home.value.services.includes(service)
-        // An older Quai Home refuses the download cleaner and the media management setting.
-        const recent = home.value.protocol >= HomeProtocol.upcomingProtocolVersion
-        const cleaning = recent && has("cleanuparr") && has("qbittorrent")
-        const none = Effect.succeed(Option.none<never>())
-
-        const calendar = rangeReads(today, upcomingReleaseDays, zone)
-        const [calendars, candidates, removals, cleaner, job, finished] = yield* Effect.all([
-          reads.all({ episodes: calendar.episodes, movies: calendar.movies }),
-          has("reclaimerr") ? reads.read(candidatesRead) : none,
-          has("cleanuparr") ? stuckRemovalsRead(reads) : none,
-          cleaning ? reads.read(downloadCleanerRead) : none,
-          cleaning ? reads.read(downloadCleanerJobRead) : none,
-          has("qbittorrent") ? reads.read(finishedTorrentsRead) : none
-        ], { concurrency: "unbounded" })
-        const planned = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
-        const nextRunAt = Option.getOrUndefined(Option.flatMap(job, (scheduled) => Option.fromNullishOr(epochSeconds(scheduled.nextRunTime ?? undefined))))
-        const cleanups = Option.isSome(cleaner) && Option.isSome(finished)
-          ? seedCleanups({ settings: cleaner.value, torrents: finished.value, nextRunAt: nextRunAt === undefined ? undefined : nextRunAt * 1000, now })
-          : []
-
-        const addedOn = Option.match(finished, { onNone: () => [], onSome: (list) => list.flatMap((torrent) => torrent.added_on ?? []) })
-        const since = grabsSince(addedOn, now)
-        const library = planned.length > 0 || cleanups.length > 0
-          ? (yield* reads.all({
-            movies: has("radarr") ? radarrMoviesRead : null,
-            series: has("sonarr") ? sonarrSeriesRead : null,
-            radarrGrabs: has("radarr") ? radarrGrabsRead(since) : null,
-            sonarrGrabs: has("sonarr") ? sonarrGrabsRead(since) : null,
-            radarrSettings: recent && has("radarr") ? mediaManagementRead("radarr") : null,
-            sonarrSettings: recent && has("sonarr") ? mediaManagementRead("sonarr") : null
-          }, { optional: ["movies", "series", "radarrGrabs", "sonarrGrabs", "radarrSettings", "sonarrSettings"] })).values
+        const reach = reachOf(home.value)
+        const stack = yield* readStack(reads, reach, rangeReads(today, upcomingReleaseDays, zone))
+        const plans = plansOf(stack, now)
+        const library = freesSpace(plans)
+          ? yield* readLibrary(reads, reach, grabsSince(addedOnOf(stack.finished), now))
           : undefined
-        const frees = library === undefined ? nothingBack : spaceBack(spaceInputs({
-          now,
-          planned,
-          movies: known(has("radarr"), library.movies),
-          series: known(has("sonarr"), library.series),
-          radarrGrabs: known(has("radarr"), library.radarrGrabs),
-          sonarrGrabs: known(has("sonarr"), library.sonarrGrabs),
-          hardlinks: {
-            movie: Option.getOrUndefined(Option.map(library.radarrSettings, (settings) => settings.copyUsingHardlinks)),
-            series: Option.getOrUndefined(Option.map(library.sonarrSettings, (settings) => settings.copyUsingHardlinks))
-          },
-          torrents: known(has("qbittorrent"), finished),
-          cleanups,
-          unlinkedCategory: Option.getOrUndefined(Option.map(cleaner, unlinkedCategory))
-        }))
-        const posters = library === undefined
-          ? {}
-          : { movies: Option.getOrUndefined(library.movies), series: Option.getOrUndefined(library.series) }
-
-        const unavailable: Array<UpcomingService> = []
-        if (calendars.unavailable.includes("radarr")) unavailable.push("radarr")
-        if (calendars.unavailable.includes("sonarr")) unavailable.push("sonarr")
-        if (has("reclaimerr") && Option.isNone(candidates)) unavailable.push("reclaimerr")
-        if (has("cleanuparr") && (Option.isNone(removals) || (cleaning && Option.isNone(cleaner)))) unavailable.push("cleanuparr")
-        if (has("qbittorrent") && Option.isNone(finished)) unavailable.push("qbittorrent")
-
-        return {
-          timeZone: zone,
-          items: [
-            ...releaseItems(rangeReleases(today, upcomingReleaseDays, zone, {
-              episodes: Option.getOrUndefined(calendars.values.episodes),
-              movies: Option.getOrUndefined(calendars.values.movies)
-            }), zone),
-            ...plannedDeletionItems(plannedDeletionFixes(planned, posters), now, frees.deletions),
-            ...stuckRemovalItems(Option.getOrElse(removals, () => []), now),
-            ...seedItems(cleanups, zone, frees.torrents)
-          ].sort(byDate),
-          unavailable,
-          homeOutdated: !recent && (has("cleanuparr") || has("reclaimerr"))
-        }
+        return upcomingOf({ reach, zone, today, now, stack, plans, library })
       })
 
       return { list }

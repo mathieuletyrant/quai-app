@@ -20,8 +20,11 @@ export const FlowsHandlers = HttpApiBuilder.group(QuaiApi, "flows", (handlers) =
       .handle("actions", () => Effect.succeed(actionCatalog))
       .handle("save", ({ params, payload }) => synced(store.save({ ...payload, id: params.id })))
       .handle("remove", ({ params }) =>
-        Effect.flatMap(synced(store.remove(params.id)), (removed) => removed ? Effect.void : Effect.fail(new HttpApiError.NotFound())))
-      .handle("reset", ({ params }) => Effect.flatMap(synced(store.reset(params.id)), orNotFound))
+        Effect.flatMap(synced(store.remove(params.id)), (removed) =>
+          removed ? Effect.void : Effect.fail(new HttpApiError.NotFound())))
+      .handle("reset", ({ params }) =>
+        Effect.flatMap(synced(store.reset(params.id)), orNotFound))
       // Every paired iPhone, each with its own preferences for this flow.
-      .handle("test", ({ params, payload }) => Effect.flatMap(tests.play(params.id, payload.deviceIds), orNotFound))
+      .handle("test", ({ params, payload }) =>
+        Effect.flatMap(tests.play(params.id, payload.deviceIds), orNotFound))
   }))

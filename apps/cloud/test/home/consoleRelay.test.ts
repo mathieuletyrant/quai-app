@@ -1,5 +1,5 @@
-import { QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { QuaiApi } from "@quai/api"
 import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpRouter } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
@@ -9,7 +9,9 @@ import { makeFakeHome } from "../fakeHome.ts"
 import { TestApp } from "../testApp.ts"
 
 /** The Cloud's routes on its public port, as main.ts serves them: the console only through Quai Home. */
-const CloudServer = HttpRouter.serve(Layer.mergeAll(HttpApiBuilder.layer(QuaiApi), ConsoleRelayLive, ConsoleOnlyThroughHome)).pipe(
+const CloudServer = HttpRouter.serve(
+  Layer.mergeAll(HttpApiBuilder.layer(QuaiApi), ConsoleRelayLive, ConsoleOnlyThroughHome)
+).pipe(
   Layer.provideMerge(TestApp)
 )
 

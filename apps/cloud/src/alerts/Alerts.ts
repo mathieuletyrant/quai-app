@@ -3,9 +3,9 @@ import {
   type ActiveAlerts,
   type AlertKind,
   AlertKind as AlertKindSchema,
+  alertKinds,
   type AlertSettings,
   AlertSettings as AlertSettingsSchema,
-  alertKinds,
   currentAlertKind as currentKind,
   defaultAlertSettings,
   type HomeOffline,
@@ -42,8 +42,12 @@ export interface AlertState {
   readonly raised: ReadonlyArray<Raised>
 }
 
-export const alertState = (kind: AlertKind, scope: string, raised: ReadonlyArray<Raised>): AlertState =>
-  ({ _tag: "AlertState", kind, scope, raised })
+export const alertState = (kind: AlertKind, scope: string, raised: ReadonlyArray<Raised>): AlertState => ({
+  _tag: "AlertState",
+  kind,
+  scope,
+  raised
+})
 
 /** `alerts/settings`, `alerts/active`: home documents, so a restarted Cloud doesn't notify again. */
 export const settingsKey = "alerts/settings"
@@ -81,52 +85,42 @@ const decodeActive = (doc: unknown) => decodeStoredAlerts(Array.isArray(doc) ? d
 
 export const alertId = (kind: AlertKind, scope: string, what: string) => `${kind}:${scope}:${what}`
 
+/** What a reading says of one alert: its texts, and whether it ends without a notification. */
+const textsOf = (raised: Raised) => ({
+  title: raised.title,
+  over: raised.over,
+  ...(raised.detail === undefined ? {} : { detail: raised.detail }),
+  ...(raised.silentOver === true ? { silentOver: true } : {})
+})
+
+/** An alert still going: its text follows the reading (the disk's free space), no new notification. */
+const stillGoing = (alert: StoredAlert, raised: Raised): StoredAlert => {
+  const { detail: _, silentOver: __, ...rest } = alert
+  return { ...rest, ...textsOf(raised) }
+}
+
 /** What changes when a reading comes in: the alerts that start, those over, and the new list. */
 export const reconcile = (stored: ReadonlyArray<StoredAlert>, state: AlertState, now: number) => {
   const mine = (alert: StoredAlert) => alert.kind === state.kind && alert.scope === state.scope
   const raisedIds = new Map(state.raised.map((raised) => [alertId(state.kind, state.scope, raised.what), raised]))
   const over = stored.filter((alert) => mine(alert) && !raisedIds.has(alert.id))
-  const started: Array<StoredAlert> = []
-  const next: Array<StoredAlert> = []
-  for (const alert of stored) {
-    if (!mine(alert)) {
-      next.push(alert)
-      continue
-    }
+  const next: Array<StoredAlert> = stored.flatMap((alert) => {
+    if (!mine(alert)) return [alert]
     const raised = raisedIds.get(alert.id)
-    if (raised === undefined) continue
-    // Still going: its text follows the reading (the disk's free space), no new notification.
-    const { detail: _, silentOver: __, ...rest } = alert
-    next.push({
-      ...rest,
-      title: raised.title,
-      over: raised.over,
-      ...(raised.detail === undefined ? {} : { detail: raised.detail }),
-      ...(raised.silentOver === true ? { silentOver: true } : {})
-    })
-  }
-  for (const [id, raised] of raisedIds) {
-    if (stored.some((alert) => alert.id === id)) continue
-    const alert: StoredAlert = {
-      id,
-      kind: state.kind,
-      scope: state.scope,
-      title: raised.title,
-      over: raised.over,
-      since: now,
-      ...(raised.detail === undefined ? {} : { detail: raised.detail }),
-      ...(raised.silentOver === true ? { silentOver: true } : {})
-    }
-    started.push(alert)
-    next.push(alert)
-  }
+    return raised === undefined ? [] : [stillGoing(alert, raised)]
+  })
+  const started: Array<StoredAlert> = [...raisedIds]
+    .filter(([id]) => !stored.some((alert) => alert.id === id))
+    .map(([id, raised]) => ({ id, kind: state.kind, scope: state.scope, since: now, ...textsOf(raised) }))
+  next.push(...started)
   return { started, over, next, changed: JSON.stringify(next) !== JSON.stringify(stored) }
 }
 
 const sourceOf = (scope: string): JournalSource =>
   (journalSources as ReadonlyArray<string>).includes(scope) ? (scope as JournalSource) : "cloud"
 
-const enabledKinds = (settings: AlertSettings): ReadonlyArray<AlertKind> => alertKinds.filter((kind) => settings[kind].enabled)
+const enabledKinds = (settings: AlertSettings): ReadonlyArray<AlertKind> =>
+  alertKinds.filter((kind) => settings[kind].enabled)
 
 const toActive = (alert: StoredAlert): ActiveAlert => ({
   id: alert.id,
@@ -167,7 +161,8 @@ export class Alerts extends Context.Service<Alerts, {
         Effect.mapError(store.get(activeKey), toOffline),
         (doc) => Option.getOrElse(Option.flatMap(doc, decodeActive), (): ReadonlyArray<StoredAlert> => [])
       )
-      const saveStored = (alerts: ReadonlyArray<StoredAlert>) => Effect.mapError(store.put(activeKey, alerts), toOffline)
+      const saveStored = (alerts: ReadonlyArray<StoredAlert>) =>
+        Effect.mapError(store.put(activeKey, alerts), toOffline)
 
       const notify = (alert: StoredAlert, title: string, body: string | undefined) =>
         Effect.gen(function*() {
@@ -177,11 +172,23 @@ export class Alerts extends Context.Service<Alerts, {
               environment: recipient.apnsEnvironment,
               deviceToken: recipient.token,
               priority: 10,
-              body: { aps: { alert: body === undefined ? { title } : { title, body }, sound: "default", "thread-id": alert.kind } }
+              body: {
+                aps: {
+                  alert: body === undefined ? { title } : { title, body },
+                  sound: "default",
+                  "thread-id": alert.kind
+                }
+              }
             }).pipe(
               Effect.catchTag("ApnsError", (error: ApnsError) =>
                 Effect.andThen(
-                  journal.log({ level: "error", source: "apple", kind: "push.refused", text: `Apple refused the alert for ${recipient.name}: ${error.reason}`, deviceName: recipient.name }),
+                  journal.log({
+                    level: "error",
+                    source: "apple",
+                    kind: "push.refused",
+                    text: `Apple refused the alert for ${recipient.name}: ${error.reason}`,
+                    deviceName: recipient.name
+                  }),
                   error.tokenGone ? devices.dropToken(recipient.token).pipe(Effect.ignore) : Effect.void
                 ))
             )
@@ -196,7 +203,12 @@ export class Alerts extends Context.Service<Alerts, {
           if (!change.changed) return
           yield* saveStored(change.next)
           for (const alert of change.started) {
-            yield* journal.log({ level: "warn", source: sourceOf(alert.scope), kind: "alert.raised", text: alert.detail === undefined ? alert.title : `${alert.title}: ${alert.detail}` })
+            yield* journal.log({
+              level: "warn",
+              source: sourceOf(alert.scope),
+              kind: "alert.raised",
+              text: alert.detail === undefined ? alert.title : `${alert.title}: ${alert.detail}`
+            })
             yield* notify(alert, alert.title, alert.detail)
           }
           for (const alert of change.over) {

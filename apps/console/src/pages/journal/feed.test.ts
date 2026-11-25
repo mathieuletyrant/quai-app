@@ -18,8 +18,14 @@ describe("journal feed", () => {
   it("puts the live lines newer than the history on top, each once, filtered like the history", () => {
     const live = [line(20), line(40), line(50, { source: "sonarr" }), line(60, { level: "error" })]
     expect(visibleLines(live, history, noFilters, null).lines.map((line) => line.at)).toEqual([60, 50, 40, 30, 20, 10])
-    expect(visibleLines(live, history, { ...noFilters, sources: ["radarr"] }, null).lines.map((line) => line.at)).toEqual([60, 40, 30, 20, 10])
-    expect(visibleLines(live, history, { ...noFilters, level: "error" }, null).lines.map((line) => line.at)).toEqual([60, 30, 20, 10])
+    expect(visibleLines(live, history, { ...noFilters, sources: ["radarr"] }, null).lines.map((line) => line.at))
+      .toEqual([60, 40, 30, 20, 10])
+    expect(visibleLines(live, history, { ...noFilters, level: "error" }, null).lines.map((line) => line.at)).toEqual([
+      60,
+      30,
+      20,
+      10
+    ])
   })
 
   it("holds back what comes in while paused, and counts it", () => {
@@ -31,7 +37,14 @@ describe("journal feed", () => {
 
   it("asks the history route for the filters", () => {
     expect(historyQuery(noFilters)).toEqual({})
-    expect(historyQuery({ sources: ["radarr", "apple"], level: "warn", subject: { key: "movie:tmdb:1", title: "Dune" }, search: " dune " }, "x"))
+    expect(
+      historyQuery({
+        sources: ["radarr", "apple"],
+        level: "warn",
+        subject: { key: "movie:tmdb:1", title: "Dune" },
+        search: " dune "
+      }, "x")
+    )
       .toEqual({ before: "x", source: "radarr,apple", level: "warn", subject: "movie:tmdb:1", search: "dune" })
   })
 

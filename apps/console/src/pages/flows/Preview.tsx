@@ -25,14 +25,18 @@ const sampleItems = [
 ] as const
 
 /** The big number on the right: a countdown, a progress or the time since. */
-const sampleValue = (show: DraftStep["show"]) => show.timer ? "38:12" : show.progress ? "63%" : show.since ? "7 min" : null
+const sampleValue = (show: DraftStep["show"]) =>
+  show.timer ? "38:12" : show.progress ? "63%" : show.since ? "7 min" : null
 
 /** As the iPhone writes it: status, time left, speed, then the detail (the Jellyfin device). */
 const sampleFacts = (step: DraftStep, paused: boolean, detail: string | null) =>
-  [paused ? "Paused" : step.label, step.show.eta ? "≈ 4 min" : null, step.show.speed ? "11 MB/s" : null, detail].filter(Boolean).join(" · ")
+  [paused ? "Paused" : step.label, step.show.eta ? "≈ 4 min" : null, step.show.speed ? "11 MB/s" : null, detail].filter(
+    Boolean
+  ).join(" · ")
 
 /** The wallpaper: the flow's colour fading into the page. */
-const wallpaper = (color: string) => `radial-gradient(120% 90% at 15% 0%, ${color}38 0%, var(--color-wallpaper) 52%, var(--color-bg) 100%)`
+const wallpaper = (color: string) =>
+  `radial-gradient(120% 90% at 15% 0%, ${color}38 0%, var(--color-wallpaper) 52%, var(--color-bg) 100%)`
 
 /**
  * The Lock Screen and Dynamic Island as the iPhone draws this flow at one step, with sample values.
@@ -52,7 +56,10 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
   const actions = current.actions ?? []
 
   return (
-    <InspectorSection title="Lock Screen preview" actions={canPause && <PauseSwitch paused={isPaused} onChange={setPaused} />}>
+    <InspectorSection
+      title="Lock Screen preview"
+      actions={canPause && <PauseSwitch paused={isPaused} onChange={setPaused} />}
+    >
       <div
         aria-label="Lock Screen preview"
         className="relative overflow-hidden rounded-phone border border-line px-4 pt-4 pb-5 shadow-sheen"
@@ -71,10 +78,20 @@ export function Preview({ flow, step, onStep }: { flow: Draft; step: number; onS
               <p className="text-body leading-snug text-white/60">{sampleFacts(current, isPaused, detail)}</p>
             </div>
             {isPaused
-              ? <span aria-label="Paused" className="grid size-7 place-items-center rounded-full" style={{ background: tint }}><Glyph name="pause.fill" color="black" size={13} /></span>
+              ? (
+                <span
+                  aria-label="Paused"
+                  className="grid size-7 place-items-center rounded-full"
+                  style={{ background: tint }}
+                >
+                  <Glyph name="pause.fill" color="black" size={13} />
+                </span>
+              )
               : value && <span className="text-xl font-bold tabular-nums" style={{ color: tint }}>{value}</span>}
           </div>
-          {(current.show.progress || current.show.timer) && <ProgressBar share={current.show.timer ? "34%" : "63%"} tint={tint} />}
+          {(current.show.progress || current.show.timer) && (
+            <ProgressBar share={current.show.timer ? "34%" : "63%"} tint={tint} />
+          )}
           {current.show.list && <SampleList done={done} step={step} />}
           {actions.length > 0 && (
             <div className="flex gap-2">
@@ -101,8 +118,22 @@ function PauseSwitch({ paused, onChange }: { paused: boolean; onChange: (paused:
       label="Preview the activity"
       value={paused ? "paused" : "playing"}
       options={[
-        { value: "playing", label: <><Glyph name="play.fill" color="currentColor" size={10} />Playing</> },
-        { value: "paused", label: <><Glyph name="pause.fill" color="currentColor" size={10} />Paused</> }
+        {
+          value: "playing",
+          label: (
+            <>
+              <Glyph name="play.fill" color="currentColor" size={10} />Playing
+            </>
+          )
+        },
+        {
+          value: "paused",
+          label: (
+            <>
+              <Glyph name="pause.fill" color="currentColor" size={10} />Paused
+            </>
+          )
+        }
       ]}
       onChange={(state) => onChange(state === "paused")}
     />
@@ -110,11 +141,15 @@ function PauseSwitch({ paused, onChange }: { paused: boolean; onChange: (paused:
 }
 
 /** The compact Dynamic Island: the step's glyph, and its value or a pause sign. */
-function DynamicIsland({ icon, tint, paused, value }: { icon: string; tint: string; paused: boolean; value: string | null }) {
+function DynamicIsland(
+  { icon, tint, paused, value }: { icon: string; tint: string; paused: boolean; value: string | null }
+) {
   return (
     <div className="mx-auto flex h-8 w-44 items-center justify-between rounded-full bg-black px-2.5">
       <Glyph name={icon} color={tint} size={15} />
-      {paused ? <Glyph name="pause.fill" color={tint} size={13} /> : value && <span className="text-xs font-bold tabular-nums" style={{ color: tint }}>{value}</span>}
+      {paused
+        ? <Glyph name="pause.fill" color={tint} size={13} />
+        : value && <span className="text-xs font-bold tabular-nums" style={{ color: tint }}>{value}</span>}
     </div>
   )
 }
@@ -152,7 +187,11 @@ function StepTrack({ steps, current, tint }: { steps: ReadonlyArray<DraftStep>; 
       {steps.map((step, index) => (
         <div key={step.id} className="min-w-0 flex-1">
           <div className="mb-1 h-0.75 rounded-full" style={{ background: index <= current ? tint : trackColor }} />
-          <p className={`truncate text-overline ${index === current ? "font-semibold text-white/95" : "text-white/45"}`}>{step.label}</p>
+          <p
+            className={`truncate text-overline ${index === current ? "font-semibold text-white/95" : "text-white/45"}`}
+          >
+            {step.label}
+          </p>
         </div>
       ))}
     </div>

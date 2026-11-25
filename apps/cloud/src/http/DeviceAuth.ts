@@ -13,7 +13,10 @@ export const DeviceAuthLive = Layer.effect(
         Effect.gen(function*() {
           const device = yield* devices.authenticate(Redacted.value(credential))
           if (Option.isNone(device)) return yield* Effect.fail(new HttpApiError.Unauthorized())
-          return yield* Effect.provideService(httpEffect, CurrentDevice, { id: device.value.id, name: device.value.name })
+          return yield* Effect.provideService(httpEffect, CurrentDevice, {
+            id: device.value.id,
+            name: device.value.name
+          })
         })
     }
   })

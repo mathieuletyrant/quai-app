@@ -54,7 +54,12 @@ export const makeHealthState = () => {
     return states
   }
   return {
-    observe: (service: HomeProtocol.HomeService, isUp: boolean, now: number, afterMs: number): ReadonlyArray<AlertState> => {
+    observe: (
+      service: HomeProtocol.HomeService,
+      isUp: boolean,
+      now: number,
+      afterMs: number
+    ): ReadonlyArray<AlertState> => {
       const first = !seen.has(service)
       seen.add(service)
       if (isUp) {
@@ -80,14 +85,26 @@ export const health = Effect.sync((): Integration => {
     alertWatcher: {
       watches: (context) =>
         context.alerts.serviceDown.enabled
-          ? context.services.map((service) => ({ id: healthWatchId(service), service, path: probes[service].path, everySeconds: 60 }))
+          ? context.services.map((service) => ({
+            id: healthWatchId(service),
+            service,
+            path: probes[service].path,
+            everySeconds: 60
+          }))
           : [],
       // Answers 403 without a session (qBittorrent) still prove it's up.
       read: ({ watch, status }, context) =>
-        Effect.map(Clock.currentTimeMillis, (now) => state.observe(watch.service, status < 500, now, afterMs(context.alerts.serviceDown.afterMinutes))),
+        Effect.map(
+          Clock.currentTimeMillis,
+          (now) => state.observe(watch.service, status < 500, now, afterMs(context.alerts.serviceDown.afterMinutes))
+        ),
       failed: (watch, _reason, context) =>
-        Effect.map(Clock.currentTimeMillis, (now) => state.observe(watch.service, false, now, afterMs(context.alerts.serviceDown.afterMinutes))),
-      tick: (context) => Effect.map(Clock.currentTimeMillis, (now) => state.due(now, afterMs(context.alerts.serviceDown.afterMinutes)))
+        Effect.map(
+          Clock.currentTimeMillis,
+          (now) => state.observe(watch.service, false, now, afterMs(context.alerts.serviceDown.afterMinutes))
+        ),
+      tick: (context) =>
+        Effect.map(Clock.currentTimeMillis, (now) => state.due(now, afterMs(context.alerts.serviceDown.afterMinutes)))
     },
     actions: {}
   }

@@ -24,7 +24,9 @@ type ServiceOf<R extends Reads> = { [K in keyof R]: ServiceOfRead<R[K]> }[keyof 
 const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
 
 const field = (value: unknown, key: string): unknown =>
-  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>)[key] : undefined
+  typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)[key]
+    : undefined
 
 /**
  * The error message of a failed call, in the service's words: `[{ errorMessage }]` (an *arr's
@@ -34,7 +36,12 @@ export const serviceError = (status: number, body: string): string => {
   const parsed = decodeJson(body)
   if (parsed._tag === "Some") {
     const value = parsed.value
-    const candidates = [Array.isArray(value) ? field(value[0], "errorMessage") : undefined, field(value, "message"), field(value, "detail"), field(value, "error")]
+    const candidates = [
+      Array.isArray(value) ? field(value[0], "errorMessage") : undefined,
+      field(value, "message"),
+      field(value, "detail"),
+      field(value, "error")
+    ]
     const found = candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate !== "")
     if (found !== undefined) return found
   }
@@ -46,6 +53,25 @@ export const serviceError = (status: number, body: string): string => {
 type Outcome =
   | { readonly _tag: "Answered"; readonly status: number; readonly body: string }
   | { readonly _tag: "Failed"; readonly message: string }
+
+const isSuccess = (status: number) => status >= 200 && status < 300
+
+/** What a read's outcome holds: its value, the read's `notFound` for a 404 that has one, else None. */
+const valueOf = <A>(spec: Read<A>, outcome: Outcome): Option.Option<A> => {
+  if (outcome._tag === "Failed") return Option.none()
+  if (outcome.status === 404 && spec.notFound !== undefined) return Option.some(spec.notFound)
+  return isSuccess(outcome.status) ? readJson(spec.schema, outcome.body) : Option.none()
+}
+
+/** Why a read gave nothing, in words for the log and the service's health. */
+const whyUnread = (outcome: Outcome) => {
+  if (outcome._tag === "Failed") return outcome.message
+  return isSuccess(outcome.status) ? "an answer Quai can't read" : `HTTP ${outcome.status}`
+}
+
+/** A 4xx says the service is there: what was asked isn't. Anything else counts against its health. */
+const countsAgainstService = (outcome: Outcome) =>
+  outcome._tag === "Failed" || outcome.status >= 500 || outcome.status < 300
 
 /**
  * The calls Quai Cloud makes to the home's services through Quai Home, one policy for all: Quai
@@ -90,64 +116,94 @@ export class HomeReads extends Context.Service<HomeReads, {
       const journal = yield* Journal
       /** The services whose last read failed. */
       const failing = new Set<HomeProtocol.HomeService>()
-      const observed = (service: HomeProtocol.HomeService, failed: { readonly why: string; readonly path: string } | null) =>
+      const observed = (
+        service: HomeProtocol.HomeService,
+        failed: { readonly why: string; readonly path: string } | null
+      ) =>
         Effect.suspend(() => {
           const name = journalSourceNames[service]
           if (failed === null) {
             return failing.delete(service)
-              ? journal.log({ level: "info", source: service, kind: "service.available", text: `${name} answers Quai again` })
+              ? journal.log({
+                level: "info",
+                source: service,
+                kind: "service.available",
+                text: `${name} answers Quai again`
+              })
               : Effect.void
           }
           if (failing.has(service)) return Effect.void
           failing.add(service)
-          return journal.log({ level: "warn", source: service, kind: "service.unavailable", text: `${name} didn't answer Quai: ${failed.why} (${failed.path})` })
+          return journal.log({
+            level: "warn",
+            source: service,
+            kind: "service.unavailable",
+            text: `${name} didn't answer Quai: ${failed.why} (${failed.path})`
+          })
         })
 
-      const call = (request: CallRequest, options?: { readonly timeoutMs?: number }): Effect.Effect<Outcome, HomeOffline> =>
+      const call = (
+        request: CallRequest,
+        options?: { readonly timeoutMs?: number }
+      ): Effect.Effect<Outcome, HomeOffline> =>
         link.call(request, options).pipe(
           Effect.map((response): Outcome => ({ _tag: "Answered", ...response })),
           Effect.catchTag("HomeError", (error) =>
-            error.reason === "offline" ? Effect.fail(toOffline(error)) : Effect.succeed<Outcome>({ _tag: "Failed", message: error.message }))
+            error.reason === "offline"
+              ? Effect.fail(toOffline(error))
+              : Effect.succeed<Outcome>({ _tag: "Failed", message: error.message }))
         )
 
-      const services = Effect.flatMap(link.home, (home) =>
-        Option.isSome(home) ? Effect.succeed(home.value.services) : Effect.fail(new HomeOffline({ message: offlineMessage })))
+      const services = Effect.flatMap(
+        link.home,
+        (home) =>
+          Option.isSome(home)
+            ? Effect.succeed(home.value.services)
+            : Effect.fail(new HomeOffline({ message: offlineMessage }))
+      )
 
-      const webUrls = Effect.flatMap(link.home, (home) =>
-        Option.isSome(home) ? Effect.succeed(home.value.webUrls ?? {}) : Effect.fail(new HomeOffline({ message: offlineMessage })))
+      const webUrls = Effect.flatMap(
+        link.home,
+        (home) =>
+          Option.isSome(home)
+            ? Effect.succeed(home.value.webUrls ?? {})
+            : Effect.fail(new HomeOffline({ message: offlineMessage }))
+      )
 
       const read = <A>(spec: Read<A>) =>
         Effect.gen(function*() {
           const answer = yield* call({ service: spec.service, method: "GET", path: spec.path })
-          const value = answer._tag === "Failed"
-            ? Option.none<A>()
-            : answer.status === 404 && spec.notFound !== undefined
-            ? Option.some(spec.notFound)
-            : answer.status >= 200 && answer.status < 300
-            ? readJson(spec.schema, answer.body)
-            : Option.none<A>()
-          const path = spec.path.split("?")[0]!
-          if (Option.isNone(value)) {
-            const why = answer._tag === "Failed" ? answer.message : answer.status >= 200 && answer.status < 300 ? "an answer Quai can't read" : `HTTP ${answer.status}`
-            yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
-            // A 4xx says the service is there: what was asked isn't.
-            if (answer._tag === "Failed" || answer.status >= 500 || answer.status < 300) yield* observed(spec.service, { why, path })
-          } else {
+          const value = valueOf(spec, answer)
+          if (Option.isSome(value)) {
             yield* observed(spec.service, null)
+            return value
           }
+          const path = spec.path.split("?")[0]!
+          const why = whyUnread(answer)
+          yield* Effect.logWarning(`${spec.service} ${path}: ${why}`)
+          if (countsAgainstService(answer)) yield* observed(spec.service, { why, path })
           return value
         })
 
       const all = <R extends Reads>(reads: R, options?: { readonly optional?: ReadonlyArray<keyof R> }) =>
         Effect.gen(function*() {
           const reached = yield* services
-          const asked = Object.entries(reads).flatMap(([key, spec]) => spec !== null && reached.includes(spec.service) ? [[key, spec] as const] : [])
-          const results = yield* Effect.forEach(asked, ([key, spec]) => Effect.map(read(spec), (value) => [key, spec.service, value] as const), {
-            concurrency: "unbounded"
-          })
+          const asked = Object.entries(reads).flatMap(([key, spec]) =>
+            spec !== null && reached.includes(spec.service) ? [[key, spec] as const] : []
+          )
+          const results = yield* Effect.forEach(
+            asked,
+            ([key, spec]) => Effect.map(read(spec), (value) => [key, spec.service, value] as const),
+            {
+              concurrency: "unbounded"
+            }
+          )
           const unavailable: Array<ServiceOf<R>> = []
           for (const [key, service, value] of results) {
-            if (Option.isNone(value) && options?.optional?.includes(key) !== true && !unavailable.includes(service as ServiceOf<R>)) {
+            if (
+              Option.isNone(value) && options?.optional?.includes(key) !== true &&
+              !unavailable.includes(service as ServiceOf<R>)
+            ) {
               unavailable.push(service as ServiceOf<R>)
             }
           }
@@ -156,7 +212,11 @@ export class HomeReads extends Context.Service<HomeReads, {
           return { values: values as Values<R>, unavailable }
         })
 
-      const write = <E>(request: CallRequest, refused: (message: string) => E, options?: { readonly timeoutMs?: number }) =>
+      const write = <E>(
+        request: CallRequest,
+        refused: (message: string) => E,
+        options?: { readonly timeoutMs?: number }
+      ) =>
         Effect.flatMap(call(request, options), (answer): Effect.Effect<string, E> =>
           answer._tag === "Failed"
             ? Effect.fail(refused(`Quai Home: ${answer.message}`))

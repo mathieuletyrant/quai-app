@@ -1,12 +1,12 @@
-import { DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { DeviceAuth, QuaiApi } from "@quai/api"
 import { Effect, Exit } from "effect"
+import { Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { Activities } from "../src/flows/Activities.ts"
-import { decodeSonarrWebhook, librarySeries, SonarrSeries, sonarrEvents } from "../src/integrations/sonarr.ts"
 import { DiskSpaces, libraryMovie, mediaDisk, RadarrMovies } from "../src/integrations/radarr.ts"
-import { Schema } from "effect"
+import { decodeSonarrWebhook, librarySeries, sonarrEvents, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHomeOptions, makeFakeHome, recordedHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp, testAppDroppingOn } from "./testApp.ts"
@@ -25,10 +25,15 @@ const phoneOn = (options: FakeHomeOptions) =>
   Effect.gen(function*() {
     const home = yield* makeFakeHome(options)
     yield* home.connect
-    const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
-    const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+    const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+      payload: { serverUrls: [] }
+    })
+    const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+      payload: { ...iphone, code: qr.code }
+    })
     const api = yield* HttpApiTest.groups(QuaiApi, ["library"]).pipe(
-      Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
+      Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) =>
+        next(HttpClientRequest.bearerToken(request, token))))
     )
     return { home, api }
   })
@@ -62,23 +67,52 @@ describe("library adapters", () => {
           sizeBytes: 0,
           overview: "A young runner chases one last race across the desert."
         },
-        { id: "movie:51", kind: "movie", title: "Nero", year: 2027, tmdbId: 1311031, status: "notAvailable", addedAt: 1794298323, sizeBytes: 0 }
+        {
+          id: "movie:51",
+          kind: "movie",
+          title: "Nero",
+          year: 2027,
+          tmdbId: 1311031,
+          status: "notAvailable",
+          addedAt: 1794298323,
+          sizeBytes: 0
+        }
       ])
     }))
 
   it.effect("reads Sonarr's series: available once every expected episode has a file", () =>
     Effect.gen(function*() {
       const series = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series.json"))
-      expect(series.map((one) => librarySeries(one)).map((item) => [item.title, item.status, item.episodes, item.posterUrl, item.tmdbId])).toEqual([
-        ["Severance", "wanted", { have: 17, total: 19 }, "https://artworks.thetvdb.com/banners/posters/371980-2.jpg", 95396],
-        ["The Bear", "available", { have: 8, total: 8 }, "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg", 136315]
+      expect(
+        series.map((one) => librarySeries(one)).map((
+          item
+        ) => [item.title, item.status, item.episodes, item.posterUrl, item.tmdbId])
+      ).toEqual([
+        [
+          "Severance",
+          "wanted",
+          { have: 17, total: 19 },
+          "https://artworks.thetvdb.com/banners/posters/371980-2.jpg",
+          95396
+        ],
+        [
+          "The Bear",
+          "available",
+          { have: 8, total: 8 },
+          "https://artworks.thetvdb.com/banners/v4/series/403245/posters/62a8b2a2f2f0d.jpg",
+          136315
+        ]
       ])
       // Nothing on disk and nothing aired that Sonarr monitors: not available yet, coming episode or not.
       const empty = { episodeFileCount: 0, episodeCount: 0, sizeOnDisk: 0 }
-      expect(librarySeries({ ...series[1]!, statistics: empty, nextAiring: "2026-12-01T02:00:00Z" }).status).toBe("notAvailable")
+      expect(librarySeries({ ...series[1]!, statistics: empty, nextAiring: "2026-12-01T02:00:00Z" }).status).toBe(
+        "notAvailable"
+      )
       expect(librarySeries({ ...series[1]!, statistics: empty }).status).toBe("notAvailable")
       // Nothing on disk, monitored episodes aired: Sonarr misses them.
-      expect(librarySeries({ ...series[1]!, statistics: { episodeFileCount: 0, episodeCount: 8, sizeOnDisk: 0 } }).status).toBe("wanted")
+      expect(
+        librarySeries({ ...series[1]!, statistics: { episodeFileCount: 0, episodeCount: 8, sizeOnDisk: 0 } }).status
+      ).toBe("wanted")
       expect(librarySeries({ ...series[1]!, statistics: empty, monitored: false }).status).toBe("notMonitored")
       // Unmonitored with its files: on disk, whatever is missing.
       expect(librarySeries({ ...series[0]!, monitored: false }).status).toBe("available")
@@ -87,14 +121,24 @@ describe("library adapters", () => {
   it.effect("a series watched, then deleted, and left unmonitored isn't wanted", () =>
     Effect.gen(function*() {
       const [reacher] = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series-unmonitored.json"))
-      expect(librarySeries(reacher!)).toMatchObject({ title: "Reacher", status: "notMonitored", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
+      expect(librarySeries(reacher!)).toMatchObject({
+        title: "Reacher",
+        status: "notMonitored",
+        episodes: { have: 0, total: 0 },
+        sizeBytes: 0
+      })
     }))
 
   it.effect("an announced series, nothing aired nor dated yet, isn't available yet", () =>
     Effect.gen(function*() {
       const [announced] = yield* Schema.decodeUnknownEffect(SonarrSeries)(fixture("sonarr/series-announced.json"))
       expect(announced!.nextAiring).toBeUndefined()
-      expect(librarySeries(announced!)).toMatchObject({ title: "The Last of Us", status: "notAvailable", episodes: { have: 0, total: 0 }, sizeBytes: 0 })
+      expect(librarySeries(announced!)).toMatchObject({
+        title: "The Last of Us",
+        status: "notAvailable",
+        episodes: { have: 0, total: 0 },
+        sizeBytes: 0
+      })
     }))
 
   it.effect("a movie without its file and unmonitored isn't wanted", () =>
@@ -142,11 +186,19 @@ describe("GET /api/library", () => {
     Effect.gen(function*() {
       const { api } = yield* phoneOn({
         answer: recorded,
-        webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"], sonarr: ["https://sonarr.example.com"] }
+        webUrls: {
+          radarr: ["http://umbrel.local:7878", "https://radarr.example.com"],
+          sonarr: ["https://sonarr.example.com"]
+        }
       })
       const items = (yield* api.library.library()).items
-      expect(items.find((item) => item.id === "movie:12")?.webUrls).toEqual(["http://umbrel.local:7878/movie/693134", "https://radarr.example.com/movie/693134"])
-      expect(items.find((item) => item.id === "series:3")?.webUrls).toEqual(["https://sonarr.example.com/series/severance"])
+      expect(items.find((item) => item.id === "movie:12")?.webUrls).toEqual([
+        "http://umbrel.local:7878/movie/693134",
+        "https://radarr.example.com/movie/693134"
+      ])
+      expect(items.find((item) => item.id === "series:3")?.webUrls).toEqual([
+        "https://sonarr.example.com/series/severance"
+      ])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("no link for a title without its slug, and the slug is escaped", () =>
@@ -154,7 +206,9 @@ describe("GET /api/library", () => {
       const [dune] = yield* Schema.decodeUnknownEffect(RadarrMovies)(fixture("radarr/movies.json"))
       const { titleSlug: _, ...noSlug } = dune!
       expect(libraryMovie(noSlug, ["http://radarr"]).webUrls).toBeUndefined()
-      expect(libraryMovie({ ...dune!, titleSlug: "a b/c" }, ["http://radarr"]).webUrls).toEqual(["http://radarr/movie/a%20b%2Fc"])
+      expect(libraryMovie({ ...dune!, titleSlug: "a b/c" }, ["http://radarr"]).webUrls).toEqual([
+        "http://radarr/movie/a%20b%2Fc"
+      ])
     }))
 
   it.effect("no link when Quai Home gave no address", () =>

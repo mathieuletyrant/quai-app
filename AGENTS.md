@@ -33,6 +33,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 - **The glossary's words, everywhere**: code, types, wire values, UI text, docs, commits. A concept it doesn't name yet, or a word that could mean two of its terms: ask the user which word, then add it to `GLOSSARY.md` before using it.
 - **Reuse before writing.** Look for the module that already owns the concept (a `Read`, an integration, a `ui/` component, a helper in `integrations/arr.ts`) and extend it. Each rule lives in one module, behind a small interface, with its test there; callers stay short and read top to bottom. A second copy of a rule, or a helper that only passes through, means the code belongs in the existing module.
+- **Split by decision.** A function too complex for the lint (`sonarjs/cognitive-complexity` 15, depth 3, 4 parameters) is cut along the decisions it makes: each extracted function is one decision, named in the glossary's words and testable alone (`stepChange`, `whyUnread`). A table keyed by type replaces a long chain of cases. When no cut reads well, the module itself is cut wrong: move the code to the module that owns it.
 - Names say what a value is, in loops and callbacks too: `movie`, `candidate`, `index`, `entry`. One letter is never a name.
 - Comments carry what the code can't: why, a service's quirk, a gotcha. A doc comment on an export says what it is in a line; the names tell the rest.
 
@@ -91,7 +92,8 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 ```sh
 pnpm install
-pnpm check        # tsc in every package
+pnpm check        # tsc in every package, then ESLint (lint and dprint format)
+pnpm format       # ESLint --fix: writes the format, fixes what it can
 pnpm test         # vitest in every package
 pnpm gen:openapi  # regenerate packages/api/openapi.json
 pnpm gen:client   # the iOS client in apps/ios/Quai/Generated (not committed), needs Swift
@@ -104,6 +106,8 @@ iOS (macOS): `pnpm gen:client && cd apps/ios && xcodegen generate && open Quai.x
 
 ## Before finishing a task
 
-`pnpm check && pnpm test` pass. If `packages/api` changed, `openapi.json` is regenerated and committed.
+`pnpm check && pnpm test` pass. The format is dprint's (through ESLint): `pnpm format` writes it, and in Claude Code the
+`.claude/hooks/lint-file.sh` hook runs it on each edited file and sends back what it can't fix; before a turn ends,
+`.claude/hooks/check-before-stop.sh` runs `pnpm check && pnpm test` when the code changed and sends a failure back. If `packages/api` changed, `openapi.json` is regenerated and committed.
 
 `apps/site/public/llms.txt` is the full guide to Quai (what it does, the setups, every variable, troubleshooting). Any change to setup, configuration (a `QUAI_*` variable), the images, pairing, the hosted Cloud or what Quai does updates it in the same PR, with the README's settings table. A test fails when a variable Quai Home or Quai Cloud reads is missing from it.

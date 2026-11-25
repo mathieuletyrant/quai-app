@@ -40,6 +40,7 @@ export const tempDir = Effect.gen(function*() {
 export { NodeFileSystem }
 
 /** A real journal, in a temporary directory. */
-export const journalLayer = Layer.effect(Journal, Effect.flatMap(tempDir, (dir) => Journal.make(join(dir, "journal")))).pipe(
-  Layer.provide(NodeFileSystem.layer)
-)
+export const journalLayer = Layer.effect(Journal, Effect.flatMap(tempDir, (dir) => Journal.make(join(dir, "journal"))))
+  .pipe(
+    Layer.provide(NodeFileSystem.layer)
+  )

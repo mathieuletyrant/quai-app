@@ -1,5 +1,5 @@
-import { DeviceAuth, QuaiApi, type UpcomingItem } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { DeviceAuth, QuaiApi, type UpcomingItem } from "@quai/api"
 import { Effect } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
@@ -40,11 +40,17 @@ const pairedApi = Effect.gen(function*() {
     payload: { name: "iPhone", apnsEnvironment: "development", code: qr.code, timeZone: paris }
   })
   return yield* HttpApiTest.groups(QuaiApi, ["upcoming"]).pipe(
-    Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
+    Effect.provide(
+      HttpApiMiddleware.layerClient(
+        DeviceAuth,
+        ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))
+      )
+    )
   )
 })
 
-const kinds = (items: ReadonlyArray<UpcomingItem>) => items.map((item) => `${item.kind} ${item.title}${item.episode === undefined ? "" : ` ${item.episode}`}`)
+const kinds = (items: ReadonlyArray<UpcomingItem>) =>
+  items.map((item) => `${item.kind} ${item.title}${item.episode === undefined ? "" : ` ${item.episode}`}`)
 
 describe("upcoming route", () => {
   const now = Date.parse("2026-11-24T21:00:00Z")
@@ -95,13 +101,18 @@ describe("upcoming route", () => {
       yield* TestClock.setTime(now)
       const home = yield* makeFakeHome({
         services: [...everything],
-        answer: recordedHome(realHome, { "qbittorrent GET /api/v2/torrents/info": { status: 500 }, "reclaimerr GET /api/v1/candidates": { status: 500 } })
+        answer: recordedHome(realHome, {
+          "qbittorrent GET /api/v2/torrents/info": { status: 500 },
+          "reclaimerr GET /api/v1/candidates": { status: 500 }
+        })
       })
       yield* home.connect
       const upcoming = yield* (yield* pairedApi).upcoming.list()
       expect(upcoming.unavailable).toEqual(["reclaimerr", "qbittorrent"])
       expect(upcoming.items.some((item) => item.kind === "releaseDay")).toBe(true)
-      expect(upcoming.items.filter((item) => item.kind === "seedCleanup" || item.kind === "plannedDeletion")).toEqual([])
+      expect(upcoming.items.filter((item) => item.kind === "seedCleanup" || item.kind === "plannedDeletion")).toEqual(
+        []
+      )
       expect(upcoming.items.filter((item) => item.freesBytes !== undefined)).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 

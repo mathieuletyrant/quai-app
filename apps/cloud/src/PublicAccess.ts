@@ -47,7 +47,8 @@ const reserved = new Set([
  */
 export const parseAccessHeaders = (text: string): Effect.Effect<ReadonlyArray<AccessHeader>, InvalidAccessHeaders> =>
   Effect.gen(function*() {
-    const fail = (message: string) => Effect.fail(new InvalidAccessHeaders({ message: `QUAI_CLOUD_PUBLIC_HEADERS: ${message}` }))
+    const fail = (message: string) =>
+      Effect.fail(new InvalidAccessHeaders({ message: `QUAI_CLOUD_PUBLIC_HEADERS: ${message}` }))
     const entries = text.split(/[;\r\n]/).map((entry) => entry.trim()).filter((entry) => entry !== "")
     const headers: Array<AccessHeader> = []
     const seen = new Set<string>()
@@ -59,7 +60,9 @@ export const parseAccessHeaders = (text: string): Effect.Effect<ReadonlyArray<Ac
       if (!tokenPattern.test(name)) return yield* fail(`entry ${index + 1} has no valid header name`)
       if (reserved.has(name.toLowerCase())) return yield* fail(`${name} can't be set: Quai or HTTP itself sets it`)
       if (seen.has(name.toLowerCase())) return yield* fail(`${name} is given twice`)
-      if (!valuePattern.test(value)) return yield* fail(`${name} has an empty value or one with characters a header can't carry`)
+      if (!valuePattern.test(value)) {
+        return yield* fail(`${name} has an empty value or one with characters a header can't carry`)
+      }
       seen.add(name.toLowerCase())
       headers.push({ name, value: Redacted.make(value) })
     }
@@ -77,8 +80,7 @@ export class PublicAccess extends Context.Service<PublicAccess, {
   /** What the console shows: the header names, never their values. */
   readonly settings: ConnectionSettings
 }>()("quai/PublicAccess") {
-  static readonly make = (url: Option.Option<string>, headers: ReadonlyArray<AccessHeader>) =>
-  ({
+  static readonly make = (url: Option.Option<string>, headers: ReadonlyArray<AccessHeader>) => ({
     url,
     headers,
     settings: {
@@ -94,7 +96,9 @@ export class PublicAccess extends Context.Service<PublicAccess, {
       const url = yield* Config.option(Config.String("QUAI_CLOUD_PUBLIC_URL"))
       const text = yield* Config.option(Config.String("QUAI_CLOUD_PUBLIC_HEADERS"))
       const headers = Option.isSome(text) ? yield* parseAccessHeaders(text.value) : []
-      if (headers.length > 0) yield* Effect.logInfo(`Access headers for the pairing: ${headers.map((header) => header.name).join(", ")}`)
+      if (headers.length > 0) {
+        yield* Effect.logInfo(`Access headers for the pairing: ${headers.map((header) => header.name).join(", ")}`)
+      }
       return PublicAccess.make(url, headers)
     })
   )

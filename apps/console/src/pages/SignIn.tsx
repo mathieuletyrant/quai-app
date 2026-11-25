@@ -23,11 +23,31 @@ export function SignInPage() {
   }
 
   return (
-    <CenteredCard title={<span className="flex items-center gap-3"><Logo />Quai</span>}>
+    <CenteredCard
+      title={
+        <span className="flex items-center gap-3">
+          <Logo />Quai
+        </span>
+      }
+    >
       <form onSubmit={signIn} className="flex flex-col gap-4">
         <ErrorCallout error={error} />
-        <Field label="Password" hint={<>Quai Home's <Code>QUAI_HOME_PASSWORD</Code>.</>}>
-          <Input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" autoFocus required />
+        <Field
+          label="Password"
+          hint={
+            <>
+              Quai Home's <Code>QUAI_HOME_PASSWORD</Code>.
+            </>
+          }
+        >
+          <Input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            autoFocus
+            required
+          />
         </Field>
         <Button type="submit" disabled={signingIn}>{signingIn ? "Signing in…" : "Sign in"}</Button>
       </form>
@@ -38,9 +58,16 @@ export function SignInPage() {
 /** No `QUAI_HOME_PASSWORD`: nothing to sign in with, and the console holds the services' keys. */
 export function LockedPage() {
   return (
-    <CenteredCard title={<span className="flex items-center gap-3"><Logo />Quai</span>}>
+    <CenteredCard
+      title={
+        <span className="flex items-center gap-3">
+          <Logo />Quai
+        </span>
+      }
+    >
       <p className="text-body leading-relaxed text-muted">
-        The console is locked until Quai Home has a password. Set <Code>QUAI_HOME_PASSWORD</Code> on Quai Home, restart it, then reload this page.
+        The console is locked until Quai Home has a password. Set <Code>QUAI_HOME_PASSWORD</Code>{" "}
+        on Quai Home, restart it, then reload this page.
       </p>
     </CenteredCard>
   )

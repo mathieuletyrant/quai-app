@@ -1,4 +1,10 @@
-import { isDataEvent, type JournalNote, type JournalSource, journalSourceNames, type IntegrationSource } from "@quai/api"
+import {
+  type IntegrationSource,
+  isDataEvent,
+  type JournalNote,
+  type JournalSource,
+  journalSourceNames
+} from "@quai/api"
 import type { FlowEvent } from "../flows/Events.ts"
 
 /** The journal's source for an integration's service: Quai's own checks are the Cloud's. */
@@ -46,7 +52,9 @@ export const eventNote = (event: FlowEvent, from: From): JournalNote | null => {
     case "playback.stopped":
       return note(`${title} stopped${subject.kind === "playback" ? ` on ${subject.device}` : ""}`)
     case "request.pending":
-      return note(`${subject.kind === "request" ? subject.requester : "Someone"} asked for ${title}: waiting for approval`)
+      return note(
+        `${subject.kind === "request" ? subject.requester : "Someone"} asked for ${title}: waiting for approval`
+      )
     case "request.approved":
       return note(`The request for ${title} was approved`)
     case "request.declined":

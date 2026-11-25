@@ -15,7 +15,8 @@ export type JournalLevel = typeof JournalLevel.Type
 
 /** Where a line comes from: a service, Apple (pushes), Quai Home or Quai Cloud itself. */
 export const JournalSource = Schema.Literals([
-  ...Service.pick(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"]).literals,
+  ...Service.pick(["radarr", "sonarr", "prowlarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"])
+    .literals,
   "apple",
   "home",
   "cloud"
@@ -101,7 +102,9 @@ export const journalMatches = (entry: JournalEntry, query: Omit<JournalQuery, "b
   if (query.subject !== undefined && entry.subject !== query.subject) return false
   if (query.kinds !== undefined && !query.kinds.includes(entry.kind)) return false
   const search = query.search?.trim().toLowerCase() ?? ""
-  if (search !== "" && !`${entry.text} ${entry.title ?? ""} ${entry.deviceName ?? ""}`.toLowerCase().includes(search)) return false
+  if (search !== "" && !`${entry.text} ${entry.title ?? ""} ${entry.deviceName ?? ""}`.toLowerCase().includes(search)) {
+    return false
+  }
   return true
 }
 
@@ -162,7 +165,8 @@ export class ConsoleJournalGroup extends HttpApiGroup.make("consoleJournal")
       success: JournalTail
     }).annotate(OpenApi.Identifier, "consoleJournalSince")
   )
-  .prefix("/console-api") {}
+  .prefix("/console-api")
+{}
 
 /**
  * What the app's journal shows: what happened to the titles, the requests and the server, not
@@ -199,4 +203,5 @@ export class JournalGroup extends HttpApiGroup.make("journal")
     }).annotate(OpenApi.Identifier, "listJournal")
   )
   .middleware(DeviceAuth)
-  .prefix("/api") {}
+  .prefix("/api")
+{}

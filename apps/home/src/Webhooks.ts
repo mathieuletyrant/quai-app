@@ -23,23 +23,35 @@ export const WebhooksLive = HttpRouter.use((router) =>
     const key = yield* HomeKey
     const journal = yield* Journal
 
-    yield* router.add("GET", "/health", Effect.map(link.linked, (linked) =>
-      HttpServerResponse.jsonUnsafe({ status: "ok", linked, homeId: key.homeId })))
+    yield* router.add(
+      "GET",
+      "/health",
+      Effect.map(link.linked, (linked) => HttpServerResponse.jsonUnsafe({ status: "ok", linked, homeId: key.homeId }))
+    )
 
     for (const service of HomeProtocol.webhookServices) {
-      yield* router.add("POST", `/webhooks/${service}`, Effect.gen(function*() {
-        const request = yield* HttpServerRequest.HttpServerRequest
-        const given = new URL(request.url, "http://home").searchParams.get("token") ?? ""
-        if (!sameToken(given, key.webhookToken)) return HttpServerResponse.empty({ status: 401 })
-        const body = yield* request.json
-        const receivedAt = yield* Clock.currentTimeMillis
-        // The service only: what the payload means is for the Cloud to say.
-        yield* journal.note({ level: "info", source: service, kind: "webhook.received", text: `${journalSourceNames[service]} sent a webhook` })
-        yield* link.send(HomeProtocol.WebhookReceived.make({ service, receivedAt, body }))
-        return HttpServerResponse.empty({ status: 204 })
-      }).pipe(
-        Effect.catchTag("HttpServerError", () => Effect.succeed(HttpServerResponse.empty({ status: 400 })))
-      ))
+      yield* router.add(
+        "POST",
+        `/webhooks/${service}`,
+        Effect.gen(function*() {
+          const request = yield* HttpServerRequest.HttpServerRequest
+          const given = new URL(request.url, "http://home").searchParams.get("token") ?? ""
+          if (!sameToken(given, key.webhookToken)) return HttpServerResponse.empty({ status: 401 })
+          const body = yield* request.json
+          const receivedAt = yield* Clock.currentTimeMillis
+          // The service only: what the payload means is for the Cloud to say.
+          yield* journal.note({
+            level: "info",
+            source: service,
+            kind: "webhook.received",
+            text: `${journalSourceNames[service]} sent a webhook`
+          })
+          yield* link.send(HomeProtocol.WebhookReceived.make({ service, receivedAt, body }))
+          return HttpServerResponse.empty({ status: 204 })
+        }).pipe(
+          Effect.catchTag("HttpServerError", () => Effect.succeed(HttpServerResponse.empty({ status: 400 })))
+        )
+      )
     }
   })
 )

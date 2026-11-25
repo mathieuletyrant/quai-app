@@ -26,7 +26,11 @@ const pattern = /^(movie|series):(\d+)(?::s(\d+))?$/
 export const parse = (libraryId: LibraryId): Parsed | undefined => {
   const match = pattern.exec(libraryId)
   if (match === null || (match[1] === "movie" && match[3] !== undefined)) return undefined
-  return { kind: match[1] as TitleKind, id: Number(match[2]), ...(match[3] === undefined ? {} : { season: Number(match[3]) }) }
+  return {
+    kind: match[1] as TitleKind,
+    id: Number(match[2]),
+    ...(match[3] === undefined ? {} : { season: Number(match[3]) })
+  }
 }
 
 /** The whole title a season belongs to: `series:5:s2` → `series:5`. */

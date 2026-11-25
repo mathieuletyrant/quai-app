@@ -75,17 +75,27 @@ export const ensureSeerrWebhook = (url: string, token: string) =>
     const refused = (message: string, cause?: unknown) =>
       new ServiceError({ service: "seerr", message: `could not set up the webhook: ${message}`, cause })
     const settings = yield* auth.execute("seerr", HttpClientRequest.get(seerrWebhookPath)).pipe(
-      Effect.flatMap((response) => response.status === 200 ? Effect.mapError(response.json, (cause) => refused("unreadable settings", cause)) : Effect.fail(refused(`HTTP ${response.status}`))),
-      Effect.flatMap((body) => Effect.mapError(Schema.decodeUnknownEffect(WebhookSettings)(body), (cause) => refused("unexpected settings", cause)))
+      Effect.flatMap((response) =>
+        response.status === 200
+          ? Effect.mapError(response.json, (cause) => refused("unreadable settings", cause))
+          : Effect.fail(refused(`HTTP ${response.status}`))
+      ),
+      Effect.flatMap((body) =>
+        Effect.mapError(Schema.decodeUnknownEffect(WebhookSettings)(body), (cause) =>
+          refused("unexpected settings", cause))
+      )
     )
     const plan = seerrWebhookPlan(settings, token)
-    if (plan === "taken") return plan
+    if (plan === "taken") {
+      return plan
+    }
     const response = yield* auth.execute(
       "seerr",
       HttpClientRequest.post(seerrWebhookPath).pipe(HttpClientRequest.bodyJsonUnsafe(seerrWebhookBody(url)))
     )
     if (response.status >= 300) {
-      const body = yield* Effect.orElseSucceed(response.text, () => "")
+      const body = yield* Effect.orElseSucceed(response.text, () =>
+        "")
       return yield* Effect.fail(refused(`HTTP ${response.status}: ${body}`))
     }
     return plan === "create" ? "created" as const : "updated" as const

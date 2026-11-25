@@ -1,9 +1,9 @@
-import { DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { DeviceAuth, QuaiApi } from "@quai/api"
 import { Effect, Exit, Option } from "effect"
+import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
-import { HttpClientRequest } from "effect/http"
 import { Activities } from "../src/flows/Activities.ts"
 import { Devices } from "../src/home/Devices.ts"
 import * as DeviceToken from "../src/home/DeviceToken.ts"
@@ -46,7 +46,9 @@ describe("pairing", () => {
       yield* TestClock.adjust("601 seconds")
       // Still linked (pinged all along): the code failed for its age.
       expect(Option.isSome(yield* (yield* HomeLink).home)).toBe(true)
-      expect(Exit.isFailure(yield* Effect.exit(api.devices.pair({ payload: { ...iphone, code: late.code } })))).toBe(true)
+      expect(Exit.isFailure(yield* Effect.exit(api.devices.pair({ payload: { ...iphone, code: late.code } })))).toBe(
+        true
+      )
 
       const devices = yield* api.console.devices()
       expect(devices.map((device) => [device.name, device.canStartActivities])).toEqual([["iPhone de Mathieu", true]])
@@ -55,8 +57,12 @@ describe("pairing", () => {
   it.effect("the iPhone routes need its token; a removed iPhone is locked out", () =>
     Effect.gen(function*() {
       yield* connectedHome
-      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
-      const { deviceId, token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+        payload: { serverUrls: [] }
+      })
+      const { deviceId, token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
 
       const anonymous = yield* HttpApiTest.groups(QuaiApi, ["devices"])
       expect(Exit.isFailure(yield* Effect.exit(anonymous.devices.activities()))).toBe(true)
@@ -75,12 +81,20 @@ describe("pairing", () => {
   it.effect("lists the running activities to the iPhone", () =>
     Effect.gen(function*() {
       yield* connectedHome
-      yield* (yield* Activities).handle({ type: "media.added", subject: { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" } })
-      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
-      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      yield* (yield* Activities).handle({
+        type: "media.added",
+        subject: { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" }
+      })
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+        payload: { serverUrls: [] }
+      })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
       const api = yield* signedIn(token)
       const list = yield* api.devices.activities()
-      expect(list.map((activity) => [activity.attributes.title, activity.attributes.steps[activity.content.step]?.id])).toEqual([["Dune", "searching"]])
+      expect(list.map((activity) => [activity.attributes.title, activity.attributes.steps[activity.content.step]?.id]))
+        .toEqual([["Dune", "searching"]])
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -88,16 +102,30 @@ describe("preferences", () => {
   it.effect("each iPhone keeps its own per flow, and sees every flow", () =>
     Effect.gen(function*() {
       yield* connectedHome
-      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
-      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+        payload: { serverUrls: [] }
+      })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
       const phone = yield* signedIn(token)
       expect(yield* phone.devices.preferences()).toEqual({ flows: {} })
       const saved = yield* phone.devices.savePreferences({
-        payload: { flows: { download: { enabled: true, hiddenSteps: ["searching"] }, incident: { enabled: false, hiddenSteps: [] } } }
+        payload: {
+          flows: {
+            download: { enabled: true, hiddenSteps: ["searching"] },
+            incident: { enabled: false, hiddenSteps: [] }
+          }
+        }
       })
       expect(saved.flows["incident"]?.enabled).toBe(false)
       expect((yield* phone.devices.preferences()).flows["download"]?.hiddenSteps).toEqual(["searching"])
-      expect((yield* phone.devices.flows()).map((flow) => flow.id)).toEqual(["download", "playback", "request", "today"])
+      expect((yield* phone.devices.flows()).map((flow) => flow.id)).toEqual([
+        "download",
+        "playback",
+        "request",
+        "today"
+      ])
     }).pipe(Effect.provide(TestApp)))
 })
 
@@ -112,19 +140,35 @@ describe("flows from the console", () => {
         payload: { ...download, id: "anime", name: "Anime", builtIn: true, filter: { mediaType: "series" } }
       })
       expect(anime.builtIn).toBe(false)
-      expect((yield* api.flows.list()).map((flow) => flow.id)).toEqual(["download", "playback", "request", "today", "anime"])
+      expect((yield* api.flows.list()).map((flow) => flow.id)).toEqual([
+        "download",
+        "playback",
+        "request",
+        "today",
+        "anime"
+      ])
 
       const bad = yield* Effect.exit(api.flows.save({
         params: { id: "bad" },
-        payload: { ...download, id: "bad", steps: [download.steps[0]!, { ...download.steps[1]!, on: "request.pending" }] }
+        payload: {
+          ...download,
+          id: "bad",
+          steps: [download.steps[0]!, { ...download.steps[1]!, on: "request.pending" }]
+        }
       }))
       expect(Exit.isFailure(bad)).toBe(true)
       const wrongButton = yield* Effect.exit(api.flows.save({
         params: { id: "bad" },
-        payload: { ...download, id: "bad", steps: [download.steps[0]!, { ...download.steps[1]!, actions: ["playback.stop"] }] }
+        payload: {
+          ...download,
+          id: "bad",
+          steps: [download.steps[0]!, { ...download.steps[1]!, actions: ["playback.stop"] }]
+        }
       }))
       expect(Exit.isFailure(wrongButton)).toBe(true)
-      const oneStepNoEnd = yield* Effect.exit(api.flows.save({ params: { id: "bad" }, payload: { ...download, id: "bad", steps: [download.steps[1]!] } }))
+      const oneStepNoEnd = yield* Effect.exit(
+        api.flows.save({ params: { id: "bad" }, payload: { ...download, id: "bad", steps: [download.steps[1]!] } })
+      )
       expect(Exit.isFailure(oneStepNoEnd)).toBe(true)
 
       yield* api.flows.save({ params: { id: "download" }, payload: { ...download, color: "#123456" } })
@@ -135,21 +179,31 @@ describe("flows from the console", () => {
       yield* api.flows.remove({ params: { id: "anime" } })
       expect((yield* api.flows.list()).map((flow) => flow.id)).toEqual(["download", "playback", "request", "today"])
       expect((yield* api.flows.catalog()).length).toBeGreaterThan(5)
-      expect((yield* api.flows.actions()).map((activity) => activity.type)).toEqual(["playback.playPause", "playback.stop", "request.approve", "request.decline"])
+      expect((yield* api.flows.actions()).map((activity) => activity.type)).toEqual([
+        "playback.playPause",
+        "playback.stop",
+        "request.approve",
+        "request.decline"
+      ])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("an activity swiped away is forgotten with where it was, until the iPhone shows it again", () =>
     Effect.gen(function*() {
       yield* connectedHome
-      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({ payload: { serverUrls: [] } })
-      const { deviceId, token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({ payload: { ...iphone, code: qr.code } })
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+        payload: { serverUrls: [] }
+      })
+      const { deviceId, token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
       const phone = yield* signedIn(token)
       const tv = { kind: "playback" as const, key: "playback:s1:i1", title: "Dune", device: "TV Salon" }
       yield* (yield* Activities).handle({ type: "playback.started", subject: tv, values: { paused: true } })
       const key = "playback|playback:s1:i1"
       yield* phone.devices.activityToken({ payload: { mediaKey: key, pushToken: "act-1" } })
       const store = yield* Devices
-      const target = () => Effect.map(store.targets(key), (all) => all.find((pushTarget) => pushTarget.deviceId === deviceId)!)
+      const target = () =>
+        Effect.map(store.targets(key), (all) => all.find((pushTarget) => pushTarget.deviceId === deviceId)!)
 
       yield* phone.devices.shownActivities({ payload: { keys: [key] } })
       expect((yield* target()).activityToken).toBe("act-1")

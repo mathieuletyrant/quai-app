@@ -1,8 +1,8 @@
-import { QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { QuaiApi } from "@quai/api"
 import { Effect } from "effect"
-import { TestClock } from "effect/testing"
 import { HttpApiTest } from "effect/http-api"
+import { TestClock } from "effect/testing"
 import { TestApp } from "./testApp.ts"
 
 describe("system", () => {

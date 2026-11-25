@@ -2,7 +2,9 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react
 import { cx } from "./cx.ts"
 import { Icon } from "./icons.tsx"
 
-export function Field({ label, hint, className, children }: { label: string; hint?: ReactNode; className?: string; children: ReactNode }) {
+export function Field(
+  { label, hint, className, children }: { label: string; hint?: ReactNode; className?: string; children: ReactNode }
+) {
   return (
     <label className={cx("flex min-w-0 flex-col gap-1.5", className)}>
       <FieldLabel>{label}</FieldLabel>
@@ -29,37 +31,66 @@ export function FieldGroup({ label, children }: { label: string; children: React
 
 /** A short message under a field: what's wrong with it, or what it implies. */
 export function FieldNote({ tone, children }: { tone: "danger" | "warn"; children: ReactNode }) {
-  return <p className={cx("-mt-2 text-caption", tone === "danger" ? "text-danger-text" : "text-warn-text")}>{children}</p>
+  return (
+    <p className={cx("-mt-2 text-caption", tone === "danger" ? "text-danger-text" : "text-warn-text")}>{children}</p>
+  )
 }
 
 const fieldClass =
   "h-9 w-full min-w-0 rounded-control border bg-field px-3 text-body text-text outline-none transition-colors placeholder:text-faint hover:border-white/20 focus:border-accent focus-visible:outline-none"
 
 export function Input({ invalid, className, ...props }: InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }) {
-  return <input {...props} aria-invalid={invalid || undefined} className={cx(fieldClass, invalid ? "border-danger" : "border-line-strong", className)} />
+  return (
+    <input
+      {...props}
+      aria-invalid={invalid || undefined}
+      className={cx(fieldClass, invalid ? "border-danger" : "border-line-strong", className)}
+    />
+  )
 }
 
 /** A search box: a magnifier, then the words. */
 export function SearchField({ className, ...props }: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
   return (
     <span className={cx("relative block min-w-0", className)}>
-      <Icon name="search" size={15} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+      <Icon
+        name="search"
+        size={15}
+        className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted"
+      />
       <input {...props} type="search" className={cx(fieldClass, "border-line-strong pl-9")} />
     </span>
   )
 }
 
-export function Select({ invalid, className, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }) {
+export function Select(
+  { invalid, className, ...props }: SelectHTMLAttributes<HTMLSelectElement> & { invalid?: boolean }
+) {
   return (
     <span className="relative block min-w-0">
-      <select {...props} aria-invalid={invalid || undefined} className={cx(fieldClass, "appearance-none truncate pr-9", invalid ? "border-danger" : "border-line-strong", className)} />
-      <Icon name="chevronDown" size={14} className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted" />
+      <select
+        {...props}
+        aria-invalid={invalid || undefined}
+        className={cx(
+          fieldClass,
+          "appearance-none truncate pr-9",
+          invalid ? "border-danger" : "border-line-strong",
+          className
+        )}
+      />
+      <Icon
+        name="chevronDown"
+        size={14}
+        className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted"
+      />
     </span>
   )
 }
 
 /** An on/off switch. */
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }) {
+export function Toggle(
+  { checked, onChange, label }: { checked: boolean; onChange: (checked: boolean) => void; label: string }
+) {
   return (
     <button
       type="button"
@@ -67,9 +98,17 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
       aria-checked={checked}
       aria-label={label}
       onClick={() => onChange(!checked)}
-      className={cx("relative h-5 w-9 shrink-0 rounded-full transition-colors", checked ? "bg-accent" : "bg-white/16 hover:bg-white/22")}
+      className={cx(
+        "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+        checked ? "bg-accent" : "bg-white/16 hover:bg-white/22"
+      )}
     >
-      <span className={cx("absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-all", checked ? "left-4.5" : "left-0.5")} />
+      <span
+        className={cx(
+          "absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-all",
+          checked ? "left-4.5" : "left-0.5"
+        )}
+      />
     </button>
   )
 }
@@ -78,7 +117,9 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 const tinted = (color: string) => ({ borderColor: `${color}99`, color, background: `${color}14` })
 
 /** A pill that toggles one option on or off. */
-export function Chip({ pressed, onClick, color, children }: { pressed: boolean; onClick: () => void; color?: string; children: ReactNode }) {
+export function Chip(
+  { pressed, onClick, color, children }: { pressed: boolean; onClick: () => void; color?: string; children: ReactNode }
+) {
   return (
     <button
       type="button"
@@ -87,7 +128,9 @@ export function Chip({ pressed, onClick, color, children }: { pressed: boolean; 
       style={pressed && color ? tinted(color) : undefined}
       className={cx(
         "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-small font-semibold transition-colors",
-        pressed ? "border-accent/60 bg-accent/8 text-accent" : "border-line-strong text-muted hover:border-white/25 hover:text-text"
+        pressed
+          ? "border-accent/60 bg-accent/8 text-accent"
+          : "border-line-strong text-muted hover:border-white/25 hover:text-text"
       )}
     >
       {pressed && <Icon name="check" size={13} strokeWidth={2.4} />}
@@ -104,7 +147,11 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
   label: string
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex w-fit flex-wrap gap-0.5 rounded-control border border-line-strong bg-field p-0.5">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="inline-flex w-fit flex-wrap gap-0.5 rounded-control border border-line-strong bg-field p-0.5"
+    >
       {options.map((option) => (
         <button
           key={option.value}

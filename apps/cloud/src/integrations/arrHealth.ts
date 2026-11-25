@@ -38,14 +38,22 @@ const reaches = (check: HealthCheck, level: AlertSettings["arrHealth"]["level"])
  * Every problem one *arr reports at the alert's level or above. A check is told apart by its
  * `source` (`IndexerStatusCheck`), else by its message.
  */
-export const arrHealthState = (service: ArrService, checks: ReadonlyArray<HealthCheck>, level: AlertSettings["arrHealth"]["level"]): AlertState => {
+export const arrHealthState = (
+  service: ArrService,
+  checks: ReadonlyArray<HealthCheck>,
+  level: AlertSettings["arrHealth"]["level"]
+): AlertState => {
   const name = journalSourceNames[service]
-  return alertState("arrHealth", service, checks.filter((check) => reaches(check, level)).map((check) => ({
-    what: check.source ?? check.message,
-    title: `${name} reports a problem`,
-    detail: check.message,
-    over: `${name}: fixed — ${check.message}`
-  })))
+  return alertState(
+    "arrHealth",
+    service,
+    checks.filter((check) => reaches(check, level)).map((check) => ({
+      what: check.source ?? check.message,
+      title: `${name} reports a problem`,
+      detail: check.message,
+      over: `${name}: fixed — ${check.message}`
+    }))
+  )
 }
 
 const isArr = (service: string): service is ArrService => (arrServices as ReadonlyArray<string>).includes(service)
@@ -56,7 +64,8 @@ export const arrHealth: Integration = {
   alertWatcher: {
     // A Home older than protocol 6 doesn't allow the health checks.
     watches: (context) =>
-      context.alerts.arrHealth.enabled && (context.protocol ?? HomeProtocol.protocolVersion) >= HomeProtocol.arrHealthProtocolVersion
+      context.alerts.arrHealth.enabled &&
+        (context.protocol ?? HomeProtocol.protocolVersion) >= HomeProtocol.arrHealthProtocolVersion
         ? arrServices.filter((service) => context.services.includes(service)).map((service) =>
           watchOf(arrHealthWatchId(service), healthReads[service], arrHealthEverySeconds)
         )

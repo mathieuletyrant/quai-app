@@ -4,10 +4,10 @@ import { call } from "../client.ts"
 import { useLoad } from "../load.ts"
 import {
   Async,
+  CloudOfflineState,
   cx,
   ErrorCallout,
   errorText,
-  CloudOfflineState,
   Icon,
   type IconName,
   Input,
@@ -45,7 +45,12 @@ function AlertRow({ icon, title, description, enabled, onToggle, children }: {
 }) {
   return (
     <li className="flex gap-4 px-5 py-5">
-      <span className={cx("grid size-9 shrink-0 place-items-center rounded-item transition-colors", enabled ? "bg-accent-soft text-accent-soft-text" : "bg-raised text-faint")}>
+      <span
+        className={cx(
+          "grid size-9 shrink-0 place-items-center rounded-item transition-colors",
+          enabled ? "bg-accent-soft text-accent-soft-text" : "bg-raised text-faint"
+        )}
+      >
         <Icon name={icon} size={17} />
       </span>
       <div className="min-w-0 flex-1">
@@ -56,7 +61,9 @@ function AlertRow({ icon, title, description, enabled, onToggle, children }: {
           </div>
           <Toggle checked={enabled} onChange={onToggle} label={title} />
         </div>
-        {enabled && <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-small text-text-2">{children}</div>}
+        {enabled && (
+          <div className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-small text-text-2">{children}</div>
+        )}
       </div>
     </li>
   )
@@ -89,7 +96,9 @@ function InlineNumber({ label, value, min, max, onSave }: {
         invalid={parsed === null}
         onChange={(event) => setText(event.target.value)}
         onBlur={save}
-        onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur() }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.currentTarget.blur()
+        }}
       />
     </span>
   )
@@ -187,7 +196,10 @@ function LoadingList() {
         {[0, 1, 2].map((placeholder) => (
           <li key={placeholder} className="flex gap-4 px-5 py-5">
             <Skeleton className="size-9" />
-            <div className="flex flex-1 flex-col gap-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-64" /></div>
+            <div className="flex flex-1 flex-col gap-2">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-3 w-64" />
+            </div>
           </li>
         ))}
       </ul>

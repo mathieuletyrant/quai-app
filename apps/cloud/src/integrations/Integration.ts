@@ -1,4 +1,11 @@
-import { type ActionType, type AlertSettings, type Flow, type HomeProtocol, InvalidAction, type IntegrationSource } from "@quai/api"
+import {
+  type ActionType,
+  type AlertSettings,
+  type Flow,
+  type HomeProtocol,
+  type IntegrationSource,
+  InvalidAction
+} from "@quai/api"
 import { Context, Effect, Option, Schema } from "effect"
 import type { AlertState } from "../alerts/Alerts.ts"
 import type { Activity } from "../flows/Engine.ts"
@@ -48,7 +55,11 @@ export interface Watcher<S extends Signal = FlowEvent> {
   /** A snapshot of one of its watches, as catalog events. Logs and skips what it can't read. */
   readonly read: (snapshot: Snapshot, context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
   /** Quai Home couldn't read one of its watches (unreachable, refused). Once per failure streak. */
-  readonly failed?: (watch: HomeProtocol.Watch, reason: string, context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
+  readonly failed?: (
+    watch: HomeProtocol.Watch,
+    reason: string,
+    context: WatchContext
+  ) => Effect.Effect<ReadonlyArray<S>>
   /** Every heartbeat while the home is connected: for what only time changes (health's 5 minutes). */
   readonly tick?: (context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
 }
@@ -65,9 +76,16 @@ export type ActionHandler = (activity: Activity) => Effect.Effect<void, InvalidA
  * A button's call to `service` (its name as shown) through Quai Home: anything but a 2xx answer,
  * Quai Home offline included, is an InvalidAction in words (`Seerr: HTTP 500`).
  */
-export const actionCall = (reads: HomeReads["Service"], service: string, call: CallRequest): Effect.Effect<void, InvalidAction> =>
+export const actionCall = (
+  reads: HomeReads["Service"],
+  service: string,
+  call: CallRequest
+): Effect.Effect<void, InvalidAction> =>
   reads.write(call, (message) => new InvalidAction({ message: `${service}: ${message}` })).pipe(
-    Effect.catchTag("HomeOffline", (error) => Effect.fail(new InvalidAction({ message: `${service}: ${error.message}` }))),
+    Effect.catchTag(
+      "HomeOffline",
+      (error) => Effect.fail(new InvalidAction({ message: `${service}: ${error.message}` }))
+    ),
     Effect.asVoid
   )
 

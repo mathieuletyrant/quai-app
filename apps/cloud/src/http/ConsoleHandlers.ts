@@ -9,7 +9,11 @@ import { type AccessHeader, PublicAccess } from "../PublicAccess.ts"
  * headers the proxy in front of it requires. Percent-encoded (`%20`, never `+`) so the app's
  * `URLComponents` reads back exactly what was written.
  */
-export const pairingLink = (code: string, serverUrls: ReadonlyArray<string>, headers: ReadonlyArray<AccessHeader> = []) => {
+export const pairingLink = (
+  code: string,
+  serverUrls: ReadonlyArray<string>,
+  headers: ReadonlyArray<AccessHeader> = []
+) => {
   const params = [
     ["code", code],
     ...serverUrls.map((url) => ["url", url]),

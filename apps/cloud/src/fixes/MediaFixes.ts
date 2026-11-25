@@ -1,7 +1,22 @@
-import { type EpisodeChoice, type FixFailed, type HomeOffline, type ImportFile, InvalidFix, type TitleKind } from "@quai/api"
+import {
+  type EpisodeChoice,
+  type FixFailed,
+  type HomeOffline,
+  type ImportFile,
+  InvalidFix,
+  type TitleKind
+} from "@quai/api"
 import { type Effect, type Option, Result } from "effect"
 import type { HomeReads, Read } from "../home/HomeReads.ts"
-import { fileOf, type ManualImportRow, qualityName, type QueuePage, type QueueRecord, type ReleaseRecord, rejectionsOf } from "../integrations/arr.ts"
+import {
+  fileOf,
+  type ManualImportRow,
+  qualityName,
+  type QueuePage,
+  type QueueRecord,
+  rejectionsOf,
+  type ReleaseRecord
+} from "../integrations/arr.ts"
 import type { Detected } from "./Detected.ts"
 
 /**
@@ -9,7 +24,12 @@ import type { Detected } from "./Detected.ts"
  * (its queue row), or titles without a source (to search releases for).
  */
 export type MediaTarget =
-  | { readonly kind: TitleKind; readonly _tag: "Queue"; readonly queueId: number; readonly downloadId: string | undefined }
+  | {
+    readonly kind: TitleKind
+    readonly _tag: "Queue"
+    readonly queueId: number
+    readonly downloadId: string | undefined
+  }
   | { readonly kind: TitleKind; readonly _tag: "Missing" }
 
 export type QueuedOf<T extends MediaTarget> = Extract<T, { readonly _tag: "Queue" }>
@@ -22,7 +42,10 @@ export const isMissing = <T extends MediaTarget>(target: T): target is MissingOf
 export type ImportAssignments = ReadonlyArray<{ readonly file: string; readonly episodeIds: ReadonlyArray<number> }>
 
 /** One file of a `ManualImport` command, as the *arr takes it. */
-export type ImportCommandFile = Readonly<Record<string, unknown>> & { readonly path: string; readonly downloadId: string }
+export type ImportCommandFile = Readonly<Record<string, unknown>> & {
+  readonly path: string
+  readonly downloadId: string
+}
 
 /** A download in an *arr's queue, as the To fix list names it. */
 export interface QueuedMedia {
@@ -58,13 +81,19 @@ export interface MediaFixes<T extends MediaTarget> {
   /** One download in its queue, from its rows (Sonarr has one per episode of a pack). */
   readonly queued: (records: ReadonlyArray<QueueRecord>) => QueuedMedia
   /** Its rules, on what Quai Home reads now. None when one of the reads didn't answer. */
-  readonly detect: (reads: HomeReads["Service"], nowMs: number) => Effect.Effect<Option.Option<ReadonlyArray<Detected<T>>>, HomeOffline>
+  readonly detect: (
+    reads: HomeReads["Service"],
+    nowMs: number
+  ) => Effect.Effect<Option.Option<ReadonlyArray<Detected<T>>>, HomeOffline>
   /** The manual import's hints beyond the download (`&seriesId=9`), to match its files better. */
   readonly importHints: (target: QueuedOf<T>) => string
   /** A matched file as the app shows it. */
   readonly importFile: (row: ManualImportRow) => ImportFile
   /** What an unmatched file may be imported as: the episodes without a file (none for a movie). */
-  readonly choices: (reads: HomeReads["Service"], target: QueuedOf<T>) => Effect.Effect<ReadonlyArray<EpisodeChoice>, HomeOffline | FixFailed>
+  readonly choices: (
+    reads: HomeReads["Service"],
+    target: QueuedOf<T>
+  ) => Effect.Effect<ReadonlyArray<EpisodeChoice>, HomeOffline | FixFailed>
   /**
    * The `ManualImport` files, or why they can't be imported. Never over a file already there.
    * Called through `importFiles`, which checks what all kinds share first.
@@ -77,7 +106,11 @@ export interface MediaFixes<T extends MediaTarget> {
 }
 
 /** A manual import row as the app shows it; `episodes` are the codes of those it matched. */
-export const importFileOf = (row: ManualImportRow, episodes: ReadonlyArray<string>, needsEpisodes: boolean): ImportFile => {
+export const importFileOf = (
+  row: ManualImportRow,
+  episodes: ReadonlyArray<string>,
+  needsEpisodes: boolean
+): ImportFile => {
   const quality = qualityName(row.quality)
   return {
     file: fileOf(row),

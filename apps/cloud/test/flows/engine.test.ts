@@ -1,11 +1,11 @@
-import type { Flow } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import type { Flow } from "@quai/api"
 import { Deferred, Effect, Fiber } from "effect"
 import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
 import { emptyState, movedOn, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
-import { settle } from "../fakeHome.ts"
 import { type Subject, widenLookup } from "../../src/flows/Events.ts"
+import { settle } from "../fakeHome.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 
 const tags = (pushes: ReadonlyArray<Push>) => pushes.map((push) => `${push._tag}:${push.activity.stepIndex}`)
@@ -60,7 +60,11 @@ describe("download flow", () => {
       yield* TestClock.adjust("10 seconds")
       expect((yield* engine.handle(ev.progress(0.3)))[0]!.activity.values.remainingSeconds).toBe(60)
       yield* TestClock.adjust("10 seconds")
-      const paused = yield* engine.handle({ type: "download.progress", downloadId: "abc", values: { progress: 0.31, bytesPerSecond: 0 } })
+      const paused = yield* engine.handle({
+        type: "download.progress",
+        downloadId: "abc",
+        values: { progress: 0.31, bytesPerSecond: 0 }
+      })
       expect(paused[0]!.activity.values.remainingSeconds).toBeUndefined()
     })))
 
@@ -86,7 +90,9 @@ describe("download flow", () => {
         mediaType: "series",
         lookup: { _tag: "Episodes", tvdbId: 407046, title: "Our House (2022)", episodes: episodes(...numbers) }
       })
-      expect(tags(yield* engine.handle(ev.grabbed("abc", pack("Our House (2022) · S01", 1, 2, 3, 4))))).toEqual(["Start:1"])
+      expect(tags(yield* engine.handle(ev.grabbed("abc", pack("Our House (2022) · S01", 1, 2, 3, 4))))).toEqual([
+        "Start:1"
+      ])
       const imported = yield* engine.handle(ev.imported(pack("Our House (2022) · S01E03", 3)))
       expect(tags(imported)).toEqual(["Update:2"])
       expect(imported[0]!.activity.title).toBe("Our House (2022) · S01")
@@ -124,7 +130,11 @@ describe("download flow", () => {
       yield* engine.handle(ev.grabbed())
       yield* engine.handle(ev.progress(1))
       yield* TestClock.adjust("1 second")
-      const blocked = yield* engine.handle({ type: "media.importBlocked", subject: dune, values: { detail: "Import blocked · see To fix" } })
+      const blocked = yield* engine.handle({
+        type: "media.importBlocked",
+        subject: dune,
+        values: { detail: "Import blocked · see To fix" }
+      })
       expect(tags(blocked)).toEqual(["Update:1"])
       expect(blocked[0]!.activity.tone).toBe("stalled")
       expect(blocked[0]!.activity.values.detail).toBe("Import blocked · see To fix")
@@ -144,7 +154,11 @@ describe("download flow", () => {
       const engine = yield* Activities
       yield* engine.handle(ev.grabbed("first"))
       yield* TestClock.adjust("2 minutes")
-      const removed = yield* engine.handle({ type: "download.removed", downloadId: "first", values: { detail: "Removed from the download client" } })
+      const removed = yield* engine.handle({
+        type: "download.removed",
+        downloadId: "first",
+        values: { detail: "Removed from the download client" }
+      })
       expect(tags(removed)).toEqual(["End:1"])
       expect(removed[0]!.activity.tone).toBe("stalled")
       expect(removed[0]!.activity.values.detail).toBe("Removed from the download client")
@@ -191,12 +205,23 @@ describe("download flow", () => {
 
   it.effect("a custom flow filtered to series ignores movies; both flows follow series", () => {
     const anime: Flow = { ...download, id: "anime", name: "Anime", builtIn: false, filter: { mediaType: "series" } }
-    return run(Effect.gen(function*() {
-      const engine = yield* Activities
-      expect((yield* engine.handle(ev.added())).map((push) => push.activity.flowId)).toEqual(["download"])
-      const show = { kind: "media" as const, key: "series:tvdb:9:dl:x", title: "Frieren · S01E01", mediaType: "series" as const }
-      expect((yield* engine.handle(ev.grabbed("x", show))).map((push) => push.activity.flowId)).toEqual(["download", "anime"])
-    }), [download, anime])
+    return run(
+      Effect.gen(function*() {
+        const engine = yield* Activities
+        expect((yield* engine.handle(ev.added())).map((push) => push.activity.flowId)).toEqual(["download"])
+        const show = {
+          kind: "media" as const,
+          key: "series:tvdb:9:dl:x",
+          title: "Frieren · S01E01",
+          mediaType: "series" as const
+        }
+        expect((yield* engine.handle(ev.grabbed("x", show))).map((push) => push.activity.flowId)).toEqual([
+          "download",
+          "anime"
+        ])
+      }),
+      [download, anime]
+    )
   })
 
   it.effect("pushes leave in the order the engine made them, even from two fibers (verify skill: live-activity-pushes)", () =>
@@ -204,7 +229,8 @@ describe("download flow", () => {
       const engine = yield* Activities
       const sent: Array<string> = []
       const apnsBusy = yield* Deferred.make<void>()
-      const slowSend = (pushes: ReadonlyArray<Push>) => Effect.andThen(Deferred.await(apnsBusy), Effect.sync(() => sent.push(...tags(pushes))))
+      const slowSend = (pushes: ReadonlyArray<Push>) =>
+        Effect.andThen(Deferred.await(apnsBusy), Effect.sync(() => sent.push(...tags(pushes))))
       const send = (pushes: ReadonlyArray<Push>) => Effect.sync(() => sent.push(...tags(pushes)))
       const first = yield* Effect.forkChild(engine.handle(ev.added(), slowSend))
       yield* settle
@@ -219,66 +245,94 @@ describe("download flow", () => {
     })))
 
   it.effect("a turned-off flow starts nothing", () =>
-    run(Effect.gen(function*() {
-      expect(yield* (yield* Activities).handle(ev.added())).toEqual([])
-    }), [{ ...download, enabled: false }]))
+    run(
+      Effect.gen(function*() {
+        expect(yield* (yield* Activities).handle(ev.added())).toEqual([])
+      }),
+      [{ ...download, enabled: false }]
+    ))
 })
 
 describe("playback flow", () => {
   const tv = { kind: "playback" as const, key: "playback:s1:i1", title: "Dune", device: "TV Salon" }
-  const playing = (endsAt: number) => ({ type: "playback.started" as const, subject: tv, values: { paused: false, startsAt: 0, endsAt } })
+  const playing = (endsAt: number) => ({
+    type: "playback.started" as const,
+    subject: tv,
+    values: { paused: false, startsAt: 0, endsAt }
+  })
   const position = (values: object) => ({ type: "playback.progress" as const, subject: tv, values })
 
   it.effect("one step that stays while playing, and ends on stop", () =>
-    run(Effect.gen(function*() {
-      const engine = yield* Activities
-      const start = yield* engine.handle(playing(999_000))
-      expect(tags(start)).toEqual(["Start:0"])
-      expect(start[0]!.activity.endedAt).toBeNull()
-      const stop = yield* engine.handle({ type: "playback.stopped", subject: tv })
-      expect(tags(stop)).toEqual(["End:0"])
-      expect(stop[0]!.activity.tone).toBe("done")
-    }), [playback]))
+    run(
+      Effect.gen(function*() {
+        const engine = yield* Activities
+        const start = yield* engine.handle(playing(999_000))
+        expect(tags(start)).toEqual(["Start:0"])
+        expect(start[0]!.activity.endedAt).toBeNull()
+        const stop = yield* engine.handle({ type: "playback.stopped", subject: tv })
+        expect(tags(stop)).toEqual(["End:0"])
+        expect(stop[0]!.activity.tone).toBe("done")
+      }),
+      [playback]
+    ))
 
   it.effect("the end time drifting by milliseconds pushes nothing; a pause goes at once; a seek within 5 s", () =>
-    run(Effect.gen(function*() {
-      const engine = yield* Activities
-      yield* engine.handle(playing(3_600_000))
-      yield* TestClock.adjust("15 seconds")
-      expect(yield* engine.handle(position({ paused: false, startsAt: 3, endsAt: 3_600_004 }))).toEqual([])
-      yield* TestClock.adjust("1 second")
-      const paused = yield* engine.handle(position({ paused: true, progress: 0.25 }))
-      expect(paused.map((push) => push.activity.values.paused)).toEqual([true])
-      yield* TestClock.adjust("1 second")
-      expect((yield* engine.handle(position({ paused: false, startsAt: 0, endsAt: 3_000_000 }))).length).toBe(1)
-    }), [playback]))
+    run(
+      Effect.gen(function*() {
+        const engine = yield* Activities
+        yield* engine.handle(playing(3_600_000))
+        yield* TestClock.adjust("15 seconds")
+        expect(yield* engine.handle(position({ paused: false, startsAt: 3, endsAt: 3_600_004 }))).toEqual([])
+        yield* TestClock.adjust("1 second")
+        const paused = yield* engine.handle(position({ paused: true, progress: 0.25 }))
+        expect(paused.map((push) => push.activity.values.paused)).toEqual([true])
+        yield* TestClock.adjust("1 second")
+        expect((yield* engine.handle(position({ paused: false, startsAt: 0, endsAt: 3_000_000 }))).length).toBe(1)
+      }),
+      [playback]
+    ))
 
   it.effect("expires after 15 min without news", () =>
-    run(Effect.gen(function*() {
-      const engine = yield* Activities
-      yield* engine.handle(playing(999_000))
-      yield* TestClock.adjust("16 minutes")
-      expect(tags(yield* engine.tick())).toEqual(["End:0"])
-    }), [playback]))
+    run(
+      Effect.gen(function*() {
+        const engine = yield* Activities
+        yield* engine.handle(playing(999_000))
+        yield* TestClock.adjust("16 minutes")
+        expect(tags(yield* engine.tick())).toEqual(["End:0"])
+      }),
+      [playback]
+    ))
 
   it.effect("filtered to a device: other devices start nothing", () =>
-    run(Effect.gen(function*() {
-      const engine = yield* Activities
-      expect(yield* engine.handle({ type: "playback.started", subject: { ...tv, device: "iPad" } })).toEqual([])
-      expect(tags(yield* engine.handle({ type: "playback.started", subject: tv }))).toEqual(["Start:0"])
-    }), [{ ...playback, filter: { devices: ["TV Salon"] } }]))
+    run(
+      Effect.gen(function*() {
+        const engine = yield* Activities
+        expect(yield* engine.handle({ type: "playback.started", subject: { ...tv, device: "iPad" } })).toEqual([])
+        expect(tags(yield* engine.handle({ type: "playback.started", subject: tv }))).toEqual(["Start:0"])
+      }),
+      [{ ...playback, filter: { devices: ["TV Salon"] } }]
+    ))
 })
 
 describe("request flow", () => {
-  const dune = { kind: "request" as const, key: "request:1", title: "Dune", mediaType: "movie" as const, requester: "Julie" }
+  const dune = {
+    kind: "request" as const,
+    key: "request:1",
+    title: "Dune",
+    mediaType: "movie" as const,
+    requester: "Julie"
+  }
 
   it.effect("pending then approved; approved alone starts nothing", () =>
-    run(Effect.gen(function*() {
-      const engine = yield* Activities
-      expect(yield* engine.handle({ type: "request.approved", subject: dune })).toEqual([])
-      expect(tags(yield* engine.handle({ type: "request.pending", subject: dune }))).toEqual(["Start:0"])
-      expect(tags(yield* engine.handle({ type: "request.approved", subject: dune }))).toEqual(["End:1"])
-    }), [requestFlow]))
+    run(
+      Effect.gen(function*() {
+        const engine = yield* Activities
+        expect(yield* engine.handle({ type: "request.approved", subject: dune })).toEqual([])
+        expect(tags(yield* engine.handle({ type: "request.pending", subject: dune }))).toEqual(["Start:0"])
+        expect(tags(yield* engine.handle({ type: "request.approved", subject: dune }))).toEqual(["End:1"])
+      }),
+      [requestFlow]
+    ))
 })
 
 describe("a flow edited under a running activity", () => {

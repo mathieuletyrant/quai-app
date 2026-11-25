@@ -1,6 +1,6 @@
 import { Config, Context, Effect, Layer, Option } from "effect"
-import { Devices } from "./Devices.ts"
 import { isTimeZone } from "./Day.ts"
+import { Devices } from "./Devices.ts"
 
 /**
  * The home's time zone, for "today" and "midnight". A home has no clock of its own: it follows
@@ -25,7 +25,10 @@ export class HomeTime extends Context.Service<HomeTime, {
     HomeTime,
     Effect.gen(function*() {
       const configured = yield* Config.option(Config.String("QUAI_TZ"))
-      const fallback = Option.match(configured, { onNone: () => "UTC", onSome: (zone) => isTimeZone(zone) ? zone : "UTC" })
+      const fallback = Option.match(configured, {
+        onNone: () => "UTC",
+        onSome: (zone) => isTimeZone(zone) ? zone : "UTC"
+      })
       return yield* HomeTime.make(fallback)
     })
   )

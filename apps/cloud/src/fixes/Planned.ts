@@ -3,14 +3,14 @@ import { Effect, Option } from "effect"
 import type { HomeReads } from "../home/HomeReads.ts"
 import { epochSeconds, type QueueRecord } from "../integrations/arr.ts"
 import {
-  stuckRemovals,
   queueCleanerJobRead,
   queuedByDownload,
   settingsRead,
   slowRulesRead,
   stallRulesRead,
   strikesRead,
-  struckDownloads
+  struckDownloads,
+  stuckRemovals
 } from "../integrations/cleanuparr.ts"
 import { radarrMoviesRead } from "../integrations/radarr.ts"
 import { isMovie, type PlannedCandidate, plannedDeletionFixes } from "../integrations/reclaimerr.ts"
@@ -36,7 +36,10 @@ export const deletionsWithPosters = (reads: HomeReads["Service"], planned: Reado
       movies: planned.some((entry) => isMovie(entry.candidate)) ? radarrMoviesRead : null,
       series: planned.some((entry) => !isMovie(entry.candidate)) ? sonarrSeriesRead : null
     }, { optional: ["movies", "series"] })
-    return plannedDeletionFixes(planned, { movies: Option.getOrUndefined(values.movies), series: Option.getOrUndefined(values.series) })
+    return plannedDeletionFixes(planned, {
+      movies: Option.getOrUndefined(values.movies),
+      series: Option.getOrUndefined(values.series)
+    })
   })
 
 /**
@@ -61,7 +64,13 @@ export const stuckRemovalsRead = (reads: HomeReads["Service"]) =>
     const queues = yield* Effect.forEach([movies, series] as const, (adapter) => {
       const queued = adapter.queued
       return reached.includes(adapter.service)
-        ? Effect.map(reads.read(adapter.queue), (page) => ({ queued, records: Option.match(page, { onNone: () => [], onSome: (queuePage) => queuePage.records }) }))
+        ? Effect.map(
+          reads.read(adapter.queue),
+          (page) => ({
+            queued,
+            records: Option.match(page, { onNone: () => [], onSome: (queuePage) => queuePage.records })
+          })
+        )
         : Effect.succeed({ queued, records: [] as ReadonlyArray<QueueRecord> })
     }, { concurrency: "unbounded" })
     const job = Option.getOrUndefined(values.job)

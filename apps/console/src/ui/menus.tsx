@@ -5,7 +5,11 @@ import { overline } from "./layout.tsx"
 
 /** How far a panel must move to stay `margin` px inside the viewport. */
 const shiftIntoView = (rect: DOMRect, margin = 12) =>
-  rect.left < margin ? margin - rect.left : rect.right > window.innerWidth - margin ? window.innerWidth - margin - rect.right : 0
+  rect.left < margin
+    ? margin - rect.left
+    : rect.right > window.innerWidth - margin
+    ? window.innerWidth - margin - rect.right
+    : 0
 
 /** A button that opens a floating panel, closed by a click outside or Escape. */
 export function Popover({ trigger, align = "left", className, children }: {
@@ -25,8 +29,12 @@ export function Popover({ trigger, align = "left", className, children }: {
   }, [open])
   useEffect(() => {
     if (!open) return
-    const onDown = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false) }
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false) }
+    const onDown = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false)
+    }
     document.addEventListener("mousedown", onDown)
     document.addEventListener("keydown", onKey)
     return () => {
@@ -55,7 +63,12 @@ export function Popover({ trigger, align = "left", className, children }: {
 }
 
 /** One row of a Popover menu. */
-export function MenuItem({ danger, icon, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { danger?: boolean; icon?: IconName }) {
+export function MenuItem(
+  { danger, icon, className, children, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
+    danger?: boolean
+    icon?: IconName
+  }
+) {
   return (
     <button
       type="button"

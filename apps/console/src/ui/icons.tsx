@@ -2,8 +2,10 @@ import { cx } from "./cx.ts"
 
 const paths = {
   logo: "M3 15h18M6 15V9h12v6M9 9V5h6v4M4 19c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5",
-  phone: "M8 2.75h8A1.75 1.75 0 0 1 17.75 4.5v15A1.75 1.75 0 0 1 16 21.25H8A1.75 1.75 0 0 1 6.25 19.5v-15A1.75 1.75 0 0 1 8 2.75zM10.5 18.25h3",
-  flows: "M6 3.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5zM18 15.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5zM6 8.25v3.5a3 3 0 0 0 3 3h6M15 12l3 2.75L15 17.5",
+  phone:
+    "M8 2.75h8A1.75 1.75 0 0 1 17.75 4.5v15A1.75 1.75 0 0 1 16 21.25H8A1.75 1.75 0 0 1 6.25 19.5v-15A1.75 1.75 0 0 1 8 2.75zM10.5 18.25h3",
+  flows:
+    "M6 3.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5zM18 15.75a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5zM6 8.25v3.5a3 3 0 0 0 3 3h6M15 12l3 2.75L15 17.5",
   settings: "M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1M15 4.5v4M9 10v4M17 15.5v4",
   plus: "M12 5v14M5 12h14",
   check: "M5 12.5l4.5 4.5L19 7.5",
@@ -15,7 +17,8 @@ const paths = {
   more: "M5 12h.01M12 12h.01M19 12h.01",
   menu: "M4 7h16M4 12h16M4 17h16",
   play: "M8 5.5v13l10.5-6.5z",
-  trash: "M4.5 6.5h15M9.5 6.5V4.75h5V6.5M6.5 6.5l.9 12.6A1.5 1.5 0 0 0 8.9 20.5h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.6M10 10.5v6M14 10.5v6",
+  trash:
+    "M4.5 6.5h15M9.5 6.5V4.75h5V6.5M6.5 6.5l.9 12.6A1.5 1.5 0 0 0 8.9 20.5h6.2a1.5 1.5 0 0 0 1.5-1.4l.9-12.6M10 10.5v6M14 10.5v6",
   copy: "M9 9h10.25v10.25H9zM15 9V4.75H4.75V15H9",
   reset: "M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4",
   alert: "M12 4l9 16H3zM12 10v4M12 17v.01",
@@ -49,7 +52,14 @@ const paths = {
 export type IconName = keyof typeof paths
 
 /** One stroke icon, 24-unit grid, drawn in the current text colour. */
-export function Icon({ name, size = 16, strokeWidth = 1.8, className }: { name: IconName; size?: number; strokeWidth?: number; className?: string }) {
+export function Icon(
+  { name, size = 16, strokeWidth = 1.8, className }: {
+    name: IconName
+    size?: number
+    strokeWidth?: number
+    className?: string
+  }
+) {
   return (
     <svg
       width={size}
@@ -71,7 +81,10 @@ export function Icon({ name, size = 16, strokeWidth = 1.8, className }: { name: 
 /** Quai's mark: the dock on its accent tile. */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <span className="grid shrink-0 place-items-center rounded-logo bg-accent text-on-accent" style={{ width: size, height: size }}>
+    <span
+      className="grid shrink-0 place-items-center rounded-logo bg-accent text-on-accent"
+      style={{ width: size, height: size }}
+    >
       <Icon name="logo" size={Math.round(size * 0.6)} strokeWidth={2.4} />
     </span>
   )

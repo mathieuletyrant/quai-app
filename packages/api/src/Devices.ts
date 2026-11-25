@@ -1,9 +1,28 @@
 import { Context, Schema } from "effect"
-import { HttpApiEndpoint, HttpApiError, HttpApiGroup, HttpApiMiddleware, HttpApiSecurity, OpenApi } from "effect/http-api"
-import { ActionType, ActivityAttributes, AlertKind, ActivityContent, ActivityStep, CatalogAction, CatalogEvent, Flow, FlowSubject } from "./Activity.ts"
+import {
+  HttpApiEndpoint,
+  HttpApiError,
+  HttpApiGroup,
+  HttpApiMiddleware,
+  HttpApiSecurity,
+  OpenApi
+} from "effect/http-api"
+import {
+  ActionType,
+  ActivityAttributes,
+  ActivityContent,
+  ActivityStep,
+  AlertKind,
+  CatalogAction,
+  CatalogEvent,
+  Flow,
+  FlowSubject
+} from "./Activity.ts"
 
 /** Which APNs server reaches this iPhone: builds from Xcode use development, TestFlight production. */
-export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({ identifier: "ApnsEnvironment" })
+export const ApnsEnvironment = Schema.Literals(["development", "production"]).annotate({
+  identifier: "ApnsEnvironment"
+})
 export type ApnsEnvironment = typeof ApnsEnvironment.Type
 
 export const DeviceId = Schema.String.pipe(Schema.brand("DeviceId"))
@@ -28,10 +47,12 @@ export class HomeRequired extends HttpApiMiddleware.Service<HomeRequired>()("qua
 }) {}
 
 /** Every iPhone route: `Authorization: Bearer <device token>`, the token the pairing returned. */
-export class DeviceAuth extends HttpApiMiddleware.Service<DeviceAuth, { provides: CurrentDevice }>()("quai/DeviceAuth", {
-  error: [HttpApiError.Unauthorized, HomeOffline],
-  security: { bearer: HttpApiSecurity.bearer }
-}) {}
+export class DeviceAuth
+  extends HttpApiMiddleware.Service<DeviceAuth, { provides: CurrentDevice }>()("quai/DeviceAuth", {
+    error: [HttpApiError.Unauthorized, HomeOffline],
+    security: { bearer: HttpApiSecurity.bearer }
+  })
+{}
 
 export class InvalidPairingCode extends Schema.TaggedError<InvalidPairingCode>()("InvalidPairingCode", {
   message: Schema.String
@@ -114,7 +135,6 @@ export class InvalidAction extends Schema.TaggedError<InvalidAction>()("InvalidA
   message: Schema.String
 }, { httpApiStatus: 400 }) {}
 
-
 export const RunningActivity = Schema.Struct({
   attributes: ActivityAttributes,
   content: ActivityContent
@@ -122,13 +142,22 @@ export const RunningActivity = Schema.Struct({
 
 /** Routes the iPhone app calls. */
 export class DevicesGroup extends HttpApiGroup.make("devices")
-  .add(HttpApiEndpoint.post("pair", "/devices", { payload: PairDevice, success: PairedDevice, error: InvalidPairingCode }).annotate(OpenApi.Identifier, "pairDevice"))
   .add(
-    HttpApiEndpoint.patch("update", "/devices/me", { payload: UpdateDevice }).annotate(OpenApi.Identifier, "updateDevice")
+    HttpApiEndpoint.post("pair", "/devices", { payload: PairDevice, success: PairedDevice, error: InvalidPairingCode })
+      .annotate(OpenApi.Identifier, "pairDevice")
+  )
+  .add(
+    HttpApiEndpoint.patch("update", "/devices/me", { payload: UpdateDevice }).annotate(
+      OpenApi.Identifier,
+      "updateDevice"
+    )
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.post("activityToken", "/devices/me/activity-tokens", { payload: ActivityToken }).annotate(OpenApi.Identifier, "reportActivityToken")
+    HttpApiEndpoint.post("activityToken", "/devices/me/activity-tokens", { payload: ActivityToken }).annotate(
+      OpenApi.Identifier,
+      "reportActivityToken"
+    )
       .middleware(DeviceAuth)
   )
   .add(
@@ -142,7 +171,10 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.put("savePreferences", "/devices/me/preferences", { payload: DevicePreferences, success: DevicePreferences })
+    HttpApiEndpoint.put("savePreferences", "/devices/me/preferences", {
+      payload: DevicePreferences,
+      success: DevicePreferences
+    })
       .annotate(OpenApi.Identifier, "savePreferences")
       .middleware(DeviceAuth)
   )
@@ -152,16 +184,23 @@ export class DevicesGroup extends HttpApiGroup.make("devices")
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.post("action", "/activities/actions", { payload: ActivityAction, error: [InvalidAction, HttpApiError.NotFound] })
+    HttpApiEndpoint.post("action", "/activities/actions", {
+      payload: ActivityAction,
+      error: [InvalidAction, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "performAction")
       .middleware(DeviceAuth)
   )
   .add(
-    HttpApiEndpoint.get("activities", "/activities", { success: Schema.Array(RunningActivity) }).annotate(OpenApi.Identifier, "listActivities")
+    HttpApiEndpoint.get("activities", "/activities", { success: Schema.Array(RunningActivity) }).annotate(
+      OpenApi.Identifier,
+      "listActivities"
+    )
       .middleware(DeviceAuth)
   )
   .middleware(HomeRequired)
-  .prefix("/api") {}
+  .prefix("/api")
+{}
 
 export const PairingCode = Schema.Struct({
   code: Schema.String,
@@ -195,10 +234,19 @@ export class ConsoleGroup extends HttpApiGroup.make("console")
       success: PairingCode
     }).annotate(OpenApi.Identifier, "createPairingCode")
   )
-  .add(HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }).annotate(OpenApi.Identifier, "listDevices"))
-  .add(HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound }).annotate(OpenApi.Identifier, "removeDevice"))
+  .add(
+    HttpApiEndpoint.get("devices", "/devices", { success: Schema.Array(DeviceSummary) }).annotate(
+      OpenApi.Identifier,
+      "listDevices"
+    )
+  )
+  .add(
+    HttpApiEndpoint.delete("removeDevice", "/devices/:id", { params: { id: DeviceId }, error: HttpApiError.NotFound })
+      .annotate(OpenApi.Identifier, "removeDevice")
+  )
   .middleware(HomeRequired)
-  .prefix("/console-api") {}
+  .prefix("/console-api")
+{}
 
 /**
  * How the app reaches Quai Cloud from outside: Quai Cloud's own configuration (`QUAI_CLOUD_PUBLIC_URL`,
@@ -217,7 +265,8 @@ export class ConnectionGroup extends HttpApiGroup.make("connection")
     HttpApiEndpoint.get("connectionSettings", "/connection-settings", { success: ConnectionSettings })
       .annotate(OpenApi.Identifier, "getConnectionSettings")
   )
-  .prefix("/console-api") {}
+  .prefix("/console-api")
+{}
 
 /** The Apple push key: Quai Cloud's own configuration (`QUAI_APNS_*`), never home data. */
 export const PushSettings = Schema.Struct({
@@ -231,8 +280,14 @@ export type PushSettings = typeof PushSettings.Type
 
 /** What the console's Settings page shows of the push key. Read-only: it is set on Quai Cloud. */
 export class PushGroup extends HttpApiGroup.make("push")
-  .add(HttpApiEndpoint.get("pushSettings", "/push-settings", { success: PushSettings }).annotate(OpenApi.Identifier, "getPushSettings"))
-  .prefix("/console-api") {}
+  .add(
+    HttpApiEndpoint.get("pushSettings", "/push-settings", { success: PushSettings }).annotate(
+      OpenApi.Identifier,
+      "getPushSettings"
+    )
+  )
+  .prefix("/console-api")
+{}
 
 export class InvalidFlow extends Schema.TaggedError<InvalidFlow>()("InvalidFlow", {
   message: Schema.String
@@ -245,27 +300,51 @@ export const TestFlow = Schema.Struct({
 
 /** Flows, from the console's Flows page. */
 export class FlowsGroup extends HttpApiGroup.make("flows")
-  .add(HttpApiEndpoint.get("list", "/flows", { success: Schema.Array(Flow) }).annotate(OpenApi.Identifier, "listAllFlows"))
-  .add(HttpApiEndpoint.get("catalog", "/flows/catalog", { success: Schema.Array(CatalogEvent) }).annotate(OpenApi.Identifier, "getCatalog"))
+  .add(
+    HttpApiEndpoint.get("list", "/flows", { success: Schema.Array(Flow) }).annotate(OpenApi.Identifier, "listAllFlows")
+  )
+  .add(
+    HttpApiEndpoint.get("catalog", "/flows/catalog", { success: Schema.Array(CatalogEvent) }).annotate(
+      OpenApi.Identifier,
+      "getCatalog"
+    )
+  )
   .add(
     HttpApiEndpoint.get("actions", "/flows/actions", { success: Schema.Array(CatalogAction) })
       .annotate(OpenApi.Identifier, "getActionCatalog")
   )
   .add(
-    HttpApiEndpoint.put("save", "/flows/:id", { params: { id: Schema.String }, payload: Flow, success: Flow, error: InvalidFlow })
+    HttpApiEndpoint.put("save", "/flows/:id", {
+      params: { id: Schema.String },
+      payload: Flow,
+      success: Flow,
+      error: InvalidFlow
+    })
       .annotate(OpenApi.Identifier, "saveFlow")
   )
   .add(
-    HttpApiEndpoint.delete("remove", "/flows/:id", { params: { id: Schema.String }, error: [InvalidFlow, HttpApiError.NotFound] })
+    HttpApiEndpoint.delete("remove", "/flows/:id", {
+      params: { id: Schema.String },
+      error: [InvalidFlow, HttpApiError.NotFound]
+    })
       .annotate(OpenApi.Identifier, "removeFlow")
   )
   .add(
-    HttpApiEndpoint.post("reset", "/flows/:id/reset", { params: { id: Schema.String }, success: Flow, error: HttpApiError.NotFound })
+    HttpApiEndpoint.post("reset", "/flows/:id/reset", {
+      params: { id: Schema.String },
+      success: Flow,
+      error: HttpApiError.NotFound
+    })
       .annotate(OpenApi.Identifier, "resetFlow")
   )
   .add(
-    HttpApiEndpoint.post("test", "/flows/:id/test", { params: { id: Schema.String }, payload: TestFlow, error: HttpApiError.NotFound })
+    HttpApiEndpoint.post("test", "/flows/:id/test", {
+      params: { id: Schema.String },
+      payload: TestFlow,
+      error: HttpApiError.NotFound
+    })
       .annotate(OpenApi.Identifier, "testFlow")
   )
   .middleware(HomeRequired)
-  .prefix("/console-api") {}
+  .prefix("/console-api")
+{}

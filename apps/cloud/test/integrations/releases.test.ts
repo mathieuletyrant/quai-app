@@ -1,13 +1,12 @@
-import { builtInFlows, defaultAlertSettings, DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { builtInFlows, defaultAlertSettings } from "@quai/api"
 import { Effect, Layer, Option, Schema } from "effect"
-import { HttpClientRequest } from "effect/http"
-import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { Activities } from "../../src/flows/Activities.ts"
 import type { Activity } from "../../src/flows/Engine.ts"
 import { FlowStore } from "../../src/flows/FlowStore.ts"
 import { attributesFor, contentFor } from "../../src/flows/Targeting.ts"
+import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/home/Day.ts"
 import { Devices } from "../../src/home/Devices.ts"
 import { QueuePage } from "../../src/integrations/arr.ts"
 import { Hub } from "../../src/integrations/Hub.ts"
@@ -16,11 +15,10 @@ import { calendarWatches, calendarWatchIds, dayEvents, pollSeconds } from "../..
 import { SonarrCalendar } from "../../src/integrations/sonarr.ts"
 import { Apns } from "../../src/push/Apns.ts"
 import { apnsBody } from "../../src/push/ApnsPayload.ts"
-import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/home/Day.ts"
 import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/ReleaseDays.ts"
 import { cloudLive, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
-import { TestApp, testAppDroppingOn } from "../testApp.ts"
+import { TestApp } from "../testApp.ts"
 
 const paris = "Europe/Paris"
 
@@ -55,7 +53,9 @@ describe("the home's day", () => {
     expect(minuteOfDay(evening, paris)).toBe(30)
     expect(new Date(instantOf("2026-11-20", "18:00", paris)).toISOString()).toBe("2026-11-20T17:00:00.000Z")
     expect(new Date(instantOf("2026-07-01", "18:00", paris)).toISOString()).toBe("2026-07-01T16:00:00.000Z")
-    expect(new Date(instantOf("2026-11-20", "18:00", "America/New_York")).toISOString()).toBe("2026-11-20T23:00:00.000Z")
+    expect(new Date(instantOf("2026-11-20", "18:00", "America/New_York")).toISOString()).toBe(
+      "2026-11-20T23:00:00.000Z"
+    )
     const spring = dayRange("2026-03-29", paris)
     expect((spring.end - spring.start) / 3600_000).toBe(23)
     expect(new Date(dayRange("2026-11-20", paris).start).toISOString()).toBe("2026-11-19T23:00:00.000Z")
@@ -100,7 +100,9 @@ describe("today's releases", () => {
     // "TBA" isn't a title.
     expect(releases[2]!.episodeTitle).toBeUndefined()
     // In New York the day starts 5 hours later: the late episode is still the 20th's.
-    expect(dayReleases("2026-11-20", "America/New_York", inputs()).map((release) => release.id)).toContain("episode:505")
+    expect(dayReleases("2026-11-20", "America/New_York", inputs()).map((release) => release.id)).toContain(
+      "episode:505"
+    )
   })
 
   it("shows at most 4 lines, what's still awaited first, short titles", () => {
@@ -111,7 +113,10 @@ describe("today's releases", () => {
       { title: "Slow Horses S05E03", at: Date.parse("2026-11-20T21:00:00Z") / 1000, state: "waiting" },
       { title: "The Wild Robot", state: "active" }
     ])
-    const many = [...releases, ...releases.map((release) => ({ ...release, id: `${release.id}b`, status: "missing" as const }))]
+    const many = [
+      ...releases,
+      ...releases.map((release) => ({ ...release, id: `${release.id}b`, status: "missing" as const }))
+    ]
     const lines = activityItems(many)
     expect(lines).toHaveLength(4)
     expect(lines.every((line) => line.state !== "done")).toBe(true)
@@ -129,7 +134,14 @@ describe("today's releases", () => {
   it("past 4 releases, the lines are cut but the count is the whole day's", () => {
     const releases = dayReleases("2026-11-20", paris, inputs())
     const many = [...releases, ...releases.map((release) => ({ ...release, id: `${release.id}b` }))]
-    const context = { flows: [today], running: [], services: ["sonarr" as const], now: Date.parse("2026-11-20T17:00:00Z"), timeZone: paris, alerts: defaultAlertSettings }
+    const context = {
+      flows: [today],
+      running: [],
+      services: ["sonarr" as const],
+      now: Date.parse("2026-11-20T17:00:00Z"),
+      timeZone: paris,
+      alerts: defaultAlertSettings
+    }
     const [start] = dayEvents(context, many)
     expect(start!.values?.items).toHaveLength(4)
     expect([start!.values?.here, start!.values?.total, start!.values?.detail]).toEqual([2, 8, "2 of 8 here"])
@@ -138,7 +150,10 @@ describe("today's releases", () => {
   })
 
   it("fits a Live Activity push well under APNs' 4 KB", () => {
-    const releases = dayReleases("2026-11-20", paris, inputs()).map((release) => ({ ...release, title: "A Very Long Series Title That Goes On And On" }))
+    const releases = dayReleases("2026-11-20", paris, inputs()).map((release) => ({
+      ...release,
+      title: "A Very Long Series Title That Goes On And On"
+    }))
     const activity: Activity = {
       key: "today|day:2026-11-20",
       flowId: "today",
@@ -159,7 +174,12 @@ describe("today's releases", () => {
     const preference = { enabled: true, hiddenSteps: [] }
     const content = contentFor(today, activity, preference)!
     expect(content.items).toHaveLength(4)
-    const body = apnsBody({ _tag: "Start", token: "t", attributes: attributesFor(today, activity, preference), content }, 0)
+    const body = apnsBody({
+      _tag: "Start",
+      token: "t",
+      attributes: attributesFor(today, activity, preference),
+      content
+    }, 0)
     expect(JSON.stringify(body).length).toBeLessThan(2048)
   })
 })
@@ -169,7 +189,9 @@ describe("Today's releases flow", () => {
   const answer = () => recordedHome(calendars)
   const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
   const day = Effect.gen(function*() {
-    return [...(yield* (yield* Activities).snapshot).activities.values()].filter((activity) => activity.flowId === "today")
+    return [...(yield* (yield* Activities).snapshot).activities.values()].filter((activity) =>
+      activity.flowId === "today"
+    )
   })
   const pairParis = Effect.gen(function*() {
     const devices = yield* Devices
@@ -178,9 +200,20 @@ describe("Today's releases flow", () => {
   })
 
   it("the Today tile and the day flows read the same GETs: the watches are the day's reads", () => {
-    const context = { flows: [today], running: [], services: ["radarr", "sonarr"] as const, now: Date.parse("2026-11-20T12:00:00Z"), timeZone: paris, alerts: defaultAlertSettings }
-    const watched = calendarWatches({ ...context, services: [...context.services] }).map((watch) => `${watch.service} ${watch.path}`)
-    expect(watched.sort()).toEqual(Object.values(dayReads("2026-11-20", paris)).map((read) => `${read.service} ${read.path}`).sort())
+    const context = {
+      flows: [today],
+      running: [],
+      services: ["radarr", "sonarr"] as const,
+      now: Date.parse("2026-11-20T12:00:00Z"),
+      timeZone: paris,
+      alerts: defaultAlertSettings
+    }
+    const watched = calendarWatches({ ...context, services: [...context.services] }).map((watch) =>
+      `${watch.service} ${watch.path}`
+    )
+    expect(watched.sort()).toEqual(
+      Object.values(dayReads("2026-11-20", paris)).map((read) => `${read.service} ${read.path}`).sort()
+    )
   })
 
   it.effect("watches the calendars of the home's day, starts at 18:00, ticks off what arrives, ends when all are here", () =>
@@ -198,7 +231,10 @@ describe("Today's releases flow", () => {
       expect(episodes.everySeconds).toBe(pollSeconds.idle)
       for (const id of Object.values(calendarWatchIds)) {
         const watch = home.watch(id)!
-        yield* home.snapshot(id, fixture(`${watch.service}/${id.endsWith("queue") ? "queue-calendar" : "calendar"}.json`))
+        yield* home.snapshot(
+          id,
+          fixture(`${watch.service}/${id.endsWith("queue") ? "queue-calendar" : "calendar"}.json`)
+        )
       }
       // 13:00 in Paris: not yet.
       expect(yield* day).toEqual([])
@@ -206,7 +242,11 @@ describe("Today's releases flow", () => {
       yield* TestClock.setTime(Date.parse("2026-11-20T17:00:00Z"))
       yield* hub.beat
       const [started] = yield* day
-      expect(started).toMatchObject({ subjectKey: "day:2026-11-20", stepIndex: 0, values: { detail: "1 of 4 here", here: 1, total: 4 } })
+      expect(started).toMatchObject({
+        subjectKey: "day:2026-11-20",
+        stepIndex: 0,
+        values: { detail: "1 of 4 here", here: 1, total: 4 }
+      })
       expect(started!.values.items?.map((item) => item.state)).toEqual(["done", "active", "waiting", "active"])
       // While it runs, every 5 minutes.
       expect(home.watch(calendarWatchIds.episodes)!.everySeconds).toBe(pollSeconds.running)
@@ -236,7 +276,10 @@ describe("Today's releases flow", () => {
       yield* hub.beat
       for (const id of Object.values(calendarWatchIds)) {
         const watch = home.watch(id)!
-        yield* home.snapshot(id, fixture(`${watch.service}/${id.endsWith("queue") ? "queue-calendar" : "calendar"}.json`))
+        yield* home.snapshot(
+          id,
+          fixture(`${watch.service}/${id.endsWith("queue") ? "queue-calendar" : "calendar"}.json`)
+        )
       }
       expect(yield* day).toEqual([])
       // 20:00 in Paris: Severance airs, before 21:30.
@@ -263,7 +306,9 @@ describe("Today's releases flow", () => {
       yield* pairParis
       const hub = yield* Hub
       yield* hub.beat
-      const early = (fixture("sonarr/calendar.json") as Array<{ airDateUtc: string }>).map((episode, index) => index === 1 ? { ...episode, airDateUtc: "2026-11-20T02:00:00Z" } : episode)
+      const early = (fixture("sonarr/calendar.json") as Array<{ airDateUtc: string }>).map((episode, index) =>
+        index === 1 ? { ...episode, airDateUtc: "2026-11-20T02:00:00Z" } : episode
+      )
       yield* home.snapshot(calendarWatchIds.episodes, early)
       yield* TestClock.setTime(Date.parse("2026-11-20T02:00:00Z"))
       yield* hub.beat

@@ -70,7 +70,8 @@ export const minuteOfDay = (ms: number, zone: string): number => {
 /** How far ahead of UTC the zone is at that instant, in milliseconds. */
 const offsetAt = (ms: number, zone: string) => {
   const parts = partsOf(ms, zone)
-  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) - Math.floor(ms / 1000) * 1000
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second) -
+    Math.floor(ms / 1000) * 1000
 }
 
 /** The instant a local time ("18:00") of a day happens; a time a DST jump skips comes an hour later. */

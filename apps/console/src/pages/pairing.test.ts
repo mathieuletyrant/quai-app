@@ -15,6 +15,8 @@ describe("withConsoleAddresses", () => {
   })
 
   it("without a public address, only the one the console was opened at", () => {
-    expect(withConsoleAddresses("quai://pair", "http://umbrel.local:3078", undefined)).toBe("quai://pair?console=http%3A%2F%2Fumbrel.local%3A3078")
+    expect(withConsoleAddresses("quai://pair", "http://umbrel.local:3078", undefined)).toBe(
+      "quai://pair?console=http%3A%2F%2Fumbrel.local%3A3078"
+    )
   })
 })

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "@effect/vitest"
 import { NodeHttpServer } from "@effect/platform-node"
+import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
@@ -8,8 +8,8 @@ import { HomeApp } from "../../src/App.ts"
 import * as DeviceToken from "../../src/home/DeviceToken.ts"
 import { HomeLinks, HomeRoute } from "../../src/home/HomeLink.ts"
 import { Homes, HomesRoute, Timing } from "../../src/home/Homes.ts"
-import { Apns } from "../../src/push/Apns.ts"
 import { PublicAccess } from "../../src/PublicAccess.ts"
+import { Apns } from "../../src/push/Apns.ts"
 import { ServerInfo } from "../../src/Version.ts"
 import { type FakeHome, makeFakeHome, settle } from "../fakeHome.ts"
 
@@ -34,7 +34,11 @@ const linked = (home: FakeHome) =>
     yield* settle
   })
 
-const request = (method: "GET" | "POST", path: string, options: { readonly token?: string; readonly body?: unknown } = {}) =>
+const request = (
+  method: "GET" | "POST",
+  path: string,
+  options: { readonly token?: string; readonly body?: unknown } = {}
+) =>
   Effect.gen(function*() {
     const client = yield* HttpClient.HttpClient
     let req = method === "GET" ? HttpClientRequest.get(path) : HttpClientRequest.post(path)
@@ -55,7 +59,11 @@ const request = (method: "GET" | "POST", path: string, options: { readonly token
 /** Pairs an iPhone with a home: a code from its console, then the iPhone's request on the public port. */
 const pair = (home: FakeHome, name: string) =>
   Effect.gen(function*() {
-    const qr = yield* home.console({ method: "POST", path: "/console-api/pairing-codes", body: JSON.stringify({ serverUrls: [] }) })
+    const qr = yield* home.console({
+      method: "POST",
+      path: "/console-api/pairing-codes",
+      body: JSON.stringify({ serverUrls: [] })
+    })
     const { code } = qr.json as { code: string }
     const paired = yield* request("POST", "/api/devices", { body: { code, name, apnsEnvironment: "production" } })
     expect(paired.status).toBe(200)
@@ -76,21 +84,45 @@ describe("homes", () => {
       expect(DeviceToken.homeOf(mine.token)).toEqual(Option.some(first.homeId))
       expect(DeviceToken.homeOf(theirs.token)).toEqual(Option.some(second.homeId))
       // Each home keeps its own iPhone, on its own disk.
-      expect([...first.documents.keys()].filter((key) => key.startsWith("devices/"))).toEqual([`devices/${mine.deviceId}`])
-      expect([...second.documents.keys()].filter((key) => key.startsWith("devices/"))).toEqual([`devices/${theirs.deviceId}`])
-      expect(((yield* first.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((device) => device.name)).toEqual(["Mathieu"])
-      expect(((yield* second.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((device) => device.name)).toEqual(["Neighbour"])
+      expect([...first.documents.keys()].filter((key) => key.startsWith("devices/"))).toEqual([
+        `devices/${mine.deviceId}`
+      ])
+      expect([...second.documents.keys()].filter((key) => key.startsWith("devices/"))).toEqual([
+        `devices/${theirs.deviceId}`
+      ])
+      expect(
+        ((yield* first.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((
+          device
+        ) => device.name)
+      ).toEqual(["Mathieu"])
+      expect(
+        ((yield* second.console({ method: "GET", path: "/console-api/devices" })).json as Array<{ name: string }>).map((
+          device
+        ) => device.name)
+      ).toEqual(["Neighbour"])
 
       expect((yield* request("GET", "/api/devices/me/preferences", { token: mine.token })).status).toBe(200)
       expect((yield* request("GET", "/api/devices/me/preferences", { token: theirs.token })).status).toBe(200)
 
       // A flow saved from one console is one home's only.
-      const flows = (yield* first.console({ method: "GET", path: "/console-api/flows" })).json as Array<{ id: string; enabled: boolean }>
+      const flows = (yield* first.console({ method: "GET", path: "/console-api/flows" })).json as Array<
+        { id: string; enabled: boolean }
+      >
       const flow = flows[0]!
-      expect((yield* first.console({ method: "PUT", path: `/console-api/flows/${flow.id}`, body: JSON.stringify({ ...flow, enabled: !flow.enabled }) })).status).toBe(200)
+      expect(
+        (yield* first.console({
+          method: "PUT",
+          path: `/console-api/flows/${flow.id}`,
+          body: JSON.stringify({ ...flow, enabled: !flow.enabled })
+        })).status
+      ).toBe(200)
       const enabled = (home: FakeHome) =>
-        Effect.map(request("GET", "/api/flows", { token: home === first ? mine.token : theirs.token }), (response) =>
-          (response.json as Array<{ id: string; enabled: boolean }>).find((listedFlow) => listedFlow.id === flow.id)?.enabled)
+        Effect.map(
+          request("GET", "/api/flows", { token: home === first ? mine.token : theirs.token }),
+          (response) =>
+            (response.json as Array<{ id: string; enabled: boolean }>).find((listedFlow) => listedFlow.id === flow.id)
+              ?.enabled
+        )
       expect(yield* enabled(first)).toBe(!flow.enabled)
       expect(yield* enabled(second)).toBe(flow.enabled)
     }).pipe(Effect.provide(Cloud)))
@@ -104,9 +136,17 @@ describe("homes", () => {
       const iphone = yield* pair(home, "iPhone")
       // A token of a home that holds no such iPhone, even if another home does.
       const forged = `${other.homeId}.${iphone.token.split(".")[1]}`
-      expect(yield* request("GET", "/api/flows", { token: forged })).toEqual({ status: 401, json: { _tag: "Unauthorized" } })
-      expect((yield* home.console({ method: "DELETE", path: `/console-api/devices/${iphone.deviceId}` })).status).toBe(204)
-      expect(yield* request("GET", "/api/flows", { token: iphone.token })).toEqual({ status: 401, json: { _tag: "Unauthorized" } })
+      expect(yield* request("GET", "/api/flows", { token: forged })).toEqual({
+        status: 401,
+        json: { _tag: "Unauthorized" }
+      })
+      expect((yield* home.console({ method: "DELETE", path: `/console-api/devices/${iphone.deviceId}` })).status).toBe(
+        204
+      )
+      expect(yield* request("GET", "/api/flows", { token: iphone.token })).toEqual({
+        status: 401,
+        json: { _tag: "Unauthorized" }
+      })
       yield* home.disconnect
       expect((yield* request("GET", "/api/flows", { token: iphone.token })).json).toMatchObject({ _tag: "HomeOffline" })
       expect((yield* request("GET", "/api/flows", { token: `${"a".repeat(32)}.${"b".repeat(43)}` })).status).toBe(503)
@@ -142,7 +182,10 @@ describe("homes", () => {
       expect((yield* request("GET", "/api/health")).status).toBe(200)
       expect((yield* request("GET", "/console-api/devices")).status).toBe(404)
       yield* linked(yield* makeFakeHome())
-      expect(yield* request("POST", "/api/devices", { body })).toMatchObject({ status: 403, json: { _tag: "InvalidPairingCode" } })
+      expect(yield* request("POST", "/api/devices", { body })).toMatchObject({
+        status: 403,
+        json: { _tag: "InvalidPairingCode" }
+      })
       expect((yield* request("GET", "/console-api/devices")).status).toBe(404)
     }).pipe(Effect.provide(Cloud)))
 

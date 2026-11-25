@@ -20,7 +20,12 @@ const fakeCalls = Layer.succeed(Calls, {
     })
 })
 
-const withWatcher = <A, E>(test: (watcher: Effect.Success<ReturnType<Watches["Service"]["make"]>>, sent: Array<HomeProtocol.HomeMessage>) => Effect.Effect<A, E>) =>
+const withWatcher = <A, E>(
+  test: (
+    watcher: Effect.Success<ReturnType<Watches["Service"]["make"]>>,
+    sent: Array<HomeProtocol.HomeMessage>
+  ) => Effect.Effect<A, E>
+) =>
   Effect.gen(function*() {
     answers = {}
     polls.length = 0
@@ -30,7 +35,12 @@ const withWatcher = <A, E>(test: (watcher: Effect.Success<ReturnType<Watches["Se
   }).pipe(Effect.scoped, Effect.provide(Watches.layer.pipe(Layer.provide([fakeCalls, journalLayer]))))
 
 const sessions: HomeProtocol.Watch = { id: "w1", service: "jellyfin", path: "/Sessions", everySeconds: 15 }
-const torrents: HomeProtocol.Watch = { id: "w2", service: "qbittorrent", path: "/api/v2/torrents/info?hashes=a", everySeconds: 5 }
+const torrents: HomeProtocol.Watch = {
+  id: "w2",
+  service: "qbittorrent",
+  path: "/api/v2/torrents/info?hashes=a",
+  everySeconds: 5
+}
 const snapshot = (watchId: string, body: string) => ({ _tag: "WatchSnapshot", watchId, status: 200, body })
 
 const after = (seconds: number) => TestClock.adjust(`${seconds} seconds`)
@@ -54,7 +64,8 @@ describe("watches", () => {
         answers["/Sessions"] = "[{\"Id\":\"s\"}]"
         yield* after(15)
         expect(sent).toEqual([snapshot("w1", "[]"), snapshot("w1", "[{\"Id\":\"s\"}]")])
-      })))
+      })
+    ))
 
   it.effect("refuses a watch outside the allowlist or its period range, and polls the others", () =>
     withWatcher((watcher, sent) =>
@@ -74,7 +85,8 @@ describe("watches", () => {
           snapshot("w2", "[]")
         ])
         expect(polls).toEqual(["/api/v2/torrents/info?hashes=a"])
-      })))
+      })
+    ))
 
   it.effect("SetWatches replaces the whole set; a watch kept as it was isn't sent again", () =>
     withWatcher((watcher, sent) =>
@@ -92,7 +104,8 @@ describe("watches", () => {
         yield* after(15)
         expect(polls.every((path) => path !== "/Sessions")).toBe(true)
         expect(polls.length).toBe(3)
-      })))
+      })
+    ))
 
   it.effect("after a reset (a new Welcome), every snapshot goes out again", () =>
     withWatcher((watcher, sent) =>
@@ -108,7 +121,8 @@ describe("watches", () => {
         yield* watcher.set([sessions])
         yield* after(0)
         expect(sent).toEqual([snapshot("w1", "[]"), snapshot("w1", "[]")])
-      })))
+      })
+    ))
 
   it.effect("a failing watch reports once per failure streak and keeps polling", () =>
     withWatcher((watcher, sent) =>
@@ -131,5 +145,6 @@ describe("watches", () => {
         yield* after(15)
         expect(sent.filter((message) => message._tag === "Failed")).toHaveLength(2)
         expect(polls).toHaveLength(6)
-      })))
+      })
+    ))
 })

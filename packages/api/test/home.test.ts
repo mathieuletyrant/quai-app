@@ -5,7 +5,9 @@ import { HomeProtocol } from "../src/index.ts"
 describe("home id", () => {
   it("is the first 32 hex chars of the SHA-256 of the public key (SPKI DER)", () => {
     // A fixed Ed25519 key, so the id can't change under a home that already linked with it.
-    expect(HomeId.homeId("MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=")).toBe("a1e9156054e04fac899ae9f275132cdc")
+    expect(HomeId.homeId("MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=")).toBe(
+      "a1e9156054e04fac899ae9f275132cdc"
+    )
   })
 })
 
@@ -18,7 +20,9 @@ describe("allowlist", () => {
     expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/movie/12" })).toBe(false)
     expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/series" })).toBe(false)
     expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/movie" })).toBe(false)
-    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/series/3/../../config/host" })).toBe(false)
+    expect(HomeProtocol.allowed({ service: "sonarr", method: "GET", path: "/api/v3/series/3/../../config/host" })).toBe(
+      false
+    )
   })
 })
 
@@ -27,7 +31,13 @@ describe("allowlist: the To fix list", () => {
   const manualImport = {
     name: "ManualImport",
     importMode: "auto",
-    files: [{ path: "/downloads/Dune.mkv", movieId: 12, downloadId: "ABC", quality: { quality: { id: 7 } }, languages: [{ id: 1 }] }]
+    files: [{
+      path: "/downloads/Dune.mkv",
+      movieId: 12,
+      downloadId: "ABC",
+      quality: { quality: { id: 7 } },
+      languages: [{ id: 1 }]
+    }]
   }
 
   it("Radarr has no episodes to read", () => {
@@ -37,54 +47,134 @@ describe("allowlist: the To fix list", () => {
   it("removes a queue item only with DELETE on its id, without a body", () => {
     expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/queue/bulk" })).toBe(false)
     expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/movie/12" })).toBe(false)
-    expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/queue/41", body: { ids: [1, 2] } })).toBe(false)
+    expect(allowed({ service: "radarr", method: "DELETE", path: "/api/v3/queue/41", body: { ids: [1, 2] } })).toBe(
+      false
+    )
     expect(allowed({ service: "jellyfin", method: "DELETE", path: "/Items/abc" })).toBe(false)
   })
 
   it("grabs a release by guid and indexer, nothing else in the body", () => {
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/release", body: { guid: "abc", indexerId: 3 } })).toBe(true)
+    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/release", body: { guid: "abc", indexerId: 3 } }))
+      .toBe(true)
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/release" })).toBe(false)
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/release", body: { guid: "abc" } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/release", body: { guid: "abc", indexerId: 3, downloadClientId: 9 } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/release/push", body: { guid: "abc", indexerId: 3 } })).toBe(false)
+    expect(
+      allowed({
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/release",
+        body: { guid: "abc", indexerId: 3, downloadClientId: 9 }
+      })
+    ).toBe(false)
+    expect(
+      allowed({ service: "radarr", method: "POST", path: "/api/v3/release/push", body: { guid: "abc", indexerId: 3 } })
+    ).toBe(false)
   })
 
   it("runs ManualImport and no other command", () => {
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: manualImport })).toBe(true)
     for (const name of ["RescanMovie", "MoviesSearch", "Backup", "RenameFiles", "ApplicationUpdate", "manualimport"]) {
-      expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, name } })).toBe(false)
+      expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, name } }))
+        .toBe(false)
     }
     expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command" })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { name: "ManualImport" } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, importMode: "move" } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, files: [] } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, sendUpdatesToClient: true } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, toString: "x" } })).toBe(false)
+    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { name: "ManualImport" } }))
+      .toBe(false)
+    expect(
+      allowed({
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/command",
+        body: { ...manualImport, importMode: "move" }
+      })
+    ).toBe(false)
+    expect(
+      allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, files: [] } })
+    ).toBe(false)
+    expect(
+      allowed({
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/command",
+        body: { ...manualImport, sendUpdatesToClient: true }
+      })
+    ).toBe(false)
+    expect(
+      allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, toString: "x" } })
+    ).toBe(false)
     // A file with keys ManualImport doesn't take, or without its movie, is refused.
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, files: [{ path: "/x", downloadId: "A" }] } })).toBe(false)
-    expect(allowed({ service: "radarr", method: "POST", path: "/api/v3/command", body: { ...manualImport, files: [{ ...manualImport.files[0], deleteFiles: true }] } })).toBe(false)
+    expect(
+      allowed({
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/command",
+        body: { ...manualImport, files: [{ path: "/x", downloadId: "A" }] }
+      })
+    ).toBe(false)
+    expect(
+      allowed({
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/command",
+        body: { ...manualImport, files: [{ ...manualImport.files[0], deleteFiles: true }] }
+      })
+    ).toBe(false)
     // Sonarr's files name a series and its episodes.
-    const episodes = { name: "ManualImport", importMode: "auto", files: [{ path: "/x.mkv", seriesId: 3, seasonNumber: 1, episodeIds: [301], downloadId: "A" }] }
+    const episodes = {
+      name: "ManualImport",
+      importMode: "auto",
+      files: [{ path: "/x.mkv", seriesId: 3, seasonNumber: 1, episodeIds: [301], downloadId: "A" }]
+    }
     expect(allowed({ service: "sonarr", method: "POST", path: "/api/v3/command", body: episodes })).toBe(true)
     expect(allowed({ service: "sonarr", method: "POST", path: "/api/v3/command", body: manualImport })).toBe(false)
-    expect(allowed({ service: "sonarr", method: "POST", path: "/api/v3/command", body: { ...episodes, name: "SeriesSearch" } })).toBe(false)
+    expect(
+      allowed({
+        service: "sonarr",
+        method: "POST",
+        path: "/api/v3/command",
+        body: { ...episodes, name: "SeriesSearch" }
+      })
+    ).toBe(false)
   })
 
   it("protects one Reclaimerr candidate, nothing else", () => {
-    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: "Kept from Quai" } })).toBe(true)
-    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: {} })).toBe(true)
-    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: 3 } })).toBe(false)
-    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/cancel", body: {} })).toBe(false)
+    expect(
+      allowed({
+        service: "reclaimerr",
+        method: "POST",
+        path: "/api/v1/candidates/42/protect",
+        body: { reason: "Kept from Quai" }
+      })
+    ).toBe(true)
+    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: {} })).toBe(
+      true
+    )
+    expect(
+      allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/protect", body: { reason: 3 } })
+    ).toBe(false)
+    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/candidates/42/cancel", body: {} })).toBe(
+      false
+    )
     expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/tasks/cleanup/run", body: {} })).toBe(false)
-    expect(allowed({ service: "reclaimerr", method: "POST", path: "/api/v1/protections", body: { media_type: "movie", tmdb_id: 1 } })).toBe(false)
+    expect(
+      allowed({
+        service: "reclaimerr",
+        method: "POST",
+        path: "/api/v1/protections",
+        body: { media_type: "movie", tmdb_id: 1 }
+      })
+    ).toBe(false)
     expect(allowed({ service: "reclaimerr", method: "DELETE", path: "/api/v1/protections/3" })).toBe(false)
     expect(allowed({ service: "reclaimerr", method: "GET", path: "/api/settings/services" })).toBe(false)
   })
 
   it("a read takes no body; the release search gets a longer timeout", () => {
     expect(allowed({ service: "radarr", method: "GET", path: "/api/v3/queue", body: { a: 1 } })).toBe(false)
-    expect(HomeProtocol.allowRule({ service: "radarr", method: "GET", path: "/api/v3/release?movieId=1" })?.timeoutSeconds).toBe(HomeProtocol.releaseSearchTimeoutSeconds)
-    expect(HomeProtocol.allowRule({ service: "radarr", method: "GET", path: "/api/v3/queue" })?.timeoutSeconds).toBeUndefined()
+    expect(
+      HomeProtocol.allowRule({ service: "radarr", method: "GET", path: "/api/v3/release?movieId=1" })?.timeoutSeconds
+    ).toBe(HomeProtocol.releaseSearchTimeoutSeconds)
+    expect(HomeProtocol.allowRule({ service: "radarr", method: "GET", path: "/api/v3/queue" })?.timeoutSeconds)
+      .toBeUndefined()
   })
 })
 
@@ -94,16 +184,45 @@ describe("allowlist: Seerr", () => {
   it("approves or declines one request, with no body", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve" })).toBe(true)
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/decline" })).toBe(true)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve", body: { is4k: true } })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve", body: { is4k: true } }))
+      .toBe(false)
   })
 
   it("searches, lists the users, and requests a movie or some seasons, for another user or not", () => {
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/search?query=dune&page=1" })).toBe(true)
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user?take=100" })).toBe(true)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 438631 } })).toBe(true)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 438631, userId: 2 } })).toBe(true)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "tv", mediaId: 95396, seasons: [1, 2] } })).toBe(true)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "tv", mediaId: 95396, seasons: [1], userId: 2 } })).toBe(true)
+    expect(
+      allowed({
+        service: "seerr",
+        method: "POST",
+        path: "/api/v1/request",
+        body: { mediaType: "movie", mediaId: 438631 }
+      })
+    ).toBe(true)
+    expect(
+      allowed({
+        service: "seerr",
+        method: "POST",
+        path: "/api/v1/request",
+        body: { mediaType: "movie", mediaId: 438631, userId: 2 }
+      })
+    ).toBe(true)
+    expect(
+      allowed({
+        service: "seerr",
+        method: "POST",
+        path: "/api/v1/request",
+        body: { mediaType: "tv", mediaId: 95396, seasons: [1, 2] }
+      })
+    ).toBe(true)
+    expect(
+      allowed({
+        service: "seerr",
+        method: "POST",
+        path: "/api/v1/request",
+        body: { mediaType: "tv", mediaId: 95396, seasons: [1], userId: 2 }
+      })
+    ).toBe(true)
   })
 
   it("requests nothing else: no 4K, server, profile or root folder, no \"all\" seasons, no seasons on a movie", () => {
@@ -127,9 +246,17 @@ describe("allowlist: Seerr", () => {
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/retry" })).toBe(false)
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/pending" })).toBe(false)
     expect(allowed({ service: "seerr", method: "DELETE", path: "/api/v1/request/12" })).toBe(false)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/../../settings/main/regenerate" })).toBe(false)
+    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/request/12/../../settings/main/regenerate" }))
+      .toBe(false)
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/notifications/webhook" })).toBe(false)
-    expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/settings/notifications/webhook", body: { enabled: true } })).toBe(false)
+    expect(
+      allowed({
+        service: "seerr",
+        method: "POST",
+        path: "/api/v1/settings/notifications/webhook",
+        body: { enabled: true }
+      })
+    ).toBe(false)
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/settings/main" })).toBe(false)
     expect(allowed({ service: "seerr", method: "POST", path: "/api/v1/user", body: { email: "x" } })).toBe(false)
     expect(allowed({ service: "seerr", method: "GET", path: "/api/v1/user/1/settings/main" })).toBe(false)
@@ -155,34 +282,80 @@ describe("allowlist: Cleanuparr", () => {
     enabled: true,
     cronExpression: "0 0/5 * * * ?",
     useAdvancedScheduling: false,
-    failedImport: { maxStrikes: 3, ignorePrivate: false, deletePrivate: false, skipIfNotFoundInClient: true, patterns: ["sample"], patternMode: "Include", changeCategory: false, forceImport: false, forceImportMaxTries: 3 },
+    failedImport: {
+      maxStrikes: 3,
+      ignorePrivate: false,
+      deletePrivate: false,
+      skipIfNotFoundInClient: true,
+      patterns: ["sample"],
+      patternMode: "Include",
+      changeCategory: false,
+      forceImport: false,
+      forceImportMaxTries: 3
+    },
     ignoredDownloads: ["0718293A4B5C6D7E8F901234567890123456789A"],
     processNoContentId: false,
     downloadingMetadataMaxStrikes: 3,
     errored: { maxStrikes: 0, ignorePrivate: false, deletePrivate: false, changeCategory: false }
   }
-  const ignoring = (...more: ReadonlyArray<string>) => ({ ...current, ignoredDownloads: [...current.ignoredDownloads, ...more] })
+  const ignoring = (...more: ReadonlyArray<string>) => ({
+    ...current,
+    ignoredDownloads: [...current.ignoredDownloads, ...more]
+  })
   const check = HomeProtocol.ignoresOneMoreDownload
 
   it("reads its strikes, settings, rules, next run and events, and nothing else", () => {
-    for (const path of ["/health", "/api/strikes?page=1&pageSize=500", "/api/configuration/queue_cleaner", "/api/queue-rules/stall", "/api/queue-rules/slow", "/api/jobs/QueueCleaner", "/api/events?eventType=QueueItemDeleted"]) {
+    for (
+      const path of [
+        "/health",
+        "/api/strikes?page=1&pageSize=500",
+        "/api/configuration/queue_cleaner",
+        "/api/queue-rules/stall",
+        "/api/queue-rules/slow",
+        "/api/jobs/QueueCleaner",
+        "/api/events?eventType=QueueItemDeleted"
+      ]
+    ) {
       expect(allowed({ service: "cleanuparr", method: "GET", path })).toBe(true)
     }
-    for (const path of ["/api/configuration/general", "/api/configuration/download_client", "/api/account/api-key", "/api/arr/radarr", "/api/jobs"]) {
+    for (
+      const path of [
+        "/api/configuration/general",
+        "/api/configuration/download_client",
+        "/api/account/api-key",
+        "/api/arr/radarr",
+        "/api/jobs"
+      ]
+    ) {
       expect(allowed({ service: "cleanuparr", method: "GET", path })).toBe(false)
     }
   })
 
   it("its one write is the queue cleaner's settings, checked against what Cleanuparr holds", () => {
-    const rule = HomeProtocol.allowRule({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner", body: ignoring(hash) })
+    const rule = HomeProtocol.allowRule({
+      service: "cleanuparr",
+      method: "PUT",
+      path: "/api/configuration/queue_cleaner",
+      body: ignoring(hash)
+    })
     expect(rule?.against?.path).toBe("/api/configuration/queue_cleaner")
     expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner" })).toBe(false)
     // A query could change what the write means: the checked write goes to the document exactly.
-    expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/queue_cleaner?apikey=other", body: ignoring(hash) })).toBe(false)
+    expect(
+      allowed({
+        service: "cleanuparr",
+        method: "PUT",
+        path: "/api/configuration/queue_cleaner?apikey=other",
+        body: ignoring(hash)
+      })
+    ).toBe(false)
     expect(HomeProtocol.checkedWriteTimeoutSeconds * 1000).toBeLessThan(15_000)
-    expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/general", body: ignoring(hash) })).toBe(false)
+    expect(allowed({ service: "cleanuparr", method: "PUT", path: "/api/configuration/general", body: ignoring(hash) }))
+      .toBe(false)
     expect(allowed({ service: "cleanuparr", method: "POST", path: "/api/jobs/QueueCleaner/trigger" })).toBe(false)
-    expect(allowed({ service: "cleanuparr", method: "DELETE", path: "/api/strikes/0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01" })).toBe(false)
+    expect(
+      allowed({ service: "cleanuparr", method: "DELETE", path: "/api/strikes/0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01" })
+    ).toBe(false)
     expect(allowed({ service: "cleanuparr", method: "POST", path: "/api/configuration/strikes/purge" })).toBe(false)
   })
 
@@ -197,7 +370,9 @@ describe("allowlist: Cleanuparr", () => {
     expect(check(current, ignoring(current.ignoredDownloads[0]!.toLowerCase()))).toBe(false)
     expect(check(current, { ...current, ignoredDownloads: [hash] })).toBe(false)
     // A category, a tag or a tracker would spare every download it covers.
-    for (const pattern of ["radarr", "tv-sonarr", "tracker.example.org", ""]) expect(check(current, ignoring(pattern))).toBe(false)
+    for (const pattern of ["radarr", "tv-sonarr", "tracker.example.org", ""]) {
+      expect(check(current, ignoring(pattern))).toBe(false)
+    }
     // Any other setting changed: the cleaner turned off, its schedule, its strikes, a field dropped or added.
     expect(check(current, { ...ignoring(hash), enabled: false })).toBe(false)
     expect(check(current, { ...ignoring(hash), cronExpression: "0 0 0 1 1 ?" })).toBe(false)
@@ -213,7 +388,9 @@ describe("allowlist: Cleanuparr", () => {
   it("a download id is a torrent hash or a SABnzbd job, never a category, tag or tracker", () => {
     expect(HomeProtocol.isDownloadId(hash)).toBe(true)
     expect(HomeProtocol.isDownloadId("SABnzbd_nzo_kyt1f0")).toBe(true)
-    for (const id of ["12345", "radarr", hash.slice(1), `${hash}0`, "SABnzbd_nzo_", 42]) expect(HomeProtocol.isDownloadId(id)).toBe(false)
+    for (const id of ["12345", "radarr", hash.slice(1), `${hash}0`, "SABnzbd_nzo_", 42]) {
+      expect(HomeProtocol.isDownloadId(id)).toBe(false)
+    }
   })
 })
 

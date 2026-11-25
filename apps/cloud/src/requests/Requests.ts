@@ -5,8 +5,8 @@ import {
   HomeProtocol,
   type MediaRequest,
   type MediaRequests,
-  RequestFailed,
   type RequestCreated,
+  RequestFailed,
   type SearchResults,
   type SearchStatus,
   type SeerrUsers,
@@ -14,10 +14,10 @@ import {
 } from "@quai/api"
 import { Context, Effect, Layer, Option } from "effect"
 import { HttpApiError } from "effect/http-api"
+import { requestKey } from "../flows/Events.ts"
 import { Devices } from "../home/Devices.ts"
 import { HomeLink, offlineMessage } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import { requestKey } from "../flows/Events.ts"
 import { Hub } from "../integrations/Hub.ts"
 import { Seerr } from "../integrations/seerr.ts"
 import { Journal } from "../journal/Journal.ts"
@@ -102,7 +102,10 @@ export class Requests extends Context.Service<Requests, {
             onSome: (items) => {
               listed.clear()
               for (const item of items) listed.set(item.id, item)
-              return { items: [...items].sort((left, right) => (left.requestedAt ?? 0) - (right.requestedAt ?? 0)), status: "ok" as const }
+              return {
+                items: [...items].sort((left, right) => (left.requestedAt ?? 0) - (right.requestedAt ?? 0)),
+                status: "ok" as const
+              }
             }
           })
         }),
@@ -110,11 +113,21 @@ export class Requests extends Context.Service<Requests, {
         decide: (raw, decision) =>
           Effect.gen(function*() {
             const id = Number(raw)
-            if (!(yield* reaches) || !/^\d+$/.test(raw) || id <= 0) return yield* Effect.fail(new HttpApiError.NotFound())
+            if (!(yield* reaches) || !/^\d+$/.test(raw) || id <= 0) {
+              return yield* Effect.fail(new HttpApiError.NotFound())
+            }
             // Only a request that still waits: one approved or declined meanwhile is a 404.
             yield* journal.outcome(
-              { level: "info", source: "seerr", kind: `request.${decision}`, subject: requestKey(id), ...named(id, decision) },
-              seerr.decide(id, decision).pipe(Effect.catchTag("NotPending", () => Effect.fail(new HttpApiError.NotFound())))
+              {
+                level: "info",
+                source: "seerr",
+                kind: `request.${decision}`,
+                subject: requestKey(id),
+                ...named(id, decision)
+              },
+              seerr.decide(id, decision).pipe(
+                Effect.catchTag("NotPending", () => Effect.fail(new HttpApiError.NotFound()))
+              )
             )
             yield* hub.refresh("seerr")
           }),
@@ -162,10 +175,19 @@ export class Requests extends Context.Service<Requests, {
             const title = found.get(`${request.kind}:${request.tmdbId}`) ?? `TMDB ${request.tmdbId}`
             const asked = userId === undefined
               ? undefined
-              : Option.getOrUndefined(Option.flatMap(yield* seerr.users, (all) => Option.fromNullishOr(all.find((user) => user.id === userId)?.name)))
+              : Option.getOrUndefined(Option.flatMap(yield* seerr.users, (all) =>
+                Option.fromNullishOr(
+                  all.find((user) => user.id === userId)?.name
+                )))
             const forWhom = asked === undefined ? "" : ` for ${asked}`
             const created = yield* journal.outcome(
-              { level: "info", source: "seerr", kind: "request.created", title, text: `Requested ${title}${forWhom} from ${device.name}` },
+              {
+                level: "info",
+                source: "seerr",
+                kind: "request.created",
+                title,
+                text: `Requested ${title}${forWhom} from ${device.name}`
+              },
               seerr.create(request, userId)
             )
             yield* hub.refresh("seerr")

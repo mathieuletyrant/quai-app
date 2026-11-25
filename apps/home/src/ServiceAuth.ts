@@ -46,7 +46,11 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
       const qbSession = yield* Ref.make<{ readonly login: string; readonly send: QbSend } | null>(null)
       const qbittorrentFor = (endpoint: QBittorrentEndpoint) =>
         Effect.gen(function*() {
-          const login = JSON.stringify([endpoint.url, endpoint.username, endpoint.password === null ? null : Redacted.value(endpoint.password)])
+          const login = JSON.stringify([
+            endpoint.url,
+            endpoint.username,
+            endpoint.password === null ? null : Redacted.value(endpoint.password)
+          ])
           const open = yield* Ref.get(qbSession)
           if (open !== null && open.login === login) return open.send
           const send = yield* qbittorrentSession(client, endpoint)
@@ -74,14 +78,17 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
                 const endpoint = endpoints[service]
                 if (endpoint === null) return Effect.fail(new ServiceError({ service, message: "not configured" }))
                 const key = Redacted.value(endpoint.apiKey)
-                return send(service, request.pipe(
-                  HttpClientRequest.prependUrl(endpoint.url),
-                  service === "jellyfin"
-                    ? HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${key}"`)
-                    : service === "reclaimerr"
-                    ? HttpClientRequest.bearerToken(key)
-                    : HttpClientRequest.setHeader("X-Api-Key", key)
-                ))
+                return send(
+                  service,
+                  request.pipe(
+                    HttpClientRequest.prependUrl(endpoint.url),
+                    service === "jellyfin"
+                      ? HttpClientRequest.setHeader("Authorization", `MediaBrowser Token="${key}"`)
+                      : service === "reclaimerr"
+                      ? HttpClientRequest.bearerToken(key)
+                      : HttpClientRequest.setHeader("X-Api-Key", key)
+                  )
+                )
               }
               case "qbittorrent": {
                 const endpoint = endpoints.qbittorrent
@@ -99,7 +106,9 @@ export class ServiceAuth extends Context.Service<ServiceAuth, {
   static readonly fromConfig = ServiceAuth.layer.pipe(Layer.provide(ServiceSettings.fromConfig))
 }
 
-type QbSend = (request: HttpClientRequest.HttpClientRequest) => Effect.Effect<HttpClientResponse.HttpClientResponse, ServiceError>
+type QbSend = (
+  request: HttpClientRequest.HttpClientRequest
+) => Effect.Effect<HttpClientResponse.HttpClientResponse, ServiceError>
 
 /**
  * qBittorrent's cookie session: logs in when a call gets 403, then retries it once. qBittorrent
@@ -125,7 +134,9 @@ const qbittorrentSession = (client: HttpClient.HttpClient, config: QBittorrentEn
         )
       ).pipe(Effect.mapError((cause) => error("login failed", cause)))
       if (response.status === 403) {
-        return yield* Effect.fail(error("login refused: too many failed attempts, qBittorrent banned this address for a while"))
+        return yield* Effect.fail(
+          error("login refused: too many failed attempts, qBittorrent banned this address for a while")
+        )
       }
       const session = sessionCookie(response.headers["set-cookie"])
       if (session === null) {

@@ -1,8 +1,8 @@
-import { type DiskSpace, diskBackAbovePoints } from "@quai/api"
+import { diskBackAbovePoints, type DiskSpace } from "@quai/api"
 import { Effect, Option } from "effect"
 import { type AlertState, alertState } from "../alerts/Alerts.ts"
 import type { Read } from "../home/HomeReads.ts"
-import { type Integration, readSnapshot, watchOf, type WatchContext } from "./Integration.ts"
+import { type Integration, readSnapshot, type WatchContext, watchOf } from "./Integration.ts"
 import { DiskSpaces, mediaDisk } from "./radarr.ts"
 
 /** `GET /api/v3/diskspace`: Radarr's, else Sonarr's, which see the same disks. */
@@ -32,7 +32,12 @@ export const diskDetail = (disk: DiskSpace) => {
 export const diskState = (disk: DiskSpace, belowPercent: number): AlertState | null => {
   const percent = freePercent(disk)
   if (percent < belowPercent) {
-    return alertState("diskLow", "disk", [{ what: "low", title: "The media disk is running low", detail: diskDetail(disk), over: "The media disk has room again" }])
+    return alertState("diskLow", "disk", [{
+      what: "low",
+      title: "The media disk is running low",
+      detail: diskDetail(disk),
+      over: "The media disk has room again"
+    }])
   }
   if (percent >= belowPercent + diskBackAbovePoints) return alertState("diskLow", "disk", [])
   return null

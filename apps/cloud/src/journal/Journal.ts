@@ -2,10 +2,10 @@ import {
   CurrentDevice,
   HomeProtocol,
   type JournalEntry,
-  type JournalNote,
   journalId,
-  journalPage,
+  type JournalNote,
   type JournalPage,
+  journalPage,
   type JournalQuery,
   type JournalTail
 } from "@quai/api"
@@ -80,12 +80,18 @@ export class Journal extends Context.Service<Journal, {
         if (scheduled) return
         scheduled = true
         yield* Effect.forkIn(
-          Effect.sleep(Timing.batchMs).pipe(Effect.andThen(Effect.sync(() => (scheduled = false))), Effect.andThen(flush)),
+          Effect.sleep(Timing.batchMs).pipe(
+            Effect.andThen(Effect.sync(() => (scheduled = false))),
+            Effect.andThen(flush)
+          ),
           scope
         )
       })
 
-    const keepsJournal = Effect.map(link.home, (home) => Option.isSome(home) && home.value.protocol >= HomeProtocol.journalProtocolVersion)
+    const keepsJournal = Effect.map(
+      link.home,
+      (home) => Option.isSome(home) && home.value.protocol >= HomeProtocol.journalProtocolVersion
+    )
 
     const flush: Effect.Effect<void> = Effect.gen(function*() {
       if (waiting.length === 0) return
@@ -96,11 +102,17 @@ export class Journal extends Context.Service<Journal, {
       waiting = []
       if (home.value.protocol < HomeProtocol.journalProtocolVersion) return
       yield* link.appendJournal(batch).pipe(
-        Effect.catchTag("HomeError", () => Effect.sync(() => { waiting = [...batch, ...waiting].slice(-Timing.waiting) }))
+        Effect.catchTag("HomeError", () =>
+          Effect.sync(() => {
+            waiting = [...batch, ...waiting].slice(-Timing.waiting)
+          }))
       )
     })
 
-    const fromMemory = (query: JournalQuery): JournalPage => ({ ...journalPage(tail.map((logged) => logged.entry), query), kept: "memory" })
+    const fromMemory = (query: JournalQuery): JournalPage => ({
+      ...journalPage(tail.map((logged) => logged.entry), query),
+      kept: "memory"
+    })
 
     return {
       log,
@@ -110,7 +122,15 @@ export class Journal extends Context.Service<Journal, {
           const by = Option.isSome(device) && note.deviceName === undefined ? { deviceName: device.value.name } : {}
           return yield* effect.pipe(
             Effect.tap(() => log({ ...note, ...by })),
-            Effect.tapError((error) => log({ ...note, ...by, level: "warn", kind: `${note.kind}.failed`, text: `${note.text}: failed, ${reasonOf(error)}` }))
+            Effect.tapError((error) =>
+              log({
+                ...note,
+                ...by,
+                level: "warn",
+                kind: `${note.kind}.failed`,
+                text: `${note.text}: failed, ${reasonOf(error)}`
+              })
+            )
           )
         }),
       noted: (entries) => Effect.sync(() => entries.forEach(remember)),
@@ -128,7 +148,10 @@ export class Journal extends Context.Service<Journal, {
         Effect.sync(() => {
           const [from, sequence] = (cursor ?? "").split(".")
           const after = from === boot && sequence !== undefined && /^\d+$/.test(sequence) ? Number(sequence) : 0
-          return { entries: tail.filter((logged) => logged.seq > after).map((logged) => logged.entry), cursor: `${boot}.${seq}` }
+          return {
+            entries: tail.filter((logged) => logged.seq > after).map((logged) => logged.entry),
+            cursor: `${boot}.${seq}`
+          }
         }),
       flush
     } satisfies Journal["Service"]

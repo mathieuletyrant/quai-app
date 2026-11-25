@@ -28,7 +28,8 @@ const downloading = (item: LibraryItem, progress: number | undefined): LibraryIt
   ...(progress === undefined ? {} : { progress })
 })
 
-const newestFirst = (left: LibraryItem, right: LibraryItem) => (right.addedAt ?? 0) - (left.addedAt ?? 0) || left.title.localeCompare(right.title)
+const newestFirst = (left: LibraryItem, right: LibraryItem) =>
+  (right.addedAt ?? 0) - (left.addedAt ?? 0) || left.title.localeCompare(right.title)
 
 /**
  * The home's movies and series, read through Quai Home when the app asks (nothing is kept): one
@@ -58,15 +59,24 @@ export class Library extends Context.Service<Library, {
 
         const webUrls = yield* reads.webUrls
         const flows = yield* flowStore.all
-        const running = [...(yield* activities.snapshot).activities.values()].filter((activity) => activity.endedAt === null)
+        const running = [...(yield* activities.snapshot).activities.values()].filter((activity) =>
+          activity.endedAt === null
+        )
         const progress = downloadsOf(running, flows)
-        const withDownload = (key: string, item: LibraryItem) => progress.has(key) ? downloading(item, progress.get(key)) : item
+        const withDownload = (key: string, item: LibraryItem) =>
+          progress.has(key) ? downloading(item, progress.get(key)) : item
 
         const items = [
-          ...Option.getOrElse(movies, () => []).map((movie) => withDownload(movieKey(movie.tmdbId), libraryMovie(movie, webUrls.radarr))),
-          ...Option.getOrElse(series, () => []).map((show) => withDownload(seriesKey(show.tvdbId), librarySeries(show, webUrls.sonarr)))
+          ...Option.getOrElse(movies, () => []).map((movie) =>
+            withDownload(movieKey(movie.tmdbId), libraryMovie(movie, webUrls.radarr))
+          ),
+          ...Option.getOrElse(series, () => []).map((show) =>
+            withDownload(seriesKey(show.tvdbId), librarySeries(show, webUrls.sonarr))
+          )
         ].sort(newestFirst)
-        const disk: DiskSpace | undefined = Option.getOrUndefined(Option.flatMap(disks, (found) => Option.fromNullishOr(mediaDisk(found))))
+        const disk: DiskSpace | undefined = Option.getOrUndefined(
+          Option.flatMap(disks, (found) => Option.fromNullishOr(mediaDisk(found)))
+        )
         return { items, ...(disk === undefined ? {} : { disk }), unavailable }
       })
 

@@ -25,8 +25,7 @@ const sha256 = (value: string) => createHash("sha256").update(value).digest("hex
 
 /** 8 characters, no look-alikes (0/O, 1/I/L), easy to type when the camera can't scan. */
 const codeAlphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
-const newCode = () =>
-  Array.from(randomBytes(8), (byte) => codeAlphabet[byte % codeAlphabet.length]).join("")
+const newCode = () => Array.from(randomBytes(8), (byte) => codeAlphabet[byte % codeAlphabet.length]).join("")
 
 export interface Device {
   readonly id: DeviceId
@@ -90,7 +89,10 @@ export const DeviceDocument = Schema.Struct({
   /** The APNs token for notifications (alerts); absent until the user allows them. */
   notificationToken: Schema.optional(Schema.String),
   /** Activity key → where it was when swiped away. */
-  dismissed: Schema.Record(Schema.String, Schema.Struct({ stepIndex: Schema.Number, paused: Schema.NullOr(Schema.Boolean) }))
+  dismissed: Schema.Record(
+    Schema.String,
+    Schema.Struct({ stepIndex: Schema.Number, paused: Schema.NullOr(Schema.Boolean) })
+  )
 })
 export type DeviceDocument = typeof DeviceDocument.Type
 
@@ -108,7 +110,10 @@ const decodeDeviceDocument = Schema.decodeUnknownOption(DeviceDocument)
 const withCurrentAlertKinds = (doc: unknown): unknown => {
   if (typeof doc !== "object" || doc === null || !("preferences" in doc)) return doc
   const preferences = doc.preferences
-  if (typeof preferences !== "object" || preferences === null || !("mutedAlerts" in preferences) || !Array.isArray(preferences.mutedAlerts)) return doc
+  if (
+    typeof preferences !== "object" || preferences === null || !("mutedAlerts" in preferences) ||
+    !Array.isArray(preferences.mutedAlerts)
+  ) return doc
   return { ...doc, preferences: { ...preferences, mutedAlerts: preferences.mutedAlerts.map(currentAlertKind) } }
 }
 
@@ -159,14 +164,21 @@ export class Devices extends Context.Service<Devices, {
   /** iPhones that told us the push token of this activity. */
   readonly activityRecipients: (activityKey: string) => Effect.Effect<ReadonlyArray<Recipient>, HomeOffline>
   readonly preferences: (id: DeviceId) => Effect.Effect<DevicePreferences, HomeOffline>
-  readonly setPreferences: (id: DeviceId, preferences: DevicePreferences) => Effect.Effect<DevicePreferences, HomeOffline>
+  readonly setPreferences: (
+    id: DeviceId,
+    preferences: DevicePreferences
+  ) => Effect.Effect<DevicePreferences, HomeOffline>
   /** Every iPhone, with its tokens for this activity and its preferences. */
   readonly targets: (activityKey: string) => Effect.Effect<ReadonlyArray<PushTarget>, HomeOffline>
   /**
    * The iPhone reports the activities still on its screen: the others were swiped away, so their
    * tokens go and `stateOf` records where they were.
    */
-  readonly reconcile: (id: DeviceId, shownKeys: ReadonlyArray<string>, stateOf: (key: string) => Dismissed | null) => Effect.Effect<void, HomeOffline>
+  readonly reconcile: (
+    id: DeviceId,
+    shownKeys: ReadonlyArray<string>,
+    stateOf: (key: string) => Dismissed | null
+  ) => Effect.Effect<void, HomeOffline>
   /** The activity is on this iPhone again. */
   readonly clearDismissed: (id: DeviceId, activityKey: string) => Effect.Effect<void, HomeOffline>
   /** APNs said this token is dead: forget it. */
@@ -218,7 +230,9 @@ export class Devices extends Context.Service<Devices, {
           const expiresAt = now + Timing.pairingCodeMs
           for (const doc of yield* Effect.mapError(store.list("pairing/"), toOffline)) {
             const pairing = decodePairing(doc.value)
-            if (Option.isNone(pairing) || pairing.value.expiresAt < now) yield* Effect.mapError(store.delete(doc.key), toOffline)
+            if (Option.isNone(pairing) || pairing.value.expiresAt < now) {
+              yield* Effect.mapError(store.delete(doc.key), toOffline)
+            }
           }
           yield* Effect.mapError(store.put(pairingKey(code), { expiresAt }), toOffline)
           return { code, expiresAt }
@@ -264,7 +278,9 @@ export class Devices extends Context.Service<Devices, {
           }),
 
         holdsToken: (token) =>
-          Effect.map(all, (devices) => devices.some((device) => device.tokenHash === sha256(token))).pipe(Effect.orElseSucceed(() => false)),
+          Effect.map(all, (devices) => devices.some((device) => device.tokenHash === sha256(token))).pipe(
+            Effect.orElseSucceed(() => false)
+          ),
 
         holdsPairingCode: (code) =>
           Effect.gen(function*() {
@@ -286,7 +302,8 @@ export class Devices extends Context.Service<Devices, {
           Option.fromNullishOr(
             [...devices]
               .filter((device) => device.timeZone !== undefined && isTimeZone(device.timeZone))
-              .sort((left, right) => (right.lastSeenAt ?? right.pairedAt) - (left.lastSeenAt ?? left.pairedAt))[0]?.timeZone
+              .sort((left, right) => (right.lastSeenAt ?? right.pairedAt) - (left.lastSeenAt ?? left.pairedAt))[0]
+              ?.timeZone
           )),
 
         setActivityToken: (id, activityKey, pushToken) =>
@@ -296,7 +313,10 @@ export class Devices extends Context.Service<Devices, {
             dismissed: without(device.dismissed, activityKey)
           })),
 
-        list: Effect.map(all, (devices) => [...devices].sort((left, right) => left.pairedAt - right.pairedAt).map(toDevice)),
+        list: Effect.map(
+          all,
+          (devices) => [...devices].sort((left, right) => left.pairedAt - right.pairedAt).map(toDevice)
+        ),
 
         remove: (id) =>
           exclusive(Effect.gen(function*() {
@@ -309,9 +329,14 @@ export class Devices extends Context.Service<Devices, {
 
         activityRecipients: (activityKey) => recipients((device) => device.activityTokens[activityKey]),
 
-        preferences: (id) => Effect.map(one(id), Option.match({ onNone: () => defaultPreferences, onSome: (device) => device.preferences })),
+        preferences: (id) =>
+          Effect.map(
+            one(id),
+            Option.match({ onNone: () => defaultPreferences, onSome: (device) => device.preferences })
+          ),
 
-        setPreferences: (id, preferences) => Effect.as(change(id, (device) => ({ ...device, preferences })), preferences),
+        setPreferences: (id, preferences) =>
+          Effect.as(change(id, (device) => ({ ...device, preferences })), preferences),
 
         targets: (activityKey) =>
           Effect.map(all, (devices) =>
@@ -341,7 +366,13 @@ export class Devices extends Context.Service<Devices, {
           }),
 
         clearDismissed: (id, activityKey) =>
-          change(id, (device) => device.dismissed[activityKey] === undefined ? device : { ...device, dismissed: without(device.dismissed, activityKey) }),
+          change(
+            id,
+            (device) =>
+              device.dismissed[activityKey] === undefined
+                ? device
+                : { ...device, dismissed: without(device.dismissed, activityKey) }
+          ),
 
         dropToken: (token) =>
           Effect.gen(function*() {
@@ -355,19 +386,29 @@ export class Devices extends Context.Service<Devices, {
                   ...rest,
                   ...(notificationToken === undefined || notificationToken === token ? {} : { notificationToken }),
                   pushToStartToken: stored.pushToStartToken === token ? null : stored.pushToStartToken,
-                  activityTokens: Object.fromEntries(Object.entries(stored.activityTokens).filter(([, activityToken]) => activityToken !== token))
+                  activityTokens: Object.fromEntries(
+                    Object.entries(stored.activityTokens).filter(([, activityToken]) => activityToken !== token)
+                  )
                 }
               })
             }
           }),
 
         alertRecipients: (kind) =>
-          Effect.map(all, (devices) =>
-            devices.flatMap((device): ReadonlyArray<AlertRecipient> =>
-              device.notificationToken === undefined || (device.preferences.mutedAlerts ?? []).includes(kind)
-                ? []
-                : [{ deviceId: device.id as DeviceId, name: device.name, apnsEnvironment: device.apnsEnvironment, token: device.notificationToken }]
-            ))
+          Effect.map(
+            all,
+            (devices) =>
+              devices.flatMap((device): ReadonlyArray<AlertRecipient> =>
+                device.notificationToken === undefined || (device.preferences.mutedAlerts ?? []).includes(kind)
+                  ? []
+                  : [{
+                    deviceId: device.id as DeviceId,
+                    name: device.name,
+                    apnsEnvironment: device.apnsEnvironment,
+                    token: device.notificationToken
+                  }]
+              )
+          )
       }
     })
   )

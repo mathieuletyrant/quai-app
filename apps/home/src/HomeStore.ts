@@ -36,7 +36,9 @@ export class HomeStore extends Context.Service<HomeStore, {
       return {
         list: (prefix) =>
           Effect.gen(function*() {
-            const files = yield* fs.readDirectory(root, { recursive: true }).pipe(Effect.mapError(fail("could not list documents")))
+            const files = yield* fs.readDirectory(root, { recursive: true }).pipe(
+              Effect.mapError(fail("could not list documents"))
+            )
             const keys = files
               .filter((file) => file.endsWith(".json"))
               .map((file) => file.slice(0, -".json".length).split(sep).join("/"))
@@ -47,7 +49,13 @@ export class HomeStore extends Context.Service<HomeStore, {
             const documents = yield* Effect.forEach(keys, (key) =>
               fs.readFileString(join(root, ...key.split("/")) + ".json").pipe(
                 Effect.mapError(() => "can't be read"),
-                Effect.flatMap((text) => Effect.try({ try: () => JSON.parse(text) as unknown, catch: () => "isn't JSON" })),
+                Effect.flatMap((text) =>
+                  Effect.try({
+                    try: () =>
+                      JSON.parse(text) as unknown,
+                    catch: () => "isn't JSON"
+                  })
+                ),
                 Effect.map((value): HomeDocument | null => ({ key, value })),
                 Effect.catch((problem) => Effect.as(Effect.logWarning(`document ${key} ${problem}: skipped`), null))
               ))
@@ -56,7 +64,10 @@ export class HomeStore extends Context.Service<HomeStore, {
         put: (key, value) =>
           Effect.gen(function*() {
             const path = yield* pathOf(key)
-            const text = yield* Effect.try({ try: () => JSON.stringify(value), catch: fail(`${key}: value is not JSON`) })
+            const text = yield* Effect.try({
+              try: () => JSON.stringify(value),
+              catch: fail(`${key}: value is not JSON`)
+            })
             const temp = join(dirname(path), `.${randomBytes(6).toString("hex")}.tmp`)
             // On disk before the rename, so a power cut can't leave an empty document in its place.
             const written = Effect.scoped(Effect.gen(function*() {
@@ -72,8 +83,10 @@ export class HomeStore extends Context.Service<HomeStore, {
             )
           }),
         delete: (key) =>
-          Effect.flatMap(pathOf(key), (path) =>
-            fs.remove(path, { force: true }).pipe(Effect.mapError(fail(`could not delete ${key}`))))
+          Effect.flatMap(
+            pathOf(key),
+            (path) => fs.remove(path, { force: true }).pipe(Effect.mapError(fail(`could not delete ${key}`)))
+          )
       } satisfies HomeStore["Service"]
     })
 

@@ -112,145 +112,222 @@ const pushed = (activity: Activity, now: number): Activity => ({
   pushedFingerprint: fingerprint(activity)
 })
 
+/** What one event or tick does to one activity: its new state, and the push it makes, if any. */
+interface Change {
+  readonly activity: Activity
+  readonly push: Push["_tag"] | null
+}
+
+const record = (activities: Map<string, Activity>, pushes: Array<Push>, change: Change) => {
+  put(activities, change.activity)
+  if (change.push !== null) pushes.push({ _tag: change.push, activity: change.activity })
+}
+
+const minutes = (count: number) => count * 60_000
+
+const showsProgress = (step: FlowStep) => step.show.progress === true
+
+/** Pushed less than the throttle's time ago: a data update waits for the heartbeat. */
+const throttled = (activity: Activity, now: number) =>
+  activity.pushedAt !== null && now - activity.pushedAt < Timing.throttleMs
+
 /**
  * Applies one event to every flow it concerns. Pure: the same state, flows, event and time always
  * give the same result.
  */
-export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: FlowEvent, now: number): Result => {
+export const onEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: FlowEvent, now: number): Result =>
+  isDataEvent(event.type) ? onDataEvent(state, flows, event, now) : onStepEvent(state, flows, event, now)
+
+// Data events: they update the values of the activities they concern, never their step.
+
+const onDataEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: FlowEvent, now: number): Result => {
   const activities = new Map(state.activities)
   const pushes: Array<Push> = []
-
-  if (isDataEvent(event.type)) {
-    for (const activity of state.activities.values()) {
-      if (activity.endedAt !== null) continue
-      if (event.flowId !== undefined && activity.flowId !== event.flowId) continue
-      const flow = flows.find((candidate) => candidate.id === activity.flowId)
-      if (flow === undefined) continue
-      const step = flow.steps[activity.stepIndex]
-      if (step === undefined || !flow.enabled) {
-        forget(activities, pushes, activity, now)
-        continue
-      }
-      const concerned = event.type === "download.progress" || event.type === "download.removed"
-        ? event.downloadId !== undefined && activity.downloadId === event.downloadId && step.show.progress === true
-        : event.subject !== undefined && activity.subjectKey === event.subject.key
-      if (!concerned) continue
-      // The download left the client before its import (replaced, failed, removed): this activity
-      // won't go further. It ends grey, saying so; a new grab starts its own.
-      if (event.type === "download.removed") {
-        const ended = pushed({ ...activity, tone: "stalled", values: { ...activity.values, ...event.values }, lastEventAt: now, endedAt: now }, now)
-        put(activities, ended)
-        pushes.push({ _tag: "End", activity: ended })
-        continue
-      }
-      // A progress reading replaces the whole download reading: an ETA that turns unknown (paused,
-      // no peers) is left out of the event and must not keep the last one on screen.
-      const { remainingSeconds: _, ...kept } = activity.values
-      const values = { ...(event.type === "download.progress" ? kept : activity.values), ...event.values }
-      const moved = movedOn(activity.values.progress, event.values?.progress)
-      // Radarr or Sonarr waits for someone to import it: grey, saying so, until the next step.
-      const blocked = event.type === "media.importBlocked"
-      const next: Activity = {
-        ...activity,
-        values,
-        tone: blocked ? "stalled" : moved && activity.tone === "stalled" ? "active" : activity.tone,
-        movedAt: moved ? now : activity.movedAt,
-        lastEventAt: now
-      }
-      // A visible change of state goes at once: a download moving again, a pause or a resume.
-      const urgent = (activity.tone === "stalled" && next.tone === "active") || (blocked && activity.tone !== "stalled") ||
-        (event.values?.paused !== undefined && event.values.paused !== activity.values.paused)
-      const throttled = activity.pushedAt !== null && now - activity.pushedAt < Timing.throttleMs
-      if ((throttled && !urgent) || fingerprint(next) === activity.pushedFingerprint) {
-        put(activities, next)
-      } else {
-        const sent = pushed(next, now)
-        put(activities, sent)
-        pushes.push({ _tag: "Update", activity: sent })
-      }
-    }
-    return { state: { activities }, pushes }
-  }
-
-  const subject = event.subject
-  if (subject === undefined) return { state, pushes: [] }
-  for (const flow of flows) {
-    if (event.flowId !== undefined && flow.id !== event.flowId) continue
-    if (!matches(flow, subject)) continue
-    const key = activityKey(flow.id, subject.key)
-    const previous = activities.get(key)
-    // A new download for an ended activity (its release removed, or an upgrade) starts it again.
-    const current = previous !== undefined && previous.endedAt !== null && event.downloadId !== undefined &&
-        event.downloadId !== previous.downloadId && flow.endOn !== event.type
-      ? undefined
-      : previous
-
-    if (flow.endOn === event.type) {
-      if (current === undefined || current.endedAt !== null) continue
-      // What the end event says ("Declined") shows on the ended activity.
-      const values = event.values === undefined ? current.values : { ...current.values, ...event.values }
-      const ended = pushed({ ...current, values, tone: "done", endedAt: now, lastEventAt: now }, now)
-      put(activities, ended)
-      pushes.push({ _tag: "End", activity: ended })
+  for (const activity of state.activities.values()) {
+    if (activity.endedAt !== null) continue
+    if (event.flowId !== undefined && activity.flowId !== event.flowId) continue
+    const flow = flows.find((candidate) => candidate.id === activity.flowId)
+    if (flow === undefined) continue
+    const step = flow.steps[activity.stepIndex]
+    if (step === undefined || !flow.enabled) {
+      forget(activities, pushes, activity, now)
       continue
     }
-    const index = flow.steps.findIndex((step) => step.on === event.type)
-    if (index < 0) continue
-
-    if (current === undefined) {
-      // Nothing to finish: an end event alone (a service back that was never down) starts nothing.
-      if (endsAtStep(flow, index)) continue
-      const created: Activity = {
-        key,
-        flowId: flow.id,
-        subjectKey: subject.key,
-        title: subject.title,
-        stepIndex: index,
-        tone: "active",
-        values: event.values ?? {},
-        downloadId: event.downloadId ?? null,
-        lookup: lookupOf(subject),
-        enteredAt: now,
-        movedAt: now,
-        lastEventAt: now,
-        endedAt: null,
-        pushedAt: null,
-        pushedFingerprint: null
-      }
-      const sent = pushed(created, now)
-      put(activities, sent)
-      pushes.push({ _tag: "Start", activity: sent })
-      continue
-    }
-    if (current.endedAt !== null) continue
-
-    const regrab = index === current.stepIndex && event.downloadId !== undefined && event.downloadId !== current.downloadId
-    if (index < current.stepIndex || (index === current.stepIndex && !regrab)) {
-      put(activities, { ...current, lookup: widenLookup(current.lookup, lookupOf(subject)), lastEventAt: now })
-      continue
-    }
-    const ends = endsAtStep(flow, index)
-    const next: Activity = {
-      ...current,
-      title: narrowsLookup(current.lookup, lookupOf(subject)) ? current.title : subject.title,
-      stepIndex: index,
-      tone: ends ? "done" : "active",
-      values: event.values ?? {},
-      downloadId: event.downloadId ?? current.downloadId,
-      lookup: widenLookup(current.lookup, lookupOf(subject)),
-      enteredAt: now,
-      movedAt: now,
-      lastEventAt: now,
-      endedAt: ends ? now : null
-    }
-    const sent = pushed(next, now)
-    put(activities, sent)
-    pushes.push({ _tag: ends ? "End" : "Update", activity: sent })
+    if (!concerns(event, activity, step)) continue
+    record(activities, pushes, dataChange(activity, event, now))
   }
   return { state: { activities }, pushes }
 }
 
-const showsProgress = (step: FlowStep) => step.show.progress === true
+/**
+ * A download's events concern the activity of that download, while its step shows progress; the
+ * others, the activity of their subject.
+ */
+const concerns = (event: FlowEvent, activity: Activity, step: FlowStep) =>
+  event.type === "download.progress" || event.type === "download.removed"
+    ? event.downloadId !== undefined && activity.downloadId === event.downloadId && showsProgress(step)
+    : event.subject !== undefined && activity.subjectKey === event.subject.key
+
+const dataChange = (activity: Activity, event: FlowEvent, now: number): Change => {
+  if (event.type === "download.removed") return downloadRemoved(activity, event, now)
+  const next = withData(activity, event, now)
+  const sends = fingerprint(next) !== activity.pushedFingerprint &&
+    (!throttled(activity, now) || urgent(activity, next, event))
+  return sends ? { activity: pushed(next, now), push: "Update" } : { activity: next, push: null }
+}
+
+/**
+ * The download left the client before its import (replaced, failed, removed): this activity won't
+ * go further. It ends grey, saying so; a new grab starts its own.
+ */
+const downloadRemoved = (activity: Activity, event: FlowEvent, now: number): Change => ({
+  activity: pushed({
+    ...activity,
+    tone: "stalled",
+    values: { ...activity.values, ...event.values },
+    lastEventAt: now,
+    endedAt: now
+  }, now),
+  push: "End"
+})
+
+const withData = (activity: Activity, event: FlowEvent, now: number): Activity => {
+  const moved = movedOn(activity.values.progress, event.values?.progress)
+  return {
+    ...activity,
+    values: dataValues(activity, event),
+    tone: dataTone(activity, event, moved),
+    movedAt: moved ? now : activity.movedAt,
+    lastEventAt: now
+  }
+}
+
+/**
+ * A progress reading replaces the whole download reading: an ETA that turns unknown (paused, no
+ * peers) is left out of the event and must not keep the last one on screen.
+ */
+const dataValues = (activity: Activity, event: FlowEvent): Values => {
+  if (event.type !== "download.progress") return { ...activity.values, ...event.values }
+  const { remainingSeconds: _, ...kept } = activity.values
+  return { ...kept, ...event.values }
+}
+
+const dataTone = (activity: Activity, event: FlowEvent, moved: boolean): Tone => {
+  // Radarr or Sonarr waits for someone to import it: grey, saying so, until the next step.
+  if (event.type === "media.importBlocked") return "stalled"
+  if (moved && activity.tone === "stalled") return "active"
+  return activity.tone
+}
+
+/** A visible change of state goes at once, throttled or not: a download moving again, blocked, a pause or a resume. */
+const urgent = (activity: Activity, next: Activity, event: FlowEvent) =>
+  (activity.tone === "stalled" && next.tone === "active") ||
+  (event.type === "media.importBlocked" && activity.tone !== "stalled") ||
+  (event.values?.paused !== undefined && event.values.paused !== activity.values.paused)
+
+// Step events: they start, move forward or end the activity of each flow they match.
+
+type SubjectEvent = FlowEvent & { readonly subject: Subject }
+
+const onStepEvent = (state: EngineState, flows: ReadonlyArray<Flow>, event: FlowEvent, now: number): Result => {
+  const subject = event.subject
+  if (subject === undefined) return { state, pushes: [] }
+  const subjectEvent: SubjectEvent = { ...event, subject }
+  const activities = new Map(state.activities)
+  const pushes: Array<Push> = []
+  for (const flow of flows) {
+    if (event.flowId !== undefined && flow.id !== event.flowId) continue
+    if (!matches(flow, subject)) continue
+    const current = currentActivity(flow, activities.get(activityKey(flow.id, subject.key)), subjectEvent)
+    const change = stepChange(flow, current, subjectEvent, now)
+    if (change !== null) record(activities, pushes, change)
+  }
+  return { state: { activities }, pushes }
+}
+
+/** A new download for an ended activity (its release removed, or an upgrade) starts it again. */
+const currentActivity = (flow: Flow, previous: Activity | undefined, event: SubjectEvent) => {
+  if (previous === undefined || previous.endedAt === null || flow.endOn === event.type) return previous
+  const newDownload = event.downloadId !== undefined && event.downloadId !== previous.downloadId
+  return newDownload ? undefined : previous
+}
+
+const stepChange = (flow: Flow, current: Activity | undefined, event: SubjectEvent, now: number): Change | null => {
+  if (flow.endOn === event.type) return endedByEvent(current, event, now)
+  const index = flow.steps.findIndex((step) => step.on === event.type)
+  if (index < 0) return null
+  if (current === undefined) return started(flow, index, event, now)
+  if (current.endedAt !== null) return null
+  if (!goesForward(current, index, event)) return { activity: passedOver(current, event, now), push: null }
+  return movedTo(current, { index, ends: endsAtStep(flow, index) }, event, now)
+}
+
+const endedByEvent = (current: Activity | undefined, event: SubjectEvent, now: number): Change | null => {
+  if (current === undefined || current.endedAt !== null) return null
+  // What the end event says ("Declined") shows on the ended activity.
+  const values = event.values === undefined ? current.values : { ...current.values, ...event.values }
+  return { activity: pushed({ ...current, values, tone: "done", endedAt: now, lastEventAt: now }, now), push: "End" }
+}
+
+const started = (flow: Flow, index: number, event: SubjectEvent, now: number): Change | null => {
+  // Nothing to finish: an end event alone (a service back that was never down) starts nothing.
+  if (endsAtStep(flow, index)) return null
+  const created: Activity = {
+    key: activityKey(flow.id, event.subject.key),
+    flowId: flow.id,
+    subjectKey: event.subject.key,
+    title: event.subject.title,
+    stepIndex: index,
+    tone: "active",
+    values: event.values ?? {},
+    downloadId: event.downloadId ?? null,
+    lookup: lookupOf(event.subject),
+    enteredAt: now,
+    movedAt: now,
+    lastEventAt: now,
+    endedAt: null,
+    pushedAt: null,
+    pushedFingerprint: null
+  }
+  return { activity: pushed(created, now), push: "Start" }
+}
+
+/** A later step, or the same one again for another download (a regrab). */
+const goesForward = (current: Activity, index: number, event: SubjectEvent) =>
+  index > current.stepIndex ||
+  (index === current.stepIndex && event.downloadId !== undefined && event.downloadId !== current.downloadId)
+
+/** An earlier step, or the one it is on: nothing moves, but the event may tell more of where the title is. */
+const passedOver = (current: Activity, event: SubjectEvent, now: number): Activity => ({
+  ...current,
+  lookup: widenLookup(current.lookup, lookupOf(event.subject)),
+  lastEventAt: now
+})
+
+const movedTo = (
+  current: Activity,
+  step: { readonly index: number; readonly ends: boolean },
+  event: SubjectEvent,
+  now: number
+): Change => {
+  const lookup = lookupOf(event.subject)
+  const next: Activity = {
+    ...current,
+    title: narrowsLookup(current.lookup, lookup) ? current.title : event.subject.title,
+    stepIndex: step.index,
+    tone: step.ends ? "done" : "active",
+    values: event.values ?? {},
+    downloadId: event.downloadId ?? current.downloadId,
+    lookup: widenLookup(current.lookup, lookup),
+    enteredAt: now,
+    movedAt: now,
+    lastEventAt: now,
+    endedAt: step.ends ? now : null
+  }
+  return { activity: pushed(next, now), push: step.ends ? "End" : "Update" }
+}
+
+// The heartbeat.
 
 /**
  * Runs on a timer: flushes data held back by the throttle, turns stalled downloads grey, ends
@@ -266,7 +343,7 @@ export const onTick = (state: EngineState, flows: ReadonlyArray<Flow>, now: numb
       continue
     }
     if (activity.endedAt !== null) {
-      if (now - activity.endedAt >= flow.lingerMinutes * 60_000) activities.delete(activity.key)
+      if (lingered(flow, activity.endedAt, now)) activities.delete(activity.key)
       continue
     }
     const step = flow.steps[activity.stepIndex]
@@ -274,28 +351,29 @@ export const onTick = (state: EngineState, flows: ReadonlyArray<Flow>, now: numb
       forget(activities, pushes, activity, now)
       continue
     }
-    if (flow.expireAfterMinutes !== undefined && now - activity.lastEventAt >= flow.expireAfterMinutes * 60_000) {
-      const ended = pushed({ ...activity, endedAt: now }, now)
-      put(activities, ended)
-      pushes.push({ _tag: "End", activity: ended })
-      continue
-    }
-    let next = activity
-    if (
-      showsProgress(step) && flow.stalledAfterMinutes !== undefined && activity.tone === "active" &&
-      now - activity.movedAt >= flow.stalledAfterMinutes * 60_000
-    ) {
-      next = { ...activity, tone: "stalled" }
-    }
-    const stalledNow = next.tone === "stalled" && activity.tone !== "stalled"
-    const throttleOver = activity.pushedAt === null || now - activity.pushedAt >= Timing.throttleMs
-    if ((throttleOver || stalledNow) && fingerprint(next) !== activity.pushedFingerprint) {
-      const sent = pushed(next, now)
-      put(activities, sent)
-      pushes.push({ _tag: "Update", activity: sent })
-    } else if (next !== activity) {
-      put(activities, next)
-    }
+    const change = tickChange(flow, step, activity, now)
+    if (change !== null) record(activities, pushes, change)
   }
   return { state: { activities }, pushes }
+}
+
+const lingered = (flow: Flow, endedAt: number, now: number) => now - endedAt >= minutes(flow.lingerMinutes)
+
+const expired = (flow: Flow, activity: Activity, now: number) =>
+  flow.expireAfterMinutes !== undefined && now - activity.lastEventAt >= minutes(flow.expireAfterMinutes)
+
+/** A download that hasn't moved for the flow's time. */
+const stalls = (flow: Flow, step: FlowStep, activity: Activity, now: number) =>
+  showsProgress(step) && flow.stalledAfterMinutes !== undefined && activity.tone === "active" &&
+  now - activity.movedAt >= minutes(flow.stalledAfterMinutes)
+
+const tickChange = (flow: Flow, step: FlowStep, activity: Activity, now: number): Change | null => {
+  if (expired(flow, activity, now)) return { activity: pushed({ ...activity, endedAt: now }, now), push: "End" }
+  const stalledNow = stalls(flow, step, activity, now)
+  const next: Activity = stalledNow ? { ...activity, tone: "stalled" } : activity
+  // Turning grey goes at once; what the throttle held back goes once its time is over.
+  if ((!throttled(activity, now) || stalledNow) && fingerprint(next) !== activity.pushedFingerprint) {
+    return { activity: pushed(next, now), push: "Update" }
+  }
+  return stalledNow ? { activity: next, push: null } : null
 }

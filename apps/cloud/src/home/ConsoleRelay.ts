@@ -45,7 +45,12 @@ export const ConsoleRelayLive = Layer.effectDiscard(
       }).pipe(
         Effect.scoped,
         Effect.catchCause((cause) =>
-          Effect.as(Effect.logWarning(`could not answer the console's ${request.method} ${request.path}`, cause), { status: 500, body: "" }))
-      ))
+          Effect.as(Effect.logWarning(`could not answer the console's ${request.method} ${request.path}`, cause), {
+            status: 500,
+            body: ""
+          })
+        )
+      )
+    )
   })
 )

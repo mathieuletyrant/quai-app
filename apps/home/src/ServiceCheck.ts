@@ -24,7 +24,9 @@ const decodeVersion = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.St
 /** What an answer means: reached (with its version when it says one), the key refused, or another failure. */
 export const verdict = (service: HomeProtocol.HomeService, status: number, body: string): ServiceCheck => {
   const name = journalSourceNames[service]
-  if (status === 401 || status === 403) return { outcome: "refused", message: `${name} refused the key (HTTP ${status})` }
+  if (status === 401 || status === 403) {
+    return { outcome: "refused", message: `${name} refused the key (HTTP ${status})` }
+  }
   if (status < 200 || status >= 300) return { outcome: "failed", message: `${name} answered HTTP ${status}` }
   // qBittorrent answers its version as plain text: "v5.1.2".
   const version = service === "qbittorrent"
@@ -46,8 +48,12 @@ export const checkService = (service: HomeProtocol.HomeService) =>
       Effect.catch((error): Effect.Effect<ServiceCheck> =>
         Effect.succeed(
           error._tag === "ServiceError" && error.message !== "unreachable"
-            ? { outcome: error.message === "not configured" ? "failed" : "refused", message: `${journalSourceNames[service]}: ${error.message}` }
+            ? {
+              outcome: error.message === "not configured" ? "failed" : "refused",
+              message: `${journalSourceNames[service]}: ${error.message}`
+            }
             : { outcome: "unreachable", message: `${journalSourceNames[service]} doesn't answer at this address` }
-        ))
+        )
+      )
     )
   })

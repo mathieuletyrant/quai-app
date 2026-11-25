@@ -3,7 +3,8 @@ import { isCloudOffline } from "../client.ts"
 import { cx } from "./cx.ts"
 import { Icon, type IconName } from "./icons.tsx"
 
-export const errorText = (error: unknown) => typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error)
+export const errorText = (error: unknown) =>
+  typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error)
 
 const calloutTones = {
   neutral: "border-line bg-white/3 text-muted",
@@ -20,7 +21,10 @@ export function Callout({ tone = "neutral", icon, title, children, action }: {
   action?: ReactNode
 }) {
   return (
-    <div role={tone === "danger" ? "alert" : undefined} className={cx("flex flex-wrap items-start gap-3 rounded-card border px-4 py-3 text-body", calloutTones[tone])}>
+    <div
+      role={tone === "danger" ? "alert" : undefined}
+      className={cx("flex flex-wrap items-start gap-3 rounded-card border px-4 py-3 text-body", calloutTones[tone])}
+    >
       {icon && <Icon name={icon} size={16} className="mt-0.5" />}
       <div className="min-w-0 flex-1 leading-relaxed">
         {title && <p className="font-semibold text-text">{title}</p>}
@@ -35,7 +39,9 @@ export function Callout({ tone = "neutral", icon, title, children, action }: {
  * A call that failed, as a danger callout; nothing without an error. With `unlessOffline`, an
  * unreachable Quai Cloud isn't shown either: the page says so in place of what it couldn't read.
  */
-export function ErrorCallout({ error, title, unlessOffline }: { error: unknown; title?: ReactNode; unlessOffline?: boolean }) {
+export function ErrorCallout(
+  { error, title, unlessOffline }: { error: unknown; title?: ReactNode; unlessOffline?: boolean }
+) {
   if (error === null || error === undefined || (unlessOffline && isCloudOffline(error))) return null
   return <Callout tone="danger" icon="alert" title={title}>{errorText(error)}</Callout>
 }
@@ -46,7 +52,11 @@ export function Skeleton({ className }: { className?: string }) {
 
 /** A list's outline while it loads: `count` bars inside a flush panel. */
 export function SkeletonList({ count }: { count: number }) {
-  return <div className="flex flex-col gap-3 p-5">{Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-12 w-full" />)}</div>
+  return (
+    <div className="flex flex-col gap-3 p-5">
+      {Array.from({ length: count }, (_, index) => <Skeleton key={index} className="h-12 w-full" />)}
+    </div>
+  )
 }
 
 /** What a panel shows with nothing in it: what's missing, and the action that fills it. */
@@ -73,7 +83,8 @@ export function EmptyState({ icon, title, children, action, compact }: {
 export function CloudOfflineState({ what }: { what: string }) {
   return (
     <EmptyState icon="unlink" title="Quai Cloud isn't reachable">
-      {what} are kept at home, but read and changed through Quai Cloud. They come back here as soon as Quai Home links to it.
+      {what}{" "}
+      are kept at home, but read and changed through Quai Cloud. They come back here as soon as Quai Home links to it.
     </EmptyState>
   )
 }
@@ -96,11 +107,21 @@ export function Toast({ notice, onDone }: { notice: Notice | null; onDone: () =>
       role={notice.ok ? "status" : "alert"}
       className="fixed right-4 bottom-4 left-4 z-50 flex animate-pop items-start gap-3 rounded-card bg-raised px-4 py-3 text-body shadow-pop sm:left-auto sm:max-w-sm"
     >
-      <span className={cx("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full", notice.ok ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger-text")}>
+      <span
+        className={cx(
+          "mt-0.5 grid size-5 shrink-0 place-items-center rounded-full",
+          notice.ok ? "bg-ok-soft text-ok" : "bg-danger-soft text-danger-text"
+        )}
+      >
         <Icon name={notice.ok ? "check" : "alert"} size={12} strokeWidth={2.4} />
       </span>
       <p className="flex-1 leading-relaxed">{notice.text}</p>
-      <button type="button" className="-m-1 grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-white/8 hover:text-text" aria-label="Dismiss" onClick={onDone}>
+      <button
+        type="button"
+        className="-m-1 grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-white/8 hover:text-text"
+        aria-label="Dismiss"
+        onClick={onDone}
+      >
         <Icon name="x" size={14} />
       </button>
     </div>

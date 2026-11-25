@@ -2,11 +2,24 @@ import { type CatalogEvent, defaultStartsAt } from "@quai/api"
 import type { CSSProperties, ReactNode } from "react"
 import { shortMinutes } from "../../format.ts"
 import { cx, Eyebrow, Icon } from "../../ui"
-import { actionGlyph, actionLabels, type Draft, type DraftStep, endsAtLastStep, eventName, serviceNames, showLabels, skippedFor, subjects } from "./draft.ts"
+import {
+  actionGlyph,
+  actionLabels,
+  type Draft,
+  type DraftStep,
+  endsAtLastStep,
+  eventName,
+  serviceNames,
+  showLabels,
+  skippedFor,
+  subjects
+} from "./draft.ts"
 import { Glyph } from "./icons.tsx"
 
 /** What the inspector edits: the flow itself, one step, or how it ends. */
-export type Selection = { readonly _tag: "Flow" } | { readonly _tag: "Step"; readonly index: number } | { readonly _tag: "End" }
+export type Selection = { readonly _tag: "Flow" } | { readonly _tag: "Step"; readonly index: number } | {
+  readonly _tag: "End"
+}
 
 const mediaTypes = { any: "Movies and series", movie: "Movies only", series: "Series only" } as const
 
@@ -35,11 +48,14 @@ const endingSummary = (flow: Draft) =>
 /** "After the last step, or when imported" */
 const endTitle = (flow: Draft, eventLabel: (type: string) => string) => {
   if (!flow.endOn) return "After the last step"
-  return endsAtLastStep(flow) ? `After the last step, or when ${eventLabel(flow.endOn)}` : `When ${eventLabel(flow.endOn)}`
+  return endsAtLastStep(flow)
+    ? `After the last step, or when ${eventLabel(flow.endOn)}`
+    : `When ${eventLabel(flow.endOn)}`
 }
 
 /** The shows a step has turned on, in the order the editor lists them. */
-const shownKeys = (step: DraftStep) => (Object.keys(showLabels) as Array<keyof typeof showLabels>).filter((key) => step.show[key])
+const shownKeys = (step: DraftStep) =>
+  (Object.keys(showLabels) as Array<keyof typeof showLabels>).filter((key) => step.show[key])
 
 const tag = "rounded-md px-1.5 py-0.5 text-overline font-semibold"
 
@@ -67,7 +83,11 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
         selected={selection._tag === "Flow"}
         onClick={() => onSelect({ _tag: "Flow" })}
         kind="Follows"
-        marker={<Tile className="bg-black" style={{ boxShadow: `inset 0 0 0 1.5px ${flow.color}` }}><Glyph name={flow.icon} color={flow.color} size={18} /></Tile>}
+        marker={
+          <Tile className="bg-black" style={{ boxShadow: `inset 0 0 0 1.5px ${flow.color}` }}>
+            <Glyph name={flow.icon} color={flow.color} size={18} />
+          </Tile>
+        }
         title={subjects[flow.subject].label}
       >
         <span className="text-body text-muted">{filterSummary(flow)}</span>
@@ -91,7 +111,9 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
       {onAddStep && (
         <>
           <Connector />
-          <li><AddStepButton onClick={onAddStep} /></li>
+          <li>
+            <AddStepButton onClick={onAddStep} />
+          </li>
         </>
       )}
 
@@ -100,7 +122,11 @@ export function Pipeline({ flow, events, selection, onSelect, onAddStep }: {
         selected={selection._tag === "End"}
         onClick={() => onSelect({ _tag: "End" })}
         kind="Ends"
-        marker={<Tile className="bg-raised text-muted ring-1 ring-line-strong"><Icon name="flag" size={16} /></Tile>}
+        marker={
+          <Tile className="bg-raised text-muted ring-1 ring-line-strong">
+            <Icon name="flag" size={16} />
+          </Tile>
+        }
         title={endTitle(flow, eventLabel)}
       >
         <span className="text-body text-muted">{endingSummary(flow)}</span>
@@ -125,7 +151,9 @@ function Node({ selected, onClick, marker, kind, title, children }: {
         onClick={onClick}
         className={cx(
           "group flex w-full items-start gap-3.5 rounded-card border px-4 py-3.5 text-left transition-[background-color,border-color,box-shadow]",
-          selected ? "border-accent/60 bg-raised shadow-selected" : "border-line bg-panel hover:border-line-strong hover:bg-raised/70"
+          selected
+            ? "border-accent/60 bg-raised shadow-selected"
+            : "border-line bg-panel hover:border-line-strong hover:bg-raised/70"
         )}
       >
         <span className="mt-0.5 shrink-0">{marker}</span>
@@ -134,7 +162,14 @@ function Node({ selected, onClick, marker, kind, title, children }: {
           <span className="truncate text-subhead leading-tight font-semibold">{title}</span>
           {children}
         </span>
-        <Icon name="chevronDown" size={15} className={cx("mt-1 -rotate-90 transition-colors", selected ? "text-accent" : "text-faint group-hover:text-muted")} />
+        <Icon
+          name="chevronDown"
+          size={15}
+          className={cx(
+            "mt-1 -rotate-90 transition-colors",
+            selected ? "text-accent" : "text-faint group-hover:text-muted"
+          )}
+        />
       </button>
     </li>
   )
@@ -151,19 +186,29 @@ function StepNode({ flow, step, index, selected, warning, onSelect }: {
 }) {
   const shows = shownKeys(step)
   const actions = step.actions ?? []
-  const tint = selected ? { background: flow.color } : { background: `${flow.color}1a`, boxShadow: `inset 0 0 0 1px ${flow.color}40` }
+  const tint = selected
+    ? { background: flow.color }
+    : { background: `${flow.color}1a`, boxShadow: `inset 0 0 0 1px ${flow.color}40` }
   return (
     <Node
       selected={selected}
       onClick={onSelect}
       kind={`Step ${index + 1}`}
-      marker={<Tile style={tint}><Glyph name={step.icon} color={selected ? "var(--color-on-tint)" : flow.color} size={17} /></Tile>}
+      marker={
+        <Tile style={tint}>
+          <Glyph name={step.icon} color={selected ? "var(--color-on-tint)" : flow.color} size={17} />
+        </Tile>
+      }
       title={step.label || "Untitled step"}
     >
       {shows.length > 0 || actions.length > 0
         ? (
           <span className="flex flex-wrap gap-1.5">
-            {shows.map((key) => <span key={key} className={`${tag} text-muted ring-1 ring-line-strong ring-inset`}>{showLabels[key]}</span>)}
+            {shows.map((key) => (
+              <span key={key} className={`${tag} text-muted ring-1 ring-line-strong ring-inset`}>
+                {showLabels[key]}
+              </span>
+            ))}
             {actions.map((action) => <ActionTag key={action} action={action} color={flow.color} />)}
           </span>
         )
@@ -190,7 +235,14 @@ function ActionTag({ action, color }: { action: keyof typeof actionLabels; color
 
 /** The glyph square at the start of a node. */
 function Tile({ className, style, children }: { className?: string; style?: CSSProperties; children: ReactNode }) {
-  return <span className={cx("grid size-9 place-items-center rounded-tile text-body font-bold tabular-nums", className)} style={style}>{children}</span>
+  return (
+    <span
+      className={cx("grid size-9 place-items-center rounded-tile text-body font-bold tabular-nums", className)}
+      style={style}
+    >
+      {children}
+    </span>
+  )
 }
 
 /** The line between two nodes, with the event that leads to the next one. */
@@ -213,8 +265,12 @@ function EventLabel({ label, services }: { label: string; services: ReadonlyArra
   return (
     <>
       <Icon name="bolt" size={12} className="text-faint" />
-      <span>When <span className="font-semibold text-text-2">{label}</span></span>
-      {services.map((service) => <span key={service} className={`${tag} bg-white/7 text-text-2`}>{serviceNames[service]}</span>)}
+      <span>
+        When <span className="font-semibold text-text-2">{label}</span>
+      </span>
+      {services.map((service) => (
+        <span key={service} className={`${tag} bg-white/7 text-text-2`}>{serviceNames[service]}</span>
+      ))}
     </>
   )
 }

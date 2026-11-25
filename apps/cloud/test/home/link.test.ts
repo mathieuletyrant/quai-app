@@ -1,7 +1,7 @@
 import { NodeHttpServer, NodeSocket } from "@effect/platform-node"
+import { describe, expect, it } from "@effect/vitest"
 import { HomeProtocol } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
-import { describe, expect, it } from "@effect/vitest"
 import { ConfigProvider, Effect, Fiber, Layer, Option, Queue, Schema } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { Socket } from "effect/socket"
@@ -23,9 +23,24 @@ describe("home link", () => {
       yield* home.connect
       expect(home.state.welcomed).toBe(home.homeId)
       const homeLink = yield* HomeLink
-      expect(yield* homeLink.home).toEqual(Option.some({ homeId: home.homeId, services: ["radarr", "jellyfin"], protocol: HomeProtocol.protocolVersion, webUrls: {} }))
+      expect(yield* homeLink.home).toEqual(
+        Option.some({
+          homeId: home.homeId,
+          services: ["radarr", "jellyfin"],
+          protocol: HomeProtocol.protocolVersion,
+          webUrls: {}
+        })
+      )
       expect(yield* homeLink.documents.get("flows/anime")).toEqual(Option.some({ id: "anime" }))
-      expect(yield* nextEvent).toEqual({ _tag: "Ready", home: { homeId: home.homeId, services: ["radarr", "jellyfin"], protocol: HomeProtocol.protocolVersion, webUrls: {} } })
+      expect(yield* nextEvent).toEqual({
+        _tag: "Ready",
+        home: {
+          homeId: home.homeId,
+          services: ["radarr", "jellyfin"],
+          protocol: HomeProtocol.protocolVersion,
+          webUrls: {}
+        }
+      })
     }).pipe(Effect.provide(link)))
 
   it.effect("a bad proof and an older protocol are refused; a second home links on its own link", () =>
@@ -68,9 +83,13 @@ describe("home link", () => {
     const ownKey = otherKey()
     const ownId = HomeId.homeId(createPublicKey(ownKey).export({ format: "der", type: "spki" }).toString("base64"))
     const secondKey = otherKey()
-    const secondId = HomeId.homeId(createPublicKey(secondKey).export({ format: "der", type: "spki" }).toString("base64"))
+    const secondId = HomeId.homeId(
+      createPublicKey(secondKey).export({ format: "der", type: "spki" }).toString("base64")
+    )
     const pinned = HomeLinks.layer.pipe(
-      Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: `${ownId.toUpperCase()}, ${secondId}` } })))
+      Layer.provide(
+        ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: `${ownId.toUpperCase()}, ${secondId}` } }))
+      )
     )
     return Effect.gen(function*() {
       const foreign = yield* makeFakeHome({ privateKey: otherKey() })
@@ -104,7 +123,13 @@ describe("home link", () => {
       yield* again.disconnect
       yield* second.connect
       expect(second.state.welcomed).toBe(second.homeId)
-    }).pipe(Effect.provide(HomeLinks.layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_MAX_HOMES: "1" } })))))))
+    }).pipe(
+      Effect.provide(
+        HomeLinks.layer.pipe(
+          Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_MAX_HOMES: "1" } })))
+        )
+      )
+    ))
 
   it.effect("a home not connected is forgotten, with its events; a connected one isn't", () =>
     Effect.gen(function*() {
@@ -116,13 +141,21 @@ describe("home link", () => {
       yield* home.disconnect
       expect(yield* links.forget(home.homeId)).toBe(true)
       const fresh = yield* links.link(home.homeId)
-      expect(yield* Effect.timeoutOption(fresh.nextEvent, "1 millis").pipe(Effect.forkChild, Effect.tap(() => TestClock.adjust("1 millis")), Effect.flatMap(Fiber.join))).toEqual(Option.none())
+      expect(
+        yield* Effect.timeoutOption(fresh.nextEvent, "1 millis").pipe(
+          Effect.forkChild,
+          Effect.tap(() => TestClock.adjust("1 millis")),
+          Effect.flatMap(Fiber.join)
+        )
+      ).toEqual(Option.none())
     }).pipe(Effect.provide(HomeLinks.layer)))
 
   it.effect("a QUAI_HOME_ID that isn't a home id stops the Cloud", () =>
     Effect.gen(function*() {
       const exit = yield* Effect.exit(Effect.scoped(Layer.build(
-        HomeLinks.layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: "my-home" } }))))
+        HomeLinks.layer.pipe(
+          Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: "my-home" } })))
+        )
       )))
       expect(String(exit)).toContain("QUAI_HOME_ID: a home id is 32 hex characters")
     }))
@@ -172,16 +205,26 @@ describe("home link", () => {
   it.effect("calls are answered by id, fail after 15 s without an answer, and fail at once without a home", () =>
     Effect.gen(function*() {
       const homeLink = yield* HomeLink
-      expect((yield* Effect.flip(homeLink.call({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))).reason).toBe("offline")
+      expect(
+        (yield* Effect.flip(homeLink.call({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))).reason
+      ).toBe("offline")
       // Not strict: the allowlist refusing `sonarr GET /x` is what this test checks.
       const home = yield* makeFakeHome({
         strict: false,
         answer: (call) => call.service === "radarr" ? { json: { version: "5" } } : { silent: true }
       })
       yield* home.connect
-      expect(yield* homeLink.call({ service: "radarr", method: "GET", path: "/api/v3/system/status" })).toEqual({ status: 200, body: "{\"version\":\"5\"}" })
-      expect(yield* Effect.flip(homeLink.call({ service: "sonarr", method: "GET", path: "/x" }))).toMatchObject({ reason: "failed", message: "not allowed" })
-      const waiting = yield* Effect.forkChild(Effect.flip(homeLink.call({ service: "jellyfin", method: "GET", path: "/Sessions" })))
+      expect(yield* homeLink.call({ service: "radarr", method: "GET", path: "/api/v3/system/status" })).toEqual({
+        status: 200,
+        body: "{\"version\":\"5\"}"
+      })
+      expect(yield* Effect.flip(homeLink.call({ service: "sonarr", method: "GET", path: "/x" }))).toMatchObject({
+        reason: "failed",
+        message: "not allowed"
+      })
+      const waiting = yield* Effect.forkChild(
+        Effect.flip(homeLink.call({ service: "jellyfin", method: "GET", path: "/Sessions" }))
+      )
       yield* settle
       yield* TestClock.adjust("15 seconds")
       expect((yield* Fiber.join(waiting)).reason).toBe("timeout")
@@ -219,15 +262,25 @@ const overWebSocket = <A, E, R>(
   }) => Effect.Effect<A, E, R>
 ) =>
   Effect.gen(function*() {
-    const url = yield* HttpServer.addressFormattedWith((address) => Effect.succeed(`${address.replace(/^http/, "ws")}/home`))
+    const url = yield* HttpServer.addressFormattedWith((address) =>
+      Effect.succeed(`${address.replace(/^http/, "ws")}/home`)
+    )
     const socket = yield* Socket.makeWebSocket(url)
     const incoming = yield* Queue.unbounded<HomeProtocol.CloudMessage>()
     const pull = yield* Socket.readerString(socket)
-    yield* Effect.forkScoped(Effect.forever(Effect.flatMap(pull, (frames) =>
-      Effect.forEach(frames, (frame) => Effect.flatMap(Schema.decodeUnknownEffect(CloudJson)(frame), (message) => Queue.offer(incoming, message)))
-    )).pipe(Effect.ignore))
+    yield* Effect.forkScoped(
+      Effect.forever(Effect.flatMap(pull, (frames) =>
+        Effect.forEach(frames, (frame) =>
+          Effect.flatMap(Schema.decodeUnknownEffect(CloudJson)(frame), (message) =>
+            Queue.offer(incoming, message)))))
+        .pipe(Effect.ignore)
+    )
     const writer = yield* socket.writer
-    return yield* script({ send: (message) => writer.write(JSON.stringify(message)), next: Queue.take(incoming) })
+    return yield* script({
+      send: (message) =>
+        writer.write(JSON.stringify(message)),
+      next: Queue.take(incoming)
+    })
   }).pipe(Effect.scoped)
 
 const server = HttpRouter.serve(HomeRoute, { disableLogger: true }).pipe(
@@ -239,8 +292,13 @@ const server = HttpRouter.serve(HomeRoute, { disableLogger: true }).pipe(
 describe("home link over a WebSocket", () => {
   const { privateKey } = generateKeyPairSync("ed25519")
   const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
-  const hello = (protocol = HomeProtocol.protocolVersion) =>
-    ({ _tag: "Hello", protocol, homeVersion: "test", publicKey, services: ["radarr"] })
+  const hello = (protocol = HomeProtocol.protocolVersion) => ({
+    _tag: "Hello",
+    protocol,
+    homeVersion: "test",
+    publicKey,
+    services: ["radarr"]
+  })
 
   it.live("a good proof is welcomed and the home loaded; a bad one and another protocol are refused", () =>
     Effect.gen(function*() {
@@ -249,9 +307,13 @@ describe("home link over a WebSocket", () => {
           yield* send(hello())
           const challenge = yield* next
           expect(challenge._tag).toBe("Challenge")
-          yield* send({ _tag: "Proof", signature: sign(null, Buffer.from("something else"), privateKey).toString("base64") })
+          yield* send({
+            _tag: "Proof",
+            signature: sign(null, Buffer.from("something else"), privateKey).toString("base64")
+          })
           return yield* next
-        }))
+        })
+      )
       expect(refusedProof).toMatchObject({ _tag: "Refused", retryAfterSeconds: 60 })
 
       const refusedProtocol = yield* overWebSocket(({ send, next }) => Effect.andThen(send(hello(99)), next))
@@ -263,7 +325,8 @@ describe("home link over a WebSocket", () => {
           const challenge = yield* next
           if (challenge._tag !== "Challenge") return yield* Effect.die("no challenge")
           expect(Buffer.from(challenge.nonce, "base64")).toHaveLength(32)
-          const signature = sign(null, Buffer.from(HomeProtocol.challengePayload(challenge.nonce)), privateKey).toString("base64")
+          const signature = sign(null, Buffer.from(HomeProtocol.challengePayload(challenge.nonce)), privateKey)
+            .toString("base64")
           yield* send({ _tag: "Proof", signature })
           expect(yield* next).toEqual({ _tag: "Welcome", homeId: HomeId.homeId(publicKey) })
           const list = yield* next
@@ -278,6 +341,7 @@ describe("home link over a WebSocket", () => {
           }
           expect(Option.map(home, (linkedHome) => linkedHome.homeId)).toEqual(Option.some(HomeId.homeId(publicKey)))
           expect(yield* homeLink.documents.get("settings")).toEqual(Option.some({ a: 1 }))
-        }))
+        })
+      )
     }).pipe(Effect.provide(server)))
 })

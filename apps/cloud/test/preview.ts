@@ -88,14 +88,22 @@ const FakeHomeLinked = Layer.effectDiscard(
     const home = yield* makeFakeHome({
       strict: false,
       services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"],
-      webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"], sonarr: ["http://umbrel.local:8989"] },
+      webUrls: {
+        radarr: ["http://umbrel.local:7878", "https://radarr.example.com"],
+        sonarr: ["http://umbrel.local:8989"]
+      },
       answer: recordedHome(previewRoutes(days))
     })
     yield* home.connect
     yield* downloading(home)
     // The fake Quai Home keeps answering the snapshot of the torrent: Quai Home polls it every few seconds.
     yield* Effect.forkScoped(
-      Effect.forever(Effect.andThen(Effect.sleep("5 seconds"), home.snapshot(torrentsWatchId, (fixture("qbittorrent/torrents-info.json") as Array<object>).slice(0, 1))))
+      Effect.forever(
+        Effect.andThen(
+          Effect.sleep("5 seconds"),
+          home.snapshot(torrentsWatchId, (fixture("qbittorrent/torrents-info.json") as Array<object>).slice(0, 1))
+        )
+      )
     )
     yield* Effect.logInfo("Preview: Quai Cloud linked to a fake Quai Home. Pair with POST /console-api/pairing-codes.")
   })

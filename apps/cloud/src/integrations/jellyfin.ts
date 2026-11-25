@@ -3,7 +3,15 @@ import { Clock, Effect, Option, Schema } from "effect"
 import type { Activity } from "../flows/Engine.ts"
 import { type FlowEvent, lookupIds, type MediaLookup } from "../flows/Events.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import { actionCall, type ActionHandler, anyEnabledFlow, type Integration, readJson, runningWhere, type WatchContext } from "./Integration.ts"
+import {
+  actionCall,
+  type ActionHandler,
+  anyEnabledFlow,
+  type Integration,
+  readJson,
+  runningWhere,
+  type WatchContext
+} from "./Integration.ts"
 
 const Item = Schema.Struct({
   Id: Schema.String,
@@ -75,9 +83,10 @@ export const playingFrom = (sessions: typeof Sessions.Type): ReadonlyArray<Playi
   sessions.flatMap((session) => {
     const item = session.NowPlayingItem
     if (item === undefined) return []
-    const episode = item.SeriesName !== undefined && item.ParentIndexNumber !== undefined && item.IndexNumber !== undefined
-      ? `${item.SeriesName} · S${pad(item.ParentIndexNumber)}E${pad(item.IndexNumber)}`
-      : null
+    const episode =
+      item.SeriesName !== undefined && item.ParentIndexNumber !== undefined && item.IndexNumber !== undefined
+        ? `${item.SeriesName} · S${pad(item.ParentIndexNumber)}E${pad(item.IndexNumber)}`
+        : null
     const runtime = item.RunTimeTicks
     const position = session.PlayState?.PositionTicks ?? 0
     return [{
@@ -110,18 +119,25 @@ export const playbackEvents = (
       ? {
         paused: true,
         detail: playing.device,
-        ...(playing.runtimeMs === null || playing.runtimeMs === 0 ? {} : { progress: playing.positionMs / playing.runtimeMs })
+        ...(playing.runtimeMs === null || playing.runtimeMs === 0
+          ? {}
+          : { progress: playing.positionMs / playing.runtimeMs })
       }
       : {
         paused: false,
         detail: playing.device,
-        ...(playing.remainingMs === null ? {} : { endsAt: nowMs + playing.remainingMs, startsAt: nowMs - playing.positionMs })
+        ...(playing.remainingMs === null
+          ? {}
+          : { endsAt: nowMs + playing.remainingMs, startsAt: nowMs - playing.positionMs })
       }
     events.push({ type: before.has(playing.key) ? "playback.progress" : "playback.started", subject, values })
   }
   for (const [key, previous] of before) {
     if (!seen.has(key)) {
-      events.push({ type: "playback.stopped", subject: { kind: "playback", key, title: previous.title, device: previous.device } })
+      events.push({
+        type: "playback.stopped",
+        subject: { kind: "playback", key, title: previous.title, device: previous.device }
+      })
     }
   }
   return events
@@ -147,8 +163,15 @@ export const matchItem = (result: typeof ItemsResult.Type, lookup: MediaLookup):
 }
 
 /** Whether every episode of the lookup has a file (Jellyfin also lists missing ones, as virtual). */
-export const hasEpisodes = (result: typeof EpisodesResult.Type, lookup: Extract<MediaLookup, { readonly _tag: "Episodes" }>) => {
-  const present = new Set(result.Items.filter((episode) => episode.LocationType !== "Virtual").map((episode) => `${episode.ParentIndexNumber}:${episode.IndexNumber}`))
+export const hasEpisodes = (
+  result: typeof EpisodesResult.Type,
+  lookup: Extract<MediaLookup, { readonly _tag: "Episodes" }>
+) => {
+  const present = new Set(
+    result.Items.filter((episode) => episode.LocationType !== "Virtual").map((episode) =>
+      `${episode.ParentIndexNumber}:${episode.IndexNumber}`
+    )
+  )
   return lookup.episodes.every((episode) => present.has(`${episode.season}:${episode.episode}`))
 }
 
@@ -202,7 +225,11 @@ export const jellyfin = Effect.gen(function*() {
   const command = (name: PlaybackCommand): ActionHandler => (activity) => {
     const session = sessionOf(activity.subjectKey)
     if (session === null) return Effect.fail(new InvalidAction({ message: "Not a playback." }))
-    return actionCall(reads, "Jellyfin", { service: "jellyfin", method: "POST", path: `/Sessions/${encodeURIComponent(session)}/Playing/${name}` })
+    return actionCall(reads, "Jellyfin", {
+      service: "jellyfin",
+      method: "POST",
+      path: `/Sessions/${encodeURIComponent(session)}/Playing/${name}`
+    })
   }
 
   const actions: Partial<Record<ActionType, ActionHandler>> = {
@@ -220,6 +247,53 @@ export const jellyfin = Effect.gen(function*() {
     }
   }]
 
+  /** The sessions now: what started, moved or stopped since the last read. */
+  const readSessions = (body: string) =>
+    Effect.gen(function*() {
+      const sessions = readJson(Sessions, body)
+      if (Option.isNone(sessions)) {
+        return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the sessions"), [])
+      }
+      const now = playingFrom(sessions.value)
+      const events = playbackEvents(playing, now, yield* Clock.currentTimeMillis)
+      playing = new Map(now.map((entry) => [entry.key, entry]))
+      return events
+    })
+
+  /** The user the library is listed as. */
+  const readUsers = (body: string) =>
+    Effect.gen(function*() {
+      const users = readJson(Users, body)
+      if (Option.isNone(users)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the users"), [])
+      userId = libraryUser(users.value)
+      if (userId === null) yield* Effect.logWarning("Jellyfin: no enabled user to list the library as")
+      return []
+    })
+
+  /** A title an activity awaits: available once Jellyfin lists it (a series, then its episodes). */
+  const readAvailability = (watchId: string, body: string, context: WatchContext) =>
+    Effect.gen(function*() {
+      const activity = awaitingAvailability(context).find((candidate) =>
+        watchId === watchIds.find(candidate.subjectKey) || watchId === watchIds.episodes(candidate.subjectKey)
+      )
+      if (activity === undefined) return []
+      const lookup = activity.lookup!
+      if (watchId === watchIds.episodes(activity.subjectKey)) {
+        const episodes = readJson(EpisodesResult, body)
+        return lookup._tag === "Episodes" && Option.isSome(episodes) && hasEpisodes(episodes.value, lookup)
+          ? available(activity)
+          : []
+      }
+      const items = readJson(ItemsResult, body)
+      if (Option.isNone(items)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the search"), [])
+      const id = matchItem(items.value, lookup)
+      if (id === null) return []
+      if (lookup._tag === "Movie") return available(activity)
+      // The series is there: its episodes are watched next (the Hub syncs after each read).
+      series.set(activity.subjectKey, id)
+      return []
+    })
+
   const integration: Integration = {
     service: "jellyfin",
     watcher: {
@@ -230,70 +304,57 @@ export const jellyfin = Effect.gen(function*() {
         const seen = new Set<string>()
         // The users, to list the library as one of them (`libraryUser`). Until they're read (or
         // with a Quai Home too old to read them), the library is listed without a user.
-        const users = awaiting.length === 0 ? [] : [{ id: watchIds.users, service: "jellyfin" as const, path: "/Users", everySeconds: 3600 }]
+        const users = awaiting.length === 0
+          ? []
+          : [{ id: watchIds.users, service: "jellyfin" as const, path: "/Users", everySeconds: 3600 }]
         const user = userId
-        const watches = [...users, ...awaiting.flatMap((activity) => {
-          if (seen.has(activity.subjectKey)) return []
-          seen.add(activity.subjectKey)
-          const lookup = activity.lookup!
-          const found = series.get(activity.subjectKey)
-          if (lookup._tag === "Episodes" && found !== undefined) {
+        const watches = [
+          ...users,
+          ...awaiting.flatMap((activity) => {
+            if (seen.has(activity.subjectKey)) return []
+            seen.add(activity.subjectKey)
+            const lookup = activity.lookup!
+            const found = series.get(activity.subjectKey)
+            if (lookup._tag === "Episodes" && found !== undefined) {
+              return [{
+                id: watchIds.episodes(activity.subjectKey),
+                service: "jellyfin" as const,
+                path: query("/Items", {
+                  ...(user === null ? {} : { userId: user }),
+                  ParentId: found,
+                  IncludeItemTypes: "Episode",
+                  Recursive: "true",
+                  Fields: "LocationType"
+                }),
+                everySeconds: 15
+              }]
+            }
             return [{
-              id: watchIds.episodes(activity.subjectKey),
+              id: watchIds.find(activity.subjectKey),
               service: "jellyfin" as const,
-              path: query("/Items", { ...(user === null ? {} : { userId: user }), ParentId: found, IncludeItemTypes: "Episode", Recursive: "true", Fields: "LocationType" }),
+              path: query("/Items", latestItemsParams(lookup, user)),
               everySeconds: 15
             }]
-          }
-          return [{
-            id: watchIds.find(activity.subjectKey),
-            service: "jellyfin" as const,
-            path: query("/Items", latestItemsParams(lookup, user)),
-            everySeconds: 15
-          }]
-        })]
+          })
+        ]
         if (anyEnabledFlow(context, "playback")) {
-          watches.push({ id: watchIds.sessions, service: "jellyfin", path: query("/Sessions", { ActiveWithinSeconds: "120" }), everySeconds: 15 })
+          watches.push({
+            id: watchIds.sessions,
+            service: "jellyfin",
+            path: query("/Sessions", { ActiveWithinSeconds: "120" }),
+            everySeconds: 15
+          })
         } else {
           playing = new Map()
         }
         return watches
       },
-      read: ({ watch, status, body }, context) =>
-        Effect.gen(function*() {
-          if (status !== 200) return yield* Effect.as(Effect.logWarning(`Jellyfin answered HTTP ${status}`), [])
-          if (watch.id === watchIds.sessions) {
-            const sessions = readJson(Sessions, body)
-            if (Option.isNone(sessions)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the sessions"), [])
-            const now = playingFrom(sessions.value)
-            const events = playbackEvents(playing, now, yield* Clock.currentTimeMillis)
-            playing = new Map(now.map((entry) => [entry.key, entry]))
-            return events
-          }
-          if (watch.id === watchIds.users) {
-            const users = readJson(Users, body)
-            if (Option.isNone(users)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the users"), [])
-            userId = libraryUser(users.value)
-            if (userId === null) yield* Effect.logWarning("Jellyfin: no enabled user to list the library as")
-            return []
-          }
-          const activity = awaitingAvailability(context).find((candidate) =>
-            watch.id === watchIds.find(candidate.subjectKey) || watch.id === watchIds.episodes(candidate.subjectKey))
-          if (activity === undefined) return []
-          const lookup = activity.lookup!
-          if (watch.id === watchIds.episodes(activity.subjectKey)) {
-            const episodes = readJson(EpisodesResult, body)
-            return lookup._tag === "Episodes" && Option.isSome(episodes) && hasEpisodes(episodes.value, lookup) ? available(activity) : []
-          }
-          const items = readJson(ItemsResult, body)
-          if (Option.isNone(items)) return yield* Effect.as(Effect.logWarning("Jellyfin: could not read the search"), [])
-          const id = matchItem(items.value, lookup)
-          if (id === null) return []
-          if (lookup._tag === "Movie") return available(activity)
-          // The series is there: its episodes are watched next (the Hub syncs after each read).
-          series.set(activity.subjectKey, id)
-          return []
-        })
+      read: ({ watch, status, body }, context) => {
+        if (status !== 200) return Effect.as(Effect.logWarning(`Jellyfin answered HTTP ${status}`), [])
+        if (watch.id === watchIds.sessions) return readSessions(body)
+        if (watch.id === watchIds.users) return readUsers(body)
+        return readAvailability(watch.id, body, context)
+      }
     },
     actions
   }

@@ -1,4 +1,4 @@
-import { consoleSession, ConsoleSession, HomeConsoleApi, HomeProtocol, type HomeOverview } from "@quai/api"
+import { ConsoleSession, consoleSession, HomeConsoleApi, type HomeOverview, HomeProtocol } from "@quai/api"
 import { Effect, Layer, Option, Redacted } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse, HttpStaticServer } from "effect/http"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
@@ -27,7 +27,9 @@ export const ConsoleSessionLive = Layer.effect(
     return {
       cookie: (httpEffect, { credential }) =>
         Effect.gen(function*() {
-          if ((yield* auth.access(Redacted.value(credential))) !== "signedIn") return yield* Effect.fail(new HttpApiError.Unauthorized())
+          if ((yield* auth.access(Redacted.value(credential))) !== "signedIn") {
+            return yield* Effect.fail(new HttpApiError.Unauthorized())
+          }
           return yield* httpEffect
         })
     }
@@ -46,7 +48,8 @@ const SessionHandlers = HttpApiBuilder.group(HomeConsoleApi, "session", (handler
       .handle("signIn", ({ payload }) =>
         Effect.flatMap(auth.signIn(payload.password), ({ token }) =>
           HttpApiBuilder.securitySetCookie(consoleSession, token, { ...cookieOptions, maxAge: `${sessionMs} millis` })))
-      .handle("signOut", () => HttpApiBuilder.securitySetCookie(consoleSession, "", { ...cookieOptions, maxAge: 0 }))
+      .handle("signOut", () =>
+        HttpApiBuilder.securitySetCookie(consoleSession, "", { ...cookieOptions, maxAge: 0 }))
   }))
 
 const HomeHandlers = HttpApiBuilder.group(HomeConsoleApi, "home", (handlers) =>
@@ -90,7 +93,10 @@ const ServicesHandlers = HttpApiBuilder.group(HomeConsoleApi, "services", (handl
           const setup = (yield* settings.list).find((entry) => entry.service === params.service)!
           return { setup, check: yield* check(params.service) }
         }))
-      .handle("remove", ({ params }) => settings.remove(params.service).pipe(Effect.catchTag("StoreError", storeFailed)))
+      .handle(
+        "remove",
+        ({ params }) => settings.remove(params.service).pipe(Effect.catchTag("StoreError", storeFailed))
+      )
       .handle("check", ({ params }) => check(params.service))
   }))
 
@@ -101,7 +107,8 @@ export const HomeApiLive = HttpApiBuilder.layer(HomeConsoleApi).pipe(
 )
 
 /** The answer the console reads as "Quai Cloud isn't reachable": the Cloud's own `HomeOffline` shape. */
-const unreachable = (message: string) => HttpServerResponse.jsonUnsafe({ _tag: "HomeOffline", message }, { status: 503 })
+const unreachable = (message: string) =>
+  HttpServerResponse.jsonUnsafe({ _tag: "HomeOffline", message }, { status: 503 })
 
 /**
  * The rest of the console, `/console-api` and `/api/health`: Quai Cloud's routes, relayed over the
@@ -117,14 +124,17 @@ export const ConsoleRelayLive = HttpRouter.use((router) =>
         return HttpServerResponse.jsonUnsafe({ _tag: "Unauthorized" }, { status: 401 })
       }
       const method = request.method
-      if (method !== "GET" && method !== "POST" && method !== "PUT" && method !== "DELETE") return HttpServerResponse.empty({ status: 405 })
+      if (method !== "GET" && method !== "POST" && method !== "PUT" && method !== "DELETE") {
+        return HttpServerResponse.empty({ status: 405 })
+      }
       if (!HomeProtocol.isConsolePath(request.url)) return HttpServerResponse.empty({ status: 404 })
       const body = method === "GET" ? "" : yield* Effect.orElseSucceed(request.text, () => "")
       return yield* link.console({ method, path: request.url, ...(body === "" ? {} : { body }) }).pipe(
         Effect.map((answer) =>
           answer.body === ""
             ? HttpServerResponse.empty({ status: answer.status })
-            : HttpServerResponse.text(answer.body, { status: answer.status, contentType: "application/json" })),
+            : HttpServerResponse.text(answer.body, { status: answer.status, contentType: "application/json" })
+        ),
         Effect.catchTag("CloudUnreachable", (error) => Effect.succeed(unreachable(error.message)))
       )
     })

@@ -84,9 +84,9 @@ Not covered: several iPhones or keys, swiped-away activities, `Notifier.sendTo` 
 buttons), timeouts and retries of `apns.send`, Quai Home disconnecting mid-push, and the
 iPhone's own play/pause shown at once (`PendingPlayback`).
 
-**Sync commit: `71db126`.** The verification describes the files above as they are at this
+**Sync commit: `4b199b0`.** The verification describes the files above as they are at this
 commit. Before trusting a pass, run
-`git diff 71db126 -- apps/cloud/src/flows/Activities.ts apps/cloud/src/push/Notifier.ts apps/cloud/src/integrations/Hub.ts apps/cloud/src/flows/Targeting.ts apps/cloud/src/flows/Engine.ts`.
+`git diff 4b199b0 -- apps/cloud/src/flows/Activities.ts apps/cloud/src/push/Notifier.ts apps/cloud/src/integrations/Hub.ts apps/cloud/src/flows/Targeting.ts apps/cloud/src/flows/Engine.ts`.
 If one of those diffs touches what the table maps, update the model, then move this commit
 forward only after checking the model describes the code at the new commit.
 

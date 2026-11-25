@@ -1,7 +1,7 @@
 import {
   type Fix,
-  FixFailed,
   type Fixes as FixList,
+  FixFailed,
   type FixService,
   HomeOffline,
   type ImportPreview,
@@ -12,10 +12,16 @@ import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { type CallRequest, HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import { byPreference, epochSeconds, ManualImportRows, type QueueRecord, ReleaseRecords, toRelease } from "../integrations/arr.ts"
+import { byPreference, ManualImportRows, ReleaseRecords, toRelease } from "../integrations/arr.ts"
 import { excluding, settingsRead } from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
-import { candidatesRead, plannedDeletionFixes, plannedDeletions, protectPath, protectReason } from "../integrations/reclaimerr.ts"
+import {
+  candidatesRead,
+  plannedDeletionFixes,
+  plannedDeletions,
+  protectPath,
+  protectReason
+} from "../integrations/reclaimerr.ts"
 import { Journal } from "../journal/Journal.ts"
 import type { Detected, FixTarget, RemovalTarget } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
@@ -61,7 +67,10 @@ const byUrgency = (left: Detected, right: Detected) =>
 const media = [movies, series] as const
 
 /** Runs `apply` with the adapter of a movie's or a series' target; undefined for a Reclaimerr candidate or a Cleanuparr download. */
-const withMedia = <R>(target: FixTarget, apply: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => R): R | undefined =>
+const withMedia = <R>(
+  target: FixTarget,
+  apply: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => R
+): R | undefined =>
   target.kind === "movie" ? apply(movies, target) : target.kind === "series" ? apply(series, target) : undefined
 
 interface Detection {
@@ -86,7 +95,10 @@ export class Fixes extends Context.Service<Fixes, {
   readonly letGo: (id: string) => Effect.Effect<void, FixError>
   readonly ignoreAndWait: (id: string, days: number | undefined) => Effect.Effect<void, FixError>
   readonly releases: (id: string) => Effect.Effect<Releases, FixError>
-  readonly grab: (id: string, release: { readonly guid: string; readonly indexerId: number }) => Effect.Effect<void, FixError>
+  readonly grab: (
+    id: string,
+    release: { readonly guid: string; readonly indexerId: number }
+  ) => Effect.Effect<void, FixError>
 }>()("quai/Fixes") {
   static readonly layer = Layer.effect(
     Fixes,
@@ -105,7 +117,9 @@ export class Fixes extends Context.Service<Fixes, {
           // As Cleanuparr answered, not as decoded: Quai Home compares the two exactly.
           const answered = yield* write({ service: "cleanuparr", method: "GET", path: settingsRead.path })
           const body = excluding(answered, target.downloadId)
-          if (Option.isNone(body)) return yield* Effect.fail(new FixFailed({ message: "Cleanuparr answered something Quai can't read" }))
+          if (Option.isNone(body)) {
+            return yield* Effect.fail(new FixFailed({ message: "Cleanuparr answered something Quai can't read" }))
+          }
           yield* write({ service: "cleanuparr", method: "PUT", path: settingsRead.path, body: body.value })
         })
 
@@ -126,13 +140,17 @@ export class Fixes extends Context.Service<Fixes, {
             ["cleanuparr", planned],
             ...media.map((adapter, index) => [adapter.service, found[index]!] as const)
           ]
-          const unavailable = outcomes.flatMap(([service, value]) => asked(service) && Option.isNone(value) ? [service] : [])
+          const unavailable = outcomes.flatMap(([service, value]) =>
+            asked(service) && Option.isNone(value) ? [service] : []
+          )
           const due = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
           const deletions = only === undefined
             ? yield* deletionsWithPosters(reads, due)
             // Acting on a deletion needs no poster.
             : plannedDeletionFixes(due)
-          const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) => Option.getOrElse(problems, () => []))
+          const detected = found.flatMap((problems: Option.Option<ReadonlyArray<Detected>>) =>
+            Option.getOrElse(problems, () => [])
+          )
           return {
             detected: [...deletions, ...Option.getOrElse(planned, () => []), ...detected].sort(byUrgency),
             read: outcomes.flatMap(([service]) => asked(service) && !unavailable.includes(service) ? [service] : []),
@@ -146,7 +164,9 @@ export class Fixes extends Context.Service<Fixes, {
           const service = FixId.serviceOf(id)
           if (service === undefined) return yield* Effect.fail(new HttpApiError.NotFound())
           const { detected, unavailable } = yield* detect(service)
-          if (unavailable.includes(service)) return yield* Effect.fail(new FixFailed({ message: `${service} didn't answer` }))
+          if (unavailable.includes(service)) {
+            return yield* Effect.fail(new FixFailed({ message: `${service} didn't answer` }))
+          }
           const found = detected.find((entry) => entry.fix.id === id)
           return found === undefined ? yield* Effect.fail(new HttpApiError.NotFound()) : found
         })
@@ -162,7 +182,8 @@ export class Fixes extends Context.Service<Fixes, {
         found: Detected,
         refused: string,
         apply: <T extends MediaTarget>(adapter: MediaFixes<T>, target: T) => Effect.Effect<R, FixError> | undefined
-      ): Effect.Effect<R, FixError> => withMedia(found.target, apply) ?? Effect.fail(new InvalidFix({ message: refused }))
+      ): Effect.Effect<R, FixError> =>
+        withMedia(found.target, apply) ?? Effect.fail(new InvalidFix({ message: refused }))
 
       const list = Effect.gen(function*() {
         const { detected, read: complete, unavailable } = yield* detect()
@@ -193,15 +214,26 @@ export class Fixes extends Context.Service<Fixes, {
       /** The files of a blocked download, as the *arr's manual import matches them now, with its id. */
       const importRows = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>) =>
         Effect.gen(function*() {
-          if (target.downloadId === undefined) return yield* Effect.fail(new InvalidFix({ message: "This download has no id to import it by" }))
+          if (target.downloadId === undefined) {
+            return yield* Effect.fail(new InvalidFix({ message: "This download has no id to import it by" }))
+          }
           const body = yield* write({
             service: adapter.service,
             method: "GET",
-            path: `/api/v3/manualimport?downloadId=${encodeURIComponent(target.downloadId)}&filterExistingFiles=true${adapter.importHints(target)}`
+            path: `/api/v3/manualimport?downloadId=${encodeURIComponent(target.downloadId)}&filterExistingFiles=true${
+              adapter.importHints(target)
+            }`
           })
           const rows = readJson(ManualImportRows, body)
-          if (Option.isNone(rows)) return yield* Effect.fail(new FixFailed({ message: `${adapter.service} answered something Quai can't read` }))
-          return { downloadId: target.downloadId, rows: rows.value.filter((row) => row.path !== undefined && row.path !== "") }
+          if (Option.isNone(rows)) {
+            return yield* Effect.fail(
+              new FixFailed({ message: `${adapter.service} answered something Quai can't read` })
+            )
+          }
+          return {
+            downloadId: target.downloadId,
+            rows: rows.value.filter((row) => row.path !== undefined && row.path !== "")
+          }
         })
 
       const importPreview = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>) =>
@@ -211,53 +243,100 @@ export class Fixes extends Context.Service<Fixes, {
           return { files, episodes: [...episodes] }
         })
 
-      const importDownload = <T extends MediaTarget>(adapter: MediaFixes<T>, target: QueuedOf<T>, assignments: ImportAssignments) =>
+      const importDownload = <T extends MediaTarget>(
+        adapter: MediaFixes<T>,
+        target: QueuedOf<T>,
+        assignments: ImportAssignments
+      ) =>
         Effect.gen(function*() {
           const { downloadId, rows } = yield* importRows(adapter, target)
           const choices = rows.length > 0 && assignments.length > 0 ? yield* adapter.choices(reads, target) : []
-          const files = yield* Effect.fromResult(importFiles(adapter, { target, downloadId, rows, assignments, choices }))
-          yield* write({ service: adapter.service, method: "POST", path: "/api/v3/command", body: { name: "ManualImport", importMode: "auto", files } })
+          const files = yield* Effect.fromResult(
+            importFiles(adapter, { target, downloadId, rows, assignments, choices })
+          )
+          yield* write({
+            service: adapter.service,
+            method: "POST",
+            path: "/api/v3/command",
+            body: { name: "ManualImport", importMode: "auto", files }
+          })
         })
 
       const searchReleases = <T extends MediaTarget>(adapter: MediaFixes<T>, target: MissingOf<T>) =>
         Effect.gen(function*() {
-          const body = yield* write({ service: adapter.service, method: "GET", path: adapter.releaseSearch(target) }, { timeoutMs: releaseSearchTimeoutMs })
+          const body = yield* write({ service: adapter.service, method: "GET", path: adapter.releaseSearch(target) }, {
+            timeoutMs: releaseSearchTimeoutMs
+          })
           const records = readJson(ReleaseRecords, body)
-          if (Option.isNone(records)) return yield* Effect.fail(new FixFailed({ message: `${adapter.service} answered something Quai can't read` }))
-          return { items: records.value.filter((record) => adapter.usable(target, record)).map(toRelease).sort(byPreference) }
+          if (Option.isNone(records)) {
+            return yield* Effect.fail(
+              new FixFailed({ message: `${adapter.service} answered something Quai can't read` })
+            )
+          }
+          return {
+            items: records.value.filter((record) => adapter.usable(target, record)).map(toRelease).sort(byPreference)
+          }
         })
 
       const notADownload = "not a download"
 
       /** An action on a problem, in the journal with how it went: "Removed the download: Dune". */
       const acted = <A, E>(kind: string, what: string, found: Detected, effect: Effect.Effect<A, E>) =>
-        journal.outcome({ level: "info", source: found.fix.service, kind: `fix.${kind}`, text: `${what}: ${found.fix.title}`, title: found.fix.title }, effect)
+        journal.outcome({
+          level: "info",
+          source: found.fix.service,
+          kind: `fix.${kind}`,
+          text: `${what}: ${found.fix.title}`,
+          title: found.fix.title
+        }, effect)
 
       return {
         list,
 
         remove: (id, blocklist) =>
-          Effect.flatMap(offering(id, "remove"), (found) =>
-            acted("remove", blocklist ? "Removed and blocklisted the download" : "Removed the download", found, onMedia(found, notADownload, (adapter, target) =>
-              isQueued(target)
-                // Never a new search: a blocklisted release is only replaced when the *arr looks again on its own.
-                ? Effect.asVoid(write({
-                  service: adapter.service,
-                  method: "DELETE",
-                  path: `/api/v3/queue/${target.queueId}?removeFromClient=true&blocklist=${blocklist}&skipRedownload=true`
-                }))
-                : undefined))),
+          Effect.flatMap(
+            offering(id, "remove"),
+            (found) =>
+              acted(
+                "remove",
+                blocklist ? "Removed and blocklisted the download" : "Removed the download",
+                found,
+                onMedia(found, notADownload, (adapter, target) =>
+                  isQueued(target)
+                    // Never a new search: a blocklisted release is only replaced when the *arr looks again on its own.
+                    ? Effect.asVoid(write({
+                      service: adapter.service,
+                      method: "DELETE",
+                      path:
+                        `/api/v3/queue/${target.queueId}?removeFromClient=true&blocklist=${blocklist}&skipRedownload=true`
+                    }))
+                    : undefined)
+              )
+          ),
 
         importPreview: (id) =>
-          Effect.flatMap(offering(id, "importAnyway"), (found) =>
-            onMedia(found, notADownload, (adapter, target) => isQueued(target) ? importPreview(adapter, target) : undefined)),
+          Effect.flatMap(
+            offering(id, "importAnyway"),
+            (found) =>
+              onMedia(found, notADownload, (adapter, target) =>
+                isQueued(target) ? importPreview(adapter, target) : undefined)
+          ),
 
         importDownload: (id, assignments) =>
-          Effect.flatMap(offering(id, "importAnyway"), (found) =>
-            acted("import", "Imported the download anyway",
-              found,
-              onMedia(found, notADownload, (adapter, target) => isQueued(target) ? importDownload(adapter, target, assignments) : undefined)
-            )),
+          Effect.flatMap(
+            offering(id, "importAnyway"),
+            (found) =>
+              acted(
+                "import",
+                "Imported the download anyway",
+                found,
+                onMedia(
+                  found,
+                  notADownload,
+                  (adapter, target) => isQueued(target) ? importDownload(adapter, target, assignments) : undefined
+                )
+              )
+          ),
 
         keep: (id) =>
           Effect.gen(function*() {
@@ -265,9 +344,18 @@ export class Fixes extends Context.Service<Fixes, {
             const { target } = found
             switch (target.kind) {
               case "candidate":
-                return yield* acted("keep", "Kept, Reclaimerr won't delete it",
+                return yield* acted(
+                  "keep",
+                  "Kept, Reclaimerr won't delete it",
                   found,
-                  Effect.asVoid(write({ service: "reclaimerr", method: "POST", path: protectPath(target.candidateId), body: { reason: protectReason } }))
+                  Effect.asVoid(
+                    write({
+                      service: "reclaimerr",
+                      method: "POST",
+                      path: protectPath(target.candidateId),
+                      body: { reason: protectReason }
+                    })
+                  )
                 )
               case "removal":
                 return yield* acted("keep", "Kept, Cleanuparr won't remove it", found, exclude(target))
@@ -288,23 +376,46 @@ export class Fixes extends Context.Service<Fixes, {
           Effect.gen(function*() {
             const found = yield* offering(id, "ignoreAndWait")
             const at = yield* Clock.currentTimeMillis
-            yield* acted("ignoreAndWait", days === undefined ? "Ignored until a release is grabbed" : `Ignored for ${days} day${days === 1 ? "" : "s"}`,
+            yield* acted(
+              "ignoreAndWait",
+              days === undefined
+                ? "Ignored until a release is grabbed"
+                : `Ignored for ${days} day${days === 1 ? "" : "s"}`,
               found,
-              Effect.mapError(documents.put(ignoredKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }), toOffline)
+              Effect.mapError(
+                documents.put(ignoredKey(id), days === undefined ? { at } : { at, until: at + days * 24 * 3600_000 }),
+                toOffline
+              )
             )
           }),
 
         releases: (id) =>
-          Effect.flatMap(offering(id, "searchReleases"), (found) =>
-            onMedia(found, "nothing to search for", (adapter, target) => isMissing(target) ? searchReleases(adapter, target) : undefined)),
+          Effect.flatMap(
+            offering(id, "searchReleases"),
+            (found) =>
+              onMedia(found, "nothing to search for", (adapter, target) =>
+                isMissing(target) ? searchReleases(adapter, target) : undefined)
+          ),
 
         grab: (id, release) =>
           // Still without a file now: a title that got one in the meantime is no longer a problem (404).
           Effect.flatMap(offering(id, "searchReleases"), (found) =>
-            acted("grab", "Grabbed a release", found, onMedia(found, "nothing to search for", (adapter, target) =>
-              isMissing(target)
-                ? Effect.asVoid(write({ service: adapter.service, method: "POST", path: "/api/v3/release", body: { guid: release.guid, indexerId: release.indexerId } }))
-                : undefined)))
+            acted(
+              "grab",
+              "Grabbed a release",
+              found,
+              onMedia(found, "nothing to search for", (adapter, target) =>
+                isMissing(target)
+                  ? Effect.asVoid(
+                    write({
+                      service: adapter.service,
+                      method: "POST",
+                      path: "/api/v3/release",
+                      body: { guid: release.guid, indexerId: release.indexerId }
+                    })
+                  )
+                  : undefined)
+            ))
       } satisfies Fixes["Service"]
     })
   )

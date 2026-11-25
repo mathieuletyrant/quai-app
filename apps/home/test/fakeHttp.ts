@@ -14,7 +14,16 @@ export interface Seen {
  * fails the call; `delay` answers after that long (on Clock, for TestClock).
  */
 export const fakeHttp = (
-  route: (request: Seen) => { status?: number; json?: unknown; text?: string; headers?: Record<string, string>; unreachable?: true; delay?: Duration.Input },
+  route: (
+    request: Seen
+  ) => {
+    status?: number
+    json?: unknown
+    text?: string
+    headers?: Record<string, string>
+    unreachable?: true
+    delay?: Duration.Input
+  },
   seen: Array<Seen> = []
 ) =>
   Layer.succeed(
@@ -25,7 +34,9 @@ export const fakeHttp = (
       seen.push(entry)
       const answer = route(entry)
       if (answer.unreachable === true) {
-        return Effect.fail(new HttpClientError.HttpClientError({ reason: new HttpClientError.TransportError({ request }) }))
+        return Effect.fail(
+          new HttpClientError.HttpClientError({ reason: new HttpClientError.TransportError({ request }) })
+        )
       }
       const response = Effect.succeed(HttpClientResponse.fromWeb(
         request,

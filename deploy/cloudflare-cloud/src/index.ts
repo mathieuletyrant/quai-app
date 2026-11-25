@@ -16,6 +16,7 @@ export class QuaiCloud extends Container<Env> {
   override sleepAfter = "1h"
   override pingEndpoint = "localhost/api/health"
 
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- the type Container's constructor takes
   constructor(ctx: DurableObjectState<{}>, env: Env) {
     super(ctx, env)
     this.envVars = containerEnvironment(env)
@@ -23,5 +24,5 @@ export class QuaiCloud extends Container<Env> {
 }
 
 export default {
-  fetch: (request, env) => env.QUAI_CLOUD.jurisdiction("eu").getByName("quai-cloud").fetch(request),
+  fetch: (request, env) => env.QUAI_CLOUD.jurisdiction("eu").getByName("quai-cloud").fetch(request)
 } satisfies ExportedHandler<Env>

@@ -11,10 +11,14 @@ export const AlertsHandlers = HttpApiBuilder.group(QuaiApi, "alerts", (handlers)
   }))
 
 /** The console's Alerts page. */
-export const ConsoleAlertsHandlers = HttpApiBuilder.group(QuaiApi, "consoleAlerts", (handlers) =>
-  Effect.gen(function*() {
-    const alerts = yield* Alerts
-    return handlers
-      .handle("settings", () => alerts.settings)
-      .handle("save", ({ payload }) => alerts.saveSettings(payload))
-  }))
+export const ConsoleAlertsHandlers = HttpApiBuilder.group(
+  QuaiApi,
+  "consoleAlerts",
+  (handlers) =>
+    Effect.gen(function*() {
+      const alerts = yield* Alerts
+      return handlers
+        .handle("settings", () => alerts.settings)
+        .handle("save", ({ payload }) => alerts.saveSettings(payload))
+    })
+)

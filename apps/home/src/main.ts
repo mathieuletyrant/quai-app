@@ -54,7 +54,10 @@ const Services = Watches.layer.pipe(
   Layer.provideMerge(Home)
 )
 
-const App = Layer.mergeAll(HttpRouter.serve(Layer.mergeAll(WebhooksLive, HomeApiLive, ConsoleRelayLive, ConsoleFilesLive)), WebhookSetupLive).pipe(
+const App = Layer.mergeAll(
+  HttpRouter.serve(Layer.mergeAll(WebhooksLive, HomeApiLive, ConsoleRelayLive, ConsoleFilesLive)),
+  WebhookSetupLive
+).pipe(
   Layer.provide(HttpLive),
   Layer.provideMerge(LinkLive),
   Layer.provideMerge(Services),

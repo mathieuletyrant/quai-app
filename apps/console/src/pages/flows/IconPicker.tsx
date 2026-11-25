@@ -1,7 +1,9 @@
 import { Glyph, icons } from "./icons.tsx"
 
 /** Every icon a flow can use, as a grid of tiles. */
-export function IconPicker({ value, color, onChange, label }: { value: string; color: string; onChange: (name: string) => void; label: string }) {
+export function IconPicker(
+  { value, color, onChange, label }: { value: string; color: string; onChange: (name: string) => void; label: string }
+) {
   return (
     <div role="radiogroup" aria-label={label} className="grid grid-cols-[repeat(auto-fill,minmax(40px,1fr))] gap-1.5">
       {icons.map((icon) => (

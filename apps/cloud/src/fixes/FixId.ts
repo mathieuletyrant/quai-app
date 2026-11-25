@@ -37,7 +37,9 @@ export const removal = (downloadItemId: string) => `removal-${downloadItemId.toL
 /** What an id names; undefined for an id Quai never made. */
 export const parse = (id: string): FixRef | undefined => {
   const blockedId = /^blocked-(radarr|sonarr)-(\d+)$/.exec(id)
-  if (blockedId !== null) return { _tag: "Blocked", service: blockedId[1] as "radarr" | "sonarr", queueId: Number(blockedId[2]) }
+  if (blockedId !== null) {
+    return { _tag: "Blocked", service: blockedId[1] as "radarr" | "sonarr", queueId: Number(blockedId[2]) }
+  }
   const movie = /^missing-movie-(\d+)$/.exec(id)
   if (movie !== null) return { _tag: "MissingMovie", movieId: Number(movie[1]) }
   const season = /^missing-season-(\d+)-(\d+)$/.exec(id)

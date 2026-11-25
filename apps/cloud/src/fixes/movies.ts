@@ -1,17 +1,17 @@
 import { InvalidFix } from "@quai/api"
 import { Effect, Option, Result } from "effect"
+import type { Read } from "../home/HomeReads.ts"
 import {
   echoed,
   epochSeconds,
   fileOf,
   grabLookbackMs,
-  grabsSincePath,
   isImportBlocked,
   knownYear,
   posterOf,
-  type QueueRecord,
+  queueMessages,
   QueuePage,
-  queueMessages
+  type QueueRecord
 } from "../integrations/arr.ts"
 import {
   type MissingMovie,
@@ -23,8 +23,13 @@ import {
 } from "../integrations/radarr.ts"
 import { type Detected, noSourceAfterMs } from "./Detected.ts"
 import * as FixId from "./FixId.ts"
-import type { Read } from "../home/HomeReads.ts"
-import { type ImportCommandFile, type ImportInput, importFileOf, type MediaFixes, type QueuedMedia } from "./MediaFixes.ts"
+import {
+  type ImportCommandFile,
+  importFileOf,
+  type ImportInput,
+  type MediaFixes,
+  type QueuedMedia
+} from "./MediaFixes.ts"
 
 /** What a movie's problem acts on: its blocked download, or the movie without a source. */
 export type MovieTarget =
@@ -104,12 +109,19 @@ export const moviesWithoutSource = (
   grabs: typeof RadarrGrabs.Type,
   nowMs: number
 ): ReadonlyArray<Detected<MovieTarget>> => {
-  const queued = new Set(queue.flatMap((record) => record.movieId === undefined || record.movieId === null ? [] : [record.movieId]))
+  const queued = new Set(
+    queue.flatMap((record) => record.movieId === undefined || record.movieId === null ? [] : [record.movieId])
+  )
   return missing.flatMap((movie): ReadonlyArray<Detected<MovieTarget>> => {
-    if (movie.hasFile === true || movie.monitored === false || movie.isAvailable !== true || queued.has(movie.id)) return []
+    if (movie.hasFile === true || movie.monitored === false || movie.isAvailable !== true || queued.has(movie.id)) {
+      return []
+    }
     const since = availableSince(movie)
     if (since === undefined || nowMs - since * 1000 < noSourceAfterMs) return []
-    const grabbed = grabs.some((grab) => grab.movieId === movie.id && (grab.eventType ?? "grabbed") === "grabbed" && (epochSeconds(grab.date) ?? 0) >= since)
+    const grabbed = grabs.some((grab) =>
+      grab.movieId === movie.id && (grab.eventType ?? "grabbed") === "grabbed" &&
+      (epochSeconds(grab.date) ?? 0) >= since
+    )
     if (grabbed) return []
     const year = knownYear(movie.year)
     const posterUrl = posterOf(movie.images)
@@ -122,7 +134,9 @@ export const moviesWithoutSource = (
         title: movie.title,
         ...(year === undefined ? {} : { year }),
         ...(posterUrl === undefined ? {} : { posterUrl }),
-        reason: added !== undefined && since > added ? "No release grabbed since it came out" : "No release grabbed since it was added",
+        reason: added !== undefined && since > added
+          ? "No release grabbed since it came out"
+          : "No release grabbed since it was added",
         since,
         actions: ["searchReleases", "ignoreAndWait"],
         missing: { episodes: [] }
@@ -139,7 +153,9 @@ export const movieImportFiles = (
   const files: Array<ImportCommandFile> = []
   for (const row of rows) {
     const movieId = row.movie?.id ?? target.movieId
-    if (movieId === undefined) return Result.fail(new InvalidFix({ message: `Radarr doesn't know which movie ${fileOf(row)} is` }))
+    if (movieId === undefined) {
+      return Result.fail(new InvalidFix({ message: `Radarr doesn't know which movie ${fileOf(row)} is` }))
+    }
     // Importing over a file would replace it: the owner's rule is no upgrades.
     if (row.movie?.hasFile === true) return Result.fail(new InvalidFix({ message: "This movie already has a file" }))
     files.push({ path: row.path!, movieId, downloadId, ...echoed(row) })

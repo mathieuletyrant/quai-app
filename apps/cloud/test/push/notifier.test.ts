@@ -111,7 +111,8 @@ describe("push to APNs", () => {
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: dev.url }
       )
-      const push = (deviceToken: string) => apns.send({ environment: "development", deviceToken, body: {}, priority: 10 })
+      const push = (deviceToken: string) =>
+        apns.send({ environment: "development", deviceToken, body: {}, priority: 10 })
       const stuck = yield* Effect.forkChild(push("silent-token"))
       yield* untilReal(() => dev.hits.length === 1)
       yield* TestClock.adjust("10 seconds")

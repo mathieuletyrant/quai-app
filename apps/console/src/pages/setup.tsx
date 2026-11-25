@@ -53,8 +53,12 @@ export function CloudChanged({ cloud, onDone }: { cloud: CloudLink; onDone: () =
       title="Quai Cloud changed: pair the iPhones again"
       action={<Button variant="secondary" size="sm" disabled={saving} onClick={done}>They're paired again</Button>}
     >
-      The iPhones were paired with <Mono>{cloud.previousUrl}</Mono>, and still talk to it. Remove them and pair them again with this Cloud. Flows, alerts and the journal are kept.{" "}
-      <span className="text-faint">(<Code>QUAI_CLOUD_URL</Code> changed.)</span>
+      The iPhones were paired with{" "}
+      <Mono>{cloud.previousUrl}</Mono>, and still talk to it. Remove them and pair them again with this Cloud. Flows,
+      alerts and the journal are kept.{" "}
+      <span className="text-faint">
+        (<Code>QUAI_CLOUD_URL</Code> changed.)
+      </span>
     </Callout>
   )
 }

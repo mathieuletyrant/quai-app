@@ -4,7 +4,6 @@ import { DeviceAuth, HomeRequired } from "./Devices.ts"
 import { Service } from "./Service.ts"
 import { TitleKind } from "./Title.ts"
 
-
 /**
  * Where a title stands:
  * - `available`: on disk (a series: some episodes have their file, and none Sonarr still looks for);
@@ -17,7 +16,8 @@ import { TitleKind } from "./Title.ts"
  * - `notMonitored`: without a file, and Radarr or Sonarr isn't looking for it (often watched,
  *   then deleted).
  */
-export const LibraryStatus = Schema.Literals(["available", "downloading", "wanted", "notAvailable", "notMonitored"]).annotate({ identifier: "LibraryStatus" })
+export const LibraryStatus = Schema.Literals(["available", "downloading", "wanted", "notAvailable", "notMonitored"])
+  .annotate({ identifier: "LibraryStatus" })
 export type LibraryStatus = typeof LibraryStatus.Type
 
 /** A series' episodes: those with a file, out of Sonarr's count of the ones it expects or holds. */
@@ -83,4 +83,5 @@ export class LibraryGroup extends HttpApiGroup.make("library")
       .middleware(DeviceAuth)
   )
   .middleware(HomeRequired)
-  .prefix("/api") {}
+  .prefix("/api")
+{}

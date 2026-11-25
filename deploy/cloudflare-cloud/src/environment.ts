@@ -22,7 +22,7 @@ const names = [
   "QUAI_APNS_TOPIC",
   "QUAI_APNS_KEY",
   "QUAI_APNS_KEY_ID",
-  "QUAI_APNS_TEAM_ID",
+  "QUAI_APNS_TEAM_ID"
 ] as const satisfies ReadonlyArray<keyof CloudSettings>
 
 /**

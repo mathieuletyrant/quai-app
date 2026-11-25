@@ -15,7 +15,8 @@ export const alertKinds: ReadonlyArray<AlertKind> = AlertKind.literals
 const renamedAlertKinds: Readonly<Record<string, AlertKind>> = { deletionPlanned: "plannedDeletion" }
 
 /** A kind as a home stored it, under its current name: `deletionPlanned` is `plannedDeletion`. */
-export const currentAlertKind = (kind: unknown): unknown => typeof kind === "string" ? renamedAlertKinds[kind] ?? kind : kind
+export const currentAlertKind = (kind: unknown): unknown =>
+  typeof kind === "string" ? renamedAlertKinds[kind] ?? kind : kind
 
 /** Which alerts are on, and their thresholds. Set in the console's Alerts page, kept by Quai Home. */
 export const AlertSettings = Schema.Struct({
@@ -78,13 +79,21 @@ export class AlertsGroup extends HttpApiGroup.make("alerts")
   .add(HttpApiEndpoint.get("active", "/alerts", { success: ActiveAlerts }).annotate(OpenApi.Identifier, "listAlerts"))
   .middleware(DeviceAuth)
   .middleware(HomeRequired)
-  .prefix("/api") {}
+  .prefix("/api")
+{}
 
 /** The console's Alerts page. */
 export class ConsoleAlertsGroup extends HttpApiGroup.make("consoleAlerts")
   .add(
-    HttpApiEndpoint.get("settings", "/alerts", { success: AlertSettings }).annotate(OpenApi.Identifier, "getAlertSettings"),
-    HttpApiEndpoint.put("save", "/alerts", { payload: AlertSettings, success: AlertSettings }).annotate(OpenApi.Identifier, "saveAlertSettings")
+    HttpApiEndpoint.get("settings", "/alerts", { success: AlertSettings }).annotate(
+      OpenApi.Identifier,
+      "getAlertSettings"
+    ),
+    HttpApiEndpoint.put("save", "/alerts", { payload: AlertSettings, success: AlertSettings }).annotate(
+      OpenApi.Identifier,
+      "saveAlertSettings"
+    )
   )
   .middleware(HomeRequired)
-  .prefix("/console-api") {}
+  .prefix("/console-api")
+{}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Cause, Effect, Exit } from "effect"
 import { HomeLink } from "../src/home/HomeLink.ts"
-import { makeFakeHome, recordedHome, settle , testLink } from "./fakeHome.ts"
+import { makeFakeHome, recordedHome, settle, testLink } from "./fakeHome.ts"
 
 describe("the fake Quai Home", () => {
   it.effect("refuses what the real allowlist refuses, as Quai Home does: Failed \"not allowed\"", () =>
@@ -14,7 +14,10 @@ describe("the fake Quai Home", () => {
         answer: recordedHome({ "radarr GET /api/v3/movie": { json: [] }, "seerr GET /api/v1/status": { json: {} } })
       })
       yield* home.connect
-      expect(yield* link.call({ service: "radarr", method: "GET", path: "/api/v3/movie" })).toEqual({ status: 200, body: "[]" })
+      expect(yield* link.call({ service: "radarr", method: "GET", path: "/api/v3/movie" })).toEqual({
+        status: 200,
+        body: "[]"
+      })
       const refusals = [
         // A path the allowlist doesn't have.
         { service: "radarr", method: "GET", path: "/api/v3/config/host" },

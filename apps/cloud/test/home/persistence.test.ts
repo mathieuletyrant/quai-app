@@ -1,5 +1,5 @@
-import { DeviceAuth, QuaiApi } from "@quai/api"
 import { describe, expect, it } from "@effect/vitest"
+import { DeviceAuth, QuaiApi } from "@quai/api"
 import { Effect, Exit } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
@@ -11,7 +11,8 @@ import { TestApp } from "../testApp.ts"
 
 const signedIn = (token: string) =>
   HttpApiTest.groups(QuaiApi, ["devices"]).pipe(
-    Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) => next(HttpClientRequest.bearerToken(request, token))))
+    Effect.provide(HttpApiMiddleware.layerClient(DeviceAuth, ({ request, next }) =>
+      next(HttpClientRequest.bearerToken(request, token))))
   )
 
 const iphone = { name: "iPhone", apnsEnvironment: "development" as const, pushToStartToken: "pts" }
@@ -24,8 +25,13 @@ describe("no home connected", () => {
     Effect.gen(function*() {
       const api = yield* HttpApiTest.groups(QuaiApi, ["console", "devices", "flows", "system", "push"])
       expect((yield* Effect.flip(api.console.devices()))._tag).toBe("HomeOffline")
-      expect(yield* Effect.flip(api.flows.list())).toMatchObject({ _tag: "HomeOffline", message: "Quai Home is not connected" })
-      expect((yield* Effect.flip(api.devices.pair({ payload: { ...iphone, code: "ABCDEFGH" } })))._tag).toBe("HomeOffline")
+      expect(yield* Effect.flip(api.flows.list())).toMatchObject({
+        _tag: "HomeOffline",
+        message: "Quai Home is not connected"
+      })
+      expect((yield* Effect.flip(api.devices.pair({ payload: { ...iphone, code: "ABCDEFGH" } })))._tag).toBe(
+        "HomeOffline"
+      )
       const phone = yield* signedIn("some-token")
       expect((yield* Effect.flip(phone.devices.activities()))._tag).toBe("HomeOffline")
       expect((yield* api.system.health()).status).toBe("ok")
@@ -56,12 +62,20 @@ describe("everything lives at home", () => {
         const unused = yield* api.console.createPairingCode({ payload: { serverUrls: [] } })
         const paired = yield* api.devices.pair({ payload: { ...iphone, code: qr.code } })
         const phone = yield* signedIn(paired.token)
-        yield* phone.devices.savePreferences({ payload: { flows: { download: { enabled: true, hiddenSteps: ["searching"] } } } })
+        yield* phone.devices.savePreferences({
+          payload: { flows: { download: { enabled: true, hiddenSteps: ["searching"] } } }
+        })
         yield* phone.devices.activityToken({ payload: { mediaKey: "download|movie:tmdb:1", pushToken: "act-1" } })
         const download = (yield* api.flows.list()).find((flow) => flow.id === "download")!
         yield* api.flows.save({ params: { id: "download" }, payload: { ...download, color: "#123456" } })
-        yield* api.flows.save({ params: { id: "anime" }, payload: { ...download, id: "anime", name: "Anime", filter: { mediaType: "series" } } })
-        yield* (yield* Activities).handle({ type: "media.added", subject: { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" } })
+        yield* api.flows.save({
+          params: { id: "anime" },
+          payload: { ...download, id: "anime", name: "Anime", filter: { mediaType: "series" } }
+        })
+        yield* (yield* Activities).handle({
+          type: "media.added",
+          subject: { kind: "media", key: "movie:tmdb:1", title: "Dune", mediaType: "movie" }
+        })
         return { ...paired, code: unused.code }
       }).pipe(Effect.provide(TestApp))
 
@@ -109,6 +123,8 @@ describe("everything lives at home", () => {
       yield* TestClock.adjust("11 minutes")
       yield* api.console.createPairingCode({ payload: { serverUrls: [] } })
       expect([...home.documents.keys()].filter((key) => key.startsWith("pairing/"))).toHaveLength(1)
-      expect((yield* Effect.flip(api.devices.pair({ payload: { ...iphone, code: old.code } })))._tag).toBe("InvalidPairingCode")
+      expect((yield* Effect.flip(api.devices.pair({ payload: { ...iphone, code: old.code } })))._tag).toBe(
+        "InvalidPairingCode"
+      )
     }).pipe(Effect.provide(TestApp)))
 })

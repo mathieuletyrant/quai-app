@@ -2,16 +2,28 @@ import type { HomeOverview } from "@quai/api"
 import { type ReactNode, StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { callHome, type LinkStatus, probeLink, refreshSession, useLink, useLinkProbe, useSession } from "./client.ts"
+import { useLoad } from "./load.ts"
 import { AlertsPage } from "./pages/Alerts.tsx"
 import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
 import { JournalPage } from "./pages/journal/JournalPage.tsx"
-import { useLoad } from "./load.ts"
-import { loadOverview } from "./pages/setup.tsx"
 import { ServicesPage } from "./pages/Services.tsx"
 import { SettingsPage } from "./pages/Settings.tsx"
+import { loadOverview } from "./pages/setup.tsx"
 import { LockedPage, SignInPage } from "./pages/SignIn.tsx"
-import { Button, Drawer, Icon, type IconName, Logo, type NavItem, NavList, Sidebar, StatusDot, type Tone, TopBar } from "./ui"
+import {
+  Button,
+  Drawer,
+  Icon,
+  type IconName,
+  Logo,
+  type NavItem,
+  NavList,
+  Sidebar,
+  StatusDot,
+  type Tone,
+  TopBar
+} from "./ui"
 import "./styles.css"
 
 /** The console is for setting Quai up, in the order it's done; living with it happens in the app. */
@@ -42,10 +54,15 @@ const cloudState = (status: LinkStatus, overview: HomeOverview | null) =>
   overview !== null && !overview.cloud.configured ? { tone: "warn" as const, text: "Not set" } : cloudLabel[status]
 
 /** What the phone top bar's dot says to screen readers: "Quai Cloud: connected". */
-const cloudDotLabel = (status: LinkStatus, overview: HomeOverview | null) => `Quai Cloud: ${cloudState(status, overview).text.toLowerCase()}`
+const cloudDotLabel = (status: LinkStatus, overview: HomeOverview | null) =>
+  `Quai Cloud: ${cloudState(status, overview).text.toLowerCase()}`
 
 /** Every destination, in the order Quai is set up. */
-const navItems: ReadonlyArray<NavItem> = (Object.keys(pages) as Array<Page>).map((id) => ({ id, label: pages[id].label, icon: pages[id].icon }))
+const navItems: ReadonlyArray<NavItem> = (Object.keys(pages) as Array<Page>).map((id) => ({
+  id,
+  label: pages[id].label,
+  icon: pages[id].icon
+}))
 
 /** "v0.12.1" for a release, the version as is otherwise ("dev"). */
 const versionLabel = (version: string) => /^\d/.test(version) ? `v${version}` : version
@@ -55,10 +72,20 @@ const homeVersion = (overview: HomeOverview | null) =>
   overview === null ? "…" : <span className="font-mono text-mini">{versionLabel(overview.version)}</span>
 
 /** One of Quai's two parts, its icon and where it stands. */
-function Part({ icon, name, tone, pulse = false, children }: { icon: IconName; name: string; tone: Tone; pulse?: boolean; children: ReactNode }) {
+function Part(
+  { icon, name, tone, pulse = false, children }: {
+    icon: IconName
+    name: string
+    tone: Tone
+    pulse?: boolean
+    children: ReactNode
+  }
+) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid size-7 shrink-0 place-items-center rounded-item bg-raised text-muted"><Icon name={icon} size={15} /></span>
+      <span className="grid size-7 shrink-0 place-items-center rounded-item bg-raised text-muted">
+        <Icon name={icon} size={15} />
+      </span>
       <div className="min-w-0 flex-1 leading-tight">
         <p className="text-small font-semibold">{name}</p>
         <p className="mt-0.5 flex items-center gap-1.5 text-caption text-muted">
@@ -94,7 +121,9 @@ function Brand() {
     <a href="#settings" className="flex items-center gap-2.5 rounded-control px-2 py-1">
       <Logo />
       <Wordmark />
-      <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">Setup</span>
+      <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">
+        Setup
+      </span>
     </a>
   )
 }
@@ -103,11 +132,17 @@ function Brand() {
 function OfflineBanner() {
   const [checking, setChecking] = useState(false)
   return (
-    <div role="status" className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-danger/25 bg-danger-soft/50 px-4 py-2.5 md:px-8">
+    <div
+      role="status"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-danger/25 bg-danger-soft/50 px-4 py-2.5 md:px-8"
+    >
       <Icon name="unlink" size={16} className="text-danger-text" />
       <p className="min-w-0 flex-1 text-body text-text-2">
         <span className="font-semibold text-text">Quai Cloud isn't reachable.</span>{" "}
-        <span className="hidden text-muted sm:inline">The services can still be set. iPhones, flows and the journal need Quai Cloud: they come back as soon as Quai Home links to it.</span>
+        <span className="hidden text-muted sm:inline">
+          The services can still be set. iPhones, flows and the journal need Quai Cloud: they come back as soon as Quai
+          Home links to it.
+        </span>
       </p>
       <Button
         variant="secondary"
@@ -127,7 +162,11 @@ function OfflineBanner() {
 
 /** The phone top bar's logo, back to the first page. */
 function HomeLink() {
-  return <a href="#settings" aria-label="Quai, Settings" className="rounded-logo"><Logo size={26} /></a>
+  return (
+    <a href="#settings" aria-label="Quai, Settings" className="rounded-logo">
+      <Logo size={26} />
+    </a>
+  )
 }
 
 function App() {
@@ -144,7 +183,9 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
 
-  const nav = (onNavigate?: () => void) => <NavList label="Console" items={navItems} current={page} onNavigate={onNavigate} />
+  const nav = (onNavigate?: () => void) => (
+    <NavList label="Console" items={navItems} current={page} onNavigate={onNavigate} />
+  )
   const footer = (
     <div className="flex flex-col gap-3">
       <Connection overview={overview.data} />
@@ -157,11 +198,15 @@ function App() {
       <TopBar
         logo={<HomeLink />}
         title={pages[page].label}
-        status={<StatusDot tone={cloudState(status, overview.data).tone} label={cloudDotLabel(status, overview.data)} />}
+        status={
+          <StatusDot tone={cloudState(status, overview.data).tone} label={cloudDotLabel(status, overview.data)} />
+        }
         menuOpen={menuOpen}
         onMenu={() => setMenuOpen(true)}
       />
-      <Drawer open={menuOpen} label="Menu" brand={<Brand />} onClose={closeMenu} footer={footer}>{nav(closeMenu)}</Drawer>
+      <Drawer open={menuOpen} label="Menu" brand={<Brand />} onClose={closeMenu} footer={footer}>
+        {nav(closeMenu)}
+      </Drawer>
 
       <main className="flex min-w-0 flex-1 flex-col">
         {status === "offline" && <OfflineBanner />}

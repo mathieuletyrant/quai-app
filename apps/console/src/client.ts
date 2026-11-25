@@ -39,11 +39,14 @@ const setHome = (status: LinkStatus) => {
 }
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
-  return () => { listeners.delete(listener) }
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
 /** Runs one call to Quai Home's own routes at the React boundary. */
-export const callHome = <A, E>(request: (client: HomeClient) => Effect.Effect<A, E>) => Effect.runPromise(Effect.flatMap(homeClient, request))
+export const callHome = <A, E>(request: (client: HomeClient) => Effect.Effect<A, E>) =>
+  Effect.runPromise(Effect.flatMap(homeClient, request))
 
 /** Runs one call to Quai Cloud's routes, through Quai Home, at the React boundary. */
 export const call = <A, E>(request: (client: Client) => Effect.Effect<A, E>) =>
@@ -75,7 +78,9 @@ export const refreshSession = () =>
 export const useSession = () =>
   useSyncExternalStore((listener) => {
     sessionListeners.add(listener)
-    return () => { sessionListeners.delete(listener) }
+    return () => {
+      sessionListeners.delete(listener)
+    }
   }, () => session)
 
 export const useLink = () => useSyncExternalStore(subscribe, () => home)
@@ -94,4 +99,3 @@ export const useLinkProbe = () => {
     }
   }, [status])
 }
-

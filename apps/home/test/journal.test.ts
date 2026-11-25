@@ -28,7 +28,18 @@ const line = (at: number, overrides: Partial<JournalEntry> = {}): JournalEntry =
 const opened = <A, E>(dir: string, use: (journal: Journal["Service"]) => Effect.Effect<A, E>) =>
   Effect.scoped(Effect.flatMap(Journal.make(join(dir, "journal")), use))
 
-const inTemp = <A, E>(test: (dir: string, fs: FileSystem.FileSystem) => Effect.Effect<A, E, FileSystem.FileSystem | Scope.Scope>) =>
+/** `opened`, with the test's steps written as a generator. */
+const withJournal = <A, E>(
+  dir: string,
+  steps: (journal: Journal["Service"]) => Generator<Effect.Effect<unknown, E>, A, never>
+) => opened(dir, (journal) => Effect.gen(() => steps(journal)))
+
+/** The texts of a page's entries, newest first. */
+const textsOf = (page: { readonly entries: ReadonlyArray<JournalEntry> }) => page.entries.map((entry) => entry.text)
+
+const inTemp = <A, E>(
+  test: (dir: string, fs: FileSystem.FileSystem) => Effect.Effect<A, E, FileSystem.FileSystem | Scope.Scope>
+) =>
   Effect.gen(function*() {
     yield* TestClock.setTime(morning)
     const dir = yield* tempDir
@@ -44,20 +55,20 @@ describe("home journal", () => {
       Effect.gen(function*() {
         const lateYesterday = line(morning - 9 * 3600_000)
         const today = line(morning)
-        yield* opened(dir, (journal) =>
-          Effect.gen(function*() {
-            yield* journal.append([lateYesterday, today])
-            expect(yield* files(fs, dir)).toEqual([])
-            yield* TestClock.adjust(Retention.flushMs)
-            // Waits for the write the timer started (the disk is real).
-            yield* journal.flush
-            expect(yield* files(fs, dir)).toEqual(["2026-11-19.jsonl", "2026-11-20.jsonl"])
-            const text = yield* fs.readFileString(join(dir, "journal", "2026-11-20.jsonl"))
-            expect(text).toBe(JSON.stringify(today) + "\n")
-          }))
+        yield* withJournal(dir, function*(journal) {
+          yield* journal.append([lateYesterday, today])
+          expect(yield* files(fs, dir)).toEqual([])
+          yield* TestClock.adjust(Retention.flushMs)
+          // Waits for the write the timer started (the disk is real).
+          yield* journal.flush
+          expect(yield* files(fs, dir)).toEqual(["2026-11-19.jsonl", "2026-11-20.jsonl"])
+          const text = yield* fs.readFileString(join(dir, "journal", "2026-11-20.jsonl"))
+          expect(text).toBe(JSON.stringify(today) + "\n")
+        })
         const again = yield* opened(dir, (journal) => journal.read({ limit: 10 }))
         expect(again.entries).toEqual([today, lateYesterday])
-      })))
+      })
+    ))
 
   it.effect("flushes what waits when it stops", () =>
     inTemp((dir) =>
@@ -65,36 +76,41 @@ describe("home journal", () => {
         const entry = line(morning)
         yield* opened(dir, (journal) => journal.append([entry]))
         expect((yield* opened(dir, (journal) => journal.read({ limit: 10 }))).entries).toEqual([entry])
-      })))
+      })
+    ))
 
   it.effect("skips a corrupted line and an id it already has", () =>
     inTemp((dir, fs) =>
       Effect.gen(function*() {
         const good = line(morning)
         yield* fs.makeDirectory(join(dir, "journal"), { recursive: true })
-        yield* fs.writeFileString(join(dir, "journal", journalFile(morning)), `${JSON.stringify(good)}\n{"id":"half\n${JSON.stringify(good)}\nnot json\n`)
+        yield* fs.writeFileString(
+          join(dir, "journal", journalFile(morning)),
+          `${JSON.stringify(good)}\n{"id":"half\n${JSON.stringify(good)}\nnot json\n`
+        )
         const page = yield* opened(dir, (journal) => journal.read({ limit: 10 }))
         expect(page.entries).toEqual([good])
         expect(parseJournal("{}\n\n").skipped).toBe(1)
-      })))
+      })
+    ))
 
   it.effect("keeps 7 days: a new day removes the oldest files", () =>
     inTemp((dir, fs) =>
       Effect.gen(function*() {
         const old = line(morning - 7 * day)
         const recent = line(morning - 6 * day)
-        yield* opened(dir, (journal) =>
-          Effect.gen(function*() {
-            yield* journal.append([old, recent])
-            yield* journal.flush
-            expect(yield* files(fs, dir)).toEqual(["2026-11-13.jsonl", "2026-11-14.jsonl"])
-            yield* TestClock.adjust(day)
-            yield* journal.append([line(morning + day)])
-            yield* journal.flush
-            expect(yield* files(fs, dir)).toEqual(["2026-11-14.jsonl", "2026-11-21.jsonl"])
-            expect((yield* journal.read({ limit: 10 })).entries.at(-1)).toEqual(recent)
-          }))
-      })))
+        yield* withJournal(dir, function*(journal) {
+          yield* journal.append([old, recent])
+          yield* journal.flush
+          expect(yield* files(fs, dir)).toEqual(["2026-11-13.jsonl", "2026-11-14.jsonl"])
+          yield* TestClock.adjust(day)
+          yield* journal.append([line(morning + day)])
+          yield* journal.flush
+          expect(yield* files(fs, dir)).toEqual(["2026-11-14.jsonl", "2026-11-21.jsonl"])
+          expect((yield* journal.read({ limit: 10 })).entries.at(-1)).toEqual(recent)
+        })
+      })
+    ))
 
   it.effect("keeps at most 5000 lines: the oldest go, their file rewritten", () =>
     inTemp((dir, fs) =>
@@ -102,19 +118,19 @@ describe("home journal", () => {
         const total = Retention.maxEntries + Retention.slack + 1
         const older = Array.from({ length: 300 }, (_, index) => line(morning - day + index))
         const newer = Array.from({ length: total - 300 }, (_, index) => line(morning + index))
-        yield* opened(dir, (journal) =>
-          Effect.gen(function*() {
-            yield* journal.append([...older, ...newer])
-            yield* journal.flush
-            const page = yield* journal.read({ limit: 1, before: newer[0]!.id })
-            expect(page.entries).toEqual([older.at(-1)])
-          }))
+        yield* withJournal(dir, function*(journal) {
+          yield* journal.append([...older, ...newer])
+          yield* journal.flush
+          const page = yield* journal.read({ limit: 1, before: newer[0]!.id })
+          expect(page.entries).toEqual([older.at(-1)])
+        })
         const kept = parseJournal(yield* fs.readFileString(join(dir, "journal", journalFile(older[0]!.at)))).entries
         expect(kept).toHaveLength(Retention.maxEntries - newer.length)
         expect(kept.at(-1)).toEqual(older.at(-1))
         const reopened = yield* opened(dir, (journal) => journal.read({ limit: 200, before: newer[0]!.id }))
         expect(reopened.entries).toHaveLength(Retention.maxEntries - newer.length)
-      })))
+      })
+    ))
 
   it.effect("reads pages newest first with the filters, Cloud's lines and Home's own together", () =>
     inTemp((dir) =>
@@ -125,14 +141,18 @@ describe("home journal", () => {
           yield* TestClock.adjust(1000)
           yield* journal.note({ level: "warn", source: "home", kind: "call.refused", text: "refused" })
           const all = yield* journal.read({ limit: 10 })
-          expect(all.entries.map((entry) => entry.text)).toEqual(["refused", grabbed.text])
+          expect(textsOf(all)).toEqual(["refused", grabbed.text])
           expect(all.entries[0]!.id).toMatch(/-h/)
-          expect((yield* journal.read({ limit: 10, level: "warn" })).entries.map((entry) => entry.text)).toEqual(["refused"])
+          expect(textsOf(yield* journal.read({ limit: 10, level: "warn" }))).toEqual(["refused"])
           expect((yield* journal.read({ limit: 10, subject: "movie:tmdb:1" })).entries).toEqual([grabbed])
           expect((yield* journal.read({ limit: 1 })).more).toBe(true)
           expect(yield* journal.noted).toHaveLength(1)
-        }))))
+        }))
+    ))
 })
+
+/** An entry as the journal lines' test reads it: its level, its source and its text. */
+const lineText = (entry: JournalEntry) => `${entry.level} ${entry.source} ${entry.text}`
 
 describe("home journal lines", () => {
   it.effect("a refused call, a service that stops answering and comes back: once per streak", () =>
@@ -148,19 +168,26 @@ describe("home journal lines", () => {
         yield* Effect.gen(function*() {
           const calls = yield* Calls
           const journal = yield* Journal
-          const status = { _tag: "Call", id: "r", service: "radarr", method: "GET", path: "/api/v3/system/status" } as const
+          const status = {
+            _tag: "Call",
+            id: "r",
+            service: "radarr",
+            method: "GET",
+            path: "/api/v3/system/status"
+          } as const
           yield* calls.run({ ...status, path: "/api/v3/config/host?apikey=x" })
           yield* calls.run(status)
           yield* calls.run(status)
           up = true
           yield* calls.run(status)
           yield* calls.run(status)
-          const texts = (yield* journal.read({ limit: 10 })).entries.map((entry) => `${entry.level} ${entry.source} ${entry.text}`).reverse()
+          const texts = (yield* journal.read({ limit: 10 })).entries.map(lineText).reverse()
           expect(texts).toEqual([
             "warn radarr Quai Home refused a call outside its allowlist: Radarr GET /api/v3/config/host",
             "warn radarr Quai Home can't reach Radarr: unreachable",
             "info radarr Quai Home reaches Radarr again"
           ])
         }).pipe(Effect.provide(layer))
-      })))
+      })
+    ))
 })

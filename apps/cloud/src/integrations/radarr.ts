@@ -2,10 +2,18 @@ import type { DiskSpace, LibraryItem } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { knownId, movieKey } from "../flows/Events.ts"
-import { ArrImage, epochSeconds, grabsSincePath, importBlockedDetail, knownYear, posterOf, queuePageSize } from "./arr.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
-import type { Integration } from "./Integration.ts"
 import * as LibraryId from "../library/LibraryId.ts"
+import {
+  ArrImage,
+  epochSeconds,
+  grabsSincePath,
+  importBlockedDetail,
+  knownYear,
+  posterOf,
+  queuePageSize
+} from "./arr.ts"
+import type { Integration } from "./Integration.ts"
 
 const Movie = Schema.Struct({
   title: Schema.String,
@@ -59,7 +67,9 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
 export const decodeRadarrWebhook = Schema.decodeUnknownEffect(RadarrWebhook)
 
 /** A movie by its TMDB id, for Radarr's own verdict on it: "Missing" or "Not Available". */
-export const movieAvailabilityRead = (tmdbId: number): Read<ReadonlyArray<{ readonly isAvailable?: boolean | undefined }>> => ({
+export const movieAvailabilityRead = (
+  tmdbId: number
+): Read<ReadonlyArray<{ readonly isAvailable?: boolean | undefined }>> => ({
   service: "radarr",
   path: `/api/v3/movie?tmdbId=${tmdbId}`,
   schema: Schema.Array(Schema.Struct({ isAvailable: Schema.optional(Schema.Boolean) }))
@@ -117,7 +127,11 @@ export const RadarrMovies = Schema.Array(LibraryMovie)
 export type RadarrMovie = typeof LibraryMovie.Type
 
 /** Every movie: the library, the posters of Reclaimerr's deletions, Upcoming's space back. */
-export const radarrMoviesRead: Read<typeof RadarrMovies.Type> & { readonly service: "radarr" } = { service: "radarr", path: "/api/v3/movie", schema: RadarrMovies }
+export const radarrMoviesRead: Read<typeof RadarrMovies.Type> & { readonly service: "radarr" } = {
+  service: "radarr",
+  path: "/api/v3/movie",
+  schema: RadarrMovies
+}
 
 export const DiskSpaces = Schema.Array(Schema.Struct({
   path: Schema.optional(Schema.String),
@@ -175,7 +189,8 @@ export const mediaDisk = (disks: typeof DiskSpaces.Type): DiskSpace | undefined 
 // The To fix list's reads (fixes/movies.ts): the queue (blocked imports), the movies still without
 // a file, and the grabs that happened for them.
 
-export const radarrQueuePath = `/api/v3/queue?page=1&pageSize=${queuePageSize}&includeUnknownMovieItems=true&includeMovie=true`
+export const radarrQueuePath =
+  `/api/v3/queue?page=1&pageSize=${queuePageSize}&includeUnknownMovieItems=true&includeMovie=true`
 
 /** Monitored movies without a file. One page: a home rarely misses a thousand. */
 export const radarrMissingPath = "/api/v3/wanted/missing?page=1&pageSize=1000&monitored=true"
@@ -209,7 +224,11 @@ export const RadarrGrabs = Schema.Array(Schema.Struct({
 }))
 
 /** The grabs since `ms`: what To fix knows was grabbed, what Upcoming ties each torrent to. */
-export const radarrGrabsRead = (ms: number): Read<typeof RadarrGrabs.Type> & { readonly service: "radarr" } => ({ service: "radarr", path: grabsSincePath(ms), schema: RadarrGrabs })
+export const radarrGrabsRead = (ms: number): Read<typeof RadarrGrabs.Type> & { readonly service: "radarr" } => ({
+  service: "radarr",
+  path: grabsSincePath(ms),
+  schema: RadarrGrabs
+})
 
 // Today's releases: the movies out today, `GET /api/v3/calendar`.
 
@@ -218,7 +237,9 @@ export const radarrGrabsRead = (ms: number): Read<typeof RadarrGrabs.Type> & { r
  * UTC): the caller asks a little wider and keeps those whose day is the home's.
  */
 export const radarrCalendarPath = (startMs: number, endMs: number) =>
-  `/api/v3/calendar?start=${encodeURIComponent(new Date(startMs).toISOString())}&end=${encodeURIComponent(new Date(endMs).toISOString())}&unmonitored=false`
+  `/api/v3/calendar?start=${encodeURIComponent(new Date(startMs).toISOString())}&end=${
+    encodeURIComponent(new Date(endMs).toISOString())
+  }&unmonitored=false`
 
 export const RadarrCalendar = Schema.Array(Schema.Struct({
   id: Schema.Number,
