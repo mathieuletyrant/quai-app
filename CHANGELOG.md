@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.28.0](https://github.com/mathieuletyrant/quai-app/compare/v0.27.6...v0.28.0) (2026-11-25)
+
+
+### ✨ Features
+
+* Upcoming, what the stack will do on its own ([#114](https://github.com/mathieuletyrant/quai-app/issues/114)) ([f259e78](https://github.com/mathieuletyrant/quai-app/commit/f259e787bdbe427ffe2f6351460f2e30f5ff5e5d))
+
+
+### 🐛 Fixes
+
+* **flows:** a download that trickles at 0 % turns grey ([#112](https://github.com/mathieuletyrant/quai-app/issues/112)) ([04cf0dd](https://github.com/mathieuletyrant/quai-app/commit/04cf0ddbf5be5638dd38919b1157ff228435fe45))
+* **ios:** remove the "Search in Quai" Siri shortcut ([#116](https://github.com/mathieuletyrant/quai-app/issues/116)) ([5f78822](https://github.com/mathieuletyrant/quai-app/commit/5f78822b342bbab12b10237e015cc32a25467d75))
+
 ## [0.27.6](https://github.com/mathieuletyrant/quai-app/compare/v0.27.5...v0.27.6) (2026-11-25)
 
 
