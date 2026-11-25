@@ -162,7 +162,7 @@ runs what they share (finding a problem again, what the user hid, the writes), R
 deletions and Cleanuparr's removals; each adapter also names a download in its queue
 (`queued`), which is how a Cleanuparr download gets its title and poster. Fix ids are made and read by `fixes/FixId.ts` only.
 
-| Problem | Rule | Fixes |
+| Fix | Rule | Actions |
 | --- | --- | --- |
 | Import blocked | A queue item at `importBlocked`, or `importPending` with a warning | Remove (`DELETE /api/v3/queue/{id}`, optionally blocklisted, never searched again); Import anyway (`ManualImport` of the files as matched, or to the episode chosen, never over a file) |
 | No source | Monitored, available (aired), no file, nothing in the queue, no grab since, for 2 hours (since it was added or came out; grabs read 30 days back) | Search releases (interactive search; for a season, only releases covering nothing but missing episodes) and Grab; Ignore and wait (until a release is grabbed, or some days) |
