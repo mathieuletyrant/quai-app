@@ -81,15 +81,16 @@ struct HomeView: View {
 
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
-        fixes.isEmpty && requests.isEmpty && upcomingToday.isEmpty && alerts.isEmpty
+        fixes.isEmpty && requests.isEmpty && upcomingToday.isEmpty && alerts.isEmpty && !upcomingLoading
     }
+
+    private var upcomingLoading: Bool { connection.upcoming == nil && connection.upcomingError == nil }
 
     /// The first reads haven't answered yet (a failed one counts as answered): the Home shows the
     /// tiles' shapes instead of "All quiet" and tiles popping in one by one.
     private var isLoading: Bool {
         (connection.fixes == nil && connection.fixesError == nil)
             || (connection.requests == nil && connection.requestsError == nil)
-            || (connection.upcoming == nil && connection.upcomingError == nil)
     }
 
     var body: some View {
@@ -107,6 +108,7 @@ struct HomeView: View {
                     }
                 }
                 .animation(.smooth(duration: 0.35), value: isLoading)
+                .animation(.smooth(duration: 0.35), value: upcomingLoading)
                 .animation(.smooth(duration: 0.35), value: connection.library == nil)
             }
             // At home the server answers at once: the spinner only shows a search that takes a while.
@@ -158,9 +160,13 @@ struct HomeView: View {
             NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
                 .buttonStyle(.plain)
         }
-        if let upcoming, !upcoming.items.isEmpty {
+        if upcomingLoading {
+            SkeletonTile(rows: 2)
+                .transition(.opacity)
+        } else if let upcoming, !upcoming.items.isEmpty {
             NavigationLink { UpcomingView() } label: { UpcomingTile(upcoming: upcoming) }
                 .buttonStyle(.plain)
+                .transition(.opacity)
         }
         if !alerts.isEmpty {
             AlertsTile(alerts: alerts)

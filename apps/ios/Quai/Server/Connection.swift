@@ -229,10 +229,12 @@ final class Connection {
 
     private func readActivities() async throws {
         let client = try await requiredClient()
-        activities = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        let read = pendingPlayback.apply(to: try await client.listActivities().ok.body.json)
+        // Before they show: a request's activity read as media would flash in the live bar.
+        await learnSubjects(of: read)
+        activities = read
         lastError = nil
         hasAnswered = true
-        await learnSubjects()
     }
 
     /// The app is back in front: a search started before it was suspended has had its requests
@@ -252,7 +254,7 @@ final class Connection {
     }
 
     /// A flow seen for the first time (a new custom one, or the first refresh): learn what it follows.
-    private func learnSubjects() async {
+    private func learnSubjects(of activities: [RunningActivity]) async {
         guard activities.contains(where: { flowSubjects[$0.attributes.flowId] == nil }),
               let all = try? await flows()
         else { return }
