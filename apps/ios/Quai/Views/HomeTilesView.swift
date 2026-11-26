@@ -17,29 +17,6 @@ enum HomeTile: String, CaseIterable, Identifiable {
         case .storage: "Storage"
         }
     }
-
-    var systemImage: String {
-        switch self {
-        case .toFix: "wrench.and.screwdriver.fill"
-        case .requests: "person.crop.circle.badge.questionmark"
-        case .upcoming: "calendar"
-        case .alerts: "exclamationmark.triangle.fill"
-        case .recentlyAdded: "sparkles"
-        case .wanted: "magnifyingglass"
-        case .storage: "internaldrive.fill"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .toFix: Palette.toFix
-        case .requests: Palette.requests
-        case .upcoming: Palette.releases
-        case .alerts: Palette.alert
-        case .recentlyAdded, .wanted: Palette.accent
-        case .storage: Palette.accent
-        }
-    }
 }
 
 /// One row of the Home: a tile, or Recently added and Wanted side by side.
@@ -91,6 +68,26 @@ struct HomeLayout: Equatable {
     /// The row's tiles this iPhone shows; none: the row is hidden.
     func shown(_ row: HomeRow) -> [HomeTile] { row.tiles.filter { !hidden.contains($0) } }
 
+    /// The rows on the Home, in order: those with a tile shown.
+    var shownRows: [HomeRow] { rows.filter { !shown($0).isEmpty } }
+
+    /// The hidden tiles, in the rows' order: one by one, Recently added and Wanted apart.
+    var hiddenTiles: [HomeTile] { rows.flatMap(\.tiles).filter(hidden.contains) }
+
+    /// With every tile of this row hidden.
+    func hiding(_ row: HomeRow) -> HomeLayout { HomeLayout(rows: rows, hidden: hidden.union(row.tiles)) }
+
+    /// With this tile back on the Home, where its row is.
+    func showing(_ tile: HomeTile) -> HomeLayout { HomeLayout(rows: rows, hidden: hidden.subtracting([tile])) }
+
+    /// With the shown rows moved as a list does; the hidden rows keep their place among them.
+    func moving(from source: IndexSet, to destination: Int) -> HomeLayout {
+        var moved = shownRows
+        moved.move(fromOffsets: source, toOffset: destination)
+        var next = moved.makeIterator()
+        return HomeLayout(rows: rows.map { shown($0).isEmpty ? $0 : next.next() ?? $0 }, hidden: hidden)
+    }
+
     /// As the preferences keep it: every tile in order, the hidden ones by name.
     var preferences: Components.Schemas.HomeTiles {
         .init(
@@ -100,8 +97,8 @@ struct HomeLayout: Equatable {
     }
 }
 
-/// Settings → Home tiles: the Home's rows in this iPhone's order, dragged by their handle, and a
-/// switch per tile. Saved in the iPhone's preferences, on the server.
+/// Settings → Home tiles: the rows on the Home, dragged by their handle and hidden with −, then
+/// the hidden tiles, put back with +. Saved in the iPhone's preferences, on the server.
 struct HomeTilesView: View {
     @Environment(Connection.self) private var connection
     @State private var preferences: Components.Schemas.DevicePreferences?
@@ -111,32 +108,24 @@ struct HomeTilesView: View {
     var body: some View {
         List {
             Section {
-                ForEach(layout.rows) { row in
-                    VStack(spacing: 10) {
-                        ForEach(row.tiles) { tile in
-                            Toggle(isOn: shows(tile)) {
-                                HStack(spacing: 12) {
-                                    SymbolSquare(systemImage: tile.systemImage, color: tile.color, size: 30)
-                                    Text(tile.title)
-                                        .font(QuaiFont.body)
-                                        .foregroundStyle(Palette.primaryText)
-                                }
-                            }
-                        }
+                ForEach(layout.shownRows) { row in
+                    TileEditRow(title: title(row), pair: row == .highlights, action: .hide) {
+                        save(layout.hiding(row))
                     }
-                    .padding(.vertical, 4)
-                    .accessibilityElement(children: .contain)
-                    .listRowBackground(Palette.tile)
                 }
-                .onMove { from, to in
-                    var rows = layout.rows
-                    rows.move(fromOffsets: from, toOffset: to)
-                    save(HomeLayout(rows: rows, hidden: layout.hidden))
-                }
+                .onMove { from, to in save(layout.moving(from: from, to: to)) }
             } header: {
-                Text("Drag to reorder")
+                Text("On the Home")
             } footer: {
-                Text("A tile with nothing to show stays out of the Home, wherever it is. Recently added and Wanted share a row.")
+                Text("A tile with nothing to show stays out of the Home, wherever it is.")
+            }
+            if !layout.hiddenTiles.isEmpty {
+                Section("Hidden") {
+                    ForEach(layout.hiddenTiles) { tile in
+                        TileEditRow(title: tile.title, pair: false, action: .show) { save(layout.showing(tile)) }
+                            .moveDisabled(true)
+                    }
+                }
             }
             if layout != .standard {
                 Section {
@@ -156,21 +145,16 @@ struct HomeTilesView: View {
         .scrollContentBackground(.hidden)
         .background(Palette.background.ignoresSafeArea())
         .disabled(preferences == nil)
+        .animation(.smooth(duration: 0.25), value: layout)
         .navigationTitle("Home tiles")
         .navigationBarTitleDisplayMode(.large)
         .toolbar(.visible, for: .navigationBar)
         .task { await load() }
     }
 
-    private func shows(_ tile: HomeTile) -> Binding<Bool> {
-        Binding(
-            get: { !layout.hidden.contains(tile) },
-            set: { on in
-                var hidden = layout.hidden
-                if on { hidden.remove(tile) } else { hidden.insert(tile) }
-                save(HomeLayout(rows: layout.rows, hidden: hidden))
-            }
-        )
+    /// A row's name: its tiles shown, "Recently added · Wanted" for the pair.
+    private func title(_ row: HomeRow) -> String {
+        layout.shown(row).map(\.title).joined(separator: " · ")
     }
 
     private func load() async {
@@ -197,5 +181,41 @@ struct HomeTilesView: View {
                 status = error.message(replacing: status)
             }
         }
+    }
+}
+
+/// One row of the Home tiles list: − to hide what's on the Home, + to put a hidden tile back.
+private struct TileEditRow: View {
+    enum Action { case hide, show }
+
+    let title: String
+    /// Recently added and Wanted, one row of two squares on the Home.
+    let pair: Bool
+    let action: Action
+    let perform: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: perform) {
+                Image(systemName: action == .hide ? "minus.circle.fill" : "plus.circle.fill")
+                    .font(.system(size: 22))
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, action == .hide ? Palette.alert : Palette.ok)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(action == .hide ? "Hide \(title)" : "Show \(title)")
+            Text(title)
+                .font(QuaiFont.body)
+                .foregroundStyle(action == .hide ? Palette.primaryText : Palette.secondaryText)
+            if pair {
+                Image(systemName: "square.split.2x1")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Palette.tertiaryText)
+                    .accessibilityLabel("two square tiles side by side")
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(minHeight: 44)
+        .listRowBackground(Palette.tile)
     }
 }
