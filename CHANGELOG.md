@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/mathieuletyrant/quai-app/compare/v2.1.0...v2.2.0) (2026-11-26)
+
+
+### ✨ Features
+
+* each iPhone orders and hides its Home tiles ([#157](https://github.com/mathieuletyrant/quai-app/issues/157)) ([06ddc05](https://github.com/mathieuletyrant/quai-app/commit/06ddc0576841d24b65003d1d4c8699e3c6d36470))
+
+
+### 🐛 Fixes
+
+* **ios:** show what comes and what goes next on the Upcoming tile ([#158](https://github.com/mathieuletyrant/quai-app/issues/158)) ([bbb664b](https://github.com/mathieuletyrant/quai-app/commit/bbb664be4abb5c616c272a96b5b3a3711542f1eb))
+
 ## [2.1.0](https://github.com/mathieuletyrant/quai-app/compare/v2.0.0...v2.1.0) (2026-11-26)
 
 
