@@ -4,25 +4,53 @@ import UserNotifications
 typealias AlertKind = Components.Schemas.AlertKind
 typealias GoneKind = Components.Schemas.GoneKind
 
-extension AlertKind {
-    var label: String {
-        switch self {
-        case .serviceDown: "A service stops answering"
-        case .diskLow: "The media disk runs low"
-        case .arrHealth: "Radarr, Sonarr or Prowlarr report a problem"
-        case .plannedDeletion: "Reclaimerr plans to delete a title"
-        }
-    }
+/// What a notification setting is about, as Upcoming names a service over its row: who, in
+/// the color of what it means (red for what's wrong, orange for what goes).
+protocol NotificationTopic {
+    var service: String { get }
+    var label: String { get }
+    var tint: Color { get }
 }
 
-extension GoneKind {
-    var label: String {
+extension AlertKind: NotificationTopic {
+    var service: String {
         switch self {
-        case .plannedDeletion: "Reclaimerr deleted a title"
-        case .stuckRemoval: "Cleanuparr removed a stuck download"
-        case .seedCleanup: "Cleanuparr cleaned a torrent after seeding"
+        case .serviceDown: "Any service"
+        case .diskLow: "Radarr · Sonarr"
+        case .arrHealth: "Radarr · Sonarr · Prowlarr"
+        case .plannedDeletion: "Reclaimerr"
         }
     }
+
+    var label: String {
+        switch self {
+        case .serviceDown: "Stops answering"
+        case .diskLow: "The media disk runs low"
+        case .arrHealth: "Report a problem"
+        case .plannedDeletion: "Plans to delete a title"
+        }
+    }
+
+    var tint: Color { self == .plannedDeletion ? Palette.toFix : Palette.alert }
+}
+
+extension GoneKind: NotificationTopic {
+    var service: String {
+        switch self {
+        case .plannedDeletion: "Reclaimerr"
+        case .stuckRemoval, .seedCleanup: "Cleanuparr"
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .plannedDeletion: "Deleted a title"
+        case .stuckRemoval: "Removed a stuck download"
+        case .seedCleanup: "Cleaned a torrent after seeding"
+        }
+    }
+
+    var tint: Color { Palette.toFix }
 }
 
 /// Settings → Notifications: which alerts this iPhone is notified of, and what it hears once gone.
@@ -48,7 +76,7 @@ struct NotificationSettingsView: View {
                 if let preferences {
                     GroupedSection(header: "Alerts", footer: "Each alert sends one notification when it starts and one when it's over. These settings are only for this iPhone: the alerts are set up in Quai's console.") {
                         ForEach(AlertKind.allCases, id: \.self) { kind in
-                            NotificationToggle(label: kind.label, isOn: Binding(
+                            NotificationToggle(topic: kind, isOn: Binding(
                                 get: { !(preferences.mutedAlerts ?? []).contains(kind) },
                                 set: { on in update(kind, on: on) }
                             ))
@@ -56,7 +84,7 @@ struct NotificationSettingsView: View {
                     }
                     GroupedSection(header: "Gone", footer: "One notification when something Upcoming showed as going has gone. Off until you turn it on, only for this iPhone.") {
                         ForEach(GoneKind.allCases, id: \.self) { kind in
-                            NotificationToggle(label: kind.label, isOn: Binding(
+                            NotificationToggle(topic: kind, isOn: Binding(
                                 get: { (preferences.gone ?? []).contains(kind) },
                                 set: { on in update(kind, on: on) }
                             ))
@@ -121,16 +149,26 @@ struct NotificationSettingsView: View {
     }
 }
 
+/// A setting's toggle: its service over what it notifies, like a row of Upcoming.
 private struct NotificationToggle: View {
-    let label: String
+    let topic: any NotificationTopic
     @Binding var isOn: Bool
 
     var body: some View {
         Toggle(isOn: $isOn) {
-            Text(label).font(QuaiFont.body).foregroundStyle(Palette.primaryText)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(topic.service.uppercased())
+                    .font(QuaiFont.tag)
+                    .tracking(0.6)
+                    .foregroundStyle(topic.tint)
+                Text(topic.label)
+                    .font(QuaiFont.body)
+                    .foregroundStyle(Palette.primaryText)
+            }
         }
         .tint(.quaiAccent)
         .padding(.horizontal, 14)
-        .frame(minHeight: 52)
+        .padding(.vertical, 10)
+        .frame(minHeight: 62)
     }
 }

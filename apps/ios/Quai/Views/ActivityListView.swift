@@ -119,9 +119,15 @@ private struct JournalSection: View {
         if !connection.journal.isEmpty {
             SectionHeader(title: "History")
                 .padding(.top, 8)
-            Card(spacing: 12) {
-                ForEach(connection.journal, id: \.id) { entry in
-                    JournalRow(entry: entry)
+            Card(spacing: 16) {
+                ForEach(JournalDay.days(connection.journal)) { day in
+                    Text(day.title.uppercased())
+                        .font(QuaiFont.caption.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                        .accessibilityAddTraits(.isHeader)
+                    ForEach(day.entries, id: \.id) { entry in
+                        JournalRow(entry: entry)
+                    }
                 }
                 if connection.journalHasMore {
                     Button {
