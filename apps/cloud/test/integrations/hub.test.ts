@@ -8,6 +8,7 @@ import { type Integration, Integrations } from "../../src/integrations/Integrati
 import { qbittorrent } from "../../src/integrations/qbittorrent.ts"
 import { radarr } from "../../src/integrations/radarr.ts"
 import { Apns } from "../../src/push/Apns.ts"
+import { DiskReadings } from "../../src/storage/DiskReadings.ts"
 import { cloud, makeFakeHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
@@ -27,7 +28,9 @@ const probe: Integration = {
   actions: {}
 }
 
-const layer = (integrations: ReadonlyArray<Integration | Effect.Effect<Integration, never, HomeReads>>) =>
+const layer = (
+  integrations: ReadonlyArray<Integration | Effect.Effect<Integration, never, HomeReads | DiskReadings>>
+) =>
   cloud(
     Layer.effect(
       Integrations,

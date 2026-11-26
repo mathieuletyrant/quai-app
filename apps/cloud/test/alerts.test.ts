@@ -7,7 +7,7 @@ import { deviceKey, Devices } from "../src/home/Devices.ts"
 import { HomeDocuments } from "../src/home/HomeLink.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
 import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
-import { diskDetail, diskState } from "../src/integrations/disk.ts"
+import { diskDetail, diskState, diskStates, mountsWatchId } from "../src/integrations/disk.ts"
 import { deletionsState, deletionsWatchId } from "../src/integrations/plannedDeletionAlert.ts"
 import { CandidatePage, reasonSummary } from "../src/integrations/reclaimerr.ts"
 import { Apns } from "../src/push/Apns.ts"
@@ -33,6 +33,9 @@ const diskAt = (
   totalSpace: 2 * tera
 }]
 
+/** A home's one media disk; tests set its space. */
+const mediaDisk = { id: "d1000", name: "Movies", holds: ["movies" as const] }
+
 describe("alerts", () => {
   it("a reading starts what's new, ends what's gone, keeps the rest with its first time", () => {
     const first = reconcile([], radarrDown, 1000)
@@ -48,11 +51,27 @@ describe("alerts", () => {
   })
 
   it("the disk: low under the threshold, over 2 points above it, nothing in between", () => {
-    const at = (percent: number) => ({ freeBytes: percent * 1e10, totalBytes: 1e12 })
+    const at = (percent: number) => ({ ...mediaDisk, freeBytes: percent * 1e10, totalBytes: 1e12 })
     expect(diskState(at(9), 10)?.raised.map((raised) => raised.detail)).toEqual(["90 GB free (9%)"])
     expect(diskState(at(11), 10)).toBeNull()
     expect(diskState(at(12), 10)?.raised).toEqual([])
     expect(diskDetail({ freeBytes: 1.25e12, totalBytes: 2e12 })).toBe("1.3 TB free (62%)")
+  })
+
+  it("one media disk keeps the alert it always had; several are each their own, by what they hold", () => {
+    const movies = { ...mediaDisk, freeBytes: 5e10, totalBytes: 1e12 }
+    expect(diskStates([movies], 10).map((state) => [state.scope, state.raised[0]?.title])).toEqual([
+      ["disk", "The media disk is running low"]
+    ])
+    const shows = { id: "d2000", name: "Shows", holds: ["shows" as const], freeBytes: 1.1e11, totalBytes: 1e12 }
+    const states = diskStates([movies, { ...shows, freeBytes: 5e11 }], 10)
+    expect(states.map((state) => [state.scope, state.raised.map((raised) => [raised.title, raised.over])])).toEqual([
+      ["disk:d1000", [["The Movies disk is running low", "The Movies disk has room again"]]],
+      ["disk:d2000", []]
+    ])
+    // Between the threshold and 2 points above it, a disk's alert stays as it is.
+    expect(diskStates([movies, shows], 10).map((state) => state.scope)).toEqual(["disk:d1000"])
+    expect(diskStates([], 10)).toEqual([])
   })
 
   it.effect("an *arr's own problems, from the alert's level up, told apart by their check", () =>
@@ -165,7 +184,7 @@ describe("alerts", () => {
       yield* home.connect
       const alerts = yield* Alerts
       yield* alerts.apply(radarrDown)
-      yield* alerts.apply(diskState({ freeBytes: 4e10, totalBytes: 2e12 }, 10)!)
+      yield* alerts.apply(diskState({ ...mediaDisk, freeBytes: 4e10, totalBytes: 2e12 }, 10)!)
       const active = yield* alerts.active
       expect(active.items.map((alert) => [alert.kind, alert.source])).toEqual([
         ["serviceDown", "radarr"],
@@ -249,11 +268,11 @@ describe("alerts", () => {
         yield* pair("iPad", null)
 
         const watched = home.state.watches.map((watch) => `${watch.id} ${watch.service} ${watch.path}`)
-        expect(watched).toContain("disk:space radarr /api/v3/diskspace")
+        expect(watched).toContain("disk:radarr:space radarr /api/v3/diskspace")
         expect(watched).toContain("arr-health:prowlarr prowlarr /api/v1/health")
         expect(watched).toContain("health:prowlarr prowlarr /api/v1/system/status")
 
-        yield* home.snapshot("disk:space", diskAt(4))
+        yield* home.snapshot(mountsWatchId("radarr"), diskAt(4))
         expect(apple.hits.map((delivered) => delivered.path).sort()).toEqual([
           "/3/device/note-julie",
           "/3/device/note-mathieu"
@@ -274,12 +293,12 @@ describe("alerts", () => {
         expect(home.documents.has("alerts/active")).toBe(true)
 
         // Still low: the text follows, nobody is notified again.
-        yield* home.snapshot("disk:space", diskAt(3))
+        yield* home.snapshot(mountsWatchId("radarr"), diskAt(3))
         expect(apple.hits).toHaveLength(2)
         expect((yield* alerts.active).items[0]?.detail).toBe("60 GB free (3%)")
-        yield* home.snapshot("disk:space", diskAt(11))
+        yield* home.snapshot(mountsWatchId("radarr"), diskAt(11))
         expect(apple.hits).toHaveLength(2)
-        yield* home.snapshot("disk:space", diskAt(12))
+        yield* home.snapshot(mountsWatchId("radarr"), diskAt(12))
         expect(apple.hits.slice(2).map((delivered) => delivered.body.aps.alert.title)).toEqual([
           "The media disk has room again",
           "The media disk has room again"

@@ -16,6 +16,7 @@ import { AppJournalHandlers, JournalHandlers } from "../src/http/JournalHandlers
 import { LibraryHandlers } from "../src/http/LibraryHandlers.ts"
 import { PushHandlers } from "../src/http/PushHandlers.ts"
 import { RequestsHandlers } from "../src/http/RequestsHandlers.ts"
+import { StorageHandlers } from "../src/http/StorageHandlers.ts"
 import { SystemHandlers } from "../src/http/SystemHandlers.ts"
 import { UpcomingHandlers } from "../src/http/UpcomingHandlers.ts"
 import { IntegrationsLive } from "../src/integrations/All.ts"
@@ -24,6 +25,7 @@ import { Library } from "../src/library/Library.ts"
 import { PublicAccess } from "../src/PublicAccess.ts"
 import { Apns } from "../src/push/Apns.ts"
 import { Requests } from "../src/requests/Requests.ts"
+import { Storage } from "../src/storage/Storage.ts"
 import { Upcoming } from "../src/upcoming/Upcoming.ts"
 import { ServerInfo } from "../src/Version.ts"
 import { cloud, linkDroppingOn, makeFakeHome, testLink } from "./fakeHome.ts"
@@ -37,6 +39,7 @@ export const testAppWith = <E>(
     SystemHandlers,
     DevicesHandlers,
     LibraryHandlers,
+    StorageHandlers,
     FixesHandlers,
     RequestsHandlers,
     UpcomingHandlers,
@@ -54,6 +57,7 @@ export const testAppWith = <E>(
       Layer.mergeAll(
         TestRunner.layer,
         Library.layer,
+        Storage.layer,
         Fixes.layer,
         Requests.layer.pipe(Layer.provide(Seerr.layer)),
         Upcoming.layer

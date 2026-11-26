@@ -28,15 +28,7 @@ import {
   Users
 } from "../src/integrations/jellyfin.ts"
 import { progressEvent, Torrents } from "../src/integrations/qbittorrent.ts"
-import {
-  DiskSpaces,
-  libraryMovie,
-  mediaDisk,
-  RadarrCalendar,
-  RadarrGrabs,
-  RadarrMissing,
-  RadarrMovies
-} from "../src/integrations/radarr.ts"
+import { libraryMovie, RadarrCalendar, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
 import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../src/integrations/reclaimerr.ts"
 import {
   searchResults,
@@ -59,6 +51,7 @@ import {
   SonarrSeries
 } from "../src/integrations/sonarr.ts"
 import { dayReleases } from "../src/releases/ReleaseDays.ts"
+import { DiskSpaces, mediaDisks } from "../src/storage/MediaDisks.ts"
 import { fixture } from "./fixtures.ts"
 
 const real = <A, I>(schema: Schema.Codec<A, I>, path: string) =>
@@ -197,10 +190,15 @@ describe("the library", () => {
       // Seasons 1 to 3 aren't monitored: only the missing aired episode of season 4 counts.
       ["Tracker (2024)", "wanted", { have: 6, total: 7 }]
     ])
-    expect(mediaDisk(real(DiskSpaces, "real/radarr/diskspace"))).toEqual({
+    // One disk, seen three times (`/`, `/config`, `/downloads`), by Radarr and Sonarr alike.
+    const mounts = real(DiskSpaces, "real/radarr/diskspace")
+    expect(mediaDisks([{ service: "radarr", mounts }, { service: "sonarr", mounts }])).toEqual([{
+      id: "d1963188352000",
+      name: "Movies · Shows",
+      holds: ["movies", "shows"],
       freeBytes: 786623759360,
       totalBytes: 1963188352000
-    })
+    }])
   })
 })
 

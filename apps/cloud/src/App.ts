@@ -18,6 +18,8 @@ import { Journal } from "./journal/Journal.ts"
 import { Library } from "./library/Library.ts"
 import { Notifier } from "./push/Notifier.ts"
 import { Requests } from "./requests/Requests.ts"
+import { DiskReadings } from "./storage/DiskReadings.ts"
+import { Storage } from "./storage/Storage.ts"
 import { Upcoming } from "./upcoming/Upcoming.ts"
 
 const HomeData = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
@@ -26,14 +28,18 @@ const HomeData = Layer.mergeAll(Devices.layer, FlowStore.layer).pipe(
 )
 
 /**
- * One home's services, on its own link (`HomeLink`): its stores, its engine and Hub, its journal.
+ * One home's services, on its own link (`HomeLink`): its stores, its engine and Hub, its journal, its disk readings.
  * What all homes share comes from outside: the APNs key (`Apns`), the public access, the server's facts.
  */
 export const HomeServices = Layer.mergeAll(ActionRunner.layer, Requests.layer).pipe(
-  Layer.provideMerge(Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Fixes.layer, Upcoming.layer)),
+  Layer.provideMerge(
+    Layer.mergeAll(Hub.layer, TestRunner.layer, Library.layer, Storage.layer, Fixes.layer, Upcoming.layer)
+  ),
   Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer, Gone.layer)),
   Layer.provideMerge(Activities.layer),
-  Layer.provideMerge(Layer.mergeAll(IntegrationsLive, HomeTime.layer)),
+  Layer.provideMerge(IntegrationsLive),
+  Layer.provideMerge(DiskReadings.layer),
+  Layer.provideMerge(HomeTime.layer),
   Layer.provideMerge(HomeData)
 )
 

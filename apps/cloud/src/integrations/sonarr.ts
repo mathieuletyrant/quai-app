@@ -1,9 +1,10 @@
 import type { LibraryItem } from "@quai/api"
-import { Effect, Schema } from "effect"
+import { Clock, Effect, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { knownId, seriesKey } from "../flows/Events.ts"
 import type { Read } from "../home/HomeReads.ts"
 import * as LibraryId from "../library/LibraryId.ts"
+import { type Arrival, DiskReadings } from "../storage/DiskReadings.ts"
 import {
   ArrImage,
   epochSeconds,
@@ -28,10 +29,15 @@ const Episode = Schema.Struct({
 })
 
 /** The Sonarr webhook payload, only the fields Quai reads. */
+const EpisodeFile = Schema.Struct({ size: Schema.optional(Schema.Number) })
+
 export const SonarrWebhook = Schema.Struct({
   eventType: Schema.String,
   series: Schema.optional(Series),
   episodes: Schema.optional(Schema.Array(Episode)),
+  /** One file per import; a season pack sends them all in `episodeFiles`. */
+  episodeFile: Schema.optional(EpisodeFile),
+  episodeFiles: Schema.optional(Schema.Array(EpisodeFile)),
   downloadId: Schema.optional(Schema.String)
 })
 export type SonarrWebhook = typeof SonarrWebhook.Type
@@ -91,12 +97,38 @@ export const sonarrEvents = (payload: SonarrWebhook): ReadonlyArray<FlowEvent> =
 
 export const decodeSonarrWebhook = Schema.decodeUnknownEffect(SonarrWebhook)
 
-/** Sonarr pushes: grabbed and imported come by webhook. It has no actions yet. */
-export const sonarr: Integration = {
-  service: "sonarr",
-  webhook: { read: (body) => Effect.map(decodeSonarrWebhook(body), sonarrEvents) },
-  actions: {}
+/** A series' episodes imported, as their disk mark; none for any other event. */
+export const sonarrArrival = (payload: SonarrWebhook, at: number): Arrival | undefined => {
+  if (payload.eventType !== "Download" || payload.series === undefined) return undefined
+  const files = payload.episodeFiles ?? (payload.episodeFile === undefined ? [] : [payload.episodeFile])
+  return {
+    service: "sonarr",
+    titleKey: seriesKey(payload.series.tvdbId),
+    title: payload.series.title,
+    at,
+    bytes: files.reduce((total, file) => total + (file.size ?? 0), 0),
+    episodes: (payload.episodes ?? []).map((episode) => ({ season: episode.seasonNumber }))
+  }
 }
+
+/** Sonarr pushes: grabbed and imported come by webhook (an import is a disk mark too). It has no actions yet. */
+export const sonarr = Effect.gen(function*() {
+  const readings = yield* DiskReadings
+  const integration: Integration = {
+    service: "sonarr",
+    webhook: {
+      read: (body) =>
+        Effect.gen(function*() {
+          const payload = yield* decodeSonarrWebhook(body)
+          const arrival = sonarrArrival(payload, yield* Clock.currentTimeMillis)
+          if (arrival !== undefined) yield* readings.arrived(arrival)
+          return sonarrEvents(payload)
+        })
+    },
+    actions: {}
+  }
+  return integration
+})
 
 // The library: `GET /api/v3/series`, read once when the app asks.
 

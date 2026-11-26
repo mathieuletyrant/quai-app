@@ -4,12 +4,13 @@ import { Alerts } from "../alerts/Alerts.ts"
 import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
-import { Gone } from "../gone/Gone.ts"
+import { Gone, type GoneItem } from "../gone/Gone.ts"
 import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
 import { HomeTime } from "../home/HomeTime.ts"
 import { eventNote, type From } from "../journal/describe.ts"
 import { Journal } from "../journal/Journal.ts"
 import { Notifier } from "../push/Notifier.ts"
+import { departureOf, DiskReadings } from "../storage/DiskReadings.ts"
 import {
   type Integration,
   Integrations,
@@ -118,6 +119,7 @@ export class Hub extends Context.Service<Hub, {
     const journal = yield* Journal
     const alerts = yield* Alerts
     const goneNotes = yield* Gone
+    const diskReadings = yield* DiskReadings
     /** What Quai Home polls; null until sent to the home connected now. */
     let sent: Sent | null = null
     const repeated = makeRepeats()
@@ -145,12 +147,15 @@ export class Hub extends Context.Service<Hub, {
     const apply = (events: ReadonlyArray<FlowEvent>) =>
       Effect.forEach(events, (event) => engine.handle(event, notifier.send), { discard: true })
 
+    /** Something gone is a disk mark, and a notification for the iPhones that want it. */
+    const goneNow = (item: GoneItem) => Effect.andThen(diskReadings.gone(departureOf(item)), goneNotes.notify(item))
+
     /** Alert states go to the alerts; flow events are logged, then applied. */
     const applyFrom = (service: From, signals: ReadonlyArray<Signal>) =>
       Effect.andThen(
         Effect.andThen(
           Effect.forEach(signals.filter(isAlertState), alerts.apply, { discard: true }),
-          Effect.forEach(signals.filter(isGone), goneNotes.notify, { discard: true })
+          Effect.forEach(signals.filter(isGone), goneNow, { discard: true })
         ),
         applyEvents(
           service,

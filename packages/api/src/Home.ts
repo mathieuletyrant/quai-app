@@ -14,7 +14,7 @@ import type { TitleKind } from "./Title.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 10
+export const protocolVersion = 11
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -34,7 +34,9 @@ export const protocolVersion = 10
  * (hardlinks or copies): the Cloud doesn't ask an older Home for them (`upcomingProtocolVersion`), and
  * Upcoming shows no seed cleanup and no space coming back. Protocol 10 added Reclaimerr's event feed,
  * for what is gone: the Cloud doesn't watch it on an older Home (`goneProtocolVersion`), so Gone ·
- * Planned deletion stays quiet there.
+ * Planned deletion stays quiet there. Protocol 11 added Radarr's and Sonarr's root folders, for the
+ * media disks: on an older Home the Cloud doesn't ask for them (`storageProtocolVersion`) and takes
+ * the largest disk as the one media disk.
  */
 export const minProtocolVersion = 1
 
@@ -55,6 +57,9 @@ export const upcomingProtocolVersion = 9
 
 /** The first protocol whose Home allows Reclaimerr's event feed (what it deleted or moved). */
 export const goneProtocolVersion = 10
+
+/** The first protocol whose Home allows Radarr's and Sonarr's root folders (which disks hold the media). */
+export const storageProtocolVersion = 11
 
 /** The services a Home can reach. */
 export const HomeService = Service
@@ -478,6 +483,8 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/movie$/ },
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
+    // The root folders tell which disks hold the media. No secret in them.
+    { method: "GET", path: /^\/api\/v3\/rootfolder$/ },
     { method: "GET", path: /^\/api\/v3\/health$/ },
     // Whether imports are hardlinks or copies, for the space Upcoming says comes back. No secret in it.
     { method: "GET", path: /^\/api\/v3\/config\/mediamanagement$/ },
@@ -488,6 +495,7 @@ export const allowlist: Record<HomeService, ReadonlyArray<AllowRule>> = {
     { method: "GET", path: /^\/api\/v3\/series$/ },
     { method: "GET", path: /^\/api\/v3\/calendar$/ },
     { method: "GET", path: /^\/api\/v3\/diskspace$/ },
+    { method: "GET", path: /^\/api\/v3\/rootfolder$/ },
     { method: "GET", path: /^\/api\/v3\/episode$/ },
     { method: "GET", path: /^\/api\/v3\/health$/ },
     { method: "GET", path: /^\/api\/v3\/config\/mediamanagement$/ },

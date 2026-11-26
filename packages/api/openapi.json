@@ -539,6 +539,61 @@
         }
       }
     },
+    "/api/storage": {
+      "get": {
+        "tags": [
+          "storage"
+        ],
+        "operationId": "getStorage",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/StoragePeriod"
+            },
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Storage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Storage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "HomeOffline",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOfflineEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/fixes": {
       "get": {
         "tags": [
@@ -4162,6 +4217,178 @@
           "noSource"
         ]
       },
+      "Storage": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/StoragePeriod"
+          },
+          "disks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageDisk"
+            }
+          },
+          "unavailable": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryService"
+            }
+          }
+        },
+        "required": [
+          "period",
+          "disks",
+          "unavailable"
+        ],
+        "additionalProperties": false
+      },
+      "LibraryService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr"
+        ]
+      },
+      "StorageDisk": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "holds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiskHolds"
+            }
+          },
+          "freeBytes": {
+            "type": "number"
+          },
+          "totalBytes": {
+            "type": "number"
+          },
+          "low": {
+            "type": "boolean"
+          },
+          "changeBytes": {
+            "type": "number"
+          },
+          "readings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiskReading"
+            }
+          },
+          "marks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiskMark"
+            }
+          },
+          "allMarks": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "holds",
+          "freeBytes",
+          "totalBytes",
+          "low",
+          "readings",
+          "marks",
+          "allMarks"
+        ],
+        "additionalProperties": false
+      },
+      "DiskMark": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "at": {
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DiskMarkKind"
+          },
+          "service": {
+            "$ref": "#/components/schemas/DiskMarkService"
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "bytes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "kind",
+          "service",
+          "title",
+          "detail"
+        ],
+        "additionalProperties": false
+      },
+      "DiskMarkService": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr",
+          "reclaimerr",
+          "cleanuparr"
+        ]
+      },
+      "DiskMarkKind": {
+        "type": "string",
+        "enum": [
+          "arrived",
+          "gone"
+        ]
+      },
+      "DiskReading": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "number"
+          },
+          "freeBytes": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "at",
+          "freeBytes"
+        ],
+        "additionalProperties": false
+      },
+      "DiskHolds": {
+        "type": "string",
+        "enum": [
+          "movies",
+          "shows"
+        ]
+      },
+      "StoragePeriod": {
+        "type": "string",
+        "enum": [
+          "7d",
+          "30d",
+          "1y",
+          "all"
+        ]
+      },
       "Library": {
         "type": "object",
         "properties": {
@@ -4186,13 +4413,6 @@
           "unavailable"
         ],
         "additionalProperties": false
-      },
-      "LibraryService": {
-        "type": "string",
-        "enum": [
-          "radarr",
-          "sonarr"
-        ]
       },
       "DiskSpace": {
         "type": "object",
@@ -4758,6 +4978,9 @@
     },
     {
       "name": "library"
+    },
+    {
+      "name": "storage"
     },
     {
       "name": "fixes"
