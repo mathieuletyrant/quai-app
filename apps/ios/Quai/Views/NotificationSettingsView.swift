@@ -74,7 +74,7 @@ struct NotificationSettingsView: View {
                     )
                 }
                 if let preferences {
-                    GroupedSection(header: "Alerts", footer: "You're notified when a problem starts and when it's resolved, and of a planned deletion the day it's planned and the day before. Alerts are set up in Quai's console.") {
+                    GroupedSection(header: "Alerts") {
                         ForEach(AlertKind.allCases, id: \.self) { kind in
                             NotificationToggle(topic: kind, isOn: Binding(
                                 get: { !(preferences.mutedAlerts ?? []).contains(kind) },
@@ -82,7 +82,7 @@ struct NotificationSettingsView: View {
                             ))
                         }
                     }
-                    GroupedSection(header: "Gone", footer: "You're notified once something shown as going in Upcoming is done. These settings apply to this iPhone only.") {
+                    GroupedSection(header: "Gone") {
                         ForEach(GoneKind.allCases, id: \.self) { kind in
                             NotificationToggle(topic: kind, isOn: Binding(
                                 get: { (preferences.gone ?? []).contains(kind) },
