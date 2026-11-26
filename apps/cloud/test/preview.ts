@@ -50,6 +50,13 @@ const previewRoutes = (days: number): Readonly<Record<string, Recording>> => ({
   "sonarr GET /api/v3/episode": "sonarr/episodes.json",
   "sonarr GET /api/v3/calendar": shifted("sonarr/calendar.json", days),
   "reclaimerr GET /api/v1/candidates": shifted("reclaimerr/candidates.json", days),
+  // Its deletion task runs at 02:00: next, tomorrow's.
+  "reclaimerr GET /api/v1/tasks/delete_cleanup_candidates": {
+    json: {
+      ...(fixture("reclaimerr/deletion-task.json") as object),
+      next_run_at: new Date(recordedDay + (days + 1) * dayMs + 2 * 3600_000).toISOString()
+    }
+  },
   "seerr GET /api/v1/request": "seerr/requests-pending.json",
   "seerr GET /api/v1/movie/516729": "seerr/movie.json",
   "seerr GET /api/v1/tv/95396": "seerr/tv.json",
