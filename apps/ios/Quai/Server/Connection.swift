@@ -407,7 +407,7 @@ final class Connection {
             journalHasMore = page.more
             journalError = nil
         } catch {
-            journalError = error.message(replacing: journalError)
+            didFail(error, \.journalError)
         }
     }
 
@@ -419,7 +419,7 @@ final class Connection {
             journalHasMore = page.more
             journalError = nil
         } catch {
-            journalError = error.message(replacing: journalError)
+            didFail(error, \.journalError)
         }
     }
 
@@ -588,6 +588,18 @@ final class Connection {
             self[keyPath: value] = try await call(requiredClient())
             self[keyPath: failure] = nil
         } catch {
+            didFail(error, failure)
+        }
+    }
+
+    /// Where a failed read is said. The server out of reach shows once, as the server's status (the
+    /// Home title's dot, Settings), never as a card on each screen: the screen keeps what it shows.
+    /// Anything else is that screen's own failure.
+    private func didFail(_ error: any Error, _ failure: ReferenceWritableKeyPath<Connection, String?>) {
+        if error.isConnectionFailure {
+            lastError = error.quaiMessage
+            self[keyPath: failure] = nil
+        } else {
             self[keyPath: failure] = error.message(replacing: self[keyPath: failure])
         }
     }

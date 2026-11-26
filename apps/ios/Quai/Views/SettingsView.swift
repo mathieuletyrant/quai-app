@@ -52,6 +52,16 @@ struct SettingsView: View {
                         }
                         .padding(.horizontal, 14)
                         .frame(minHeight: 64)
+                        // The one place, with the Home title's red dot, that says why the server is out of reach.
+                        if let error = connection.lastError {
+                            Text(error)
+                                .font(QuaiFont.caption)
+                                .foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 14)
+                                .padding(.bottom, 12)
+                        }
                     }
 
                     GroupedSection(header: "On this iPhone") {

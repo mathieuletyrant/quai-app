@@ -91,6 +91,10 @@ struct RootView: View {
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { Task { await connection.reload(tab) } }
                 }
+                // The server answers again: what the tab showed while it didn't is read again.
+                .onChange(of: connection.lastError == nil) { _, reached in
+                    if reached { Task { await connection.reload(tab) } }
+                }
                 .onChange(of: searchLink, initial: true) { _, link in
                     if link != nil {
                         showsLive = false

@@ -45,4 +45,18 @@ struct QuaiErrorsTests {
         #expect(URLError(.cancelled).message(replacing: "Earlier failure") == "Earlier failure")
         #expect(ConnectionError.unreachable.message(replacing: nil) == ConnectionError.unreachable.quaiMessage)
     }
+
+    /// The server out of reach is said once, by its status; a refusal is the screen's own.
+    @Test func tellsTheServerOutOfReachFromARefusal() {
+        #expect(ConnectionError.unreachable.isConnectionFailure)
+        #expect(ConnectionError.blockedByProxy.isConnectionFailure)
+        #expect(ConnectionError.homeOffline.isConnectionFailure)
+        #expect(URLError(.timedOut).isConnectionFailure)
+        #expect(URLError(.notConnectedToInternet).isConnectionFailure)
+        #expect(!URLError(.cancelled).isConnectionFailure)
+        #expect(!CancellationError().isConnectionFailure)
+        #expect(!ConnectionError.server(500).isConnectionFailure)
+        #expect(!ConnectionError.refused("Seerr didn't answer").isConnectionFailure)
+        #expect(!ConnectionError.removed.isConnectionFailure)
+    }
 }
