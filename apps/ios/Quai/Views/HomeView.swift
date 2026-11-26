@@ -174,7 +174,7 @@ struct HomeView: View {
             }
         }
         if let disk = connection.library?.disk {
-            Button { tab = .library } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
+            NavigationLink { StorageView() } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
                 .buttonStyle(.plain)
         }
     }

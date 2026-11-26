@@ -63,6 +63,18 @@ struct AppScreenshots {
         Self.screenshot(window, "01-home-upcoming")
     }
 
+    /// Storage from the Home's disk tile: the preview's month of readings and its marks.
+    @Test func storage() async throws {
+        let connection = try await Self.pairedConnection()
+        let window = try Self.show(
+            NavigationStack { StorageView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.until("the disks over 30 days") { connection.storage != nil }
+        try await Self.settle()
+        Self.screenshot(window, "01-home-storage")
+    }
+
     @Test func library() async throws {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(RootView(pendingLink: .constant(nil), tab: .library), connection)

@@ -57,7 +57,7 @@ struct JournalRow: View {
     }
 }
 
-/// The media disk as the Storage tile reads it.
+/// The fullest media disk, as the Storage tile reads it.
 struct DiskReading: Equatable {
     let freeBytes: Double
     let totalBytes: Double
@@ -76,7 +76,7 @@ struct DiskReading: Equatable {
     var ofTotal: String { "free of \(Format.bytes(totalBytes))" }
 }
 
-/// The media disk on one line: the free space, and a bar that fills up.
+/// The fullest media disk on one line: the free space, and a bar that fills up. Opens Storage.
 struct StorageTile: View {
     let reading: DiskReading
     /// The Low disk space alert is going on.
@@ -107,6 +107,6 @@ struct StorageTile: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens the library")
+        .accessibilityHint("Opens Storage: the disks over time")
     }
 }
