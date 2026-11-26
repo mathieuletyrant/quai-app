@@ -142,6 +142,7 @@ struct HomeTilesView: View {
             }
         }
         .environment(\.editMode, .constant(.active))
+        .environment(\.defaultMinListRowHeight, 44)
         .scrollContentBackground(.hidden)
         .background(Palette.background.ignoresSafeArea())
         .disabled(preferences == nil)
@@ -196,7 +197,7 @@ private struct TileEditRow: View {
         HStack(spacing: 12) {
             Button(action: perform) {
                 Image(systemName: action == .hide ? "minus.circle.fill" : "plus.circle.fill")
-                    .font(.system(size: 22))
+                    .font(.system(size: 20))
                     .symbolRenderingMode(.palette)
                     .foregroundStyle(.white, action == .hide ? Palette.alert : Palette.ok)
             }
@@ -207,7 +208,7 @@ private struct TileEditRow: View {
                 .foregroundStyle(action == .hide ? Palette.primaryText : Palette.secondaryText)
             Spacer(minLength: 0)
         }
-        .frame(minHeight: 44)
+        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
         .listRowBackground(Palette.tile)
     }
 }
