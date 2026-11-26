@@ -72,8 +72,26 @@ const mediaMounts = (view: DiskView): ReadonlyArray<Mount> => {
   })
 }
 
-const sameDisk = (left: DiskSpace, right: DiskSpace) =>
-  left.totalBytes === right.totalBytes && Math.abs(left.freeBytes - right.freeBytes) < sameDiskFreeBytes
+interface Found extends DiskSpace {
+  readonly mount: string
+  readonly holds: Set<DiskHolds>
+  readonly services: Set<LibraryService>
+}
+
+/**
+ * The disk a service's mount is, among those found: one service reads all its mounts at once, so
+ * its own mounts of the same size are one disk only when their free space matches (within 1 GB);
+ * another service's view may be older (Quai Home sends a reading when it changes), so a disk of
+ * the same size it saw is this one, the nearest in free space when there are twins.
+ */
+export const diskOf = (found: ReadonlyArray<Found>, service: LibraryService, disk: DiskSpace): Found | undefined => {
+  const sized = found.filter((candidate) => candidate.totalBytes === disk.totalBytes)
+  const own = sized.filter((candidate) => candidate.services.has(service))
+  const same = own.find((candidate) => Math.abs(candidate.freeBytes - disk.freeBytes) < sameDiskFreeBytes)
+  if (same !== undefined) return same
+  const gap = (candidate: Found) => Math.abs(candidate.freeBytes - disk.freeBytes)
+  return sized.filter((candidate) => !candidate.services.has(service)).sort((left, right) => gap(left) - gap(right))[0]
+}
 
 /** The share free, 0 to 1. */
 export const freeShare = (disk: DiskSpace) => disk.freeBytes / disk.totalBytes
@@ -81,18 +99,27 @@ export const freeShare = (disk: DiskSpace) => disk.freeBytes / disk.totalBytes
 const slug = (path: string) => path.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "root"
 
 /**
- * The media disks the services see, fullest first. Two mounts of the same size and free space
- * (within 1 GB) are one disk, whichever service or path shows them: Radarr's `/downloads` and
- * Sonarr's `/data` are the same disk when they are the same size.
+ * The media disks the services see, fullest first. Radarr's `/downloads` and Sonarr's `/data` are
+ * the same disk when they are the same size (`diskOf`); a service's two mounts of the same size
+ * and free space are one disk seen twice.
  */
 export const mediaDisks = (views: ReadonlyArray<DiskView>): ReadonlyArray<MediaDisk> => {
-  const found: Array<{ freeBytes: number; totalBytes: number; mount: string; holds: Set<DiskHolds> }> = []
+  const found: Array<Found> = []
   for (const view of views) {
     for (const mount of mediaMounts(view)) {
       const disk = { freeBytes: mount.freeSpace, totalBytes: mount.totalSpace }
-      const known = found.find((candidate) => sameDisk(candidate, disk))
-      if (known === undefined) found.push({ ...disk, mount: mount.path, holds: new Set([holdsOf[view.service]]) })
-      else known.holds.add(holdsOf[view.service])
+      const known = diskOf(found, view.service, disk)
+      if (known === undefined) {
+        found.push({
+          ...disk,
+          mount: mount.path,
+          holds: new Set([holdsOf[view.service]]),
+          services: new Set([view.service])
+        })
+      } else {
+        known.holds.add(holdsOf[view.service])
+        known.services.add(view.service)
+      }
     }
   }
   const sizes = new Map<number, number>()

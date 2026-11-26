@@ -63,9 +63,13 @@ export class Storage extends Context.Service<Storage, {
       const alerts = yield* Alerts
       const time = yield* HomeTime
 
-      /** The disks read now, then those kept that weren't, at their last reading. */
-      const disksNow = (now: ReadonlyArray<MediaDisk>) =>
+      /**
+       * The disks read now; while a service didn't answer, those kept that weren't read, at their
+       * last reading. With every service answering, a kept disk not read now is gone.
+       */
+      const disksNow = (now: ReadonlyArray<MediaDisk>, someUnread: boolean) =>
         Effect.gen(function*() {
+          if (!someUnread) return now.map((disk): DiskNow => ({ ...disk, current: true }))
           const seen = new Set(now.map((disk) => disk.id))
           const missing = (yield* kept.disks).filter((disk) => !seen.has(disk.id))
           const last = yield* Effect.forEach(missing, (disk) =>
@@ -86,7 +90,7 @@ export class Storage extends Context.Service<Storage, {
           const settings = yield* alerts.settings
           const timeZone = yield* time.zone
           const marks = yield* kept.marks
-          const disks = yield* disksNow(read)
+          const disks = yield* disksNow(read, unavailable.length > 0)
           const shown = yield* Effect.forEach(disks, (disk) =>
             Effect.map(kept.readings(disk.id, from), (readings) =>
               storageDisk(disk, {
