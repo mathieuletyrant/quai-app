@@ -215,8 +215,9 @@ const releasesByTitle = (releases: ReadonlyArray<ReleaseInput>) => {
 /**
  * Whether torrents Quai couldn't place may hold a deletion's files. Only what Radarr or Sonarr know
  * of the title counts: a cross-seed (another hash) of a release grabbed for it, by its name or its
- * size; or every word of the title in a torrent's name. A torrent about as big as the title, but
- * of another release, holds nothing of it. Indexed once, on the first deletion asked about.
+ * size (within 0.1 % of the size its indexer listed); or every word of the title in a torrent's
+ * name. A torrent that only weighs about what the deletion does holds nothing of it. Indexed once,
+ * on the first deletion asked about.
  */
 export const mayHold = (unplaced: ReadonlyArray<FileSet>, releases: ReadonlyArray<ReleaseInput>) => {
   let index:
