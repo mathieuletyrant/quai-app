@@ -151,8 +151,9 @@ struct DiskChart: View {
                 .foregroundStyle(Palette.tertiaryText)
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                AxisValueLabel(format: dateFormat)
+            AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                // The last date ends at its tick, so the chart's edge doesn't cut it.
+                AxisValueLabel(format: dateFormat, anchor: value.index == value.count - 1 ? .topTrailing : .top)
                     .font(QuaiFont.caption)
                     .foregroundStyle(Palette.tertiaryText)
             }

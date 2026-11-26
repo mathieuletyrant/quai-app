@@ -92,13 +92,13 @@ const storageHistory = (now: number): ReadonlyArray<readonly [string, unknown]> 
   const hour = 3600_000
   const end = 759102349312
   const marks = [
-    { daysAgo: 33, kind: "arrived", service: "radarr", title: "Dune", detail: "Imported · 12 GB", bytes: 12e9 },
+    { daysAgo: 33, kind: "arrived", service: "radarr", title: "Dune", detail: "Imported", bytes: 12e9 },
     {
       daysAgo: 26,
       kind: "arrived",
       service: "sonarr",
       title: "Severance S02",
-      detail: "8 episodes imported · 18 GB",
+      detail: "8 episodes imported",
       bytes: 18e9
     },
     {
@@ -106,7 +106,7 @@ const storageHistory = (now: number): ReadonlyArray<readonly [string, unknown]> 
       kind: "gone",
       service: "reclaimerr",
       title: "The Vampire Diaries S07",
-      detail: "Deleted · 24 GB back",
+      detail: "Deleted",
       bytes: 24e9,
       holds: "shows"
     },
@@ -116,7 +116,7 @@ const storageHistory = (now: number): ReadonlyArray<readonly [string, unknown]> 
       kind: "arrived",
       service: "sonarr",
       title: "Slow Horses S04",
-      detail: "6 episodes imported · 11 GB",
+      detail: "6 episodes imported",
       bytes: 11e9
     },
     {
@@ -124,7 +124,7 @@ const storageHistory = (now: number): ReadonlyArray<readonly [string, unknown]> 
       kind: "gone",
       service: "cleanuparr",
       title: "The Bear S03",
-      detail: "Seed cleanup · 6 GB back",
+      detail: "Seed cleanup",
       bytes: 6e9
     }
   ].map(({ daysAgo, ...mark }) => {

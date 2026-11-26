@@ -14,6 +14,12 @@ extension Components.Schemas.DiskMark: Identifiable {
     /// The service's color: who did it.
     var color: Color { ServiceLook.color(service.rawValue) }
 
+    /// What it did to the free space: "−11 GB" taken, "+6 GB" surely back; nothing when Quai can't say.
+    var sizeText: String? {
+        guard let bytes, bytes > 0 else { return nil }
+        return (kind == .arrived ? "−" : "+") + Format.bytes(bytes)
+    }
+
     /// The arrow over the service's color: dark on the bright ones, white on the deep ones.
     var ink: Color { service == .radarr || service == .sonarr ? Palette.background : .white }
 }
@@ -271,9 +277,18 @@ struct DiskMarkRow: View {
                 ServiceLine(services: [mark.service.rawValue], detail: Text(mark.detail))
             }
             Spacer(minLength: 8)
-            Text(mark.date, format: .dateTime.month(.abbreviated).day())
-                .font(QuaiFont.caption.monospacedDigit())
-                .foregroundStyle(Palette.tertiaryText)
+            VStack(alignment: .trailing, spacing: 3) {
+                Text(mark.date, format: .dateTime.month(.abbreviated).day())
+                    .font(QuaiFont.caption.monospacedDigit())
+                    .foregroundStyle(Palette.tertiaryText)
+                if let size = mark.sizeText {
+                    Text(size)
+                        .font(QuaiFont.caption.monospacedDigit())
+                        .fontWeight(.semibold)
+                        .foregroundStyle(mark.kind == .gone ? Palette.ok : Palette.secondaryText)
+                }
+            }
+            .fixedSize()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)

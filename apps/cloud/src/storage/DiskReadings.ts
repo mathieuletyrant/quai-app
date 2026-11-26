@@ -9,7 +9,7 @@ import {
   type StoragePeriod
 } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
-import { type GoneItem, sizeText, spaceBackText } from "../gone/Gone.ts"
+import type { GoneItem } from "../gone/Gone.ts"
 import { dayOf } from "../home/Day.ts"
 import { HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { HomeTime } from "../home/HomeTime.ts"
@@ -114,11 +114,9 @@ export interface Arrival {
 const seriesTitle = (title: string, seasons: ReadonlyArray<number>) =>
   seasons.length === 1 ? `${title} S${seasons[0]!.toString().padStart(2, "0")}` : title
 
-/** "Imported · 12 GB", "8 episodes imported · 18 GB". */
-const arrivedDetail = (bytes: number, episodes: number | undefined) => {
-  const what = episodes === undefined ? "Imported" : `${episodes} episode${episodes === 1 ? "" : "s"} imported`
-  return bytes > 0 ? `${what} · ${sizeText(bytes)}` : what
-}
+/** "Imported", "8 episodes imported": the size is the mark's `bytes`, shown beside it. */
+const arrivedDetail = (episodes: number | undefined) =>
+  episodes === undefined ? "Imported" : `${episodes} episode${episodes === 1 ? "" : "s"} imported`
 
 /** An import as the day's mark of its title: the first one, or added to the one already there. */
 export const arrivedMark = (arrival: Arrival, day: string, known: StoredMark | undefined): StoredMark => {
@@ -131,7 +129,7 @@ export const arrivedMark = (arrival: Arrival, day: string, known: StoredMark | u
       kind: "arrived",
       service: arrival.service,
       title: arrival.title,
-      detail: arrivedDetail(bytes, undefined),
+      detail: arrivedDetail(undefined),
       ...(bytes > 0 ? { bytes } : {}),
       holds
     }
@@ -145,7 +143,7 @@ export const arrivedMark = (arrival: Arrival, day: string, known: StoredMark | u
     kind: "arrived",
     service: arrival.service,
     title: seriesTitle(arrival.title, seasons),
-    detail: arrivedDetail(bytes, episodes),
+    detail: arrivedDetail(episodes),
     ...(bytes > 0 ? { bytes } : {}),
     holds,
     episodes,
@@ -158,7 +156,7 @@ export interface Departure {
   readonly service: "reclaimerr" | "cleanuparr"
   readonly at: number
   readonly title: string
-  /** "Deleted · 24 GB back", "Seed cleanup". */
+  /** "Deleted", "Seed cleanup". */
   readonly detail: string
   /** Space surely back. */
   readonly bytes?: number
@@ -171,12 +169,12 @@ const goneWords: Record<GoneItem["kind"], string> = {
   seedCleanup: "Seed cleanup"
 }
 
-/** Something gone as its mark says it: "Deleted · 24 GB back" (the service is shown beside). */
+/** Something gone as its mark says it: "Deleted", "Seed cleanup" (the service and the space back are shown beside). */
 export const departureOf = (item: GoneItem): Departure => ({
   service: item.source,
   at: item.at,
   title: item.title,
-  detail: `${item.moved === true ? "Moved" : goneWords[item.kind]}${spaceBackText(item.spaceBack)}`,
+  detail: item.moved === true ? "Moved" : goneWords[item.kind],
   ...(item.spaceBack === undefined ? {} : { bytes: item.spaceBack }),
   ...(item.holds === undefined ? {} : { holds: item.holds })
 })

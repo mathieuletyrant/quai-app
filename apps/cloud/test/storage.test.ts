@@ -126,7 +126,7 @@ describe("disk readings: the rules", () => {
       kind: "arrived",
       service: "radarr",
       title: "Dune",
-      detail: "Imported · 12 GB",
+      detail: "Imported",
       bytes: 12e9,
       holds: "movies"
     })
@@ -139,7 +139,7 @@ describe("disk readings: the rules", () => {
       episodes: [{ season: 2 }]
     }
     const first = arrivedMark(episode, "2026-11-26", undefined)
-    expect([first.title, first.detail]).toEqual(["Severance S02", "1 episode imported · 2 GB"])
+    expect([first.title, first.detail]).toEqual(["Severance S02", "1 episode imported"])
     const pack = arrivedMark(
       { ...episode, at: now + hour, bytes: 1.6e10, episodes: Array(7).fill({ season: 2 }) },
       "2026-11-26",
@@ -148,17 +148,17 @@ describe("disk readings: the rules", () => {
     expect([pack.at, pack.title, pack.detail, pack.bytes]).toEqual([
       now,
       "Severance S02",
-      "8 episodes imported · 18 GB",
+      "8 episodes imported",
       1.8e10
     ])
     // Across seasons: the series alone.
     const later = arrivedMark({ ...episode, episodes: [{ season: 3 }] }, "2026-11-26", pack)
     expect([later.title, later.seasons]).toEqual(["Severance", [2, 3]])
-    // A size Radarr didn't send: nothing said about it.
-    expect(arrivedMark({ ...dune, bytes: 0 }, "2026-11-26", undefined).detail).toBe("Imported")
+    // A size Radarr didn't send: no size.
+    expect(arrivedMark({ ...dune, bytes: 0 }, "2026-11-26", undefined).bytes).toBeUndefined()
   })
 
-  it("a gone mark says what happened beside its service, and the space back only when sure", () => {
+  it("a gone mark says what happened, and carries the space back only when sure", () => {
     const deleted = goneItem({
       kind: "plannedDeletion",
       source: "reclaimerr",
@@ -174,7 +174,7 @@ describe("disk readings: the rules", () => {
       kind: "gone",
       service: "reclaimerr",
       title: "Up",
-      detail: "Deleted · 24 GB back",
+      detail: "Deleted",
       bytes: 24e9,
       holds: "movies"
     })
@@ -312,7 +312,7 @@ describe("GET /api/storage", () => {
       expect([shows?.name, shows?.low, shows?.freeBytes, shows?.changeBytes]).toEqual(["Shows", true, 1.6e11, 0])
       expect(shows?.readings.map((reading) => reading.freeBytes)).toEqual([1.6e11, 1.5e11])
       expect(shows?.marks.map((mark) => [mark.kind, mark.service, mark.title, mark.detail])).toEqual([
-        ["arrived", "sonarr", "Severance S02", "2 episodes imported · 4 GB"],
+        ["arrived", "sonarr", "Severance S02", "2 episodes imported"],
         ["gone", "cleanuparr", "A torrent", "Seed cleanup"]
       ])
       // The seed cleanup can't say which disk: it is on both; the import of shows isn't on Movies'.

@@ -40,7 +40,7 @@ export const DiskMark = Schema.Struct({
   service: DiskMarkService,
   /** "Severance S02", "Dune: Part Two". */
   title: Schema.String,
-  /** What happened, in words: "8 episodes imported · 18 GB", "Seed cleanup · 6 GB back". */
+  /** What happened, in words: "8 episodes imported", "Seed cleanup"; its size is `bytes`. */
   detail: Schema.String,
   /** What it took (arrived) or gave back for sure (gone); absent when Quai can't say. */
   bytes: Schema.optionalKey(Schema.Finite)

@@ -14,7 +14,7 @@ struct StorageTests {
         return try disk(#"""
         {"id":"d1","name":"Movies · Shows","holds":["movies","shows"],"freeBytes":7.9e11,"totalBytes":1.96e12,"low":false,\#(change)
          "readings":[\#(points)],
-         "marks":[{"id":"a","at":1500000,"kind":"arrived","service":"radarr","title":"Dune","detail":"Imported · 12 GB","bytes":12000000000},
+         "marks":[{"id":"a","at":1500000,"kind":"arrived","service":"radarr","title":"Dune","detail":"Imported","bytes":12000000000},
                   {"id":"g","at":3000000,"kind":"gone","service":"reclaimerr","title":"Up","detail":"Deleted"}],
          "allMarks":5}
         """#)
@@ -36,6 +36,9 @@ struct StorageTests {
         #expect(shown.free(at: Date(timeIntervalSince1970: 10)) == 8e11)
         #expect(try disk(readings: []).free(at: .now) == nil)
         #expect(shown.label == "MOVIES · SHOWS")
+        // Taken by an import, back from what's gone; nothing when the size is unknown.
+        #expect(shown.marks[0].sizeText?.hasPrefix("−") == true)
+        #expect(shown.marks[1].sizeText == nil)
     }
 
     @Test func gigabytesWithRoundTicksAndALaneUnderTheCurve() {
