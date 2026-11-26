@@ -184,6 +184,14 @@ struct AppScreenshots {
         try await Self.settle(5)
         Self.screenshot(preview, "07-search-preview")
 
+        // A series asked for and still on its way: more of its seasons can be requested.
+        let asked = try Self.show(
+            SearchResultDetail(result: prophecy, state: .requested) {}.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle(5)
+        Self.screenshot(asked, "07-search-preview-requested")
+
         let requester = try Self.show(
             NavigationStack { RequesterSettingsView() }.tint(.quaiAccent).preferredColorScheme(.dark),
             connection

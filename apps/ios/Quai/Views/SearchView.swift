@@ -26,6 +26,25 @@ extension SearchResult: Identifiable {
     }
 }
 
+/// The button a search result offers: request the title, or more seasons of a series.
+enum RequestButton {
+    case request
+    case moreSeasons
+}
+
+extension TitleState {
+    /// A series Seerr has some seasons of, in the library or only asked for, can still get the
+    /// others: the season picker says which. A movie asked for, or a title in the library, has none.
+    func requestButton(for kind: Components.Schemas.TitleKind) -> RequestButton? {
+        switch self {
+        case .requestable: .request
+        case .partial: .moreSeasons
+        case .requested: kind == .series ? .moreSeasons : nil
+        case .available: nil
+        }
+    }
+}
+
 /// The Search tab: a title typed or dictated, Seerr's results, and the one to request. Opened by
 /// the Lock Screen widget (keyboard up) and the control (already listening).
 struct SearchView: View {
@@ -310,8 +329,8 @@ struct SearchResultDetail: View {
                     }
                     .padding(.bottom, 4)
                 }
-                if state == .requestable || state == .partial {
-                    Button(state == .partial ? "Request more seasons" : "Request", action: request)
+                if let button = state.requestButton(for: result.kind) {
+                    Button(button == .moreSeasons ? "Request more seasons" : "Request", action: request)
                         .buttonStyle(PillButtonStyle())
                 }
                 if let overview = result.overview {
@@ -397,16 +416,18 @@ private struct SearchResultRow: View {
         if busy {
             ProgressView()
         } else {
-            switch state {
-            case .available:
-                Badge(text: "In library", fill: Palette.ok.opacity(0.18), color: Palette.ok)
-            case .requested:
-                Badge(text: "Requested", fill: Palette.requests.opacity(0.18), color: Palette.requests)
-            case .partial:
+            switch state.requestButton(for: result.kind) {
+            case .request:
+                Button("Request", action: request).buttonStyle(FixButtonStyle())
+            case .moreSeasons:
                 Button("More", action: request).buttonStyle(FixButtonStyle(prominent: false))
                     .accessibilityLabel("Request more seasons")
-            case .requestable:
-                Button("Request", action: request).buttonStyle(FixButtonStyle())
+            case nil:
+                if state == .available {
+                    Badge(text: "In library", fill: Palette.ok.opacity(0.18), color: Palette.ok)
+                } else {
+                    Badge(text: "Requested", fill: Palette.requests.opacity(0.18), color: Palette.requests)
+                }
             }
         }
     }
