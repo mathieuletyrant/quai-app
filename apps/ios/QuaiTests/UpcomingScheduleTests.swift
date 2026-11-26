@@ -52,6 +52,18 @@ struct UpcomingScheduleTests {
         #expect(schedule.goingThisWeek([release]) == nil)
     }
 
+    @Test func nextComingAndGoingSkipsTodayAndUndated() throws {
+        let today = try item(#"{"id":"t","kind":"releaseDay","service":"radarr","title":"Dune","at":1795561200,"timed":false,"earliest":false}"#)
+        let laterRelease = try item(#"{"id":"r2","kind":"releaseDay","service":"sonarr","title":"Severance","episode":"S02E06","at":1796032800,"timed":false,"earliest":false}"#)
+        let release = try item(#"{"id":"r1","kind":"releaseDay","service":"sonarr","title":"Percy Jackson","episode":"S03E03","at":1795683600,"timed":false,"earliest":false}"#)
+        let byRatio = try item(#"{"id":"s","kind":"seedCleanup","service":"cleanuparr","title":"1 torrent","timed":false,"earliest":false,"count":1}"#)
+        let deletion = try item(#"{"id":"d","kind":"plannedDeletion","service":"reclaimerr","title":"Runner","at":1796032800,"timed":false,"earliest":false}"#)
+        let next = schedule.nextComingAndGoing([today, laterRelease, release, byRatio, deletion])
+        #expect(next.map(\.id) == ["r1", "d"])
+        #expect(schedule.nextComingAndGoing([today, release]).map(\.id) == ["r1"])
+        #expect(schedule.nextComingAndGoing([today, byRatio]).isEmpty)
+    }
+
     @Test func saysTheFreedSpaceAfterTheDateOnlyWhenItComesBack() throws {
         let freeing = try item(#"{"id":"d","kind":"plannedDeletion","service":"reclaimerr","title":"Vampire Diaries S06","at":1796032800,"timed":false,"earliest":false,"freesBytes":24491050987}"#)
         #expect(freeing.freedText == "· +" + Format.bytes(24_491_050_987))
