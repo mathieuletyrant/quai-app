@@ -173,7 +173,7 @@ The console is served by Quai Home (port 8788), behind `QUAI_HOME_PASSWORD`. It 
 | `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | qBittorrent Web UI. |
 | `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General). |
 | `QUAI_PROWLARR_URL`, `QUAI_PROWLARR_API_KEY` | Prowlarr (Settings → General), for the alerts. |
-| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations, scopes `candidates:manage` and `system:read`; add `events:read` to be notified of what it deleted). |
+| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations, scopes `candidates:manage` and `system:read`; add `events:read` to be notified of what it deleted, and `tasks:read` so Quai shows when it deletes: its deletion task's run, not just the day a title's delay ends). |
 | `QUAI_CLEANUPARR_URL`, `QUAI_CLEANUPARR_API_KEY` | Cleanuparr (Settings → Account). |
 
 Every service can be set in the console's **Services** page instead of the environment. A variable set in the environment wins and shows as "Env" there. A service set in neither place is skipped.
@@ -207,7 +207,7 @@ Every service can be set in the console's **Services** page instead of the envir
 - **"Quai Home went offline" in the Journal**: Quai Home lost its link to Quai Cloud for more than a minute (shorter drops, which happen a few times a day with the hosted Cloud, are reconnections and aren't logged). Webhooks that arrive meanwhile wait in Quai Home and are sent once it's back. Check that Quai Home is running and reaches the internet.
 - **A Live Activity updates slowly**: iOS limits how often Live Activities refresh, more so in Low Power Mode. Quai sends an update at each step and regularly during a download.
 - **No alerts**: check iPhone Settings → Notifications → Quai, the mute options in the app's Settings, and the alert's switch in the console under Alerts.
-- **No notification when Reclaimerr deletes a title**: turn on "Reclaimerr deleted a title" under Gone in the app's Settings → Notifications, give Reclaimerr's key the `events:read` scope (the console's Services page says when it lacks it), and update Quai Home (it needs protocol 10).
+- **No notification when Reclaimerr deletes a title**: turn on "Reclaimerr deleted a title" under Gone in the app's Settings → Notifications, give Reclaimerr's key the `events:read` scope (the console's Services page says when it lacks it), and update Quai Home (it needs protocol 10). Reclaimerr deletes only when its deletion task runs (every day at 02:00 by default): a title whose delay ends after that run goes at the next one, the day after.
 - **"Open the console" is missing in the app, or doesn't work away from home**: set `QUAI_CONSOLE_PUBLIC_URL` on Quai Home to the console's address from outside, then pair the iPhone again from the console.
 - **Remove Quai**: remove each iPhone under iPhones, then uninstall Quai Home (it removes its webhooks from your services), and delete the app.
 

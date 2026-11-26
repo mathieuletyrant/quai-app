@@ -89,6 +89,7 @@ describe("whether the library still holds a title", () => {
 const planned = (candidate: Candidate): PlannedCandidate => ({
   candidate,
   deletesAt: epochSeconds(candidate.auto_delete_eligible_at) ?? 0,
+  exact: true,
   operation: candidate.delete_operation === "move" ? "move" : "delete"
 })
 

@@ -138,7 +138,7 @@ your own account.
 | `QUAI_QBITTORRENT_URL`, `QUAI_QBITTORRENT_USERNAME`, `QUAI_QBITTORRENT_PASSWORD` | qBittorrent Web UI |
 | `QUAI_SEERR_URL`, `QUAI_SEERR_API_KEY` | Seerr, Jellyseerr or Overseerr (Settings → General) |
 | `QUAI_PROWLARR_URL`, `QUAI_PROWLARR_API_KEY` | Prowlarr (Settings → General), for the alerts only |
-| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations; scopes `candidates:manage`, `system:read`, and `events:read` for Gone) |
+| `QUAI_RECLAIMERR_URL`, `QUAI_RECLAIMERR_API_KEY` | Reclaimerr (Settings → Integrations; scopes `candidates:manage`, `system:read`, `events:read` for Gone, and `tasks:read` for when it deletes) |
 | `QUAI_CLEANUPARR_URL`, `QUAI_CLEANUPARR_API_KEY` | Cleanuparr (Settings → Account); on Umbrel `http://mathieu-cleanuparr_server_1:11011` |
 
 A service set neither here nor in the console's Services page is skipped.

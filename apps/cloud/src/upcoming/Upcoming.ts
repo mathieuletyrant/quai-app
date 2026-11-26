@@ -25,7 +25,8 @@ import {
   candidatesRead,
   type PlannedCandidate,
   plannedDeletionFixes,
-  plannedDeletions
+  plannedDeletions,
+  readDeletionTask
 } from "../integrations/reclaimerr.ts"
 import { sonarrGrabsRead, sonarrSeriesRead } from "../integrations/sonarr.ts"
 import { type DayReads, rangeReads, rangeReleases } from "../releases/ReleaseDays.ts"
@@ -68,6 +69,7 @@ const readStack = (reads: HomeReads["Service"], reach: Reach, calendar: DayReads
   return Effect.all({
     calendars: reads.all({ episodes: calendar.episodes, movies: calendar.movies }),
     candidates: reach.has("reclaimerr") ? reads.read(candidatesRead) : none,
+    deletionTask: reach.has("reclaimerr") ? readDeletionTask(reads) : Effect.succeed(undefined),
     removals: reach.has("cleanuparr") ? stuckRemovalsRead(reads) : none,
     cleaner: reach.cleaning ? reads.read(downloadCleanerRead) : none,
     job: reach.cleaning ? reads.read(downloadCleanerJobRead) : none,
@@ -115,7 +117,10 @@ const cleanupsOf = (stack: Pick<StackReads, "cleaner" | "finished" | "job">, now
 }
 
 export const plansOf = (stack: StackReads, now: number): Plans => ({
-  planned: Option.match(stack.candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) }),
+  planned: Option.match(stack.candidates, {
+    onNone: () => [],
+    onSome: (page) => plannedDeletions(page.items, stack.deletionTask)
+  }),
   cleanups: cleanupsOf(stack, now)
 })
 

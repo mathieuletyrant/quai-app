@@ -38,31 +38,46 @@ export const verdict = (service: HomeProtocol.HomeService, status: number, body:
   })
 }
 
+/** A scope a key may lack, the call that needs it, and what Quai can't do without it. */
+export interface ScopeCheck {
+  readonly path: string
+  readonly scope: string
+  readonly without: string
+}
+
 /**
  * Reclaimerr's key may lack a scope Quai reads with: its event feed (`events:read`), which tells what
- * it deleted. The other reads work without it, so the check says it rather than fails.
+ * it deleted, and its deletion task (`tasks:read`), which tells when. The other reads work without
+ * them, so the check says it rather than fails.
  */
-export const scopePaths: Partial<Record<HomeProtocol.HomeService, { readonly path: string; readonly scope: string }>> =
-  {
-    reclaimerr: { path: "/api/v1/events?limit=1", scope: "events:read" }
-  }
+export const scopePaths: Partial<Record<HomeProtocol.HomeService, ReadonlyArray<ScopeCheck>>> = {
+  reclaimerr: [
+    { path: "/api/v1/events?limit=1", scope: "events:read", without: "nothing it deletes is said to be gone" },
+    {
+      path: "/api/v1/tasks/delete_cleanup_candidates",
+      scope: "tasks:read",
+      without: "when it deletes is only the earliest"
+    }
+  ]
+}
 
 /** A check that passed, with what a scope Reclaimerr refused (HTTP 401 or 403) leaves out. */
-export const withScope = (check: ServiceCheck, scope: string, status: number): ServiceCheck =>
+export const withScope = (check: ServiceCheck, scope: ScopeCheck, status: number): ServiceCheck =>
   check.outcome === "ok" && (status === 401 || status === 403)
-    ? { ...check, message: `${check.message} · the key lacks ${scope}: nothing it deletes is said to be gone` }
+    ? { ...check, message: `${check.message} · the key lacks ${scope.scope}: ${scope.without}` }
     : check
 
 /** Reaches the service with its address and key as they are now. Never fails: what went wrong is the check's outcome. */
 export const checkService = (service: HomeProtocol.HomeService) =>
   Effect.flatMap(reachService(service), (check) => {
-    const scope = scopePaths[service]
-    if (scope === undefined || check.outcome !== "ok") return Effect.succeed(check)
-    return Effect.gen(function*() {
-      const auth = yield* ServiceAuth
-      const response = yield* auth.execute(service, HttpClientRequest.get(scope.path))
-      return withScope(check, scope.scope, response.status)
-    }).pipe(Effect.timeout("10 seconds"), Effect.orElseSucceed(() => check))
+    const scopes = scopePaths[service] ?? []
+    if (scopes.length === 0 || check.outcome !== "ok") return Effect.succeed(check)
+    return Effect.reduce(scopes, () => check, (checked: ServiceCheck, scope) =>
+      Effect.gen(function*() {
+        const auth = yield* ServiceAuth
+        const response = yield* auth.execute(service, HttpClientRequest.get(scope.path))
+        return withScope(checked, scope, response.status)
+      }).pipe(Effect.timeout("10 seconds"), Effect.orElseSucceed(() => checked)))
   })
 
 const reachService = (service: HomeProtocol.HomeService) =>

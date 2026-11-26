@@ -80,7 +80,7 @@ describe("release rows", () => {
 })
 
 describe("deletion and removal rows", () => {
-  const deletion = (deletesAt: number): Detected => ({
+  const deletion = (deletesAt: number, exact = true): Detected => ({
     fix: {
       id: "deletion-9",
       kind: "plannedDeletion",
@@ -89,12 +89,12 @@ describe("deletion and removal rows", () => {
       posterUrl: "https://image.tmdb.org/t/p/original/runner.jpg",
       reason: "Old and unwatched",
       actions: ["keep", "letGo"],
-      deletion: { deletesAt, operation: "delete" }
+      deletion: { deletesAt, exact, operation: "delete" }
     },
     target: { kind: "candidate", candidateId: 9 }
   })
 
-  it("a deletion is a day, with the space it gives back when known; a past one goes now", () => {
+  it("a deletion is the run of Reclaimerr's deletion task, with the space it gives back when known; a past one goes now", () => {
     expect(plannedDeletionItems([deletion(now / 1000 + day / 1000)], now, new Map([[9, 7e9]]))).toEqual([{
       id: "deletion-9",
       kind: "plannedDeletion",
@@ -102,12 +102,17 @@ describe("deletion and removal rows", () => {
       title: "Runner",
       posterUrl: "https://image.tmdb.org/t/p/original/runner.jpg",
       at: now / 1000 + day / 1000,
-      timed: false,
+      timed: true,
       earliest: false,
       freesBytes: 7e9,
       fixId: "deletion-9"
     }])
     expect(plannedDeletionItems([deletion(now / 1000 - 60)], now, new Map())[0]).toMatchObject({ at: now / 1000 })
+    // Its deletion task's schedule unknown: the day its delay ends, at the earliest.
+    expect(plannedDeletionItems([deletion(now / 1000 + day / 1000, false)], now, new Map())[0]).toMatchObject({
+      timed: false,
+      earliest: true
+    })
     expect(plannedDeletionItems([deletion(now / 1000)], now, new Map())[0]?.freesBytes).toBeUndefined()
   })
 

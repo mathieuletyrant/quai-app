@@ -194,6 +194,15 @@ describe("allowlist: the To fix list", () => {
     expect(HomeProtocol.goneProtocolVersion).toBeLessThanOrEqual(HomeProtocol.protocolVersion)
   })
 
+  it("Reclaimerr's deletion task is read for when it runs, never run nor rescheduled, nor any other task", () => {
+    const task = "/api/v1/tasks/delete_cleanup_candidates"
+    expect(allowed({ service: "reclaimerr", method: "GET", path: task })).toBe(true)
+    expect(allowed({ service: "reclaimerr", method: "POST", path: `${task}/run`, body: {} })).toBe(false)
+    expect(allowed({ service: "reclaimerr", method: "PUT", path: `${task}/schedule`, body: {} })).toBe(false)
+    expect(allowed({ service: "reclaimerr", method: "GET", path: "/api/v1/tasks" })).toBe(false)
+    expect(allowed({ service: "reclaimerr", method: "GET", path: "/api/v1/tasks/sync_media" })).toBe(false)
+  })
+
   it("a read takes no body; the release search gets a longer timeout", () => {
     expect(allowed({ service: "radarr", method: "GET", path: "/api/v3/queue", body: { a: 1 } })).toBe(false)
     expect(

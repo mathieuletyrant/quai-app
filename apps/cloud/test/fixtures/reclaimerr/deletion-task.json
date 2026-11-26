@@ -1,0 +1,14 @@
+{
+  "id": "delete_cleanup_candidates",
+  "name": "Delete Cleanup Candidates",
+  "description": "Automatically deletes eligible cleanup candidates from rules that explicitly enable automatic deletion.",
+  "enabled": true,
+  "status": "scheduled",
+  "error": null,
+  "schedule_type": "cron",
+  "schedule_value": "0 2 * * *",
+  "next_run_at": "2026-11-19T02:00:00Z",
+  "last_run_at": "2026-11-18T02:00:04.512330Z",
+  "can_run": true,
+  "requires_main_server": false
+}

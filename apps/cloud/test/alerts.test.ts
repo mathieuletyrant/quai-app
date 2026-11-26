@@ -83,7 +83,7 @@ describe("alerts", () => {
     Effect.gen(function*() {
       const { items } = yield* Schema.decodeUnknownEffect(CandidatePage)(fixture("reclaimerr/candidates.json"))
       const fiveDaysBefore = Date.parse("2026-11-19T03:00:00Z")
-      const planned = deletionsState(items, new Set(), fiveDaysBefore).raised
+      const planned = deletionsState(items, undefined, new Set(), fiveDaysBefore).raised
       // Soonest first. Cars 2 is eligible (its date passed: today); Up is scheduled; Coco is protected, Lost and Brave aren't deleting.
       expect(planned.map((raised) => [raised.what, raised.title])).toEqual([
         ["43:last-day", "Cars 2 will be moved today"],
@@ -93,12 +93,24 @@ describe("alerts", () => {
         detail: "Unwatched for a year · Last watched more than 365 days ago",
         silentOver: true
       })
-      const lastDay = deletionsState(items, new Set(), Date.parse("2026-11-23T05:00:00Z")).raised
+      const lastDay = deletionsState(items, undefined, new Set(), Date.parse("2026-11-23T05:00:00Z")).raised
       expect(lastDay.map((raised) => [raised.what, raised.title])[1]).toEqual([
         "42:last-day",
         "Up will be deleted tomorrow"
       ])
-      expect(deletionsState(items, new Set([42, 43]), fiveDaysBefore).raised).toEqual([])
+      expect(deletionsState(items, undefined, new Set([42, 43]), fiveDaysBefore).raised).toEqual([])
+      // Reclaimerr's deletion task runs at 02:00: Up's delay ends on the 24th at 03:00, the run of the 25th takes it.
+      const daily = {
+        enabled: true,
+        schedule_type: "cron",
+        schedule_value: "0 2 * * *",
+        next_run_at: "2026-11-20T02:00:00Z"
+      }
+      expect(deletionsState(items, daily, new Set(), fiveDaysBefore).raised.map((raised) => raised.title)).toEqual([
+        "Cars 2 will be moved tomorrow",
+        "Up will be deleted in 6 days"
+      ])
+      expect(deletionsState(items, { ...daily, enabled: false }, new Set(), fiveDaysBefore).raised).toEqual([])
     }))
 
   it.effect("a planned deletion is notified when planned and on its last day; kept, it ends without a word", () =>

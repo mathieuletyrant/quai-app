@@ -19,6 +19,10 @@ const realHome: Readonly<Record<string, Recording>> = {
   "radarr GET /api/v3/config/mediamanagement": "radarr/mediamanagement.json",
   "sonarr GET /api/v3/config/mediamanagement": "radarr/mediamanagement.json",
   "reclaimerr GET /api/v1/candidates": "real/reclaimerr/candidates.json",
+  // Its deletion task at 02:00, as by default: next, the morning after `now`.
+  "reclaimerr GET /api/v1/tasks/delete_cleanup_candidates": {
+    json: { enabled: true, schedule_type: "cron", schedule_value: "0 2 * * *", next_run_at: "2026-11-25T02:00:00Z" }
+  },
   "cleanuparr GET /api/strikes": "real/cleanuparr/strikes.json",
   "cleanuparr GET /api/configuration/queue_cleaner": "real/cleanuparr/queue-cleaner.json",
   "cleanuparr GET /api/queue-rules/stall": "real/cleanuparr/stall-rules.json",
@@ -81,7 +85,8 @@ describe("upcoming route", () => {
       expect(seed.at).toBe(Math.floor((now + (2160 * 3600 - 41034) * 1000) / 1000))
       const deletion = upcoming.items.find((item) => item.kind === "plannedDeletion" && item.title === "Runner")!
       expect(deletion.fixId).toBe("deletion-9")
-      expect(deletion.at).toBe(Date.parse("2026-11-30T10:00:05Z") / 1000)
+      // Its delay ends on the 30th at 10:00, after that day's run: the next one, at 02:00, takes it.
+      expect(deletion).toMatchObject({ at: Date.parse("2026-12-01T02:00:00Z") / 1000, timed: true, earliest: false })
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("an older Quai Home gets no seed cleanup and no space, and is asked nothing it would refuse", () =>
@@ -93,7 +98,10 @@ describe("upcoming route", () => {
       expect(upcoming.homeOutdated).toBe(true)
       expect(upcoming.items.filter((item) => item.kind === "seedCleanup")).toEqual([])
       expect(upcoming.items.filter((item) => item.freesBytes !== undefined)).toEqual([])
-      expect(upcoming.items.some((item) => item.kind === "plannedDeletion")).toBe(true)
+      // Its deletion task isn't asked for (protocol 11): the end of the delay, at the earliest.
+      const deletion = upcoming.items.find((item) => item.kind === "plannedDeletion" && item.title === "Runner")!
+      expect(deletion).toMatchObject({ at: Date.parse("2026-11-30T10:00:05Z") / 1000, timed: false, earliest: true })
+      expect(upcoming.unavailable).toEqual([])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("a service that didn't answer is unavailable, the rest still shows", () =>
