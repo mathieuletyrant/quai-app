@@ -50,7 +50,9 @@ deletion whose torrent still seeds shows nothing, and its size shows on the week
 - A Reclaimerr movie version is the Radarr movie only when they weigh the same (within 2 %).
 - Cross-seeds: same name and size in qBittorrent. A torrent Quai can't place (no grab: added by hand,
   older than the history, another name) keeps a hardlinked deletion from freeing anything when it may
-  hold its files: about the same size (within 5 %), or every word of the title in its name.
+  hold its files: a cross-seed of a release Radarr or Sonarr grabbed for that title (its name, or its
+  size within 0.1 % of the size its indexer listed), or every word of the title in its name. A
+  torrent that only weighs about what the deletion does holds nothing of it.
 - A seed cleanup's date is exact for a seed time; the latest for a rule with a ratio too; the earliest
   (maybe never) for a rule that waits for seeders or inactivity. A row gets the space only when its
   moment is surely the last copy going.

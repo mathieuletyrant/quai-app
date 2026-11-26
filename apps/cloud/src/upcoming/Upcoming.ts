@@ -165,8 +165,10 @@ export const spaceFreed = ({ library, now, plans, reach, stack }: SpaceSources):
     planned: plans.planned,
     movies: known(reach.has("radarr"), library.movies),
     series: known(reach.has("sonarr"), library.series),
-    radarrGrabs: known(reach.has("radarr"), library.radarrGrabs),
-    sonarrGrabs: known(reach.has("sonarr"), library.sonarrGrabs),
+    grabs: {
+      radarr: known(reach.has("radarr"), library.radarrGrabs),
+      sonarr: known(reach.has("sonarr"), library.sonarrGrabs)
+    },
     hardlinks: hardlinksOf(library),
     torrents: known(reach.has("qbittorrent"), stack.finished),
     cleanups: plans.cleanups,

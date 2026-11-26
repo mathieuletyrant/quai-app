@@ -40,12 +40,23 @@ export interface TorrentInput {
   } | undefined
 }
 
+/** A release Radarr or Sonarr grabbed, and the title it is in the library. */
+export interface ReleaseInput {
+  readonly key: TitleKey
+  /** The release's name: "Vampire.Diaries.2009.S07.MULTI.VFF.1080p.WEB.EAC3.5.1.x264-BTT". */
+  readonly name: string
+  /** Bytes, as the indexer listed it; undefined when not known. */
+  readonly size: number | undefined
+}
+
 export interface SpaceBackInput {
   readonly deletions: ReadonlyArray<DeletionInput>
   /** Every finished torrent; undefined when qBittorrent couldn't be read (nothing can be sure then). */
   readonly torrents: ReadonlyArray<TorrentInput> | undefined
   /** The title each download was grabbed for, by lowercase hash. */
   readonly grabs: ReadonlyMap<string, TitleKey>
+  /** The releases grabbed, with their titles: what a cross-seed under another hash is matched to. */
+  readonly releases: ReadonlyArray<ReleaseInput>
   /** Whether the title's files may still be in the library (true when Quai can't tell). */
   readonly inLibrary: (key: TitleKey) => boolean
   /** Whether Radarr's (movie) and Sonarr's (series) imports are hardlinks; undefined when unknown. */
@@ -132,12 +143,18 @@ export const surelyLast = (copies: ReadonlyArray<Going>): Going | undefined => {
   return copies.every((copy) => copy === last || copy.latest <= last.earliest) ? last : undefined
 }
 
-/** Shares within which two sizes are the same files: a release and the library file it became. */
-const sameSizeShare = 0.05
+/**
+ * Shares within which a torrent's size is a release's: a cross-seed holds the very same bytes, but
+ * some indexers round the size they list.
+ */
+const sameReleaseShare = 0.001
 
 /** The words of a title or a release name, lowercase, without accents. */
 const tokensOf = (text: string) =>
   text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9]+/).filter((word) => word !== "")
+
+/** A release or torrent name as both spell it: a single-file torrent adds the file's extension. */
+const releaseNameOf = (name: string) => tokensOf(name.replace(/\.(mkv|mp4|m4v|avi|ts)$/i, "")).join(".")
 
 /** A title's telling words: no years or one-letter words, unless that's all it has ("1917", "X"). */
 const titleWords = (title: string) => {
@@ -158,9 +175,9 @@ const lowerBound = (values: ReadonlyArray<number>, atLeast: number) => {
   return low
 }
 
-/** Whether one of the sorted sizes is about `size` (within `sameSizeShare`). */
-const aboutTheSize = (sizes: ReadonlyArray<number>, size: number) => {
-  const share = size * sameSizeShare
+/** Whether one of the sorted sizes is the release's (within `sameReleaseShare`). */
+const releaseSized = (sizes: ReadonlyArray<number>, size: number) => {
+  const share = size * sameReleaseShare
   // A byte of margin each side of the search, then the exact test.
   for (let index = lowerBound(sizes, Math.floor(size - share) - 1); index < sizes.length; index++) {
     const other = sizes[index]!
@@ -182,17 +199,34 @@ const namedAfter = (
   return rarest.some((index) => words.every((word) => names[index]!.has(word)))
 }
 
+/** The releases by the series or movie they are of, so a deletion looks up only its own. */
+const releasesByTitle = (releases: ReadonlyArray<ReleaseInput>) => {
+  const byTitle = new Map<TitleKey, Array<ReleaseInput>>()
+  for (const release of releases) {
+    const title = titleOf(release.key)
+    const known = byTitle.get(title)
+    if (known === undefined) byTitle.set(title, [release])
+    else known.push(release)
+  }
+  return (key: TitleKey): ReadonlyArray<ReleaseInput> =>
+    (byTitle.get(titleOf(key)) ?? []).filter((release) => covers(key, release.key) || covers(release.key, key))
+}
+
 /**
- * Whether torrents Quai couldn't place may hold a deletion's files: one about the same size, or
- * with every word of its title in its name. Reclaimerr's title may be translated: the size still
- * tells. Their sizes and words are indexed once, on the first deletion asked about.
+ * Whether torrents Quai couldn't place may hold a deletion's files. Only what Radarr or Sonarr know
+ * of the title counts: a cross-seed (another hash) of a release grabbed for it, by its name or its
+ * size (within 0.1 % of the size its indexer listed); or every word of the title in a torrent's
+ * name. A torrent that only weighs about what the deletion does holds nothing of it. Indexed once,
+ * on the first deletion asked about.
  */
-export const mayHold = (unplaced: ReadonlyArray<FileSet>) => {
+export const mayHold = (unplaced: ReadonlyArray<FileSet>, releases: ReadonlyArray<ReleaseInput>) => {
   let index:
     | {
+      readonly releaseNames: ReadonlySet<string>
       readonly sizes: ReadonlyArray<number>
       readonly names: ReadonlyArray<ReadonlySet<string>>
       readonly withWord: ReadonlyMap<string, ReadonlyArray<number>>
+      readonly releasesOf: (key: TitleKey) => ReadonlyArray<ReleaseInput>
     }
     | undefined
   const indexed = () => {
@@ -207,14 +241,24 @@ export const mayHold = (unplaced: ReadonlyArray<FileSet>) => {
         else posting.push(position)
       }
     })
-    index = { sizes: members.map((member) => member.size).sort((left, right) => left - right), names, withWord }
+    index = {
+      releaseNames: new Set(members.map((member) => releaseNameOf(member.name))),
+      sizes: members.map((member) => member.size).sort((left, right) => left - right),
+      names,
+      withWord,
+      releasesOf: releasesByTitle(releases)
+    }
     return index
   }
   return (deletion: DeletionInput): boolean => {
     if (unplaced.length === 0) return false
-    const { names, sizes, withWord } = indexed()
-    const size = deletion.sizeBytes ?? 0
-    if (size > 0 && aboutTheSize(sizes, size)) return true
+    const { names, releaseNames, releasesOf, sizes, withWord } = indexed()
+    const crossSeeded = deletion.key !== undefined &&
+      releasesOf(deletion.key).some((release) =>
+        releaseNames.has(releaseNameOf(release.name)) ||
+        (release.size !== undefined && release.size > 0 && releaseSized(sizes, release.size))
+      )
+    if (crossSeeded) return true
     const title = titleWords(deletion.title)
     return title.size > 0 && namedAfter(names, withWord, title)
   }
@@ -319,7 +363,7 @@ export const spaceBack = (input: SpaceBackInput): SpaceBack => {
   }
 
   const held = placedOverlap(sets)
-  const mightBeHeld = mayHold(sets.filter((set) => set.key === undefined))
+  const mightBeHeld = mayHold(sets.filter((set) => set.key === undefined), input.releases)
   for (const deletion of input.deletions) {
     if (deletions.has(deletion.candidateId)) continue
     const bytes = deletionAlone(input, deletion, held, mightBeHeld)

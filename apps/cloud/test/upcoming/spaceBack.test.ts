@@ -18,6 +18,7 @@ const base = (overrides: Partial<SpaceBackInput> = {}): SpaceBackInput => ({
   deletions: [{ candidateId: 9, title: "Dune", key: "movie:1", at: T1, sizeBytes: 57e9 }],
   torrents: [movieTorrent()],
   grabs: new Map([["aaa", "movie:1"]]),
+  releases: [{ key: "movie:1", name: "Dune.2021.1080p", size: 58e9 }],
   inLibrary: () => true,
   hardlinks: { movie: true, series: true },
   unlinkedCategory: "cleanuparr-unlinked",
@@ -95,7 +96,7 @@ describe("space back, with hardlinks", () => {
   })
 
   it("a torrent Quai can't place that may hold the title keeps its deletion from freeing anything", () => {
-    // Added by hand, older than the grabs read, or a cross-seed under another name: the same size…
+    // A cross-seed of the release grabbed, under another name: the same bytes…
     const sameSize = movieTorrent({ hash: "zzz", name: "Some.Other.Name.MULTi", cleanup: undefined })
     expect(claims(base({ torrents: [sameSize] }))).toEqual(nothing)
     // …or every word of the title in its name.
@@ -119,7 +120,7 @@ describe("space back, with hardlinks", () => {
     expect(claims(base({ torrents: [unrelated] }))).toEqual({ deletions: [[9, 57e9]], torrents: [] })
   })
 
-  it("a translated title still matches the release by its size", () => {
+  it("a cross-seed of the release grabbed holds the title, whatever Reclaimerr calls it", () => {
     const reze = {
       candidateId: 8,
       title: "Chainsaw Man – Le Film : L'arc de Reze",
@@ -127,13 +128,48 @@ describe("space back, with hardlinks", () => {
       at: T1,
       sizeBytes: 5.45e9
     }
-    const release = movieTorrent({
-      hash: "zzz",
-      name: "Chainsaw.Man.The.Movie.Reze.Arc.2025.1080p",
-      size: 5.5e9,
+    const release = { key: "movie:2", name: "Chainsaw.Man.The.Movie.Reze.Arc.2025.1080p-GRP", size: 5.5e9 }
+    // Its hash is the cross-seed's own, not the grab's: by the release's name (a single file adds its extension)…
+    const named = movieTorrent({ hash: "zzz", name: `${release.name}.mkv`, size: 5.6e9, cleanup: undefined })
+    expect(claims(base({ deletions: [reze], torrents: [named], grabs: new Map(), releases: [release] })))
+      .toEqual(nothing)
+    // …or by its very size, under a name of another tracker.
+    const sized = movieTorrent({ hash: "zzz", name: "Reze.2025.1080p.WEB", size: 5.5e9, cleanup: undefined })
+    expect(claims(base({ deletions: [reze], torrents: [sized], grabs: new Map(), releases: [release] })))
+      .toEqual(nothing)
+  })
+
+  it("a torrent about the title's size, of another release, doesn't keep it from freeing", () => {
+    // The Vampire Diaries S07: its torrent is gone, a remux of another movie weighs about as much.
+    const season7 = {
+      candidateId: 4,
+      title: "Vampire Diaries S07",
+      key: "series:123:s7",
+      at: T1,
+      sizeBytes: 42.5e9
+    }
+    const remux = movieTorrent({
+      hash: "257ded50",
+      name: "Schinders.List.1993.MULTi.1080p.BluRay.REMUX.AVC-HDForever.mkv",
+      size: 41.1e9,
       cleanup: undefined
     })
-    expect(claims(base({ deletions: [reze], torrents: [release], grabs: new Map() }))).toEqual(nothing)
+    const releases = [
+      { key: "series:123:s7", name: "Vampire.Diaries.2009.S07.MULTI.VFF.1080p.WEB.EAC3.5.1.x264-BTT", size: 42.4e9 },
+      { key: "movie:270", name: "La.Liste.De.Schindler.1993.MULTI.VFF.1080p.BluRay.Remux-HDForever", size: 41.2e9 }
+    ]
+    expect(claims(base({ deletions: [season7], torrents: [remux], grabs: new Map(), releases })))
+      .toEqual({ deletions: [[4, 42.5e9]], torrents: [] })
+  })
+
+  it("a cross-seed of another season doesn't hold this one; one of the whole series does", () => {
+    const season7 = { candidateId: 4, title: "Vampire Diaries S07", key: "series:123:s7", at: T1, sizeBytes: 42.5e9 }
+    const season8 = movieTorrent({ hash: "zzz", name: "TVD.S08.1080p", size: 10.2e9, cleanup: undefined })
+    const of = (key: string) => [{ key, name: "The.Vampire.Diaries.S08.MULTi.1080p.WEB.H265-CHiLL", size: 10.2e9 }]
+    expect(claims(base({ deletions: [season7], torrents: [season8], grabs: new Map(), releases: of("series:123:s8") })))
+      .toEqual({ deletions: [[4, 42.5e9]], torrents: [] })
+    expect(claims(base({ deletions: [season7], torrents: [season8], grabs: new Map(), releases: of("series:123") })))
+      .toEqual(nothing)
   })
 
   it("a season pack placed on the whole series holds every season", () => {
