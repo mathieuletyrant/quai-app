@@ -96,17 +96,18 @@ struct UpcomingSchedule {
     }
 
     /// Today the time ("21:00"), else the day ("Thu Nov 26"), a range on one line ("Thu–Sun, Nov 26–29").
+    /// It follows "Sonarr · " in a row, so its own words are lowercase: "out today", "earliest 14:30".
     func when(_ item: UpcomingItem) -> String {
-        guard let at = item.at else { return "No date: by ratio" }
+        guard let at = item.at else { return "no date: by ratio" }
         let date = Date(timeIntervalSince1970: at)
-        let earliest = item.earliest ? "Earliest " : ""
+        let earliest = item.earliest ? "earliest " : ""
         // A week of seed cleanups starting today still says its days.
         if let until = item.until.map(Date.init(timeIntervalSince1970:)), !calendar.isDate(date, inSameDayAs: until) {
             return earliest + range(date, until)
         }
         if daysAhead(date) == 0 {
             if item.timed { return earliest + format("HH:mm", date) }
-            return item.isComing ? "Out today" : earliest + "Today"
+            return item.isComing ? "out today" : earliest + "today"
         }
         return earliest + format("EEE MMM d", date)
     }
