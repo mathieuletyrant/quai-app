@@ -2653,6 +2653,12 @@
             "items": {
               "$ref": "#/components/schemas/AlertKind"
             }
+          },
+          "services": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Service"
+            }
           }
         },
         "required": [
@@ -2660,6 +2666,19 @@
           "enabled"
         ],
         "additionalProperties": false
+      },
+      "Service": {
+        "type": "string",
+        "enum": [
+          "radarr",
+          "sonarr",
+          "qbittorrent",
+          "jellyfin",
+          "reclaimerr",
+          "seerr",
+          "cleanuparr",
+          "prowlarr"
+        ]
       },
       "AlertKind": {
         "type": "string",
@@ -2684,6 +2703,9 @@
           },
           "detail": {
             "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Service"
           },
           "since": {
             "type": "number"

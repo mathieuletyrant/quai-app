@@ -3,50 +3,56 @@ import SwiftUI
 typealias JournalEntry = Components.Schemas.JournalEntry
 
 extension JournalEntry {
-    /// A symbol and a color for what happened.
-    var look: (systemImage: String, color: Color) {
-        switch kind {
-        case "media.added": ("plus.circle.fill", Palette.requests)
-        case "media.grabbed": ("arrow.down.circle.fill", Palette.downloads)
-        case "media.imported": ("tray.and.arrow.down.fill", Palette.downloads)
-        case "media.importBlocked": ("exclamationmark.triangle.fill", Palette.toFix)
-        case "download.removed": ("xmark.circle.fill", Palette.stalled)
-        case "media.available": ("checkmark.circle.fill", Palette.ok)
-        case "playback.started", "playback.stopped": ("play.fill", Palette.playback)
-        case "alert.raised": ("exclamationmark.triangle.fill", Palette.alert)
-        case "alert.over": ("checkmark.circle.fill", Palette.ok)
-        case "reclaimerr.deleted", "reclaimerr.moved", "cleanuparr.removed", "cleanuparr.cleaned":
-            ("trash.circle.fill", Palette.secondaryText)
-        case "request.pending", "request.approved", "request.declined": ("person.fill.questionmark", Palette.requests)
-        case "releases.available": ("calendar", Palette.releases)
-        default: ("circle.fill", Palette.secondaryText)
-        }
-    }
-
     var date: Date { Date(timeIntervalSince1970: at / 1000) }
 }
 
-/// One line of the journal: what happened, and when.
+/// The journal's lines by day, newest first as they came: "Today", "Yesterday", then the date.
+struct JournalDay: Identifiable {
+    let title: String
+    let entries: [JournalEntry]
+
+    var id: String { title }
+
+    static func days(_ entries: [JournalEntry], now: Date = .now, calendar: Calendar = .current) -> [JournalDay] {
+        var days: [JournalDay] = []
+        for entry in entries {
+            let title = dayTitle(entry.date, now: now, calendar: calendar)
+            if let last = days.last, last.title == title {
+                days[days.count - 1] = JournalDay(title: title, entries: last.entries + [entry])
+            } else {
+                days.append(JournalDay(title: title, entries: [entry]))
+            }
+        }
+        return days
+    }
+
+    /// "Today", "Yesterday", "Mon, Nov 24".
+    static func dayTitle(_ date: Date, now: Date, calendar: Calendar) -> String {
+        if calendar.isDate(date, inSameDayAs: now) { return "Today" }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) {
+            return "Yesterday"
+        }
+        return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+    }
+}
+
+/// One line of the journal: what happened, over who it's about and when.
 struct JournalRow: View {
     let entry: JournalEntry
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: entry.look.systemImage)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(entry.look.color)
-                .frame(width: 18)
+        VStack(alignment: .leading, spacing: 3) {
             Text(entry.text)
                 .font(QuaiFont.subheadline)
                 .foregroundStyle(Palette.primaryText)
-                .lineLimit(2)
-            Spacer(minLength: 8)
-            Text(entry.date, format: .relative(presentation: .named, unitsStyle: .narrow))
-                .font(QuaiFont.caption)
-                .foregroundStyle(Palette.secondaryText)
-                .lineLimit(1)
-                .fixedSize()
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+            ServiceLine(
+                services: [entry.source.rawValue],
+                detail: Text(entry.date, format: .relative(presentation: .named, unitsStyle: .narrow))
+            )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }

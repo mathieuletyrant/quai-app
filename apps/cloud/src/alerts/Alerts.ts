@@ -4,6 +4,7 @@ import {
   type AlertKind,
   AlertKind as AlertKindSchema,
   alertKinds,
+  AlertService,
   type AlertSettings,
   AlertSettings as AlertSettingsSchema,
   currentAlertKind as currentKind,
@@ -14,7 +15,7 @@ import {
 } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { Devices } from "../home/Devices.ts"
-import { HomeDocuments, toOffline } from "../home/HomeLink.ts"
+import { HomeDocuments, HomeLink, toOffline } from "../home/HomeLink.ts"
 import { Journal } from "../journal/Journal.ts"
 import { Apns } from "../push/Apns.ts"
 import { sendPlain } from "../push/PlainNotification.ts"
@@ -123,12 +124,16 @@ const sourceOf = (scope: string): JournalSource =>
 const enabledKinds = (settings: AlertSettings): ReadonlyArray<AlertKind> =>
   alertKinds.filter((kind) => settings[kind].enabled)
 
-const toActive = (alert: StoredAlert): ActiveAlert => ({
+const isService = Schema.is(AlertService)
+
+/** An alert as the app shows it: its scope says which service it's about, unless it's `disk`. */
+export const toActive = (alert: StoredAlert): ActiveAlert => ({
   id: alert.id,
   kind: alert.kind,
   title: alert.title,
   since: alert.since,
-  ...(alert.detail === undefined ? {} : { detail: alert.detail })
+  ...(alert.detail === undefined ? {} : { detail: alert.detail }),
+  ...(isService(alert.scope) ? { source: alert.scope } : {})
 })
 
 /**
@@ -151,6 +156,7 @@ export class Alerts extends Context.Service<Alerts, {
       const devices = yield* Devices
       const apns = yield* Apns
       const journal = yield* Journal
+      const link = yield* HomeLink
       // Readings of different services arrive together: one read-change-write at a time.
       const lock = yield* Semaphore.make(1)
 
@@ -207,7 +213,12 @@ export class Alerts extends Context.Service<Alerts, {
         active: Effect.gen(function*() {
           const current = yield* settings
           const items = (yield* stored).filter((alert) => current[alert.kind].enabled).map(toActive)
-          return { items, enabled: enabledKinds(current) }
+          const home = yield* link.home
+          return {
+            items,
+            enabled: enabledKinds(current),
+            ...(Option.isSome(home) ? { services: [...home.value.services] } : {})
+          }
         }),
         apply
       }

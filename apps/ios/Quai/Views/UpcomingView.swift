@@ -96,17 +96,18 @@ struct UpcomingSchedule {
     }
 
     /// Today the time ("21:00"), else the day ("Thu Nov 26"), a range on one line ("Thu–Sun, Nov 26–29").
+    /// It follows "Sonarr · " in a row, so its own words are lowercase: "out today", "earliest 14:30".
     func when(_ item: UpcomingItem) -> String {
-        guard let at = item.at else { return "No date: by ratio" }
+        guard let at = item.at else { return "no date: by ratio" }
         let date = Date(timeIntervalSince1970: at)
-        let earliest = item.earliest ? "Earliest " : ""
+        let earliest = item.earliest ? "earliest " : ""
         // A week of seed cleanups starting today still says its days.
         if let until = item.until.map(Date.init(timeIntervalSince1970:)), !calendar.isDate(date, inSameDayAs: until) {
             return earliest + range(date, until)
         }
         if daysAhead(date) == 0 {
             if item.timed { return earliest + format("HH:mm", date) }
-            return item.isComing ? "Out today" : earliest + "Today"
+            return item.isComing ? "out today" : earliest + "today"
         }
         return earliest + format("EEE MMM d", date)
     }
@@ -280,7 +281,7 @@ extension Components.Schemas.UpcomingService {
     }
 }
 
-/// One row: its poster, who does it over the title, when under it, and the space it gives back.
+/// One row: its poster, the title, then who does it and when, and the space it gives back.
 struct UpcomingRow: View {
     let item: UpcomingItem
     let when: String
@@ -296,10 +297,6 @@ struct UpcomingRow: View {
             }
             .frame(width: posterWidth, height: posterWidth * 1.5)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.service.name.uppercased())
-                    .font(QuaiFont.tag)
-                    .tracking(0.6)
-                    .foregroundStyle(item.tint)
                 HStack(spacing: 4) {
                     Text(item.title)
                         .lineLimit(1)
@@ -312,17 +309,16 @@ struct UpcomingRow: View {
                 .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
                 .foregroundStyle(Palette.primaryText)
                 HStack(spacing: 4) {
-                    Text(when)
-                        .foregroundStyle(Palette.secondaryText)
+                    ServiceLine(services: [item.service.rawValue], detail: Text(when).monospacedDigit())
                     if let freesBytes = item.freesBytes, let freedText = item.freedText {
                         Text(freedText)
+                            .font(QuaiFont.caption.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundStyle(Palette.ok)
+                            .lineLimit(1)
                             .accessibilityLabel("frees \(Format.bytes(freesBytes))")
                     }
                 }
-                .font(QuaiFont.caption.monospacedDigit())
-                .lineLimit(1)
             }
             Spacer(minLength: 8)
             if item.opens, opens, !compact {

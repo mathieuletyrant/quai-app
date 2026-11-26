@@ -360,24 +360,29 @@ private struct AlertsTile: View {
 private struct AlertRow: View {
     let alert: Components.Schemas.ActiveAlert
 
+    private var since: Text {
+        Text(Date(timeIntervalSince1970: alert.since / 1000), format: .dateTime.hour().minute())
+    }
+
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(alert.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Palette.primaryText)
-                if let detail = alert.detail {
-                    Text(detail)
-                        .font(QuaiFont.caption)
-                        .foregroundStyle(Palette.secondaryText)
-                }
+        VStack(alignment: .leading, spacing: 2) {
+            Text(alert.title)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Palette.primaryText)
+            if let detail = alert.detail {
+                Text(detail)
+                    .font(QuaiFont.caption)
+                    .foregroundStyle(Palette.secondaryText)
             }
-            Spacer(minLength: 8)
-            Text(Date(timeIntervalSince1970: alert.since / 1000), format: .dateTime.hour().minute())
-                .font(QuaiFont.caption.monospacedDigit())
-                .foregroundStyle(Palette.secondaryText)
-                .fixedSize()
+            if let source = alert.source {
+                ServiceLine(services: [source.rawValue], detail: since)
+            } else {
+                since
+                    .font(QuaiFont.caption)
+                    .foregroundStyle(Palette.secondaryText)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -344,6 +344,12 @@ final class Connection {
         if let read = try? await requiredClient().listAlerts().ok.body.json { alerts = read }
     }
 
+    /// Whether Quai Home reaches this service, as the alerts say; unknown (not read yet, an older
+    /// Cloud): yes, so nothing hides by mistake.
+    func reaches(_ service: Components.Schemas.Service) -> Bool {
+        alerts?.services?.contains(service) ?? true
+    }
+
     // MARK: Journal
 
     /// The newest page of the journal: what happened to the titles, the requests and the server.

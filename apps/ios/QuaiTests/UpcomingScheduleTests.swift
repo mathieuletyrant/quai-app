@@ -15,9 +15,9 @@ struct UpcomingScheduleTests {
         #expect(schedule.when(episode) == "21:00")
         #expect(schedule.period(episode) == .today)
         let movie = try item(#"{"id":"r2","kind":"releaseDay","service":"radarr","title":"Dune","at":1795561200,"timed":false,"earliest":false}"#)
-        #expect(schedule.when(movie) == "Out today")
+        #expect(schedule.when(movie) == "out today")
         let removal = try item(#"{"id":"x","kind":"stuckRemoval","service":"cleanuparr","title":"Lost","at":1795613400,"timed":true,"earliest":true,"fixId":"removal-1"}"#)
-        #expect(schedule.when(removal) == "Earliest 14:30")
+        #expect(schedule.when(removal) == "earliest 14:30")
     }
 
     @Test func otherDaysSayTheDayAndARangeFitsOnOneLine() throws {
