@@ -17,11 +17,11 @@ import { excluding, settingsRead } from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
 import {
   candidatesRead,
-  deletionTaskRead,
   plannedDeletionFixes,
   plannedDeletions,
   protectPath,
-  protectReason
+  protectReason,
+  readDeletionTask
 } from "../integrations/reclaimerr.ts"
 import { Journal } from "../journal/Journal.ts"
 import type { Detected, FixTarget, RemovalTarget } from "./Detected.ts"
@@ -133,7 +133,7 @@ export class Fixes extends Context.Service<Fixes, {
           const none = Effect.succeed(Option.none<never>())
           const [candidates, task, planned, ...found] = yield* Effect.all([
             asked("reclaimerr") ? reads.read(candidatesRead) : none,
-            asked("reclaimerr") ? reads.read(deletionTaskRead) : none,
+            asked("reclaimerr") ? readDeletionTask(reads) : Effect.succeed(undefined),
             asked("cleanuparr") ? stuckRemovalsRead(reads) : none,
             ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
           ], { concurrency: "unbounded" })
@@ -147,7 +147,7 @@ export class Fixes extends Context.Service<Fixes, {
           )
           const due = Option.match(candidates, {
             onNone: () => [],
-            onSome: (page) => plannedDeletions(page.items, Option.getOrUndefined(task))
+            onSome: (page) => plannedDeletions(page.items, task)
           })
           const deletions = only === undefined
             ? yield* deletionsWithPosters(reads, due)

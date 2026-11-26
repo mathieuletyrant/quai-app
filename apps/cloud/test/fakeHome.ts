@@ -109,7 +109,8 @@ export const recordedHome = (
  * (`HomeProtocol.minProtocolVersion`). Protocol 2 added Reclaimerr and `DELETE`, protocol 3 Seerr
  * and the calendars, protocol 5 Cleanuparr and `PUT`, protocol 6 Prowlarr and the *arr health
  * checks, protocol 8 Seerr's search, users and new requests, protocol 9 Cleanuparr's download
- * cleaner and the *arr media management setting, protocol 10 Reclaimerr's event feed.
+ * cleaner and the *arr media management setting, protocol 10 Reclaimerr's event feed, protocol 11
+ * its deletion task.
  */
 type Allowed = Pick<Call, "service" | "method" | "path">
 
@@ -117,6 +118,7 @@ const pathOf = (call: Allowed) => call.path.split("?")[0]!
 
 /** Newest first: the first protocol whose rule matches the call. */
 const protocolRules: ReadonlyArray<readonly [number, (call: Allowed) => boolean]> = [
+  [11, (call) => call.service === "reclaimerr" && pathOf(call) === "/api/v1/tasks/delete_cleanup_candidates"],
   [10, (call) => call.service === "reclaimerr" && pathOf(call) === "/api/v1/events"],
   [
     9,

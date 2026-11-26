@@ -57,6 +57,9 @@ export const upcomingProtocolVersion = 9
 /** The first protocol whose Home allows Reclaimerr's event feed (what it deleted or moved). */
 export const goneProtocolVersion = 10
 
+/** The first protocol whose Home allows Reclaimerr's deletion task (when it deletes). */
+export const deletionTaskProtocolVersion = 11
+
 /** The services a Home can reach. */
 export const HomeService = Service
 export type HomeService = Service

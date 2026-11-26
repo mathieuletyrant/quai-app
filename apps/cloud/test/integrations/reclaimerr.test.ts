@@ -62,6 +62,11 @@ describe("when Reclaimerr deletes a candidate", () => {
     expect(deletionRun(due, { ...daily, schedule_value: "every night" })).toEqual(earliest)
     expect(deletionRun(due, { ...daily, next_run_at: "2026-11-27T01:00:00Z" })).toEqual(earliest)
     expect(deletionRun(due, { ...daily, schedule_type: "interval", schedule_value: "0" })).toEqual(earliest)
+    expect(deletionRun(due, { ...daily, schedule_type: "interval", schedule_value: "Infinity" })).toEqual(earliest)
+    // A next run after the delay ends is trusted only from a schedule Quai can follow.
+    const after = { ...daily, next_run_at: "2026-12-01T02:00:00Z" }
+    expect(deletionRun(due, { ...after, schedule_value: "every night" })).toEqual(earliest)
+    expect(deletionRun(due, { ...after, schedule_type: "interval", schedule_value: "1e999" })).toEqual(earliest)
   })
 
   it("planned deletions take the task's run, and none while the task is off", () => {

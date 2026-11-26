@@ -15,13 +15,13 @@ import {
   candidatesRead,
   carriedOut,
   type DeletionTask,
-  deletionTaskRead,
   type FileEvent,
   fileEventsRead,
   type FileEventType,
   fileEventTypes,
   type PlannedCandidate,
   plannedDeletions,
+  readDeletionTask,
   reasonSummary
 } from "./reclaimerr.ts"
 
@@ -136,8 +136,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
   const deletionTask = (now: number) =>
     task !== undefined && now - task.readAt < deletionTaskEveryMs
       ? Effect.succeed(task.value)
-      : reads.read(deletionTaskRead).pipe(
-        Effect.map(Option.getOrUndefined),
+      : readDeletionTask(reads).pipe(
         Effect.orElseSucceed(() => undefined),
         Effect.tap((value) => Effect.sync(() => (task = { value, readAt: now })))
       )

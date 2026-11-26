@@ -76,7 +76,7 @@ export const gatheredOf = (home: BigHome): Gathered => {
       unavailable: []
     },
     candidates: Option.some({ items: home.candidates }),
-    deletionTask: Option.none(),
+    deletionTask: undefined,
     removals: Option.some(removalsOf(home)),
     cleaner: Option.some(home.downloadCleaner),
     job: Option.some({ nextRunTime: new Date(nextRunAt).toISOString() }),

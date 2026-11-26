@@ -1,8 +1,8 @@
-import type { PlannedDeletion } from "@quai/api"
-import { Cron, Result, Schema } from "effect"
+import { type HomeOffline, HomeProtocol, type PlannedDeletion } from "@quai/api"
+import { Cron, Effect, Option, Result, Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
-import type { Read } from "../home/HomeReads.ts"
+import type { HomeReads, Read } from "../home/HomeReads.ts"
 import * as LibraryId from "../library/LibraryId.ts"
 import { epochSeconds, knownYear, posterOf } from "./arr.ts"
 import type { RadarrMovie } from "./radarr.ts"
@@ -136,26 +136,39 @@ export const deletionTaskRead: Read<DeletionTask> = {
   schema: DeletionTask
 }
 
+/**
+ * The deletion task, when Quai Home allows it (`deletionTaskProtocolVersion`); undefined when an older
+ * one would refuse it or Reclaimerr didn't answer it.
+ */
+export const readDeletionTask = (reads: HomeReads["Service"]): Effect.Effect<DeletionTask | undefined, HomeOffline> =>
+  Effect.flatMap(reads.protocol, (protocol) =>
+    protocol >= HomeProtocol.deletionTaskProtocolVersion
+      ? Effect.map(reads.read(deletionTaskRead), Option.getOrUndefined)
+      : Effect.succeed(undefined))
+
 /** When a candidate goes: `exact` when the deletion task's schedule says it, else the earliest. */
 export interface DeletionRun {
   readonly at: number
   readonly exact: boolean
 }
 
-/** The run of a cron schedule from `due` on, when its next run is one of its own (Reclaimerr's clock in UTC). */
+/** The runs from `due` on of a cron whose next run is one of its own (Reclaimerr's clock in UTC). */
 const cronRunFrom = (value: string, next: number, due: number): number | undefined => {
   const parsed = Cron.parse(value, "UTC")
   if (Result.isFailure(parsed) || !Cron.match(parsed.success, new Date(next * 1000))) return undefined
-  return Math.floor(Cron.next(parsed.success, new Date(due * 1000 - 1000)).getTime() / 1000)
+  return next >= due ? next : Math.floor(Cron.next(parsed.success, new Date(due * 1000 - 1000)).getTime() / 1000)
+}
+
+/** The runs from `due` on of an interval of a finite, positive number of seconds. */
+const intervalRunFrom = (value: string, next: number, due: number): number | undefined => {
+  const every = Number(value)
+  if (!Number.isFinite(every) || every <= 0) return undefined
+  return next >= due ? next : next + Math.ceil((due - next) / every) * every
 }
 
 /** The first run of the deletion task from `due` (epoch seconds) on, `next` being its next one. */
 const runFrom = (task: DeletionTask, next: number, due: number): number | undefined => {
-  if (next >= due) return next
-  if (task.schedule_type === "interval") {
-    const every = Number(task.schedule_value)
-    return every > 0 ? next + Math.ceil((due - next) / every) * every : undefined
-  }
+  if (task.schedule_type === "interval") return intervalRunFrom(task.schedule_value, next, due)
   return task.schedule_type === "cron" ? cronRunFrom(task.schedule_value, next, due) : undefined
 }
 
