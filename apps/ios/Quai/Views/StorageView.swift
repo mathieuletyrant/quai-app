@@ -98,7 +98,7 @@ struct StorageView: View {
                     .foregroundStyle(Palette.secondaryText)
                     .padding(.horizontal, 4)
             }
-            if storage == nil, connection.storageError == nil {
+            if connection.awaits(storage, failure: connection.storageError) {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
             } else if storage != nil, disks.isEmpty {
                 MessageTile(

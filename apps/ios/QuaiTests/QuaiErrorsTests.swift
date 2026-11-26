@@ -60,3 +60,36 @@ struct QuaiErrorsTests {
         #expect(!ConnectionError.removed.isConnectionFailure)
     }
 }
+
+/// Each tab reads what it shows; a failed read is said by the server's status or by its screen.
+@MainActor
+struct TabReadTests {
+    @Test func eachTabReadsWhatItShows() {
+        #expect(AppTab.home.reads == [.fixes, .homeTiles, .requests, .upcoming, .library])
+        #expect(AppTab.library.reads == [.library])
+        #expect(AppTab.activity.reads == [.journal])
+        #expect(AppTab.settings.reads.isEmpty)
+        #expect(AppTab.search.reads.isEmpty)
+    }
+
+    @Test func theServerOutOfReachIsTheServersStatus() {
+        let unreachable = URLError(.cannotConnectToHost)
+        #expect(ReadFailure(unreachable, shown: "Before") == .server(unreachable.quaiMessage))
+        #expect(ReadFailure(ConnectionError.homeOffline, shown: nil) == .server(ConnectionError.homeOffline.quaiMessage))
+    }
+
+    @Test func aReadsOwnFailureIsItsScreens() {
+        #expect(ReadFailure(ConnectionError.server(500), shown: nil) == .screen("The server answered 500."))
+        #expect(ReadFailure(ConnectionError.refused("Seerr didn't answer"), shown: "Before") == .screen("Seerr didn't answer"))
+        // Cancelled: what the screen showed stays.
+        #expect(ReadFailure(CancellationError(), shown: "Before") == .screen("Before"))
+    }
+
+    /// The server out of reach is an answer: no screen waits on it forever.
+    @Test func aReadAwaitsUntilItAnswersOrTheServerIsOutOfReach() {
+        #expect(Connection.awaits(hasValue: false, failure: nil, serverError: nil))
+        #expect(!Connection.awaits(hasValue: true, failure: nil, serverError: nil))
+        #expect(!Connection.awaits(hasValue: false, failure: "The server answered 500.", serverError: nil))
+        #expect(!Connection.awaits(hasValue: false, failure: nil, serverError: "Can't reach the Quai server."))
+    }
+}

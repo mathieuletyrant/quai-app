@@ -282,18 +282,32 @@ final class Connection {
     /// front on it: a status changed elsewhere shows without pulling. The reads run together.
     func reload(_ tab: AppTab) async {
         guard session != nil else { return }
-        switch tab {
-        case .home:
-            async let fixes: Void = loadFixes()
-            async let layout: Void = loadHomeLayout()
-            async let requests: Void = loadRequests()
-            async let upcoming: Void = loadUpcoming()
-            async let library: Void = loadLibrary()
-            _ = await (fixes, layout, requests, upcoming, library)
-        case .library: await loadLibrary()
-        case .activity: await loadJournal()
-        case .settings, .search: break
+        await withDiscardingTaskGroup { group in
+            for read in tab.reads {
+                group.addTask { await self.load(read) }
+            }
         }
+    }
+
+    private func load(_ read: TabRead) async {
+        switch read {
+        case .fixes: await loadFixes()
+        case .homeTiles: await loadHomeLayout()
+        case .requests: await loadRequests()
+        case .upcoming: await loadUpcoming()
+        case .library: await loadLibrary()
+        case .journal: await loadJournal()
+        }
+    }
+
+    /// A read that hasn't answered yet: no value, no failure of its own, and the server not out of
+    /// reach (that is an answer too: the dot says it), so its screen still shows it loading.
+    func awaits(_ value: Any?, failure: String?) -> Bool {
+        Self.awaits(hasValue: value != nil, failure: failure, serverError: lastError)
+    }
+
+    static func awaits(hasValue: Bool, failure: String?, serverError: String?) -> Bool {
+        !hasValue && failure == nil && serverError == nil
     }
 
     // MARK: Library
@@ -617,15 +631,13 @@ final class Connection {
         return try await attempt()
     }
 
-    /// Where a failed read is said. The server out of reach shows once, as the server's status (the
-    /// Home title's dot, Settings), never as a card on each screen: the screen keeps what it shows.
-    /// Anything else is that screen's own failure.
     private func didFail(_ error: any Error, _ failure: ReferenceWritableKeyPath<Connection, String?>) {
-        if error.isConnectionFailure {
-            lastError = error.quaiMessage
+        switch ReadFailure(error, shown: self[keyPath: failure]) {
+        case let .server(message):
+            lastError = message
             self[keyPath: failure] = nil
-        } else {
-            self[keyPath: failure] = error.message(replacing: self[keyPath: failure])
+        case let .screen(message):
+            self[keyPath: failure] = message
         }
     }
 
@@ -647,4 +659,34 @@ final class Connection {
 
 extension Data {
     var hexString: String { map { String(format: "%02x", $0) }.joined() }
+}
+
+/// What a tab shows, read each time it opens.
+enum TabRead: Equatable {
+    case fixes, homeTiles, requests, upcoming, library, journal
+}
+
+extension AppTab {
+    /// Run together; Settings and Search read on demand.
+    var reads: [TabRead] {
+        switch self {
+        case .home: [.fixes, .homeTiles, .requests, .upcoming, .library]
+        case .library: [.library]
+        case .activity: [.journal]
+        case .settings, .search: []
+        }
+    }
+}
+
+/// Where a failed read is said. The server out of reach shows once, as the server's status (the
+/// dot beside each tab's title, Settings), never as a card on each screen: the screen keeps what
+/// it shows. Anything else is that screen's own failure.
+enum ReadFailure: Equatable {
+    case server(String)
+    /// Nil keeps nothing; a cancelled read keeps what the screen showed.
+    case screen(String?)
+
+    init(_ error: any Error, shown: String?) {
+        self = error.isConnectionFailure ? .server(error.quaiMessage) : .screen(error.message(replacing: shown))
+    }
 }

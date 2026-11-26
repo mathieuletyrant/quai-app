@@ -78,9 +78,9 @@ extension Components.Schemas.DiskReading {
     }
 }
 
-/// The chart's dates: at most about four, on whole hours, days or months, never the same label
-/// twice. Hours ("14:00") while the readings span less than two days (a disk only just read, in
-/// any period), then the period's unit.
+/// The chart's dates: about four, on whole hours, days or months, so no hour or day shows twice;
+/// months carry their year beyond eleven months, where one comes back. Hours ("14:00") while the
+/// readings span less than two days (a disk only just read, in any period), then the period's unit.
 struct DateAxis: Equatable {
     let unit: Calendar.Component
     /// Units between two dates.
@@ -97,7 +97,9 @@ struct DateAxis: Equatable {
         switch period {
         case .week: self.init(.day, every: days, format: .dateTime.weekday(.abbreviated))
         case .month: self.init(.day, every: days, format: .dateTime.month(.abbreviated).day())
-        case .year, .all: self.init(.month, every: days / 30, format: .dateTime.month(.abbreviated))
+        case .year, .all:
+            let format: Date.FormatStyle = days < 330 ? .dateTime.month(.abbreviated) : .dateTime.month(.abbreviated).year(.twoDigits)
+            self.init(.month, every: days / 30, format: format)
         }
     }
 

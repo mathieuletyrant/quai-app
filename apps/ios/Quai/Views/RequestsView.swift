@@ -57,7 +57,7 @@ struct RequestsView: View {
             if connection.requests?.status == .unavailable {
                 MessageTile(title: "Seerr didn't answer", message: "Pull to try again.", systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
             }
-            if connection.requests == nil, connection.requestsError == nil {
+            if connection.awaits(connection.requests, failure: connection.requestsError) {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
             } else if connection.requests?.status == .ok, items.isEmpty {
                 MessageTile(

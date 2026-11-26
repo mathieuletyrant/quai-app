@@ -75,12 +75,12 @@ struct HomeView: View {
         fixes.isEmpty && requests.isEmpty && upcomingToday.isEmpty && alerts.isEmpty
     }
 
-    /// The first reads haven't answered yet (a failed one counts as answered): the Home shows the
-    /// tiles' shapes instead of "All quiet" and tiles popping in one by one.
+    /// The first reads haven't answered yet: the Home shows the tiles' shapes instead of "All
+    /// quiet" and tiles popping in one by one.
     private var isLoading: Bool {
-        (connection.fixes == nil && connection.fixesError == nil)
-            || (connection.requests == nil && connection.requestsError == nil)
-            || (connection.upcoming == nil && connection.upcomingError == nil)
+        connection.awaits(connection.fixes, failure: connection.fixesError)
+            || connection.awaits(connection.requests, failure: connection.requestsError)
+            || connection.awaits(connection.upcoming, failure: connection.upcomingError)
     }
 
     var body: some View {

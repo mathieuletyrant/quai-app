@@ -86,7 +86,6 @@ struct RootView: View {
                 }
                 .modifier(LiveAccessory(live: LiveNow(Today(connection.activities, subjects: connection.flowSubjects))) { showsLive = true })
                 .sheet(isPresented: $showsLive) { LiveSheet() }
-                // What the tab shows, read each time it opens and each time the app comes back to the front on it.
                 .task(id: tab) { await connection.reload(tab) }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { Task { await connection.reload(tab) } }

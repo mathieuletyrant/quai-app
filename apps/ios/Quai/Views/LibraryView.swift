@@ -98,7 +98,7 @@ struct LibraryView: View {
     /// "137 titles · 759 GB free"; "Loading…" while it loads, "Not loaded" after a failure.
     private var summary: String {
         guard let library = connection.library else {
-            return connection.libraryError == nil ? "Loading…" : "Not loaded"
+            return connection.awaits(connection.library, failure: connection.libraryError) ? "Loading…" : "Not loaded"
         }
         var parts = [library.items.count == 1 ? "1 title" : "\(library.items.count) titles"]
         if let disk = library.disk {
@@ -137,7 +137,7 @@ struct LibraryView: View {
                 systemImage: "film.stack",
                 color: Palette.accent
             )
-        } else if connection.library == nil, connection.libraryError == nil {
+        } else if connection.awaits(connection.library, failure: connection.libraryError) {
             ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
         } else {
             LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
