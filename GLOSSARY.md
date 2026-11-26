@@ -101,6 +101,11 @@ before Quai Cloud served several homes are the secret alone: the linked home tha
 **iPhone preferences** (`DevicePreferences`). What one iPhone chooses for itself, in the app: which
 flows and steps it shows, the alerts it mutes, its requester.
 
+**Home tiles** (`homeTiles`). The tiles of the app's Home tab (To fix, Requests, Upcoming, Alerts,
+Recently added and Wanted side by side, Storage), in the order an iPhone chose, without the ones it
+hid. Part of its preferences. A tile with nothing to show stays out wherever it is placed.
+_Avoid_: dashboard, widgets
+
 **Requester** (`seerrUserId`). The Seerr user an iPhone requests titles as; Seerr's admin (the
 owner of Quai Home's key) when it chose none.
 

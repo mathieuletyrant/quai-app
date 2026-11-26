@@ -75,14 +75,26 @@ describe("media disks", () => {
       freeBytes: 7.59e11,
       totalBytes: 1.8 * tera
     }])
-    // Over 1 GB apart: two disks of the same size, told apart by their mount.
-    const far = [mount("/data", 5e11, 1.8 * tera)]
+    // Sonarr's reading kept from an hour ago, 6 GB downloaded since: still the same disk.
+    const earlier = [mount("/data", 7.59e11 + 6e9, 1.8 * tera)]
     expect(
       mediaDisks([
         { service: "radarr", mounts: radarr, roots: [{ path: "/downloads/movies" }] },
-        { service: "sonarr", mounts: far, roots: [{ path: "/data/shows" }] }
-      ]).map((disk) => disk.id)
-    ).toEqual(["d1800000000000-data", "d1800000000000-downloads"])
+        { service: "sonarr", mounts: earlier, roots: [{ path: "/data/shows" }] }
+      ]).map((disk) => [disk.id, disk.name])
+    ).toEqual([["d1800000000000", "Movies · Shows"]])
+  })
+
+  it("two disks of the same size, seen at once by one service, are two, told apart by their mount", () => {
+    const twins = [mount("/movies", 7e11, 2 * tera), mount("/shows", 3e11, 2 * tera)]
+    const disks = mediaDisks([
+      { service: "radarr", mounts: twins, roots: [{ path: "/movies" }, { path: "/shows" }] },
+      { service: "sonarr", mounts: twins, roots: [{ path: "/shows" }] }
+    ])
+    expect(disks.map((disk) => [disk.id, disk.name])).toEqual([
+      ["d2000000000000-shows", "Movies · Shows"],
+      ["d2000000000000-movies", "Movies"]
+    ])
   })
 
   it("without root folders (an older Quai Home, or they didn't answer), the largest disk holds the media", () => {
@@ -371,6 +383,24 @@ describe("GET /api/storage", () => {
       expect(all.disks[0]?.readings.map((reading) => reading.freeBytes)).toEqual([400, 300, 200])
       // No period: 30 days.
       expect((yield* api.storage.storage({ query: {} })).period).toBe("30d")
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("with every service answering, a disk kept but not read now is gone from the screen", () =>
+    Effect.gen(function*() {
+      yield* TestClock.setTime(now)
+      const { api } = yield* phoneOn({ answer: routes })
+      const documents = yield* HomeDocuments
+      // A disk once taken for a second one, from a reading an hour old.
+      yield* documents.put("storage/disks/d4000000000000-old", {
+        id: "d4000000000000-old",
+        name: "Movies",
+        holds: ["movies"],
+        totalBytes: 4 * tera
+      })
+      yield* documents.put("storage/readings/d4000000000000-old/2026-11", { readings: [[now - hour, 1.4 * tera]] })
+      const storage = yield* api.storage.storage({ query: { period: "30d" } })
+      expect(storage.unavailable).toEqual([])
+      expect(storage.disks.map((disk) => disk.id)).toEqual(["d2000000000000", "d4000000000000"])
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("an older Quai Home: no root folders asked, the largest disk is the media disk", () =>

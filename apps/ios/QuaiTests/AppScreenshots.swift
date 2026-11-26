@@ -128,6 +128,17 @@ struct AppScreenshots {
         try await Self.until("the notification toggles") { Self.hasSwitch(in: notifications) }
         try await Self.settle()
         Self.screenshot(notifications, "05-settings-notifications")
+
+        // Alerts and Wanted hidden, so both sections show; saved before the screen reads them.
+        var preferences = try await connection.preferences()
+        preferences.homeTiles = HomeLayout(rows: HomeLayout.standard.rows, hidden: [.alerts, .wanted]).preferences
+        try await connection.save(preferences)
+        let tiles = try Self.show(
+            NavigationStack { HomeTilesView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle()
+        Self.screenshot(tiles, "05-settings-home-tiles")
     }
 
     /// The search with "dune" typed: Seerr's results, each with where it stands.

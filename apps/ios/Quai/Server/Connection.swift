@@ -74,6 +74,8 @@ final class Connection {
     /// The media disks over the Storage screen's period, once loaded.
     private(set) var storage: Components.Schemas.Storage?
     private(set) var storageError: String?
+    /// The Home's tiles as this iPhone ordered and hid them; the app's order until its preferences are read.
+    private(set) var homeLayout = HomeLayout.standard
     /// The alerts going on, and the kinds turned on.
     private(set) var alerts: Components.Schemas.ActiveAlerts?
     /// The journal, newest first: the first page, then the older ones the Activity tab asked for.
@@ -190,6 +192,7 @@ final class Connection {
         storage = nil
         storageError = nil
         alerts = nil
+        homeLayout = .standard
         journal = []
         journalHasMore = false
         journalError = nil
@@ -202,7 +205,14 @@ final class Connection {
     }
 
     func save(_ preferences: Components.Schemas.DevicePreferences) async throws {
+        // The Home follows at once; a failed save is said where it was made.
+        homeLayout = HomeLayout(preferences.homeTiles)
         _ = try await requiredClient().savePreferences(body: .json(preferences)).ok
+    }
+
+    /// The Home's tiles from this iPhone's preferences; a failure keeps what was shown.
+    func loadHomeLayout() async {
+        if let read = try? await preferences() { homeLayout = HomeLayout(read.homeTiles) }
     }
 
     func flows() async throws -> [Components.Schemas.FlowSummary] {

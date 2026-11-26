@@ -127,6 +127,22 @@ describe("preferences", () => {
         "today"
       ])
     }).pipe(Effect.provide(TestApp)))
+
+  it.effect("keeps the Home tiles as the iPhone set them, names it doesn't know included", () =>
+    Effect.gen(function*() {
+      yield* connectedHome
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+        payload: { serverUrls: [] }
+      })
+      const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
+      const phone = yield* signedIn(token)
+      // A newer app may name a tile this Cloud never heard of: kept as it came.
+      const homeTiles = { order: ["storage", "toFix", "aNewTile"], hidden: ["wanted"] }
+      yield* phone.devices.savePreferences({ payload: { flows: {}, homeTiles } })
+      expect((yield* phone.devices.preferences()).homeTiles).toEqual(homeTiles)
+    }).pipe(Effect.provide(TestApp)))
 })
 
 describe("flows from the console", () => {

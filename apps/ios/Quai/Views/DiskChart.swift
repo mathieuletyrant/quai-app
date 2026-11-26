@@ -103,11 +103,13 @@ struct DiskChart: View {
         return start...end
     }
 
+    /// The axis's dates: hours while the readings span less than two days, then days, then months.
     private var dateFormat: Date.FormatStyle {
+        if dates.upperBound.timeIntervalSince(dates.lowerBound) < 2 * 24 * 3600 { return .dateTime.hour() }
         switch period {
-        case .week: .dateTime.weekday(.abbreviated)
-        case .month: .dateTime.month(.abbreviated).day()
-        case .year, .all: .dateTime.month(.abbreviated)
+        case .week: return .dateTime.weekday(.abbreviated)
+        case .month: return .dateTime.month(.abbreviated).day()
+        case .year, .all: return .dateTime.month(.abbreviated)
         }
     }
 
