@@ -218,11 +218,13 @@ describe("To fix rules", () => {
   })
 
   it("scheduled deletion: what Reclaimerr deletes on its own, soonest first, never what's protected", () => {
-    const deletions = plannedDeletionFixes(plannedDeletions(decode(CandidatePage, "reclaimerr/candidates.json").items))
+    const deletions = plannedDeletionFixes(
+      plannedDeletions(decode(CandidatePage, "reclaimerr/candidates.json").items, undefined)
+    )
     // Lost: no rule deletes it on its own. Coco: protected. Brave: canceled.
     expect(deletions.map((detected) => [detected.fix.title, detected.fix.deletion])).toEqual([
-      ["Cars 2", { deletesAt: Date.parse("2026-11-18T03:00:00Z") / 1000, operation: "move" }],
-      ["Up", { deletesAt: Date.parse("2026-11-24T03:00:00Z") / 1000, operation: "delete" }]
+      ["Cars 2", { deletesAt: Date.parse("2026-11-18T03:00:00Z") / 1000, exact: false, operation: "move" }],
+      ["Up", { deletesAt: Date.parse("2026-11-24T03:00:00Z") / 1000, exact: false, operation: "delete" }]
     ])
     expect(deletions[1]!.fix).toMatchObject({
       id: "deletion-42",
@@ -235,7 +237,7 @@ describe("To fix rules", () => {
   it("scheduled deletion: the poster of the Radarr movie it is, by TMDB id, else by title and year", () => {
     const candidates = decode(CandidatePage, "reclaimerr/candidates.json").items
     const movies = Schema.decodeUnknownSync(RadarrMovies)(moviesWithCandidates())
-    const deletions = plannedDeletionFixes(plannedDeletions(candidates), { movies })
+    const deletions = plannedDeletionFixes(plannedDeletions(candidates, undefined), { movies })
     // Up: same TMDB id. Cars 2: Radarr has another TMDB id for it, its title and year match.
     expect(deletions.map((detected) => [detected.fix.id, detected.fix.posterUrl])).toEqual([
       ["deletion-43", carsPoster],

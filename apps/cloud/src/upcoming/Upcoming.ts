@@ -23,6 +23,7 @@ import { finishedTorrentsRead } from "../integrations/qbittorrent.ts"
 import { radarrGrabsRead, radarrMoviesRead } from "../integrations/radarr.ts"
 import {
   candidatesRead,
+  deletionTaskRead,
   type PlannedCandidate,
   plannedDeletionFixes,
   plannedDeletions
@@ -68,6 +69,7 @@ const readStack = (reads: HomeReads["Service"], reach: Reach, calendar: DayReads
   return Effect.all({
     calendars: reads.all({ episodes: calendar.episodes, movies: calendar.movies }),
     candidates: reach.has("reclaimerr") ? reads.read(candidatesRead) : none,
+    deletionTask: reach.has("reclaimerr") ? reads.read(deletionTaskRead) : none,
     removals: reach.has("cleanuparr") ? stuckRemovalsRead(reads) : none,
     cleaner: reach.cleaning ? reads.read(downloadCleanerRead) : none,
     job: reach.cleaning ? reads.read(downloadCleanerJobRead) : none,
@@ -115,7 +117,10 @@ const cleanupsOf = (stack: Pick<StackReads, "cleaner" | "finished" | "job">, now
 }
 
 export const plansOf = (stack: StackReads, now: number): Plans => ({
-  planned: Option.match(stack.candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) }),
+  planned: Option.match(stack.candidates, {
+    onNone: () => [],
+    onSome: (page) => plannedDeletions(page.items, Option.getOrUndefined(stack.deletionTask))
+  }),
   cleanups: cleanupsOf(stack, now)
 })
 

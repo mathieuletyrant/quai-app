@@ -51,8 +51,10 @@ export const BlockedDownload = Schema.Struct({
 
 /** `plannedDeletion`: when Reclaimerr deletes (or moves) the title. */
 export const PlannedDeletion = Schema.Struct({
-  /** Epoch seconds. In the past: it goes at Reclaimerr's next cleanup run. */
+  /** Epoch seconds: the run of Reclaimerr's deletion task that takes it. In the past: its next run. */
   deletesAt: Schema.Finite,
+  /** False when Quai doesn't know the task's schedule: `deletesAt` is then the earliest it goes. */
+  exact: Schema.Boolean,
   operation: Schema.Literals(["delete", "move"])
 }).annotate({ identifier: "PlannedDeletion" })
 export type PlannedDeletion = typeof PlannedDeletion.Type

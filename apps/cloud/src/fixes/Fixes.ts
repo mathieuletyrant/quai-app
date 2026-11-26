@@ -17,6 +17,7 @@ import { excluding, settingsRead } from "../integrations/cleanuparr.ts"
 import { readJson } from "../integrations/Integration.ts"
 import {
   candidatesRead,
+  deletionTaskRead,
   plannedDeletionFixes,
   plannedDeletions,
   protectPath,
@@ -130,8 +131,9 @@ export class Fixes extends Context.Service<Fixes, {
           const reached = yield* reads.services
           const asked = (service: FixService) => (only === undefined || only === service) && reached.includes(service)
           const none = Effect.succeed(Option.none<never>())
-          const [candidates, planned, ...found] = yield* Effect.all([
+          const [candidates, task, planned, ...found] = yield* Effect.all([
             asked("reclaimerr") ? reads.read(candidatesRead) : none,
+            asked("reclaimerr") ? reads.read(deletionTaskRead) : none,
             asked("cleanuparr") ? stuckRemovalsRead(reads) : none,
             ...media.map((adapter) => asked(adapter.service) ? adapter.detect(reads, nowMs) : none)
           ], { concurrency: "unbounded" })
@@ -143,7 +145,10 @@ export class Fixes extends Context.Service<Fixes, {
           const unavailable = outcomes.flatMap(([service, value]) =>
             asked(service) && Option.isNone(value) ? [service] : []
           )
-          const due = Option.match(candidates, { onNone: () => [], onSome: (page) => plannedDeletions(page.items) })
+          const due = Option.match(candidates, {
+            onNone: () => [],
+            onSome: (page) => plannedDeletions(page.items, Option.getOrUndefined(task))
+          })
           const deletions = only === undefined
             ? yield* deletionsWithPosters(reads, due)
             // Acting on a deletion needs no poster.

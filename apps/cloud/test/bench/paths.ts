@@ -49,7 +49,7 @@ const cleanupsOf = (home: BigHome) =>
 
 const spaceReadsOf = (home: BigHome): SpaceReads => ({
   now,
-  planned: plannedDeletions(home.candidates),
+  planned: plannedDeletions(home.candidates, undefined),
   movies: home.movies,
   series: home.series,
   radarrGrabs: home.radarrGrabs,
@@ -76,6 +76,7 @@ export const gatheredOf = (home: BigHome): Gathered => {
       unavailable: []
     },
     candidates: Option.some({ items: home.candidates }),
+    deletionTask: Option.none(),
     removals: Option.some(removalsOf(home)),
     cleaner: Option.some(home.downloadCleaner),
     job: Option.some({ nextRunTime: new Date(nextRunAt).toISOString() }),
@@ -114,7 +115,10 @@ export const paths = {
     (home) => home,
     (home) =>
       plannedDeletionItems(
-        plannedDeletionFixes(plannedDeletions(home.candidates), { movies: home.movies, series: home.series }),
+        plannedDeletionFixes(plannedDeletions(home.candidates, undefined), {
+          movies: home.movies,
+          series: home.series
+        }),
         now,
         new Map()
       )

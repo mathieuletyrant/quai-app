@@ -259,7 +259,7 @@ describe("to fix", () => {
 
   it("Reclaimerr's scheduled deletions, soonest first, a movie's poster from Radarr when it has it", () => {
     const deletions = plannedDeletionFixes(
-      plannedDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items),
+      plannedDeletions(real(candidatesRead.schema, "real/reclaimerr/candidates").items, undefined),
       { movies: real(RadarrMovies, "real/radarr/movies") }
     )
     expect(deletions.map((detected) => [detected.fix.id, detected.fix.title])).toEqual([

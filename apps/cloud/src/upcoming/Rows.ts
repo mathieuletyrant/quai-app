@@ -80,8 +80,8 @@ export const plannedDeletionItems = (
       title: found.fix.title,
       ...(found.fix.posterUrl === undefined ? {} : { posterUrl: found.fix.posterUrl }),
       at: dueAt(found.fix.deletion.deletesAt, now),
-      timed: false,
-      earliest: false,
+      timed: found.fix.deletion.exact,
+      earliest: !found.fix.deletion.exact,
       ...(freesBytes === undefined ? {} : { freesBytes }),
       fixId: found.fix.id
     }]

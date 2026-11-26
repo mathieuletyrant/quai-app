@@ -4106,6 +4106,9 @@
           "deletesAt": {
             "type": "number"
           },
+          "exact": {
+            "type": "boolean"
+          },
           "operation": {
             "type": "string",
             "enum": [
@@ -4116,6 +4119,7 @@
         },
         "required": [
           "deletesAt",
+          "exact",
           "operation"
         ],
         "additionalProperties": false
