@@ -11,7 +11,7 @@ The iPhone screenshots of Quai's App Store page, 1320 × 2868 (iPhone 6.9").
 
 ```sh
 node apps/ios/AppStore/render.mjs              # all of them
-node apps/ios/AppStore/render.mjs 03-upcoming  # one
+node apps/ios/AppStore/render.mjs 04-upcoming  # one
 ```
 
 It needs Playwright with its Chromium (`npm i -g playwright && npx playwright install chromium`). Run it with
@@ -30,8 +30,8 @@ git show FETCH_HEAD:runs/$run/01-home-upcoming.png > apps/ios/AppStore/screens/u
 
 | Screenshot | Capture |
 | --- | --- |
-| `03-upcoming` | `01-home-upcoming.png` → `screens/upcoming.png` |
-| `04-home` | `01-home.png` → `screens/home.png` |
-| `05-search` | `07-search.png` → `screens/search.png` |
+| `04-upcoming` | `01-home-upcoming.png` → `screens/upcoming.png` |
+| `05-home` | `01-home.png` → `screens/home.png` |
+| `06-search` | `07-search.png` → `screens/search.png` |
 
 The captures have no status bar: the template draws one, with the Dynamic Island, over them.

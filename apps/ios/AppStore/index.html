@@ -62,6 +62,8 @@ body { background: #000; font-family: Inter, -apple-system, system-ui, sans-seri
 .labels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 6px; font-size: 11px; color: var(--muted); }
 .labels b { color: var(--ink); font-weight: 600; }
 .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.track { height: 5px; border-radius: 3px; margin-top: 14px; background: linear-gradient(90deg, #AA5CC3 31%, rgba(255, 255, 255, .16) 31%); }
+.times { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .buttons span { height: 42px; border-radius: 21px; display: grid; place-items: center; font-size: 15px; font-weight: 700; }
 
 /* A notification */
@@ -152,26 +154,45 @@ body { background: #000; font-family: Inter, -apple-system, system-ui, sans-seri
   </div></div></div>
 </section>
 
-<!-- 3 · Upcoming -->
-<section class="shot" id="03-upcoming" style="--glow: rgba(111, 211, 194, .16);">
+<!-- 3 · What plays on Jellyfin, on the Lock Screen -->
+<section class="shot" id="03-playback" style="--accent: #C68AE0; --glow: rgba(170, 92, 195, .22);">
+  <div class="headline"><h1>See what’s playing<br><em>on the TV.</em></h1></div>
+  <div class="phone"><div class="screen"><div class="points">
+    <div class="lock" data-use="lock-top" style="background: radial-gradient(420px 380px at 80% 0%, #3A1F4A, transparent 70%), radial-gradient(420px 420px at 0% 70%, #10302B, transparent 70%), #0C0B10;"></div>
+    <div style="position: absolute; left: 14px; right: 14px; bottom: 124px;">
+      <div class="glass" style="padding: 16px 18px;">
+        <div class="la-top">
+          <span class="la-icon" style="background: rgba(170, 92, 195, .22);"><svg width="16" height="16" viewBox="0 0 24 24" fill="#C68AE0"><path d="M7 4l13 8-13 8z"/></svg></span>
+          <div><div class="la-title">Dune: Part Two</div><div class="la-sub">Playing · Living room TV</div></div>
+          <span style="margin-left: auto; width: 40px; height: 40px; border-radius: 20px; background: rgba(255, 255, 255, .14); display: grid; place-items: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></span>
+        </div>
+        <div class="track"></div>
+        <div class="times"><span>51:34</span><span>−1:54:38</span></div>
+      </div>
+    </div>
+  </div></div></div>
+</section>
+
+<!-- 4 · Upcoming -->
+<section class="shot" id="04-upcoming" style="--glow: rgba(111, 211, 194, .16);">
   <div class="headline"><h1>Know what’s coming,<br><em>and what’s going.</em></h1></div>
   <div class="phone"><div class="screen"><img src="screens/upcoming.png" alt=""><div class="points" data-use="app-top"></div></div></div>
 </section>
 
-<!-- 4 · Home -->
-<section class="shot" id="04-home">
+<!-- 5 · Home -->
+<section class="shot" id="05-home">
   <div class="headline"><h1>What to fix, approve<br><em>and watch today.</em></h1></div>
   <div class="phone"><div class="screen"><img src="screens/home.png" alt=""><div class="points" data-use="app-top"></div></div></div>
 </section>
 
-<!-- 5 · Search and request -->
-<section class="shot" id="05-search" style="--glow: rgba(111, 211, 194, .16);">
+<!-- 6 · Search and request -->
+<section class="shot" id="06-search" style="--glow: rgba(111, 211, 194, .16);">
   <div class="headline"><h1>Search it.<br><em>Request it.</em></h1></div>
   <div class="phone"><div class="screen"><img src="screens/search.png" alt=""><div class="points" data-use="app-top"></div></div></div>
 </section>
 
-<!-- 6 · Alerts and Gone on the Lock Screen: what Quai's pushes say, nothing more (iOS shows no service line). -->
-<section class="shot" id="06-alerts" style="--accent: var(--green); --glow: rgba(255, 107, 91, .16);">
+<!-- 7 · Alerts and Gone on the Lock Screen: what Quai's pushes say, nothing more (iOS shows no service line). -->
+<section class="shot" id="07-alerts" style="--accent: var(--green); --glow: rgba(255, 107, 91, .16);">
   <div class="headline"><h1>Know when it breaks,<br><em>and when it’s fixed.</em></h1></div>
   <div class="phone"><div class="screen"><div class="points">
     <div class="lock" data-use="lock-top" style="background: radial-gradient(360px 340px at 85% 62%, #5A2A1C, transparent 70%), radial-gradient(420px 380px at 80% 0%, #4A3412, transparent 70%), radial-gradient(420px 420px at 0% 80%, #10302B, transparent 70%), #0C0B10;"></div>
@@ -199,8 +220,8 @@ body { background: #000; font-family: Inter, -apple-system, system-ui, sans-seri
   </div></div></div>
 </section>
 
-<!-- 7 · Your keys stay home -->
-<section class="shot" id="07-keys" style="--glow: rgba(111, 211, 194, .18);">
+<!-- 8 · Your keys stay home -->
+<section class="shot" id="08-keys" style="--glow: rgba(111, 211, 194, .18);">
   <div class="headline"><h1>Your keys<br><em>stay home.</em></h1></div>
   <div class="keys">
     <div class="card">
