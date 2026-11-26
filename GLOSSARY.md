@@ -157,7 +157,7 @@ _Avoid_: media, item (in words people read)
 **Library** (`Library`). The titles Radarr and Sonarr hold, with their status (available,
 downloading, wanted…), read in the app.
 
-**Disk readings**. The media disk's free space, read every hour and kept for months, so a cleanup
+**Disk readings**. Each media disk's free space, read every hour and kept for good, so a cleanup
 can be told from a grab. Shown in the app's **Storage** screen, opened from the Home's storage tile.
 _Avoid_: disk history (history is the *arr's)
 
