@@ -113,10 +113,26 @@ extension ScreenHeader where Trailing == EmptyView {
 struct TabHeader: View {
     let eyebrow: String
     let title: String
-    var mark: ServerMark?
+    @Environment(Connection.self) private var connection
+    @State private var showsSearching = false
+
+    /// The link to the server next to every tab's title: the red dot says it's out of reach, there
+    /// and nowhere else.
+    private var mark: ServerMark? {
+        ServerMark.of(status: connection.status, searching: showsSearching, error: connection.lastError)
+    }
 
     var body: some View {
         ScreenHeader(eyebrow: eyebrow.isEmpty ? " " : eyebrow.uppercased(), title: title, subtitle: nil, trailing: { EmptyView() }, mark: mark)
+            // At home the server answers at once: the spinner only shows a search that takes a while.
+            .task(id: connection.isSearching) {
+                guard connection.isSearching else {
+                    showsSearching = false
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(600))
+                if !Task.isCancelled { showsSearching = true }
+            }
     }
 }
 

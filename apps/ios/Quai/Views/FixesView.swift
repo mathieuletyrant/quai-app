@@ -135,7 +135,7 @@ struct FixesView: View {
                     .foregroundStyle(Palette.secondaryText)
                     .padding(.horizontal, 4)
             }
-            if connection.fixes == nil, connection.fixesError == nil {
+            if connection.awaits(connection.fixes, failure: connection.fixesError) {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
             } else if connection.fixes != nil, items.isEmpty {
                 MessageTile(

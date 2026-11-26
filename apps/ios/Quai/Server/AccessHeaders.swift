@@ -112,6 +112,16 @@ extension Error {
         isCancellation ? shown : quaiMessage
     }
 
+    /// Quai Cloud wasn't reached (no network, a timeout, a proxy in the way) or Quai Home isn't
+    /// linked to it: about the server, not the call. A cancelled call is none.
+    var isConnectionFailure: Bool {
+        switch quaiError {
+        case let error as ConnectionError: error == .unreachable || error == .blockedByProxy || error == .homeOffline
+        case let error as URLError: error.code != .cancelled
+        default: false
+        }
+    }
+
     var isBlockedByProxy: Bool {
         if case .blockedByProxy? = quaiError as? ConnectionError { return true }
         return false

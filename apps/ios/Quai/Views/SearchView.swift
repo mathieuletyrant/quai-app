@@ -26,6 +26,15 @@ extension SearchResult: Identifiable {
     }
 }
 
+extension LibraryItem {
+    /// A series of the library as Seerr knows it, to request more of its seasons. Nil for a movie,
+    /// or a series whose TMDB id Sonarr doesn't know: Seerr's requests name it.
+    var seerrSeries: SearchResult? {
+        guard kind == .series, let tmdbId, tmdbId > 0 else { return nil }
+        return SearchResult(kind: .series, tmdbId: tmdbId, tvdbId: tvdbId, title: title, year: year, posterUrl: posterUrl, overview: overview, state: .partial)
+    }
+}
+
 /// The button a search result offers: request the title, or more seasons of a series.
 enum RequestButton {
     case request

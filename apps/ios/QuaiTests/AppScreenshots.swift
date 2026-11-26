@@ -96,6 +96,20 @@ struct AppScreenshots {
         try await Self.settle()
         Self.screenshot(detail, "02-library-title")
 
+        // A series of the library: its Request more seasons button, for the seasons not asked for yet.
+        let series = try #require(connection.library?.items.first { $0.seerrSeries != nil }, "No series with a TMDB id in the preview's library")
+        let seriesDetail = try Self.show(
+            LibraryView(filter: .constant(.recent)).sheet(isPresented: .constant(true)) {
+                TitleDetailView(item: series)
+                    .presentationDetents([.large])
+            }
+            .tint(.quaiAccent)
+            .preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.settle()
+        Self.screenshot(seriesDetail, "02-library-series")
+
         // Where the Home's Wanted tile leads.
         let wanted = try Self.show(
             LibraryView(filter: .constant(.wanted)).tint(.quaiAccent).preferredColorScheme(.dark),
@@ -186,7 +200,7 @@ struct AppScreenshots {
 
         // A series asked for and still on its way: more of its seasons can be requested.
         let asked = try Self.show(
-            SearchResultDetail(result: prophecy, state: .requested) {}.tint(.quaiAccent).preferredColorScheme(.dark),
+            SearchResultDetail(result: station, state: .requested) {}.tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
         try await Self.settle(5)

@@ -22,7 +22,7 @@ enum ConnectionError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unreachable: "Can't reach the Quai server. On Wi-Fi at home, or check the address."
+        case .unreachable: "Can't reach the Quai server. Check this iPhone's connection, then try again."
         case .blockedByProxy: "Blocked by your proxy: check the access headers in Settings → Connection."
         case .homeOffline: "Quai Home isn't connected to Quai Cloud. Check that it runs on your server."
         case .invalidCode: "This code is unknown, already used or expired. Show a new one in the console."
@@ -86,8 +86,8 @@ final class Connection {
     private var pendingPlayback = PendingPlayback()
     /// The search for an address that answers, while one runs.
     private var connecting: Task<(url: URL, client: Client), any Error>?
-    /// A failed refresh waiting to try again: still looking for the server.
-    private var retrying = false
+    /// Reads waiting to try again: still looking for the server.
+    private var retries = 0
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
@@ -105,7 +105,7 @@ final class Connection {
         return .connecting
     }
     /// Looking for an address that answers, or about to try again.
-    var isSearching: Bool { connecting != nil || retrying }
+    var isSearching: Bool { connecting != nil || retries > 0 }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
     /// Quai Home's console addresses, as the pairing code gave them: Quai Cloud serves none.
@@ -201,7 +201,7 @@ final class Connection {
     // MARK: Preferences
 
     func preferences() async throws -> Components.Schemas.DevicePreferences {
-        try await requiredClient().getPreferences().ok.body.json
+        try await reading { try await $0.getPreferences().ok.body.json }
     }
 
     func save(_ preferences: Components.Schemas.DevicePreferences) async throws {
@@ -216,7 +216,7 @@ final class Connection {
     }
 
     func flows() async throws -> [Components.Schemas.FlowSummary] {
-        try await requiredClient().listFlows().ok.body.json
+        try await reading { try await $0.listFlows().ok.body.json }
     }
 
     // MARK: Activities
@@ -226,24 +226,12 @@ final class Connection {
         do {
             try await readActivities()
         } catch {
-            if error.isCancellation { return }
-            // Back in front, the network can take a moment to wake: one more try before saying so.
-            connecting = nil
-            retrying = true
-            defer { retrying = false }
-            try? await Task.sleep(for: .seconds(2))
-            if Task.isCancelled { return }
-            do {
-                try await readActivities()
-            } catch {
-                lastError = error.message(replacing: lastError)
-            }
+            lastError = error.message(replacing: lastError)
         }
     }
 
     private func readActivities() async throws {
-        let client = try await requiredClient()
-        let read = try await pendingPlayback.apply(to: client.listActivities().ok.body.json)
+        let read = try await pendingPlayback.apply(to: reading { try await $0.listActivities().ok.body.json })
         let shown = await Self.shown(read, known: flowSubjects) { try? await self.flows() }
         flowSubjects = shown.subjects
         activities = shown.activities
@@ -286,6 +274,40 @@ final class Connection {
     ) async -> [String: Components.Schemas.FlowSubject] {
         guard activities.contains(where: { known[$0.attributes.flowId] == nil }), let all = await load() else { return known }
         return Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    // MARK: Tabs
+
+    /// Reads again what a tab shows, each time it opens and each time the app comes back to the
+    /// front on it: a status changed elsewhere shows without pulling. The reads run together.
+    func reload(_ tab: AppTab) async {
+        guard session != nil else { return }
+        await withDiscardingTaskGroup { group in
+            for read in tab.reads {
+                group.addTask { await self.load(read) }
+            }
+        }
+    }
+
+    private func load(_ read: TabRead) async {
+        switch read {
+        case .fixes: await loadFixes()
+        case .homeTiles: await loadHomeLayout()
+        case .requests: await loadRequests()
+        case .upcoming: await loadUpcoming()
+        case .library: await loadLibrary()
+        case .journal: await loadJournal()
+        }
+    }
+
+    /// A read that hasn't answered yet: no value, no failure of its own, and the server not out of
+    /// reach (that is an answer too: the dot says it), so its screen still shows it loading.
+    func awaits(_ value: Any?, failure: String?) -> Bool {
+        Self.awaits(hasValue: value != nil, failure: failure, serverError: lastError)
+    }
+
+    static func awaits(hasValue: Bool, failure: String?, serverError: String?) -> Bool {
+        !hasValue && failure == nil && serverError == nil
     }
 
     // MARK: Library
@@ -361,7 +383,7 @@ final class Connection {
 
     /// The disks over a period, without touching what the Storage screen shows (its All marks).
     func storage(_ period: StoragePeriod) async throws -> Components.Schemas.Storage {
-        try await requiredClient().getStorage(query: .init(period: period.api)).ok.body.json
+        try await reading { try await $0.getStorage(query: .init(period: period.api)).ok.body.json }
     }
 
     // MARK: Alerts
@@ -382,24 +404,24 @@ final class Connection {
     /// The newest page of the journal: what happened to the titles, the requests and the server.
     func loadJournal() async {
         do {
-            let page = try await requiredClient().listJournal(query: .init(limit: "\(Self.journalPageSize)")).ok.body.json
+            let page = try await reading { try await $0.listJournal(query: .init(limit: "\(Self.journalPageSize)")).ok.body.json }
             journal = page.entries
             journalHasMore = page.more
             journalError = nil
         } catch {
-            journalError = error.message(replacing: journalError)
+            didFail(error, \.journalError)
         }
     }
 
     func loadOlderJournal() async {
         guard journalHasMore, let oldest = journal.last else { return }
         do {
-            let page = try await requiredClient().listJournal(query: .init(before: oldest.id, limit: "\(Self.journalPageSize)")).ok.body.json
+            let page = try await reading { try await $0.listJournal(query: .init(before: oldest.id, limit: "\(Self.journalPageSize)")).ok.body.json }
             journal += page.entries
             journalHasMore = page.more
             journalError = nil
         } catch {
-            journalError = error.message(replacing: journalError)
+            didFail(error, \.journalError)
         }
     }
 
@@ -434,12 +456,12 @@ final class Connection {
 
     /// The movies and series Seerr finds for this text.
     func search(_ query: String) async throws -> Components.Schemas.SearchResults {
-        try await requiredClient().searchTitles(query: .init(query: query)).ok.body.json
+        try await reading { try await $0.searchTitles(query: .init(query: query)).ok.body.json }
     }
 
     /// A series' seasons, and where each stands, for the season picker.
     func seasons(of result: Components.Schemas.SearchResult) async throws -> [Components.Schemas.SeasonChoice] {
-        try await requiredClient().listSeasons(path: .init(tmdbId: String(result.tmdbId))).ok.body.json.seasons
+        try await reading { try await $0.listSeasons(path: .init(tmdbId: String(result.tmdbId))).ok.body.json }.seasons
     }
 
     /// Requests a movie, or these seasons of a series, as the Seerr user chosen in Settings.
@@ -453,7 +475,7 @@ final class Connection {
 
     /// Seerr's users, for Settings → Request as.
     func seerrUsers() async throws -> Components.Schemas.SeerrUsers {
-        try await requiredClient().listSeerrUsers().ok.body.json
+        try await reading { try await $0.listSeerrUsers().ok.body.json }
     }
 
     /// Drops the decided request at once, then reads the list again.
@@ -565,10 +587,57 @@ final class Connection {
         _ call: (Client) async throws -> Value
     ) async {
         do {
-            self[keyPath: value] = try await call(requiredClient())
+            self[keyPath: value] = try await reading(call)
             self[keyPath: failure] = nil
         } catch {
-            self[keyPath: failure] = error.message(replacing: self[keyPath: failure])
+            didFail(error, failure)
+        }
+    }
+
+    /// A read, tried again when the server was out of reach: a network that blinks (a cell
+    /// handover, the app back in front) shows nothing. Reads only: a write sent twice could act twice.
+    private func reading<Value>(_ call: (Client) async throws -> Value) async throws -> Value {
+        try await Self.retrying(after: Self.retryDelays) {
+            try await call(requiredClient())
+        } beforeRetry: {
+            // Look for the server again: the address that answered may be the one that went away.
+            connecting = nil
+            retries += 1
+        } afterRetry: {
+            retries -= 1
+        }
+    }
+
+    /// 1 s then 3 s: past a cell handover, before the user waits on a spinner.
+    private static let retryDelays: [Duration] = [.seconds(1), .seconds(3)]
+
+    /// Runs `attempt` again after each delay while it fails for want of the server; any other
+    /// failure, or the last one, is thrown.
+    static func retrying<Value>(
+        after delays: [Duration],
+        _ attempt: () async throws -> Value,
+        beforeRetry: () -> Void = {},
+        afterRetry: () -> Void = {}
+    ) async throws -> Value {
+        for delay in delays {
+            do {
+                return try await attempt()
+            } catch let error where error.isConnectionFailure {
+                beforeRetry()
+                defer { afterRetry() }
+                try await Task.sleep(for: delay)
+            }
+        }
+        return try await attempt()
+    }
+
+    private func didFail(_ error: any Error, _ failure: ReferenceWritableKeyPath<Connection, String?>) {
+        switch ReadFailure(error, shown: self[keyPath: failure]) {
+        case let .server(message):
+            lastError = message
+            self[keyPath: failure] = nil
+        case let .screen(message):
+            self[keyPath: failure] = message
         }
     }
 
@@ -590,4 +659,34 @@ final class Connection {
 
 extension Data {
     var hexString: String { map { String(format: "%02x", $0) }.joined() }
+}
+
+/// What a tab shows, read each time it opens.
+enum TabRead: Equatable {
+    case fixes, homeTiles, requests, upcoming, library, journal
+}
+
+extension AppTab {
+    /// Run together; Settings and Search read on demand.
+    var reads: [TabRead] {
+        switch self {
+        case .home: [.fixes, .homeTiles, .requests, .upcoming, .library]
+        case .library: [.library]
+        case .activity: [.journal]
+        case .settings, .search: []
+        }
+    }
+}
+
+/// Where a failed read is said. The server out of reach shows once, as the server's status (the
+/// dot beside each tab's title, Settings), never as a card on each screen: the screen keeps what
+/// it shows. Anything else is that screen's own failure.
+enum ReadFailure: Equatable {
+    case server(String)
+    /// Nil keeps nothing; a cancelled read keeps what the screen showed.
+    case screen(String?)
+
+    init(_ error: any Error, shown: String?) {
+        self = error.isConnectionFailure ? .server(error.quaiMessage) : .screen(error.message(replacing: shown))
+    }
 }

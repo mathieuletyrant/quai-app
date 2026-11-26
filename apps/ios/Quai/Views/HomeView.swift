@@ -55,8 +55,6 @@ struct HomeView: View {
     @Environment(Connection.self) private var connection
     @Binding var tab: AppTab
     @Binding var libraryFilter: LibraryFilter
-    /// The spinner beside the title: a search for the server that takes more than a moment.
-    @State private var showsSearching = false
 
     private var highlights: LibraryHighlights? { connection.library.map { LibraryHighlights($0.items) } }
     private var today: Today { Today(connection.activities, subjects: connection.flowSubjects) }
@@ -72,27 +70,23 @@ struct HomeView: View {
     }
     private var diskIsLow: Bool { alerts.contains { $0.kind == .diskLow } }
 
-    private var serverMark: ServerMark? {
-        ServerMark.of(status: connection.status, searching: showsSearching, error: connection.lastError)
-    }
-
     /// Nothing asks for a look: the Home says so instead of showing empty tiles.
     private var isQuiet: Bool {
         fixes.isEmpty && requests.isEmpty && upcomingToday.isEmpty && alerts.isEmpty
     }
 
-    /// The first reads haven't answered yet (a failed one counts as answered): the Home shows the
-    /// tiles' shapes instead of "All quiet" and tiles popping in one by one.
+    /// The first reads haven't answered yet: the Home shows the tiles' shapes instead of "All
+    /// quiet" and tiles popping in one by one.
     private var isLoading: Bool {
-        (connection.fixes == nil && connection.fixesError == nil)
-            || (connection.requests == nil && connection.requestsError == nil)
-            || (connection.upcoming == nil && connection.upcomingError == nil)
+        connection.awaits(connection.fixes, failure: connection.fixesError)
+            || connection.awaits(connection.requests, failure: connection.requestsError)
+            || connection.awaits(connection.upcoming, failure: connection.upcomingError)
     }
 
     var body: some View {
         NavigationStack {
             Screen {
-                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay, mark: serverMark)
+                TabHeader(eyebrow: Date.now.eyebrow, title: Date.now.partOfDay)
             } content: {
                 VStack(alignment: .leading, spacing: Metrics.tileSpacing) {
                     if isLoading {
@@ -106,32 +100,13 @@ struct HomeView: View {
                 .animation(.smooth(duration: 0.35), value: isLoading)
                 .animation(.smooth(duration: 0.35), value: connection.library == nil)
             }
-            // At home the server answers at once: the spinner only shows a search that takes a while.
-            .task(id: connection.isSearching) {
-                guard connection.isSearching else {
-                    showsSearching = false
-                    return
-                }
-                try? await Task.sleep(for: .milliseconds(600))
-                if !Task.isCancelled { showsSearching = true }
-            }
+            // The tiles are read each time the tab opens (`RootView`), not polled: the To fix list
+            // asks Radarr, Sonarr, Reclaimerr and Cleanuparr.
             .refreshable {
-                await connection.refresh()
-                await connection.loadFixes()
-                await connection.loadRequests()
-                await connection.loadUpcoming()
-                await connection.loadLibrary()
-                await connection.loadAlerts()
-            }
-            // The To fix list asks Radarr, Sonarr, Reclaimerr and Cleanuparr: read when the screen opens, not polled.
-            .task { await connection.loadFixes() }
-            .task { await connection.loadHomeLayout() }
-            .task { await connection.loadRequests() }
-            .task { await connection.loadUpcoming() }
-            // The disk comes with the library; the Library tab keeps it current once open.
-            .task {
-                guard connection.library == nil else { return }
-                await connection.loadLibrary()
+                async let activities: Void = connection.refresh()
+                async let alerts: Void = connection.loadAlerts()
+                async let tiles: Void = connection.reload(.home)
+                _ = await (activities, alerts, tiles)
             }
             .task {
                 // The activities are read app-wide, for the live bar; the alerts while the Home is open.

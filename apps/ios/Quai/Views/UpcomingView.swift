@@ -206,7 +206,7 @@ struct UpcomingView: View {
                     Chip(title: "Going", selected: filter == .going) { filter = .going }
                 }
             }
-            if connection.upcoming == nil, connection.upcomingError == nil {
+            if connection.awaits(connection.upcoming, failure: connection.upcomingError) {
                 ProgressView().frame(maxWidth: .infinity).padding(.top, 40)
             } else if connection.upcoming != nil, shown.isEmpty {
                 MessageTile(title: "Nothing planned", message: emptyMessage, systemImage: "calendar", color: Palette.releases)

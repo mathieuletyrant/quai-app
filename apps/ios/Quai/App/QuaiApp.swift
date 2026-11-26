@@ -59,6 +59,7 @@ struct QuaiApp: App {
 /// host it as is, on a given tab.
 struct RootView: View {
     @Environment(Connection.self) private var connection
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var pendingLink: PairingLink?
     @Binding var searchLink: SearchLink?
     @State private var tab: AppTab
@@ -85,6 +86,14 @@ struct RootView: View {
                 }
                 .modifier(LiveAccessory(live: LiveNow(Today(connection.activities, subjects: connection.flowSubjects))) { showsLive = true })
                 .sheet(isPresented: $showsLive) { LiveSheet() }
+                .task(id: tab) { await connection.reload(tab) }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await connection.reload(tab) } }
+                }
+                // The server answers again: what the tab showed while it didn't is read again.
+                .onChange(of: connection.lastError == nil) { _, reached in
+                    if reached { Task { await connection.reload(tab) } }
+                }
                 .onChange(of: searchLink, initial: true) { _, link in
                     if link != nil {
                         showsLive = false

@@ -13,9 +13,6 @@ struct ActivityListView: View {
             Screen {
                 TabHeader(eyebrow: eyebrow, title: "Activity")
             } content: {
-                if let error = connection.lastError {
-                    MessageTile(title: "Can't refresh", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
-                }
                 if connection.activities.isEmpty {
                     if connection.lastError == nil {
                         MessageTile(
@@ -36,7 +33,6 @@ struct ActivityListView: View {
                 await connection.refresh()
                 await connection.loadJournal()
             }
-            .task { await connection.loadJournal() }
         }
     }
 }
