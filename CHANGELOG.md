@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.0](https://github.com/mathieuletyrant/quai-app/compare/v0.30.0...v2.0.0) (2026-11-26)
+
+
+### ✨ Features
+
+* the service under each row, in its logo's colour; only the settings that can fire ([#142](https://github.com/mathieuletyrant/quai-app/issues/142)) ([d26d660](https://github.com/mathieuletyrant/quai-app/commit/d26d66081b775c1db1b431f61ae541c429b4c912))
+
 ## [0.30.0](https://github.com/mathieuletyrant/quai-app/compare/v0.29.1...v0.30.0) (2026-11-25)
 
 
