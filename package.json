@@ -19,7 +19,8 @@
     "gen:openapi": "pnpm --filter @quai/api gen:openapi",
     "gen:client": "apps/ios/scripts/gen-client.sh",
     "lint": "eslint .",
-    "format": "eslint . --fix"
+    "format": "eslint . --fix",
+    "specs:update": "pnpm --filter @quai/cloud specs:update"
   },
   "devDependencies": {
     "@effect/eslint-plugin": "0.3.2",

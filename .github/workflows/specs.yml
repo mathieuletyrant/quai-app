@@ -1,0 +1,47 @@
+# Every Monday, the services' OpenAPI specs (apps/cloud/test/fixtures/specs) are brought to their latest release. When one
+# changed, a PR carries it: its `test` job runs specs.test.ts, which goes red on a field Quai reads that left the spec or
+# changed type. A green PR is only the version moving on.
+name: specs
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm specs:update
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      # A PR opened with GITHUB_TOKEN starts no pull_request run: ci is dispatched on its branch, as release.yml does.
+      - name: PR for the new specs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --quiet -- apps/cloud/test/fixtures/specs && { echo "The specs are up to date."; exit 0; }
+          versions=$(jq -r 'to_entries | map("\(.key) \(.value)") | join(", ")' apps/cloud/test/fixtures/specs/versions.json)
+          branch=chore/service-specs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$branch"
+          git commit -am "chore: the services' specs at $versions"
+          git push --force origin "$branch"
+          if [ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')" ]; then
+            gh pr create --head "$branch" --title "chore: the services' specs at $versions" \
+              --body "The services' OpenAPI specs at their latest release ($versions). The \`test\` job checks every field Quai reads against them (\`apps/cloud/test/specs.test.ts\`): red means a field left or changed type, and its message names it."
+          fi
+          gh workflow run ci.yml --ref "$branch"

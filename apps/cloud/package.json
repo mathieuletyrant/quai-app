@@ -11,7 +11,8 @@
     "check": "tsc -p .",
     "test": "vitest run",
     "preview": "tsx test/preview.ts",
-    "bench": "vitest bench --run --reporter=verbose"
+    "bench": "vitest bench --run --reporter=verbose",
+    "specs:update": "tsx scripts/update-specs.ts"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",

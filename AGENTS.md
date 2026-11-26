@@ -62,6 +62,9 @@ states, theme tokens), [`apps/ios/AGENTS.md`](apps/ios/AGENTS.md) (errors, the l
 - Quai Home in Cloud tests: `makeFakeHome` with `recordedHome(routes, overrides)` (`"radarr GET /api/v3/queue"` → fixture). It enforces the real allowlist and fails the test on a refused call or watch.
 - *arr adapters: recorded real responses (fixtures), never calls to the real stack.
 - Responses recorded from a real home live in `apps/cloud/test/fixtures/real` (its README says how they were changed) and `test/real.test.ts` runs the adapters on them: identity across services (TMDB, TVDB, IMDb ids, download hashes) is tested there first.
+- Specs: `apps/cloud/test/specs.test.ts` checks every field a Radarr or Sonarr read decodes against the service's own
+  OpenAPI spec, at the release in `test/fixtures/specs/versions.json`. A new read joins its table. `pnpm specs:update`
+  brings the specs to the latest release (or `radarr=<tag>`); the weekly `specs` workflow runs it and opens the PR.
 - Scale: `apps/cloud/test/scale.test.ts` checks the pure computations behind Upcoming, To fix and the Library stay linear on the real home copied over (`test/bigHome.ts`); `pnpm bench` gives the numbers (`test/bench`). A lookup inside a loop goes through a Map or Set built once.
 - Contract: a test checks `openapi.json`. After changing `packages/api`, run `pnpm gen:openapi` and commit the file.
 
@@ -87,6 +90,7 @@ pnpm check        # tsc in every package, then ESLint (lint and dprint format)
 pnpm format       # ESLint --fix: writes the format, fixes what it can
 pnpm test         # vitest in every package
 pnpm gen:openapi  # regenerate packages/api/openapi.json
+pnpm specs:update # the services' OpenAPI specs at their latest release (apps/cloud/test/fixtures/specs)
 pnpm gen:client   # the iOS client in apps/ios/Quai/Generated (not committed), needs Swift
 pnpm dev:cloud    # Quai Cloud on :8787
 pnpm dev:home     # Quai Home on :8788 (QUAI_CLOUD_URL=ws://localhost:8787/home QUAI_HOME_PASSWORD=…)
