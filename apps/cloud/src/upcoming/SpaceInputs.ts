@@ -18,8 +18,8 @@ export interface SpaceReads {
   readonly planned: ReadonlyArray<PlannedCandidate>
   readonly movies: ReadonlyArray<RadarrMovie> | null | undefined
   readonly series: ReadonlyArray<SonarrSeries> | null | undefined
-  readonly radarrGrabs: typeof RadarrGrabs.Type | null | undefined
-  readonly sonarrGrabs: typeof SonarrGrabs.Type | null | undefined
+  /** Each grabbing service's grabs, by service: a tool that grabs gets its key here, and every rule reads it. */
+  readonly grabs: GrabReads
   /** Whether Radarr's and Sonarr's imports are hardlinks: undefined when not read. */
   readonly hardlinks: { readonly movie: boolean | undefined; readonly series: boolean | undefined }
   readonly torrents: ReadonlyArray<FinishedTorrent> | null | undefined
@@ -27,6 +27,15 @@ export interface SpaceReads {
   readonly cleanups: ReadonlyArray<SeedCleanup>
   readonly unlinkedCategory: string | undefined
 }
+
+/** The grabs of every service that grabs; `null` when not reached, `undefined` when it didn't answer. */
+export interface GrabReads {
+  readonly radarr: typeof RadarrGrabs.Type | null | undefined
+  readonly sonarr: typeof SonarrGrabs.Type | null | undefined
+}
+
+/** Every grab of every service, whatever the service: the one list the rules below go through. */
+const allGrabs = (grabs: GrabReads) => Object.values(grabs).flatMap((list) => list ?? [])
 
 /** The title a grab was for, as space back keys it: a series' season when the release names one. */
 export const grabKey = (
@@ -43,9 +52,9 @@ export const grabKey = (
 }
 
 /** Each torrent's hash (lowercase) to the title it was grabbed for. */
-export const grabsByHash = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs">): ReadonlyMap<string, TitleKey> => {
+export const grabsByHash = (reads: GrabReads): ReadonlyMap<string, TitleKey> => {
   const grabs = new Map<string, TitleKey>()
-  for (const grab of [...reads.radarrGrabs ?? [], ...reads.sonarrGrabs ?? []]) {
+  for (const grab of allGrabs(reads)) {
     const key = grabKey(grab)
     if (key !== undefined && grab.downloadId) grabs.set(grab.downloadId.toLowerCase(), key)
   }
@@ -53,8 +62,8 @@ export const grabsByHash = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs
 }
 
 /** Each release grabbed, with its title, name and listed size: what a cross-seed is matched to. */
-export const releasesOf = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs">): ReadonlyArray<ReleaseInput> =>
-  [...reads.radarrGrabs ?? [], ...reads.sonarrGrabs ?? []].flatMap((grab) => {
+export const releasesOf = (reads: GrabReads): ReadonlyArray<ReleaseInput> =>
+  allGrabs(reads).flatMap((grab) => {
     const key = grabKey(grab)
     if (key === undefined || !grab.sourceTitle) return []
     const size = Number(grab.data?.size ?? Number.NaN)
@@ -109,7 +118,7 @@ export const torrentInputs = (
 
 /** Space back's input. Torrents Quai can't place (a reached *arr's grabs didn't answer, qBittorrent didn't) make nothing sure. */
 export const spaceInputs = (reads: SpaceReads): SpaceBackInput => {
-  const placeable = reads.radarrGrabs !== undefined && reads.sonarrGrabs !== undefined
+  const placeable = Object.values(reads.grabs).every((list) => list !== undefined)
   const sources = { movies: reads.movies ?? undefined, series: reads.series ?? undefined }
   return {
     deletions: reads.planned.map((planned) => ({
@@ -124,8 +133,8 @@ export const spaceInputs = (reads: SpaceReads): SpaceBackInput => {
       : reads.torrents === undefined || !placeable
       ? undefined
       : torrentInputs(reads.torrents, reads.cleanups),
-    grabs: grabsByHash(reads),
-    releases: releasesOf(reads),
+    grabs: grabsByHash(reads.grabs),
+    releases: releasesOf(reads.grabs),
     inLibrary: libraryHolds(reads),
     hardlinks: reads.hardlinks,
     unlinkedCategory: reads.unlinkedCategory

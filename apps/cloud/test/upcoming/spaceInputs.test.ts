@@ -64,8 +64,8 @@ describe("where a release's files are in the library", () => {
 
   it("each torrent's hash, in lowercase, to its title", () => {
     expect([...grabsByHash({
-      radarrGrabs: [{ movieId: 304, date: "2026-11-22T10:59:31Z", downloadId: "D3904AE6" }],
-      sonarrGrabs: [{
+      radarr: [{ movieId: 304, date: "2026-11-22T10:59:31Z", downloadId: "D3904AE6" }],
+      sonarr: [{
         episodeId: 1,
         seriesId: 233,
         date: "2026-11-24T09:33:01Z",
@@ -77,13 +77,13 @@ describe("where a release's files are in the library", () => {
 
   it("each release grabbed, with its title and the size its indexer listed", () => {
     expect(releasesOf({
-      radarrGrabs: [{
+      radarr: [{
         movieId: 270,
         date: "x",
         sourceTitle: "La.Liste.De.Schindler.1993",
         data: { size: "41101114996" }
       }],
-      sonarrGrabs: [
+      sonarr: [
         { episodeId: 1, seriesId: 123, date: "x", sourceTitle: "Vampire.Diaries.2009.S07.1080p", data: {} },
         { episodeId: 2, seriesId: 123, date: "x", sourceTitle: "Vampire.Diaries.S08", data: { size: "n/a" } },
         // No name or no title: nothing to match a cross-seed to.
@@ -95,7 +95,7 @@ describe("where a release's files are in the library", () => {
       { key: "series:123:s7", name: "Vampire.Diaries.2009.S07.1080p", size: undefined },
       { key: "series:123:s8", name: "Vampire.Diaries.S08", size: undefined }
     ])
-    expect(releasesOf({ radarrGrabs: null, sonarrGrabs: undefined })).toEqual([])
+    expect(releasesOf({ radarr: null, sonarr: undefined })).toEqual([])
   })
 })
 
@@ -155,8 +155,7 @@ describe("space back's input", () => {
     planned: [planned(runner())],
     movies: radarrMovie(),
     series: null,
-    radarrGrabs: [{ movieId: 55, date: "2026-11-01T00:00:00Z", downloadId: "AAA" }],
-    sonarrGrabs: null,
+    grabs: { radarr: [{ movieId: 55, date: "2026-11-01T00:00:00Z", downloadId: "AAA" }], sonarr: null },
     hardlinks: { movie: true, series: undefined },
     torrents: [finished],
     cleanups: [],
@@ -187,7 +186,8 @@ describe("space back's input", () => {
   it("no qBittorrent reached: no torrent holds anything; reached but silent, or the grabs silent: nothing is sure", () => {
     expect(spaceInputs(reads({ torrents: null })).torrents).toEqual([])
     expect(spaceInputs(reads({ torrents: undefined })).torrents).toBeUndefined()
-    expect(spaceInputs(reads({ radarrGrabs: undefined })).torrents).toBeUndefined()
+    expect(spaceInputs(reads({ grabs: { radarr: undefined, sonarr: [] } })).torrents).toBeUndefined()
+    expect(spaceInputs(reads({ grabs: { radarr: [], sonarr: undefined } })).torrents).toBeUndefined()
   })
 
   it("reads the grabs from a day before the oldest torrent, at most 400 days back", () => {
