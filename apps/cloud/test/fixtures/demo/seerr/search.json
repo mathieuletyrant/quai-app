@@ -1,0 +1,122 @@
+{
+  "page": 1,
+  "totalPages": 1,
+  "totalResults": 6,
+  "results": [
+    {
+      "id": 438631,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        878,
+        12
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Sintel",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "popularity": 180.3,
+      "releaseDate": "2021-09-15",
+      "title": "Sintel",
+      "video": false,
+      "voteAverage": 7.8,
+      "voteCount": 13000,
+      "mediaInfo": {
+        "id": 41,
+        "tmdbId": 438631,
+        "status": 5,
+        "status4k": 1
+      }
+    },
+    {
+      "id": 693134,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        878,
+        12
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Big Buck Bunny",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "popularity": 150.1,
+      "releaseDate": "2024-02-27",
+      "title": "Big Buck Bunny",
+      "video": false,
+      "voteAverage": 8.1,
+      "voteCount": 7000,
+      "mediaInfo": {
+        "id": 42,
+        "tmdbId": 693134,
+        "status": 3,
+        "status4k": 1
+      }
+    },
+    {
+      "id": 90228,
+      "mediaType": "tv",
+      "adult": false,
+      "genreIds": [
+        10765,
+        18
+      ],
+      "originCountry": [
+        "US"
+      ],
+      "originalLanguage": "en",
+      "originalName": "The Quiet Station",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "popularity": 90.4,
+      "firstAirDate": "2024-11-17",
+      "name": "The Quiet Station",
+      "voteAverage": 7.0,
+      "voteCount": 800
+    },
+    {
+      "id": 841,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        28,
+        878
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Sintel",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "popularity": 30.2,
+      "releaseDate": "1984-12-14",
+      "title": "Sintel",
+      "video": false,
+      "voteAverage": 6.2,
+      "voteCount": 3000,
+      "mediaInfo": null
+    },
+    {
+      "id": 1225914,
+      "mediaType": "movie",
+      "adult": false,
+      "genreIds": [
+        878
+      ],
+      "originalLanguage": "en",
+      "originalTitle": "Spring",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "popularity": 20.0,
+      "releaseDate": "",
+      "title": "Spring",
+      "video": false
+    },
+    {
+      "id": 59341,
+      "mediaType": "person",
+      "name": "Open Movie Medley",
+      "profilePath": null,
+      "popularity": 0.6,
+      "knownFor": []
+    },
+    {
+      "id": 605862,
+      "mediaType": "collection",
+      "title": "Blender Open Movies"
+    }
+  ]
+}

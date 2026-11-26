@@ -1,0 +1,235 @@
+{
+  "page": 1,
+  "pageSize": 500,
+  "sortKey": "timeleft",
+  "sortDirection": "ascending",
+  "totalRecords": 4,
+  "records": [
+    {
+      "movieId": 53,
+      "movie": {
+        "id": 53,
+        "title": "Cosmos Laundromat",
+        "year": 2024,
+        "tmdbId": 100053,
+        "hasFile": false,
+        "monitored": true,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "https://quai.stream/posters/cosmos-laundromat.jpg",
+            "remoteUrl": "https://quai.stream/posters/cosmos-laundromat.jpg"
+          }
+        ],
+        "minimumAvailability": "released",
+        "isAvailable": true
+      },
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 3,
+          "name": "WEBDL-1080p",
+          "source": "webdl",
+          "resolution": 1080
+        },
+        "revision": {
+          "version": 1,
+          "real": 0,
+          "isRepack": false
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 6442450944,
+      "title": "Cosmos.Laundromat.2024.1080p.WEB-DL.DDP5.1.H.264",
+      "sizeleft": 2147483648,
+      "timeleft": "00:12:41",
+      "estimatedCompletionTime": "2026-11-19T12:12:41Z",
+      "added": "2026-11-19T11:40:00Z",
+      "status": "downloading",
+      "trackedDownloadStatus": "ok",
+      "trackedDownloadState": "downloading",
+      "statusMessages": [],
+      "downloadId": "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "YggTorrent",
+      "outputPath": "/downloads/complete/Cosmos.Laundromat.2024.1080p.WEB-DL.DDP5.1.H.264",
+      "id": 40
+    },
+    {
+      "movieId": 12,
+      "movie": {
+        "id": 12,
+        "title": "Big Buck Bunny",
+        "year": 2024,
+        "tmdbId": 100012,
+        "hasFile": true,
+        "monitored": true,
+        "images": [
+          {
+            "coverType": "poster",
+            "url": "https://quai.stream/posters/big-buck-bunny.jpg",
+            "remoteUrl": "https://quai.stream/posters/big-buck-bunny.jpg"
+          }
+        ],
+        "minimumAvailability": "released",
+        "isAvailable": true
+      },
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 3,
+          "name": "WEBDL-1080p",
+          "source": "webdl",
+          "resolution": 1080
+        },
+        "revision": {
+          "version": 1,
+          "real": 0,
+          "isRepack": false
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 8589934592,
+      "title": "Big.Buck.Bunny.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264",
+      "sizeleft": 0,
+      "timeleft": "00:00:00",
+      "added": "2026-11-18T20:15:00Z",
+      "status": "completed",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importBlocked",
+      "statusMessages": [
+        {
+          "title": "Big.Buck.Bunny.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264.mkv",
+          "messages": [
+            "Not.an.upgrade.for.existing.movie.file..Existing.quality:.Bluray-2160p..New.Quality.WEBDL-1080p."
+          ]
+        }
+      ],
+      "downloadId": "B2C3D4E5F60718293A4B5C6D7E8F901234567890",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "YggTorrent",
+      "outputPath": "/downloads/complete/Big.Buck.Bunny.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264",
+      "id": 41
+    },
+    {
+      "movieId": 55,
+      "movie": {
+        "id": 55,
+        "title": "Hero",
+        "year": 2025,
+        "tmdbId": 100055,
+        "hasFile": false,
+        "monitored": true,
+        "images": [],
+        "minimumAvailability": "released",
+        "isAvailable": true
+      },
+      "languages": [
+        {
+          "id": 2,
+          "name": "French"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 3,
+          "name": "WEBDL-1080p",
+          "source": "webdl",
+          "resolution": 1080
+        },
+        "revision": {
+          "version": 1,
+          "real": 0,
+          "isRepack": false
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 4294967296,
+      "title": "Hero.2025.MULTi.1080p.WEB.H264",
+      "sizeleft": 0,
+      "timeleft": "00:00:00",
+      "added": "2026-11-19T07:30:00Z",
+      "status": "completed",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importPending",
+      "statusMessages": [
+        {
+          "title": "Hero.2025.MULTi.1080p.WEB.H264",
+          "messages": [
+            "Found matching movie via grab history, but release was matched to movie by ID. Manual Import required."
+          ]
+        }
+      ],
+      "downloadId": "C3D4E5F60718293A4B5C6D7E8F90123456789012",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "YggTorrent",
+      "outputPath": "/downloads/complete/Hero.2025.MULTi.1080p.WEB.H264",
+      "id": 42
+    },
+    {
+      "languages": [
+        {
+          "id": 1,
+          "name": "English"
+        }
+      ],
+      "quality": {
+        "quality": {
+          "id": 7,
+          "name": "Bluray-1080p",
+          "source": "bluray",
+          "resolution": 1080
+        },
+        "revision": {
+          "version": 1,
+          "real": 0,
+          "isRepack": false
+        }
+      },
+      "customFormats": [],
+      "customFormatScore": 0,
+      "size": 10737418240,
+      "title": "Some.Removed.Movie.2019.1080p.BluRay.x264",
+      "sizeleft": 0,
+      "timeleft": "00:00:00",
+      "added": "2026-11-17T09:00:00Z",
+      "status": "completed",
+      "trackedDownloadStatus": "warning",
+      "trackedDownloadState": "importBlocked",
+      "statusMessages": [
+        {
+          "title": "Some.Removed.Movie.2019.1080p.BluRay.x264",
+          "messages": [
+            "Unknown Movie. Unable to identify correct movie using release name."
+          ]
+        }
+      ],
+      "downloadId": "D4E5F60718293A4B5C6D7E8F9012345678901234",
+      "protocol": "torrent",
+      "downloadClient": "qBittorrent",
+      "downloadClientHasPostImportCategory": false,
+      "indexer": "YggTorrent",
+      "outputPath": "/downloads/complete/Some.Removed.Movie.2019.1080p.BluRay.x264",
+      "id": 43
+    }
+  ]
+}

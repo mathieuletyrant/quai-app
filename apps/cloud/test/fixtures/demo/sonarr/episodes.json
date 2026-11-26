@@ -1,0 +1,62 @@
+[
+  {
+    "seriesId": 9,
+    "tvdbId": 9900,
+    "episodeFileId": 0,
+    "seasonNumber": 0,
+    "episodeNumber": 1,
+    "title": "Episode 1",
+    "airDate": "2020-03-01",
+    "airDateUtc": "2020-03-01T08:00:00Z",
+    "runtime": 55,
+    "hasFile": false,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "id": 900
+  },
+  {
+    "seriesId": 9,
+    "tvdbId": 9901,
+    "episodeFileId": 0,
+    "seasonNumber": 1,
+    "episodeNumber": 1,
+    "title": "Episode 1",
+    "airDate": "2020-03-06",
+    "airDateUtc": "2020-03-06T08:00:00Z",
+    "runtime": 55,
+    "hasFile": false,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "id": 901
+  },
+  {
+    "seriesId": 9,
+    "tvdbId": 9902,
+    "episodeFileId": 77,
+    "seasonNumber": 1,
+    "episodeNumber": 2,
+    "title": "Episode 2",
+    "airDate": "2020-03-13",
+    "airDateUtc": "2020-03-13T08:00:00Z",
+    "runtime": 55,
+    "hasFile": true,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "id": 902
+  },
+  {
+    "seriesId": 9,
+    "tvdbId": 9903,
+    "episodeFileId": 0,
+    "seasonNumber": 1,
+    "episodeNumber": 3,
+    "title": "Episode 3",
+    "airDate": "2020-03-20",
+    "airDateUtc": "2020-03-20T08:00:00Z",
+    "runtime": 55,
+    "hasFile": false,
+    "monitored": true,
+    "unverifiedSceneNumbering": false,
+    "id": 903
+  }
+]

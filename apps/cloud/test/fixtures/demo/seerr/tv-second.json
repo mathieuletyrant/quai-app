@@ -1,0 +1,28 @@
+{
+  "id": 90228,
+  "name": "The Quiet Station",
+  "firstAirDate": "2024-11-17",
+  "numberOfSeasons": 2,
+  "seasons": [
+    {
+      "id": 398390,
+      "airDate": "2024-11-17",
+      "episodeCount": 6,
+      "name": "Season 1",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "seasonNumber": 1
+    },
+    {
+      "id": 452990,
+      "airDate": null,
+      "episodeCount": 6,
+      "name": "Season 2",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "seasonNumber": 2
+    }
+  ],
+  "externalIds": {
+    "tvdbId": 409413
+  },
+  "mediaInfo": null
+}

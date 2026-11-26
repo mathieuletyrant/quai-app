@@ -1,0 +1,222 @@
+{
+  "items": [
+    {
+      "downloadItemId": "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01",
+      "downloadId": "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678",
+      "title": "Cosmos.Laundromat.2024.1080p.WEB-DL.DDP5.1.H.264",
+      "totalStrikes": 2,
+      "strikesByType": {
+        "Stalled": 2
+      },
+      "latestStrikeAt": "2026-11-19T11:55:00.2345678+00:00",
+      "firstStrikeAt": "2026-11-19T11:50:00.1234567+00:00",
+      "isMarkedForRemoval": false,
+      "isRemoved": false,
+      "isReturning": false,
+      "hasDryRunStrikes": false,
+      "strikes": [
+        {
+          "id": "0195f0e3-0002-7000-8000-000000000002",
+          "type": "Stalled",
+          "createdAt": "2026-11-19T11:55:00.2345678+00:00",
+          "lastDownloadedBytes": 4294967296,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000002",
+          "isDryRun": false
+        },
+        {
+          "id": "0195f0e3-0001-7000-8000-000000000001",
+          "type": "Stalled",
+          "createdAt": "2026-11-19T11:50:00.1234567+00:00",
+          "lastDownloadedBytes": 4294967296,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000001",
+          "isDryRun": false
+        }
+      ]
+    },
+    {
+      "downloadItemId": "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d02",
+      "downloadId": "0718293A4B5C6D7E8F901234567890123456789A",
+      "title": "Small.Hours.2020.S01.1080p.WEB-DL.DDP5.1.H.264",
+      "totalStrikes": 2,
+      "strikesByType": {
+        "FailedImport": 2
+      },
+      "latestStrikeAt": "2026-11-19T11:50:00.4567891+00:00",
+      "firstStrikeAt": "2026-11-19T11:45:00.3456789+00:00",
+      "isMarkedForRemoval": false,
+      "isRemoved": false,
+      "isReturning": false,
+      "hasDryRunStrikes": false,
+      "strikes": [
+        {
+          "id": "0195f0e3-0004-7000-8000-000000000004",
+          "type": "FailedImport",
+          "createdAt": "2026-11-19T11:50:00.4567891+00:00",
+          "lastDownloadedBytes": null,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000004",
+          "isDryRun": false
+        },
+        {
+          "id": "0195f0e3-0003-7000-8000-000000000003",
+          "type": "FailedImport",
+          "createdAt": "2026-11-19T11:45:00.3456789+00:00",
+          "lastDownloadedBytes": null,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000003",
+          "isDryRun": false
+        }
+      ]
+    },
+    {
+      "downloadItemId": "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d03",
+      "downloadId": "C3D4E5F60718293A4B5C6D7E8F90123456789012",
+      "title": "Hero.2025.MULTi.1080p.WEB.H264",
+      "totalStrikes": 1,
+      "strikesByType": {
+        "Stalled": 1
+      },
+      "latestStrikeAt": "2026-11-19T11:55:00.5678912+00:00",
+      "firstStrikeAt": "2026-11-19T11:55:00.5678912+00:00",
+      "isMarkedForRemoval": false,
+      "isRemoved": false,
+      "isReturning": false,
+      "hasDryRunStrikes": false,
+      "strikes": [
+        {
+          "id": "0195f0e3-0005-7000-8000-000000000005",
+          "type": "Stalled",
+          "createdAt": "2026-11-19T11:55:00.5678912+00:00",
+          "lastDownloadedBytes": 4294967296,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000005",
+          "isDryRun": false
+        }
+      ]
+    },
+    {
+      "downloadItemId": "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d04",
+      "downloadId": "B2C3D4E5F60718293A4B5C6D7E8F901234567890",
+      "title": "Big.Buck.Bunny.2024.1080p.WEB-DL.DDP5.1.Atmos.H.264",
+      "totalStrikes": 4,
+      "strikesByType": {
+        "SlowSpeed": 4
+      },
+      "latestStrikeAt": "2026-11-18T21:15:00.9123456+00:00",
+      "firstStrikeAt": "2026-11-18T21:00:00.6789123+00:00",
+      "isMarkedForRemoval": false,
+      "isRemoved": false,
+      "isReturning": false,
+      "hasDryRunStrikes": true,
+      "strikes": [
+        {
+          "id": "0195f0e3-0009-7000-8000-000000000009",
+          "type": "SlowSpeed",
+          "createdAt": "2026-11-18T21:15:00.9123456+00:00",
+          "lastDownloadedBytes": null,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000009",
+          "isDryRun": true
+        },
+        {
+          "id": "0195f0e3-0008-7000-8000-000000000008",
+          "type": "SlowSpeed",
+          "createdAt": "2026-11-18T21:10:00.8912345+00:00",
+          "lastDownloadedBytes": null,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000008",
+          "isDryRun": true
+        },
+        {
+          "id": "0195f0e3-0007-7000-8000-000000000007",
+          "type": "SlowSpeed",
+          "createdAt": "2026-11-18T21:05:00.7891234+00:00",
+          "lastDownloadedBytes": null,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000007",
+          "isDryRun": true
+        },
+        {
+          "id": "0195f0e3-0006-7000-8000-000000000006",
+          "type": "SlowSpeed",
+          "createdAt": "2026-11-18T21:00:00.6789123+00:00",
+          "lastDownloadedBytes": null,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000006",
+          "isDryRun": true
+        }
+      ]
+    },
+    {
+      "downloadItemId": "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d05",
+      "downloadId": "E5F60718293A4B5C6D7E8F9012345678901234AB",
+      "title": "Night.of.the.Living.Dead.1968.1080p.BluRay.x264",
+      "totalStrikes": 2,
+      "strikesByType": {
+        "Stalled": 2
+      },
+      "latestStrikeAt": "2026-11-17T08:05:00.2345678+00:00",
+      "firstStrikeAt": "2026-11-17T08:00:00.1234567+00:00",
+      "isMarkedForRemoval": false,
+      "isRemoved": false,
+      "isReturning": false,
+      "hasDryRunStrikes": false,
+      "strikes": [
+        {
+          "id": "0195f0e3-0011-7000-8000-000000000011",
+          "type": "Stalled",
+          "createdAt": "2026-11-17T08:05:00.2345678+00:00",
+          "lastDownloadedBytes": 0,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000001",
+          "isDryRun": false
+        },
+        {
+          "id": "0195f0e3-0010-7000-8000-000000000010",
+          "type": "Stalled",
+          "createdAt": "2026-11-17T08:00:00.1234567+00:00",
+          "lastDownloadedBytes": 0,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000000",
+          "isDryRun": false
+        }
+      ]
+    },
+    {
+      "downloadItemId": "0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d06",
+      "downloadId": "F60718293A4B5C6D7E8F9012345678901234ABCD",
+      "title": "Old.Movie.1999.720p.BluRay.x264",
+      "totalStrikes": 3,
+      "strikesByType": {
+        "Stalled": 3
+      },
+      "latestStrikeAt": "2026-11-16T08:10:00.3456789+00:00",
+      "firstStrikeAt": "2026-11-16T08:00:00.1234567+00:00",
+      "isMarkedForRemoval": true,
+      "isRemoved": true,
+      "isReturning": false,
+      "hasDryRunStrikes": false,
+      "strikes": [
+        {
+          "id": "0195f0e3-0014-7000-8000-000000000014",
+          "type": "Stalled",
+          "createdAt": "2026-11-16T08:10:00.3456789+00:00",
+          "lastDownloadedBytes": 0,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000004",
+          "isDryRun": false
+        },
+        {
+          "id": "0195f0e3-0013-7000-8000-000000000013",
+          "type": "Stalled",
+          "createdAt": "2026-11-16T08:05:00.2345678+00:00",
+          "lastDownloadedBytes": 0,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000003",
+          "isDryRun": false
+        },
+        {
+          "id": "0195f0e3-0012-7000-8000-000000000012",
+          "type": "Stalled",
+          "createdAt": "2026-11-16T08:00:00.1234567+00:00",
+          "lastDownloadedBytes": 0,
+          "jobRunId": "0195f0d0-0000-7000-8000-000000000002",
+          "isDryRun": false
+        }
+      ]
+    }
+  ],
+  "page": 1,
+  "pageSize": 500,
+  "totalCount": 6,
+  "totalPages": 1
+}

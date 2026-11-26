@@ -1,0 +1,79 @@
+[
+  {
+    "title": "Cosmos Laundromat",
+    "originalTitle": "Cosmos Laundromat",
+    "sortTitle": "cosmos laundromat",
+    "status": "released",
+    "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+    "year": 2024,
+    "hasFile": false,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 102,
+    "tmdbId": 6000,
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "https://quai.stream/posters/cosmos-laundromat.jpg",
+        "remoteUrl": "https://quai.stream/posters/cosmos-laundromat.jpg"
+      }
+    ],
+    "added": "2026-09-01T00:00:00Z",
+    "qualityProfileId": 1,
+    "path": "/downloads/movies/Cosmos Laundromat",
+    "sizeOnDisk": 0,
+    "id": 60,
+    "inCinemas": "2024-09-12T00:00:00Z",
+    "digitalRelease": "2026-11-20T00:00:00Z",
+    "physicalRelease": "2026-12-17T00:00:00Z"
+  },
+  {
+    "title": "Charge",
+    "originalTitle": "Charge",
+    "sortTitle": "charge",
+    "status": "released",
+    "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+    "year": 2024,
+    "hasFile": false,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 102,
+    "tmdbId": 6100,
+    "images": [
+      {
+        "coverType": "poster",
+        "url": "https://quai.stream/posters/charge.jpg",
+        "remoteUrl": "https://quai.stream/posters/charge.jpg"
+      }
+    ],
+    "added": "2026-09-01T00:00:00Z",
+    "qualityProfileId": 1,
+    "path": "/downloads/movies/Charge",
+    "sizeOnDisk": 0,
+    "id": 61,
+    "inCinemas": "2026-11-20T00:00:00Z"
+  },
+  {
+    "title": "Pigeon Run",
+    "originalTitle": "Pigeon Run",
+    "sortTitle": "pigeon run",
+    "status": "released",
+    "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+    "year": 2026,
+    "hasFile": false,
+    "monitored": true,
+    "minimumAvailability": "released",
+    "isAvailable": true,
+    "runtime": 102,
+    "tmdbId": 6200,
+    "images": [],
+    "added": "2026-09-01T00:00:00Z",
+    "qualityProfileId": 1,
+    "path": "/downloads/movies/Pigeon Run",
+    "sizeOnDisk": 0,
+    "id": 62,
+    "digitalRelease": "2026-11-21T00:00:00Z"
+  }
+]
