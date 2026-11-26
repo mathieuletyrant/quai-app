@@ -86,8 +86,8 @@ final class Connection {
     private var pendingPlayback = PendingPlayback()
     /// The search for an address that answers, while one runs.
     private var connecting: Task<(url: URL, client: Client), any Error>?
-    /// A failed refresh waiting to try again: still looking for the server.
-    private var retrying = false
+    /// Reads waiting to try again: still looking for the server.
+    private var retries = 0
     /// Arrives from ActivityKit at any time, before or after pairing.
     private var pushToStartToken: String?
 
@@ -105,7 +105,7 @@ final class Connection {
         return .connecting
     }
     /// Looking for an address that answers, or about to try again.
-    var isSearching: Bool { connecting != nil || retrying }
+    var isSearching: Bool { connecting != nil || retries > 0 }
     /// Every address this iPhone may reach the server at, the local one first.
     var serverURLs: [URL] { session?.urls ?? [] }
     /// Quai Home's console addresses, as the pairing code gave them: Quai Cloud serves none.
@@ -201,7 +201,7 @@ final class Connection {
     // MARK: Preferences
 
     func preferences() async throws -> Components.Schemas.DevicePreferences {
-        try await requiredClient().getPreferences().ok.body.json
+        try await reading { try await $0.getPreferences().ok.body.json }
     }
 
     func save(_ preferences: Components.Schemas.DevicePreferences) async throws {
@@ -216,7 +216,7 @@ final class Connection {
     }
 
     func flows() async throws -> [Components.Schemas.FlowSummary] {
-        try await requiredClient().listFlows().ok.body.json
+        try await reading { try await $0.listFlows().ok.body.json }
     }
 
     // MARK: Activities
@@ -226,24 +226,12 @@ final class Connection {
         do {
             try await readActivities()
         } catch {
-            if error.isCancellation { return }
-            // Back in front, the network can take a moment to wake: one more try before saying so.
-            connecting = nil
-            retrying = true
-            defer { retrying = false }
-            try? await Task.sleep(for: .seconds(2))
-            if Task.isCancelled { return }
-            do {
-                try await readActivities()
-            } catch {
-                lastError = error.message(replacing: lastError)
-            }
+            lastError = error.message(replacing: lastError)
         }
     }
 
     private func readActivities() async throws {
-        let client = try await requiredClient()
-        let read = try await pendingPlayback.apply(to: client.listActivities().ok.body.json)
+        let read = try await pendingPlayback.apply(to: reading { try await $0.listActivities().ok.body.json })
         let shown = await Self.shown(read, known: flowSubjects) { try? await self.flows() }
         flowSubjects = shown.subjects
         activities = shown.activities
@@ -381,7 +369,7 @@ final class Connection {
 
     /// The disks over a period, without touching what the Storage screen shows (its All marks).
     func storage(_ period: StoragePeriod) async throws -> Components.Schemas.Storage {
-        try await requiredClient().getStorage(query: .init(period: period.api)).ok.body.json
+        try await reading { try await $0.getStorage(query: .init(period: period.api)).ok.body.json }
     }
 
     // MARK: Alerts
@@ -402,7 +390,7 @@ final class Connection {
     /// The newest page of the journal: what happened to the titles, the requests and the server.
     func loadJournal() async {
         do {
-            let page = try await requiredClient().listJournal(query: .init(limit: "\(Self.journalPageSize)")).ok.body.json
+            let page = try await reading { try await $0.listJournal(query: .init(limit: "\(Self.journalPageSize)")).ok.body.json }
             journal = page.entries
             journalHasMore = page.more
             journalError = nil
@@ -414,7 +402,7 @@ final class Connection {
     func loadOlderJournal() async {
         guard journalHasMore, let oldest = journal.last else { return }
         do {
-            let page = try await requiredClient().listJournal(query: .init(before: oldest.id, limit: "\(Self.journalPageSize)")).ok.body.json
+            let page = try await reading { try await $0.listJournal(query: .init(before: oldest.id, limit: "\(Self.journalPageSize)")).ok.body.json }
             journal += page.entries
             journalHasMore = page.more
             journalError = nil
@@ -454,12 +442,12 @@ final class Connection {
 
     /// The movies and series Seerr finds for this text.
     func search(_ query: String) async throws -> Components.Schemas.SearchResults {
-        try await requiredClient().searchTitles(query: .init(query: query)).ok.body.json
+        try await reading { try await $0.searchTitles(query: .init(query: query)).ok.body.json }
     }
 
     /// A series' seasons, and where each stands, for the season picker.
     func seasons(of result: Components.Schemas.SearchResult) async throws -> [Components.Schemas.SeasonChoice] {
-        try await requiredClient().listSeasons(path: .init(tmdbId: String(result.tmdbId))).ok.body.json.seasons
+        try await reading { try await $0.listSeasons(path: .init(tmdbId: String(result.tmdbId))).ok.body.json }.seasons
     }
 
     /// Requests a movie, or these seasons of a series, as the Seerr user chosen in Settings.
@@ -473,7 +461,7 @@ final class Connection {
 
     /// Seerr's users, for Settings → Request as.
     func seerrUsers() async throws -> Components.Schemas.SeerrUsers {
-        try await requiredClient().listSeerrUsers().ok.body.json
+        try await reading { try await $0.listSeerrUsers().ok.body.json }
     }
 
     /// Drops the decided request at once, then reads the list again.
@@ -585,11 +573,48 @@ final class Connection {
         _ call: (Client) async throws -> Value
     ) async {
         do {
-            self[keyPath: value] = try await call(requiredClient())
+            self[keyPath: value] = try await reading(call)
             self[keyPath: failure] = nil
         } catch {
             didFail(error, failure)
         }
+    }
+
+    /// A read, tried again when the server was out of reach: a network that blinks (a cell
+    /// handover, the app back in front) shows nothing. Reads only: a write sent twice could act twice.
+    private func reading<Value>(_ call: (Client) async throws -> Value) async throws -> Value {
+        try await Self.retrying(after: Self.retryDelays) {
+            try await call(requiredClient())
+        } beforeRetry: {
+            // Look for the server again: the address that answered may be the one that went away.
+            connecting = nil
+            retries += 1
+        } afterRetry: {
+            retries -= 1
+        }
+    }
+
+    /// 1 s then 3 s: past a cell handover, before the user waits on a spinner.
+    private static let retryDelays: [Duration] = [.seconds(1), .seconds(3)]
+
+    /// Runs `attempt` again after each delay while it fails for want of the server; any other
+    /// failure, or the last one, is thrown.
+    static func retrying<Value>(
+        after delays: [Duration],
+        _ attempt: () async throws -> Value,
+        beforeRetry: () -> Void = {},
+        afterRetry: () -> Void = {}
+    ) async throws -> Value {
+        for delay in delays {
+            do {
+                return try await attempt()
+            } catch let error where error.isConnectionFailure {
+                beforeRetry()
+                defer { afterRetry() }
+                try await Task.sleep(for: delay)
+            }
+        }
+        return try await attempt()
     }
 
     /// Where a failed read is said. The server out of reach shows once, as the server's status (the
