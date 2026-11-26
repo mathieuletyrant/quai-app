@@ -131,7 +131,8 @@ struct DiskChart: View {
                     .symbol { MarkBadge(mark: shown) }
             }
         }
-        .chartXScale(domain: dates)
+        // Room after the last reading, so the last date under it isn't cut by the card's edge.
+        .chartXScale(domain: dates, range: .plotDimension(endPadding: 20))
         .chartYScale(domain: scale.floor...scale.ceiling)
         .chartYAxis {
             AxisMarks(position: .leading, values: scale.ticks) { value in
@@ -151,9 +152,8 @@ struct DiskChart: View {
                 .foregroundStyle(Palette.tertiaryText)
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                // The last date ends at its tick, so the chart's edge doesn't cut it.
-                AxisValueLabel(format: dateFormat, anchor: value.index == value.count - 1 ? .topTrailing : .top)
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisValueLabel(format: dateFormat)
                     .font(QuaiFont.caption)
                     .foregroundStyle(Palette.tertiaryText)
             }
