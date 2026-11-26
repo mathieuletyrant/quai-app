@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.3.0](https://github.com/mathieuletyrant/quai-app/compare/v2.2.0...v2.3.0) (2026-11-26)
+
+
+### ✨ Features
+
+* a demo home for App Review on demo.quai.stream ([#161](https://github.com/mathieuletyrant/quai-app/issues/161)) ([d573c93](https://github.com/mathieuletyrant/quai-app/commit/d573c93d682a3b97a39ad26b2aa4e78dc825ac31))
+* the demo home shows open movies and made-up series, no other image ([#163](https://github.com/mathieuletyrant/quai-app/issues/163)) ([fc2ee9a](https://github.com/mathieuletyrant/quai-app/commit/fc2ee9a5ff669173f8aa81d241a46c987d4be9f7))
+
+
+### 🐛 Fixes
+
+* **ios:** request more seasons of a series already asked for ([#164](https://github.com/mathieuletyrant/quai-app/issues/164)) ([2fb840d](https://github.com/mathieuletyrant/quai-app/commit/2fb840da515cd3f00d93cb0bb09865bd7c541a51))
+* space back no longer blocked by a torrent of another title that weighs the same ([#165](https://github.com/mathieuletyrant/quai-app/issues/165)) ([f9a924c](https://github.com/mathieuletyrant/quai-app/commit/f9a924cc445d3fb6ae6b8756be0de8e27bccc428))
+
 ## [2.2.0](https://github.com/mathieuletyrant/quai-app/compare/v2.1.0...v2.2.0) (2026-11-26)
 
 
