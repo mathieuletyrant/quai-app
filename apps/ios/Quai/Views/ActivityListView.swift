@@ -107,12 +107,18 @@ private struct StepTrack: View {
 }
 
 /// What Quai saw happen, newest first, a page at a time: the history of the titles, the requests and the server.
-private struct JournalSection: View {
+struct JournalSection: View {
     @Environment(Connection.self) private var connection
     @State private var loadingOlder = false
 
+    /// The history's failure, unless the activities above failed the same way (the server out of
+    /// reach): one card says it, not two.
+    static func ownError(_ journal: String?, above activities: String?) -> String? {
+        journal == activities ? nil : journal
+    }
+
     var body: some View {
-        if let error = connection.journalError {
+        if let error = JournalSection.ownError(connection.journalError, above: connection.lastError) {
             MessageTile(title: "Can't load the history", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
         }
         if !connection.journal.isEmpty {
