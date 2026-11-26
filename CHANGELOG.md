@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.0](https://github.com/mathieuletyrant/quai-app/compare/v2.0.0...v2.1.0) (2026-11-26)
+
+
+### ✨ Features
+
+* Storage, each media disk's free space over time and what changed it ([#154](https://github.com/mathieuletyrant/quai-app/issues/154)) ([004e66f](https://github.com/mathieuletyrant/quai-app/commit/004e66f8841f95f2bc88fb73c2cce16fa3361ff7))
+
+
+### 🐛 Fixes
+
+* a planned deletion shows when Reclaimerr really deletes it ([#152](https://github.com/mathieuletyrant/quai-app/issues/152)) ([1cc60c6](https://github.com/mathieuletyrant/quai-app/commit/1cc60c6626afaed62c27c06830b107da3a28b6d7))
+
 ## [2.0.0](https://github.com/mathieuletyrant/quai-app/compare/v0.30.0...v2.0.0) (2026-11-26)
 
 
