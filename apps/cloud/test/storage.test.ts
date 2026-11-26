@@ -227,7 +227,7 @@ describe("the Storage screen's disks", () => {
     expect(isLow({ ...disk, freeBytes: 100 }, settings(true))).toBe(false)
   })
 
-  it("its marks of the period, its count of all of them, the change since the period's first reading", () => {
+  it("its marks of the period, and its count of all of them", () => {
     const mark = (at: number, holds?: "movies" | "shows") => ({
       id: String(at),
       at,
@@ -244,8 +244,7 @@ describe("the Storage screen's disks", () => {
       low: true
     })
     expect(shown.marks.map((one) => one.id)).toEqual(["30", "25"])
-    expect([shown.allMarks, shown.changeBytes, shown.low]).toEqual([3, -30, true])
-    expect(storageDisk(disk, { readings: [], marks: [], from: 0, low: false }).changeBytes).toBeUndefined()
+    expect([shown.allMarks, shown.low]).toEqual([3, true])
   })
 })
 
@@ -309,7 +308,7 @@ describe("GET /api/storage", () => {
       expect(storage.period).toBe("7d")
       expect(storage.unavailable).toEqual([])
       const [shows, movies] = storage.disks
-      expect([shows?.name, shows?.low, shows?.freeBytes, shows?.changeBytes]).toEqual(["Shows", true, 1.6e11, 0])
+      expect([shows?.name, shows?.low, shows?.freeBytes]).toEqual(["Shows", true, 1.6e11])
       expect(shows?.readings.map((reading) => reading.freeBytes)).toEqual([1.6e11, 1.5e11])
       expect(shows?.marks.map((mark) => [mark.kind, mark.service, mark.title, mark.detail])).toEqual([
         ["arrived", "sonarr", "Severance S02", "2 episodes imported"],

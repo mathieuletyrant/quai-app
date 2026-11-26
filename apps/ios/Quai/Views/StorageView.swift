@@ -43,28 +43,14 @@ enum StoragePeriod: String, CaseIterable, Identifiable {
         }
     }
 
-    /// What the change is measured against: "30 days ago".
-    var ago: String {
-        switch self {
-        case .week: "7 days ago"
-        case .month: "30 days ago"
-        case .year: "a year ago"
-        case .all: "at the first reading"
-        }
-    }
+    /// Hourly readings up to 30 days: the cursor says the hour too.
+    var isHourly: Bool { self == .week || self == .month }
 
     var api: Components.Schemas.StoragePeriod? { .init(rawValue: rawValue) }
 }
 
 extension Components.Schemas.StorageDisk {
     var usedShare: Double { totalBytes > 0 ? 1 - freeBytes / totalBytes : 0 }
-
-    /// "50 GB less than 30 days ago", "12 GB more than a year ago"; under a GB, "About the same as…".
-    func change(over period: StoragePeriod) -> String? {
-        guard let change = changeBytes else { return nil }
-        guard abs(change) >= 1e9 else { return "About the same as \(period.ago)" }
-        return "\(Format.bytes(abs(change))) \(change < 0 ? "less" : "more") than \(period.ago)"
-    }
 
     /// "MOVIES · SHOWS"
     var label: String { name.uppercased() }
@@ -103,6 +89,7 @@ struct StorageView: View {
                 ForEach(StoragePeriod.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
+            .controlSize(.large)
             if let error = connection.storageError {
                 MessageTile(title: "Can't read the disks", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
             }
@@ -194,8 +181,9 @@ struct StorageView: View {
     }
 }
 
-/// One media disk: what it holds, its free space now, how it changed over the period, its chart.
-/// Tapping it selects it (its marks list below); tapping the chart picks the nearest mark.
+/// One media disk: what it holds, its free space now, its chart over the period. Tapping it
+/// selects it (its marks list below); tapping the chart picks the nearest mark, pressing and
+/// dragging on it moves a cursor along the curve.
 struct DiskCard: View {
     let disk: StorageDisk
     let period: StoragePeriod
@@ -228,11 +216,6 @@ struct DiskCard: View {
                     .foregroundStyle(disk.low ? Palette.toFix : Palette.primaryText)
                 Text("free of \(Format.bytes(disk.totalBytes))")
                     .font(QuaiFont.subheadline)
-                    .foregroundStyle(Palette.secondaryText)
-            }
-            if let change = disk.change(over: period) {
-                Text(change)
-                    .font(QuaiFont.caption)
                     .foregroundStyle(Palette.secondaryText)
             }
             if disk.readings.count > 1 {

@@ -8,23 +8,15 @@ struct StorageTests {
     }
 
     /// A disk with readings at these epoch seconds (free bytes as given) and two marks.
-    private func disk(change: Double? = nil, readings: [(Double, Double)] = [(1000, 8e11), (2000, 7.9e11)]) throws -> StorageDisk {
+    private func disk(readings: [(Double, Double)] = [(1000, 8e11), (2000, 7.9e11)]) throws -> StorageDisk {
         let points = readings.map { #"{"at":\#($0.0 * 1000),"freeBytes":\#($0.1)}"# }.joined(separator: ",")
-        let change = change.map { #""changeBytes":\#($0),"# } ?? ""
         return try disk(#"""
-        {"id":"d1","name":"Movies · Shows","holds":["movies","shows"],"freeBytes":7.9e11,"totalBytes":1.96e12,"low":false,\#(change)
+        {"id":"d1","name":"Movies · Shows","holds":["movies","shows"],"freeBytes":7.9e11,"totalBytes":1.96e12,"low":false,
          "readings":[\#(points)],
          "marks":[{"id":"a","at":1500000,"kind":"arrived","service":"radarr","title":"Dune","detail":"Imported","bytes":12000000000},
                   {"id":"g","at":3000000,"kind":"gone","service":"reclaimerr","title":"Up","detail":"Deleted"}],
          "allMarks":5}
         """#)
-    }
-
-    @Test func theChangeOverThePeriodInWords() throws {
-        #expect(try disk(change: -5e10).change(over: .month)?.hasSuffix("less than 30 days ago") == true)
-        #expect(try disk(change: 1.2e10).change(over: .year)?.hasSuffix("more than a year ago") == true)
-        #expect(try disk(change: 4e8).change(over: .week) == "About the same as 7 days ago")
-        #expect(try disk().change(over: .month) == nil)
     }
 
     @Test func aTapPicksTheNearestMarkAndTheCurveIsReadAtItsDate() throws {
@@ -35,6 +27,10 @@ struct StorageTests {
         #expect(shown.free(at: Date(timeIntervalSince1970: 2500)) == 7.9e11)
         #expect(shown.free(at: Date(timeIntervalSince1970: 10)) == 8e11)
         #expect(try disk(readings: []).free(at: .now) == nil)
+        // The cursor stops on the nearest reading, before or after.
+        #expect(shown.reading(near: Date(timeIntervalSince1970: 1600))?.freeBytes == 7.9e11)
+        #expect(shown.reading(near: Date(timeIntervalSince1970: 1400))?.freeBytes == 8e11)
+        #expect(try disk(readings: []).reading(near: .now) == nil)
         #expect(shown.label == "MOVIES · SHOWS")
         // Taken by an import, back from what's gone; nothing when the size is unknown.
         #expect(shown.marks[0].sizeText?.hasPrefix("−") == true)
@@ -71,6 +67,7 @@ struct StorageTests {
 
     @Test func thePeriodsAsTheContractNamesThem() {
         #expect(StoragePeriod.allCases.map(\.title) == ["7 D", "30 D", "1 Y", "All"])
+        #expect(StoragePeriod.allCases.filter(\.isHourly) == [.week, .month])
         #expect(StoragePeriod.allCases.allSatisfy { $0.api?.rawValue == $0.rawValue })
     }
 }

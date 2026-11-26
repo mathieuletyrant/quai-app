@@ -57,8 +57,6 @@ export const StorageDisk = Schema.Struct({
   totalBytes: Schema.Finite,
   /** Under the disk low alert's threshold (the alert on). */
   low: Schema.Boolean,
-  /** Free space now minus at the period's first reading; absent without an earlier reading. */
-  changeBytes: Schema.optionalKey(Schema.Finite),
   /** Oldest first: hourly on 7 and 30 days, one a day (its last) beyond. */
   readings: Schema.Array(DiskReading),
   /** The period's marks, newest first. */

@@ -4274,9 +4274,6 @@
           "low": {
             "type": "boolean"
           },
-          "changeBytes": {
-            "type": "number"
-          },
           "readings": {
             "type": "array",
             "items": {

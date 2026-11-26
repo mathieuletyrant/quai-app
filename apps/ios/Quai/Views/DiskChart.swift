@@ -62,10 +62,25 @@ extension Components.Schemas.StorageDisk {
     func free(at date: Date) -> Double? {
         (readings.last { $0.date <= date } ?? readings.first)?.freeBytes
     }
+
+    /// The reading nearest a date: where the cursor stops.
+    func reading(near date: Date) -> Components.Schemas.DiskReading? {
+        readings.min { abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date)) }
+    }
+}
+
+extension Components.Schemas.DiskReading {
+    /// What the cursor says over the curve: "Nov 12, 14:00", a day alone beyond 30 days.
+    func when(hourly: Bool) -> String {
+        hourly
+            ? date.formatted(.dateTime.month(.abbreviated).day().hour().minute())
+            : date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
 }
 
 /// A disk's free space over the period, its marks as ticks in a lane under the curve, the
-/// selected one joined to the curve by a dashed line in its service's color.
+/// selected one joined to the curve by a dashed line in its service's color. Pressed then
+/// dragged, a cursor follows the curve and says the free space then; a tap picks a mark.
 struct DiskChart: View {
     let disk: StorageDisk
     let period: StoragePeriod
@@ -75,7 +90,10 @@ struct DiskChart: View {
     /// A tap on the chart, at its date.
     let tapped: (Date) -> Void
 
-    private var shown: DiskMark? { disk.marks.first { $0.id == selected } }
+    /// Where the cursor is, while a finger holds it.
+    @State private var cursor: Date?
+
+    private var shown: DiskMark? { cursor == nil ? disk.marks.first { $0.id == selected } : nil }
 
     /// From the first reading (or an earlier mark) to the last one.
     private var dates: ClosedRange<Date> {
@@ -130,6 +148,17 @@ struct DiskChart: View {
                 PointMark(x: .value("Time", shown.date), y: .value("Lane", scale.laneMiddle))
                     .symbol { MarkBadge(mark: shown) }
             }
+            if let cursor, let reading = disk.reading(near: cursor) {
+                RuleMark(x: .value("Time", reading.date), yStart: .value("Free", scale.curveFloor), yEnd: .value("Free", scale.ceiling))
+                    .foregroundStyle(Palette.secondaryText.opacity(0.5))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                PointMark(x: .value("Time", reading.date), y: .value("Free", scale.value(reading.freeBytes)))
+                    .foregroundStyle(tint)
+                    .symbolSize(60)
+                    .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
+                        CursorReadout(free: reading.freeBytes, when: reading.when(hourly: period.isHourly))
+                    }
+            }
         }
         // Room after the last reading, so the last date under it isn't cut by the card's edge.
         .chartXScale(domain: dates, range: .plotDimension(endPadding: 20))
@@ -160,18 +189,51 @@ struct DiskChart: View {
         }
         .chartOverlay { proxy in
             GeometryReader { geometry in
+                let dateAt = { (location: CGPoint) -> Date? in
+                    guard let plot = proxy.plotFrame else { return nil }
+                    return proxy.value(atX: location.x - geometry[plot].origin.x)
+                }
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
-                    .onTapGesture { location in
-                        guard let plot = proxy.plotFrame else { return }
-                        let date: Date? = proxy.value(atX: location.x - geometry[plot].origin.x)
-                        if let date { tapped(date) }
-                    }
+                    // A press first, so a swipe over the chart still scrolls the screen.
+                    .gesture(
+                        LongPressGesture(minimumDuration: 0.2)
+                            .sequenced(before: DragGesture(minimumDistance: 0))
+                            .onChanged { value in
+                                guard case .second(true, let drag?) = value else { return }
+                                cursor = dateAt(drag.location)
+                            }
+                            .onEnded { _ in cursor = nil }
+                    )
+                    .simultaneousGesture(SpatialTapGesture().onEnded { tap in
+                        if cursor == nil, let date = dateAt(tap.location) { tapped(date) }
+                    })
             }
         }
+        .sensoryFeedback(.selection, trigger: cursor.flatMap { disk.reading(near: $0)?.at })
         .accessibilityLabel("\(disk.name): free space over time")
         .accessibilityValue("\(Format.bytes(disk.freeBytes)) free now, \(disk.marks.count) marks")
+    }
+}
+
+/// Over the cursor: the free space then, and when.
+private struct CursorReadout: View {
+    let free: Double
+    let when: String
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(Format.bytes(free))
+                .font(QuaiFont.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle(Palette.primaryText)
+            Text(when)
+                .font(.system(size: 11).monospacedDigit())
+                .foregroundStyle(Palette.secondaryText)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Palette.raised, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 

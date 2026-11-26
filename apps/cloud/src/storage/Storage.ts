@@ -34,7 +34,6 @@ export const storageDisk = (
   }
 ): StorageDisk => {
   const own = input.marks.filter((mark) => marksDisk(mark, disk))
-  const first = input.readings[0]
   return {
     id: disk.id,
     name: disk.name,
@@ -42,7 +41,6 @@ export const storageDisk = (
     freeBytes: disk.freeBytes,
     totalBytes: disk.totalBytes,
     low: input.low,
-    ...(first === undefined ? {} : { changeBytes: disk.freeBytes - first.freeBytes }),
     readings: input.readings,
     marks: own.filter((mark) => mark.at >= input.from).map(shownMark),
     allMarks: own.length
