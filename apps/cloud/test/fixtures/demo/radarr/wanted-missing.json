@@ -1,0 +1,113 @@
+{
+  "page": 1,
+  "pageSize": 1000,
+  "sortKey": "movieMetadata.sortTitle",
+  "sortDirection": "ascending",
+  "totalRecords": 5,
+  "records": [
+    {
+      "id": 52,
+      "title": "Agent 327",
+      "year": 2025,
+      "tmdbId": 100052,
+      "hasFile": false,
+      "monitored": true,
+      "images": [],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T11:00:00Z",
+      "digitalRelease": "2026-10-28T00:00:00Z",
+      "inCinemas": "2025-10-22T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 54,
+      "title": "Coffee Run",
+      "year": 2025,
+      "tmdbId": 100054,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "https://quai.stream/posters/coffee-run.jpg",
+          "remoteUrl": "https://quai.stream/posters/coffee-run.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-01T18:00:00Z",
+      "digitalRelease": "2025-04-18T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 55,
+      "title": "Hero",
+      "year": 2025,
+      "tmdbId": 100055,
+      "hasFile": false,
+      "monitored": true,
+      "images": [],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T07:00:00Z",
+      "digitalRelease": "2026-11-05T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 51,
+      "title": "Elephants Dream",
+      "year": 2027,
+      "tmdbId": 100051,
+      "hasFile": false,
+      "monitored": true,
+      "images": [],
+      "minimumAvailability": "released",
+      "isAvailable": false,
+      "added": "2026-11-12T10:12:03Z",
+      "inCinemas": "2027-03-10T00:00:00Z",
+      "status": "announced",
+      "sizeOnDisk": 0
+    },
+    {
+      "id": 48,
+      "title": "Tears of Steel",
+      "year": 2026,
+      "tmdbId": 100048,
+      "hasFile": false,
+      "monitored": true,
+      "images": [],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T09:00:00Z",
+      "digitalRelease": "2026-11-10T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0,
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series."
+    },
+    {
+      "id": 53,
+      "title": "Cosmos Laundromat",
+      "year": 2024,
+      "tmdbId": 100053,
+      "hasFile": false,
+      "monitored": true,
+      "images": [
+        {
+          "coverType": "poster",
+          "url": "https://quai.stream/posters/cosmos-laundromat.jpg",
+          "remoteUrl": "https://quai.stream/posters/cosmos-laundromat.jpg"
+        }
+      ],
+      "minimumAvailability": "released",
+      "isAvailable": true,
+      "added": "2026-11-19T11:30:00Z",
+      "digitalRelease": "2024-10-15T00:00:00Z",
+      "status": "released",
+      "sizeOnDisk": 0
+    }
+  ]
+}

@@ -52,3 +52,12 @@ Movie already removed), `GET /api/configuration/queue_cleaner` (`queue-cleaner.j
 `GET /api/events?eventType=DownloadCleaned` (`events-cleaned.json`: Fool Night cleaned after
 seeding, and a dry run), `GET /api/events?eventType=QueueItemDeleted` (`events-removed.json`, `PaginatedResult<EventListItem>`,
 one of them a dry run). Their download ids are the Radarr and Sonarr queue fixtures'.
+
+## `demo/`
+
+What the demo home (GLOSSARY) and the preview server serve, for App Review and the app's
+screenshots: the fixtures above, once, with open movies by the Blender Foundation (their posters
+on `quai.stream/posters`) and made-up series in place of the real titles; no other image, no
+synopsis, no link, release groups and streaming tags gone. Written by hand from now on: a new route
+the preview answers gets its own `demo/` file. `test/demo.test.ts` runs them through the Cloud's
+adapters and checks that every image is one of quai.stream's.

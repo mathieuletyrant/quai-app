@@ -1,0 +1,109 @@
+{
+  "createdBy": [],
+  "episodeRunTime": [
+    55
+  ],
+  "firstAirDate": "2022-02-17",
+  "genres": [
+    {
+      "id": 18,
+      "name": "Drama"
+    }
+  ],
+  "id": 95396,
+  "inProduction": true,
+  "languages": [
+    "en"
+  ],
+  "lastAirDate": "2025-03-20",
+  "name": "Harbor Lights",
+  "networks": [
+    {
+      "id": 2552,
+      "name": "Demo Network"
+    }
+  ],
+  "numberOfEpisodes": 19,
+  "numberOfSeasons": 2,
+  "originalLanguage": "en",
+  "originalName": "Harbor Lights",
+  "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+  "popularity": 201.2,
+  "seasons": [
+    {
+      "id": 381216,
+      "airDate": "2022-02-17",
+      "episodeCount": 2,
+      "name": "Specials",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "seasonNumber": 0
+    },
+    {
+      "id": 219006,
+      "airDate": "2022-02-17",
+      "episodeCount": 9,
+      "name": "Season 1",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "seasonNumber": 1
+    },
+    {
+      "id": 375449,
+      "airDate": "2025-01-16",
+      "episodeCount": 10,
+      "name": "Season 2",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "seasonNumber": 2
+    },
+    {
+      "id": 452018,
+      "airDate": null,
+      "episodeCount": 1,
+      "name": "Season 3",
+      "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+      "seasonNumber": 3
+    }
+  ],
+  "status": "Returning Series",
+  "type": "Scripted",
+  "voteAverage": 8.4,
+  "voteCount": 2100,
+  "credits": {
+    "cast": [],
+    "crew": []
+  },
+  "externalIds": {
+    "tvdbId": 371980
+  },
+  "keywords": [],
+  "mediaInfo": {
+    "id": 32,
+    "tmdbId": 95396,
+    "status": 4,
+    "seasons": [
+      {
+        "id": 70,
+        "seasonNumber": 1,
+        "status": 5
+      },
+      {
+        "id": 71,
+        "seasonNumber": 2,
+        "status": 1
+      }
+    ],
+    "requests": [
+      {
+        "id": 13,
+        "status": 1,
+        "seasons": [
+          {
+            "id": 90,
+            "seasonNumber": 2,
+            "status": 2
+          }
+        ]
+      }
+    ]
+  },
+  "watchProviders": []
+}

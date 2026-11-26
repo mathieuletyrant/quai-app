@@ -1,0 +1,171 @@
+[
+  {
+    "guid": "https://tracker.example/torrent/1001",
+    "quality": {
+      "quality": {
+        "id": 5,
+        "name": "WEBDL-720p",
+        "source": "webdl",
+        "resolution": 720
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 0,
+    "qualityWeight": 1401,
+    "age": 1,
+    "ageHours": 30.5,
+    "ageMinutes": 1830.0,
+    "size": 1610612736,
+    "indexerId": 3,
+    "indexer": "YggTorrent",
+    "releaseGroup": "DEMO",
+    "title": "Tears.of.Steel.2026.FRENCH.720p.WEB.H264",
+    "movieTitles": [
+      "Tears of Steel"
+    ],
+    "languages": [
+      {
+        "id": 2,
+        "name": "French"
+      }
+    ],
+    "approved": false,
+    "temporarilyRejected": false,
+    "rejected": true,
+    "tmdbId": 100048,
+    "imdbId": 0,
+    "rejections": [
+      "Quality WEBDL-720p is not wanted in profile",
+      "Language French is not wanted in profile"
+    ],
+    "publishDate": "2026-11-18T08:00:00Z",
+    "downloadAllowed": true,
+    "releaseWeight": 1,
+    "indexerFlags": [],
+    "magnetUrl": "magnet:?xt=urn:btih:masked",
+    "infoHash": "masked",
+    "seeders": 4,
+    "leechers": 1,
+    "protocol": "torrent",
+    "movieRequested": false,
+    "downloadClientId": null,
+    "shouldOverride": null
+  },
+  {
+    "guid": "https://tracker.example/torrent/1002",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "webdl",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 1500,
+    "qualityWeight": 1401,
+    "age": 1,
+    "ageHours": 26.0,
+    "ageMinutes": 1560.0,
+    "size": 4831838208,
+    "indexerId": 3,
+    "indexer": "YggTorrent",
+    "releaseGroup": "DEMO",
+    "title": "Tears.of.Steel.2026.MULTi.1080p.WEB.H264",
+    "movieTitles": [
+      "Tears of Steel"
+    ],
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      },
+      {
+        "id": 2,
+        "name": "French"
+      }
+    ],
+    "approved": true,
+    "temporarilyRejected": false,
+    "rejected": false,
+    "tmdbId": 100048,
+    "imdbId": 0,
+    "rejections": [],
+    "publishDate": "2026-11-18T08:00:00Z",
+    "downloadAllowed": true,
+    "releaseWeight": 1,
+    "indexerFlags": [],
+    "magnetUrl": "magnet:?xt=urn:btih:masked",
+    "infoHash": "masked",
+    "seeders": 57,
+    "leechers": 3,
+    "protocol": "torrent",
+    "movieRequested": false,
+    "downloadClientId": null,
+    "shouldOverride": null
+  },
+  {
+    "guid": "https://tracker.example/torrent/1003",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "webdl",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "customFormats": [],
+    "customFormatScore": 0,
+    "qualityWeight": 1401,
+    "age": 0,
+    "ageHours": 12.25,
+    "ageMinutes": 735.0,
+    "size": 6979321856,
+    "indexerId": 5,
+    "indexer": "TorrentLeech",
+    "releaseGroup": "DEMO",
+    "title": "Tears.of.Steel.2026.1080p.WEB-DL.DDP5.1.H.264",
+    "movieTitles": [
+      "Tears of Steel"
+    ],
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      }
+    ],
+    "approved": true,
+    "temporarilyRejected": false,
+    "rejected": false,
+    "tmdbId": 100048,
+    "imdbId": 0,
+    "rejections": [],
+    "publishDate": "2026-11-18T08:00:00Z",
+    "downloadAllowed": true,
+    "releaseWeight": 1,
+    "indexerFlags": [],
+    "magnetUrl": "magnet:?xt=urn:btih:masked",
+    "infoHash": "masked",
+    "seeders": 212,
+    "leechers": 9,
+    "protocol": "torrent",
+    "movieRequested": false,
+    "downloadClientId": null,
+    "shouldOverride": null
+  }
+]

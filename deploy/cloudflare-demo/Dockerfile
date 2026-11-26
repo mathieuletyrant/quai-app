@@ -19,8 +19,8 @@ ENV NODE_ENV=production \
     QUAI_PORT=8787 \
     NODE_OPTIONS="--max-old-space-size=160 --max-semi-space-size=8"
 COPY --from=build /repo/apps/cloud/dist/demo.js ./demo.js
-# The fixtures are read next to the bundle, as `./fixtures/...` from it.
-COPY --from=build /repo/apps/cloud/test/fixtures ./fixtures
+# The demo fixtures (open movies, made-up series) are read next to the bundle, as `./fixtures/demo/...`.
+COPY --from=build /repo/apps/cloud/test/fixtures/demo ./fixtures/demo
 EXPOSE 8787
 USER node
 CMD ["node", "--disable-warning=ExperimentalWarning", "demo.js"]

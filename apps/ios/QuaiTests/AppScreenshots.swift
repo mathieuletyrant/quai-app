@@ -82,7 +82,7 @@ struct AppScreenshots {
         try await Self.settle()
         Self.screenshot(window, "02-library")
 
-        let item = try #require(connection.library?.items.first { $0.id == "movie:12" }, "Dune isn't in the preview's library")
+        let item = try #require(connection.library?.items.first { $0.id == "movie:12" }, "Sintel isn't in the preview's library")
         let detail = try Self.show(
             LibraryView(filter: .constant(.recent)).sheet(isPresented: .constant(true)) {
                 TitleDetailView(item: item)
@@ -141,11 +141,11 @@ struct AppScreenshots {
         Self.screenshot(tiles, "05-settings-home-tiles")
     }
 
-    /// The search with "dune" typed: Seerr's results, each with where it stands.
+    /// The search with "sintel" typed: Seerr's results, each with where it stands.
     @Test func search() async throws {
         let connection = try await Self.pairedConnection()
         let window = try Self.show(
-            SearchView(link: .constant(nil), query: "dune").tint(.quaiAccent).preferredColorScheme(.dark),
+            SearchView(link: .constant(nil), query: "sintel").tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
         // The search waits for a pause in the typing, then asks Seerr (the first call also finds
@@ -154,18 +154,18 @@ struct AppScreenshots {
         Self.screenshot(window, "07-search")
 
         // A series' Request: its seasons, the first one checked.
-        let prophecy = SearchResult(
+        let station = SearchResult(
             kind: .series,
             tmdbId: 90_228,
-            title: "Dune: Prophecy",
+            title: "The Quiet Station",
             year: 2024,
-            posterUrl: "https://image.tmdb.org/t/p/w342/A3aTsF6NqT6zsc4rVc1fuUUSnoV.jpg",
+            posterUrl: nil,
             overview: nil,
             state: .requestable
         )
         let seasons = try Self.show(
-            SearchView(link: .constant(nil), query: "dune").sheet(isPresented: .constant(true)) {
-                SeasonPicker(result: prophecy) { _ in }
+            SearchView(link: .constant(nil), query: "sintel").sheet(isPresented: .constant(true)) {
+                SeasonPicker(result: station) { _ in }
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
@@ -178,7 +178,7 @@ struct AppScreenshots {
 
         // A result tapped that isn't in the library yet: Seerr's details and the Request button.
         let preview = try Self.show(
-            SearchResultDetail(result: prophecy, state: .requestable) {}.tint(.quaiAccent).preferredColorScheme(.dark),
+            SearchResultDetail(result: station, state: .requestable) {}.tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
         try await Self.settle(5)

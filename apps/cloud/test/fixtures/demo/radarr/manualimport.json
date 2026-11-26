@@ -1,0 +1,56 @@
+[
+  {
+    "id": 1,
+    "path": "/downloads/complete/Hero.2025.MULTi.1080p.WEB.H264/Hero.2025.MULTi.1080p.WEB.H264.mkv",
+    "relativePath": "Hero.2025.MULTi.1080p.WEB.H264.mkv",
+    "folderName": "Hero.2025.MULTi.1080p.WEB.H264",
+    "name": "Hero.2025.MULTi.1080p.WEB.H264",
+    "size": 4294967296,
+    "movie": {
+      "id": 55,
+      "title": "Hero",
+      "year": 2025,
+      "tmdbId": 100055,
+      "hasFile": false,
+      "monitored": true,
+      "images": [],
+      "minimumAvailability": "released",
+      "isAvailable": true
+    },
+    "releaseGroup": "DEMO",
+    "quality": {
+      "quality": {
+        "id": 3,
+        "name": "WEBDL-1080p",
+        "source": "webdl",
+        "resolution": 1080
+      },
+      "revision": {
+        "version": 1,
+        "real": 0,
+        "isRepack": false
+      }
+    },
+    "languages": [
+      {
+        "id": 1,
+        "name": "English"
+      },
+      {
+        "id": 2,
+        "name": "French"
+      }
+    ],
+    "qualityWeight": 301,
+    "downloadId": "C3D4E5F60718293A4B5C6D7E8F90123456789012",
+    "customFormats": [],
+    "customFormatScore": 0,
+    "indexerFlags": 0,
+    "rejections": [
+      {
+        "reason": "Found matching movie via grab history, but release was matched to movie by ID. Manual Import required.",
+        "type": "permanent"
+      }
+    ]
+  }
+]

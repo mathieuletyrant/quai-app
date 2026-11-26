@@ -1,0 +1,17 @@
+{
+  "movie": {
+    "id": 412,
+    "title": "Big Buck Bunny",
+    "year": 2024,
+    "releaseDate": "2024-06-12",
+    "folderPath": "/downloads/movies/Big Buck Bunny (2024)",
+    "tmdbId": 693134,
+    "imdbId": "tt15239678",
+    "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+    "tags": []
+  },
+  "addMethod": "manual",
+  "eventType": "MovieAdded",
+  "instanceName": "Radarr",
+  "applicationUrl": ""
+}

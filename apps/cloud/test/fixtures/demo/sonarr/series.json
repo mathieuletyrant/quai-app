@@ -1,0 +1,153 @@
+[
+  {
+    "title": "Harbor Lights",
+    "alternateTitles": [],
+    "sortTitle": "harbor lights",
+    "status": "continuing",
+    "ended": false,
+    "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+    "network": "Demo Network",
+    "airTime": "21:00",
+    "images": [],
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "monitored": true,
+        "statistics": {
+          "episodeFileCount": 9,
+          "episodeCount": 9,
+          "totalEpisodeCount": 9,
+          "sizeOnDisk": 21474836480,
+          "percentOfEpisodes": 100
+        }
+      },
+      {
+        "seasonNumber": 2,
+        "monitored": true,
+        "statistics": {
+          "episodeFileCount": 8,
+          "episodeCount": 10,
+          "totalEpisodeCount": 10,
+          "sizeOnDisk": 19327352832,
+          "percentOfEpisodes": 80
+        }
+      }
+    ],
+    "year": 2022,
+    "path": "/downloads/shows/Harbor Lights",
+    "qualityProfileId": 4,
+    "seasonFolder": true,
+    "monitored": true,
+    "monitorNewItems": "all",
+    "useSceneNumbering": false,
+    "runtime": 55,
+    "tvdbId": 371980,
+    "tvRageId": 0,
+    "tvMazeId": 44933,
+    "tmdbId": 95396,
+    "firstAired": "2022-02-18T00:00:00Z",
+    "lastAired": "2025-03-21T00:00:00Z",
+    "seriesType": "standard",
+    "cleanTitle": "harbor lights",
+    "imdbId": "tt11280740",
+    "titleSlug": "harbor lights",
+    "rootFolderPath": "/downloads/shows/",
+    "genres": [
+      "Drama",
+      "Mystery",
+      "Science Fiction"
+    ],
+    "tags": [],
+    "added": "2025-01-04T10:22:51Z",
+    "ratings": {
+      "votes": 1203,
+      "value": 8.7
+    },
+    "statistics": {
+      "seasonCount": 2,
+      "episodeFileCount": 17,
+      "episodeCount": 19,
+      "totalEpisodeCount": 19,
+      "sizeOnDisk": 40802189312,
+      "releaseGroups": [
+        "DEMO"
+      ],
+      "percentOfEpisodes": 89.47
+    },
+    "languageProfileId": 1,
+    "id": 3
+  },
+  {
+    "title": "Northbound",
+    "alternateTitles": [],
+    "sortTitle": "northbound",
+    "status": "continuing",
+    "ended": false,
+    "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+    "network": "Demo Network",
+    "airTime": "22:00",
+    "images": [],
+    "originalLanguage": {
+      "id": 1,
+      "name": "English"
+    },
+    "seasons": [
+      {
+        "seasonNumber": 1,
+        "monitored": true,
+        "statistics": {
+          "episodeFileCount": 8,
+          "episodeCount": 8,
+          "totalEpisodeCount": 8,
+          "sizeOnDisk": 9663676416,
+          "percentOfEpisodes": 100
+        }
+      }
+    ],
+    "year": 2022,
+    "path": "/downloads/shows/Northbound",
+    "qualityProfileId": 4,
+    "seasonFolder": true,
+    "monitored": true,
+    "monitorNewItems": "all",
+    "useSceneNumbering": false,
+    "runtime": 30,
+    "tvdbId": 403245,
+    "tvRageId": 0,
+    "tvMazeId": 59186,
+    "tmdbId": 136315,
+    "firstAired": "2022-06-23T00:00:00Z",
+    "seriesType": "standard",
+    "cleanTitle": "thebear",
+    "imdbId": "tt14452776",
+    "titleSlug": "northbound",
+    "rootFolderPath": "/downloads/shows/",
+    "genres": [
+      "Comedy",
+      "Drama"
+    ],
+    "tags": [],
+    "added": "2024-08-30T18:03:12Z",
+    "ratings": {
+      "votes": 420,
+      "value": 8.4
+    },
+    "statistics": {
+      "seasonCount": 1,
+      "episodeFileCount": 8,
+      "episodeCount": 8,
+      "totalEpisodeCount": 8,
+      "sizeOnDisk": 9663676416,
+      "releaseGroups": [
+        "DEMO"
+      ],
+      "percentOfEpisodes": 100
+    },
+    "languageProfileId": 1,
+    "id": 7
+  }
+]

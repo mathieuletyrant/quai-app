@@ -1,0 +1,8 @@
+{
+  "name": "DownloadCleaner",
+  "status": "Scheduled",
+  "schedule": "0 0/5 * * * ?",
+  "nextRunTime": "2026-11-19T12:05:00+00:00",
+  "previousRunTime": "2026-11-19T12:00:00+00:00",
+  "jobType": "DownloadCleaner"
+}

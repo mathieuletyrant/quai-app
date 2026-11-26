@@ -1,0 +1,47 @@
+{
+  "adult": false,
+  "budget": 90000000,
+  "genres": [
+    {
+      "id": 10751,
+      "name": "Family"
+    },
+    {
+      "id": 35,
+      "name": "Comedy"
+    },
+    {
+      "id": 12,
+      "name": "Adventure"
+    }
+  ],
+  "id": 516729,
+  "imdbId": "tt14776330",
+  "originalLanguage": "en",
+  "originalTitle": "Sprite Fright",
+  "overview": "Demo content for Quai: an open movie by the Blender Foundation, or a made-up series.",
+  "popularity": 312.4,
+  "releaseDate": "2024-11-08",
+  "revenue": 0,
+  "runtime": 106,
+  "status": "Released",
+  "title": "Sprite Fright",
+  "video": false,
+  "voteAverage": 7.1,
+  "voteCount": 512,
+  "credits": {
+    "cast": [],
+    "crew": []
+  },
+  "collection": null,
+  "externalIds": {
+    "imdbId": "tt14776330"
+  },
+  "mediaInfo": {
+    "id": 31,
+    "tmdbId": 516729,
+    "status": 2,
+    "requests": []
+  },
+  "watchProviders": []
+}
