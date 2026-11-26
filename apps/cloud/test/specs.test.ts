@@ -5,6 +5,7 @@ import { sonarrQueue } from "../src/fixes/series.ts"
 import type { Read } from "../src/home/HomeReads.ts"
 import { ManualImportRows, mediaManagementRead, ReleaseRecords } from "../src/integrations/arr.ts"
 import { healthReads } from "../src/integrations/arrHealth.ts"
+import { EpisodesResult, ItemsResult, Sessions, Users } from "../src/integrations/jellyfin.ts"
 import {
   movieAvailabilityRead,
   RadarrCalendar,
@@ -14,6 +15,18 @@ import {
   radarrMissingPath,
   radarrMoviesRead
 } from "../src/integrations/radarr.ts"
+import {
+  detailsPath,
+  pendingRead,
+  requestPath,
+  searchPath,
+  SeerrRequest,
+  SeerrSearchPage,
+  SeerrSeries,
+  SeerrTitle,
+  SeerrUserPage,
+  usersPath
+} from "../src/integrations/seerr.ts"
 import {
   episodesPath,
   SonarrCalendar,
@@ -29,7 +42,10 @@ import { driftOf, type OpenApiSpec } from "./specDrift.ts"
 const specOf = (service: string): OpenApiSpec =>
   JSON.parse(readFileSync(new URL(`fixtures/specs/${service}.json`, import.meta.url), "utf8")) as OpenApiSpec
 
-const reads: Record<"radarr" | "sonarr", ReadonlyArray<Pick<Read<unknown>, "path" | "schema">>> = {
+type SpecService = "radarr" | "sonarr" | "prowlarr" | "seerr" | "jellyfin"
+
+/** Every read of the Cloud's, by the service it reads: a new read joins its list. */
+const reads: Record<SpecService, ReadonlyArray<Pick<Read<unknown>, "path" | "schema">>> = {
   radarr: [
     radarrQueue,
     radarrMoviesRead,
@@ -53,14 +69,32 @@ const reads: Record<"radarr" | "sonarr", ReadonlyArray<Pick<Read<unknown>, "path
     { path: "/api/v3/manualimport?downloadId=x", schema: ManualImportRows },
     mediaManagementRead("sonarr"),
     healthReads.sonarr
+  ],
+  prowlarr: [healthReads.prowlarr],
+  seerr: [
+    pendingRead,
+    { path: requestPath(1), schema: SeerrRequest },
+    { path: detailsPath("movie", 1), schema: SeerrTitle },
+    { path: detailsPath("tv", 1), schema: SeerrTitle },
+    { path: detailsPath("tv", 1), schema: SeerrSeries },
+    { path: searchPath("paddington"), schema: SeerrSearchPage },
+    { path: usersPath, schema: SeerrUserPage }
+  ],
+  // Watches, built in `jellyfin.ts` with their queries.
+  jellyfin: [
+    { path: "/Users", schema: Users },
+    { path: "/Items?Recursive=true", schema: ItemsResult },
+    { path: "/Items?IncludeItemTypes=Episode", schema: EpisodesResult },
+    { path: "/Sessions?ActiveWithinSeconds=120", schema: Sessions }
   ]
 }
 
 /**
- * The fields of the shared *arr schemas (`integrations/arr.ts`) that only the other service answers:
- * the other service's own check still holds them to its spec.
+ * The fields Quai reads that a spec doesn't have, and why. Each is checked to be still missing, so a
+ * spec that catches up drops it from here and holds it from then on.
  */
-const theOthers: Record<"radarr" | "sonarr", ReadonlyArray<string>> = {
+const notInSpec: Record<SpecService, ReadonlyArray<string>> = {
+  // The shared *arr schemas (`integrations/arr.ts`) hold Sonarr's fields too: Sonarr's check holds them.
   radarr: [
     "GET /api/v3/queue.records[].seriesId",
     "GET /api/v3/queue.records[].episodeId",
@@ -72,26 +106,54 @@ const theOthers: Record<"radarr" | "sonarr", ReadonlyArray<string>> = {
     "GET /api/v3/manualimport[].seasonNumber",
     "GET /api/v3/manualimport[].episodes"
   ],
+  // And Radarr's: Radarr's check holds them.
   sonarr: [
     "GET /api/v3/queue.records[].movieId",
     "GET /api/v3/queue.records[].movie",
     "GET /api/v3/manualimport[].movie"
-  ]
+  ],
+  prowlarr: [],
+  seerr: [
+    // Seerr writes its spec by hand and leaves these out; its answers have them (`fixtures/real/seerr`).
+    "GET /request.results[].type",
+    "GET /request.results[].media.mediaType",
+    "GET /request.results[].seasons",
+    "GET /request.results[].requestedBy.displayName",
+    "GET /request.results[].requestedBy.jellyfinUsername",
+    "GET /request/{requestId}.type",
+    "GET /request/{requestId}.media.mediaType",
+    "GET /request/{requestId}.seasons",
+    "GET /request/{requestId}.requestedBy.displayName",
+    "GET /request/{requestId}.requestedBy.jellyfinUsername",
+    "GET /tv/{tvId}.mediaInfo.seasons",
+    "GET /tv/{tvId}.mediaInfo.requests[].seasons",
+    "GET /user.results[].displayName",
+    "GET /user.results[].jellyfinUsername",
+    // `SeerrTitle` reads a movie's and a series' names alike: a movie has a title, a series a name.
+    "GET /movie/{movieId}.name",
+    "GET /movie/{movieId}.firstAirDate",
+    "GET /tv/{tvId}.title",
+    "GET /tv/{tvId}.releaseDate"
+  ],
+  jellyfin: []
 }
 
 const fieldOf = (drift: string) => drift.split(":")[0] ?? drift
 
 describe("the services' specs", () => {
-  for (const service of ["radarr", "sonarr"] as const) {
+  for (const service of Object.keys(reads) as ReadonlyArray<SpecService>) {
     const spec = specOf(service)
     const drifts = reads[service].flatMap((read) => driftOf(spec, read))
 
     it(`${service}: every field Quai reads is in the spec, with its type`, () => {
-      expect(drifts.filter((drift) => !theOthers[service].includes(fieldOf(drift)))).toEqual([])
+      expect(drifts.filter((drift) => !notInSpec[service].includes(fieldOf(drift)))).toEqual([])
     })
 
-    it(`${service}: each field left to the other service is still missing from this one`, () => {
-      expect(theOthers[service].filter((field) => !drifts.map(fieldOf).includes(field))).toEqual([])
-    })
+    it.skipIf(notInSpec[service].length === 0)(
+      `${service}: each field known to be missing from the spec still is`,
+      () => {
+        expect(notInSpec[service].filter((field) => !drifts.map(fieldOf).includes(field))).toEqual([])
+      }
+    )
   }
 })

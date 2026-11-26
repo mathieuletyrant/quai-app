@@ -11,6 +11,8 @@ import { type Schema, SchemaAST } from "effect"
 
 /** The part of an OpenAPI 3 document the comparison reads. */
 export interface OpenApiSpec {
+  /** Seerr's paths leave out the `/api/v1` its server URL ends with. */
+  readonly servers?: ReadonlyArray<{ readonly url: string }>
   readonly paths: Readonly<Record<string, Readonly<Record<string, Operation>>>>
   readonly components?: { readonly schemas?: Readonly<Record<string, JsonSchema>> }
 }
@@ -44,9 +46,15 @@ export interface SpecRead {
   readonly schema: Schema.Top
 }
 
+/** The path the spec's server URL ends with: `/api/v1` for `{server}/api/v1`, nothing for a bare host. */
+const basePathOf = (spec: OpenApiSpec): string =>
+  (spec.servers?.[0]?.url ?? "").replace(/^\{[^}]+\}/, "").replace(/^[a-z]+:\/\/[^/]*/, "").replace(/\/$/, "")
+
 /** The spec's path template matching a concrete path (query left out): `/api/v3/movie/{id}` for `/api/v3/movie/12`. */
 export const templateOf = (spec: OpenApiSpec, path: string): string | undefined => {
-  const segments = (path.split("?")[0] ?? "").split("/")
+  const base = basePathOf(spec)
+  const bare = path.split("?")[0] ?? ""
+  const segments = (bare.startsWith(`${base}/`) ? bare.slice(base.length) : bare).split("/")
   const matches = (template: string) => {
     const parts = template.split("/")
     return parts.length === segments.length

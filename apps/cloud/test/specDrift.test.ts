@@ -106,6 +106,13 @@ describe("templateOf", () => {
     expect(templateOf(spec, "/api/v3/queue/details")).toBe("/api/v3/queue/details")
   })
 
+  it("leaves out the path the server URL ends with (Seerr's `{server}/api/v1`)", () => {
+    const seerr: OpenApiSpec = { servers: [{ url: "{server}/api/v1" }], paths: { "/request/{requestId}": {} } }
+    expect(templateOf(seerr, "/api/v1/request/3")).toBe("/request/{requestId}")
+    const hosted: OpenApiSpec = { servers: [{ url: "https://seerr.example/api/v1/" }], paths: { "/user": {} } }
+    expect(templateOf(hosted, "/api/v1/user?take=100")).toBe("/user")
+  })
+
   it("finds nothing for a path of another length", () => {
     expect(templateOf(spec, "/api/v3/queue/12/more")).toBeUndefined()
   })
