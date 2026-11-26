@@ -36,9 +36,9 @@ enum StoragePeriod: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .week: "7 D"
-        case .month: "30 D"
-        case .year: "1 Y"
+        case .week: "1W"
+        case .month: "1M"
+        case .year: "1Y"
         case .all: "All"
         }
     }
@@ -89,7 +89,6 @@ struct StorageView: View {
                 ForEach(StoragePeriod.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
-            .controlSize(.large)
             if let error = connection.storageError {
                 MessageTile(title: "Can't read the disks", message: error, systemImage: "exclamationmark.triangle.fill", color: Palette.toFix)
             }

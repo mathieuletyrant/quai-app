@@ -66,7 +66,7 @@ struct StorageTests {
     }
 
     @Test func thePeriodsAsTheContractNamesThem() {
-        #expect(StoragePeriod.allCases.map(\.title) == ["7 D", "30 D", "1 Y", "All"])
+        #expect(StoragePeriod.allCases.map(\.title) == ["1W", "1M", "1Y", "All"])
         #expect(StoragePeriod.allCases.filter(\.isHourly) == [.week, .month])
         #expect(StoragePeriod.allCases.allSatisfy { $0.api?.rawValue == $0.rawValue })
     }
