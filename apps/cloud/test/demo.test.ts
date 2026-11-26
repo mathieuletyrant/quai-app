@@ -27,6 +27,15 @@ describe("the demo home", () => {
     expect(urls.filter((url) => !url.startsWith("https://quai.stream/posters/"))).toEqual([])
   })
 
+  it("names nobody real: the users are Sam and Alex", () => {
+    const people = files(demoFixtures).flatMap((path) =>
+      [...readFileSync(path, "utf8").matchAll(/"(?:displayName|jellyfinUsername|email)": "([^"]+)"/g)].map((match) =>
+        match[1]
+      )
+    )
+    expect(new Set(people)).toEqual(new Set(["Sam", "sam", "Alex", "alex", "admin@example.com", "alex@example.com"]))
+  })
+
   // The demo fixtures go through the real adapters: when a service's API moves, this fails with the tests.
   it.effect("fills the app's screens, every service read", () =>
     Effect.gen(function*() {

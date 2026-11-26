@@ -50,9 +50,9 @@
       "requestedBy": {
         "permissions": 32,
         "id": 2,
-        "email": "julie@example.com",
+        "email": "alex@example.com",
         "plexUsername": null,
-        "jellyfinUsername": "julie",
+        "jellyfinUsername": "alex",
         "username": null,
         "recoveryLinkExpirationDate": null,
         "userType": 3,
@@ -69,7 +69,7 @@
         "createdAt": "2026-03-02T10:11:12.000Z",
         "updatedAt": "2026-11-19T19:42:10.000Z",
         "requestCount": 4,
-        "displayName": "Julie"
+        "displayName": "Alex"
       },
       "seasonCount": 0
     },
@@ -132,9 +132,9 @@
       "requestedBy": {
         "permissions": 32,
         "id": 2,
-        "email": "julie@example.com",
+        "email": "alex@example.com",
         "plexUsername": null,
-        "jellyfinUsername": "julie",
+        "jellyfinUsername": "alex",
         "username": null,
         "recoveryLinkExpirationDate": null,
         "userType": 3,
@@ -144,7 +144,7 @@
         "createdAt": "2026-03-02T10:11:12.000Z",
         "updatedAt": "2026-11-20T08:05:00.000Z",
         "requestCount": 5,
-        "displayName": "Julie"
+        "displayName": "Alex"
       },
       "seasonCount": 2
     }
