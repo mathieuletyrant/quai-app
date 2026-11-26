@@ -14,6 +14,7 @@ import {
   type Candidate,
   candidatesRead,
   carriedOut,
+  type DeletionTask,
   type FileEvent,
   fileEventsRead,
   type FileEventType,
@@ -21,6 +22,7 @@ import {
   isMovie,
   type PlannedCandidate,
   plannedDeletions,
+  readDeletionTask,
   reasonSummary
 } from "./reclaimerr.ts"
 
@@ -60,13 +62,14 @@ export const deletionRaised = ({ candidate, deletesAt, operation }: PlannedCandi
 /** Every deletion Reclaimerr plans on its own, but those the user let go in Quai. */
 export const deletionsState = (
   candidates: ReadonlyArray<Candidate>,
+  task: DeletionTask | undefined,
   letGo: ReadonlySet<number>,
   now: number
 ): AlertState =>
   alertState(
     "plannedDeletion",
     "reclaimerr",
-    plannedDeletions(candidates).filter(({ candidate }) => !letGo.has(candidate.id)).map((planned) =>
+    plannedDeletions(candidates, task).filter(({ candidate }) => !letGo.has(candidate.id)).map((planned) =>
       deletionRaised(planned, now)
     )
   )
@@ -110,6 +113,9 @@ export const oncePerCandidate = (events: ReadonlyArray<FileEvent & FeedEvent>, t
   return once
 }
 
+/** How long the deletion task's schedule is kept before it is read again: it rarely changes. */
+export const deletionTaskEveryMs = 10 * 60_000
+
 /** How many candidates are remembered for their size and name, more than Reclaimerr lists. */
 const knownAtMost = 1000
 
@@ -125,6 +131,16 @@ export const plannedDeletionAlert = Effect.gen(function*() {
   const feed = eventFeed(journal, { source: "reclaimerr", kinds: ["reclaimerr.deleted", "reclaimerr.moved"] })
   const known = new Map<number, Candidate>()
   const carriedOutIds = new Set<number>()
+  let task: { readonly value: DeletionTask | undefined; readonly readAt: number } | undefined
+
+  /** The deletion task, read at most every `deletionTaskEveryMs`; undefined when it can't be. */
+  const deletionTask = (now: number) =>
+    task !== undefined && now - task.readAt < deletionTaskEveryMs
+      ? Effect.succeed(task.value)
+      : readDeletionTask(reads).pipe(
+        Effect.orElseSucceed(() => undefined),
+        Effect.tap((value) => Effect.sync(() => (task = { value, readAt: now })))
+      )
 
   const remember = (candidates: ReadonlyArray<Candidate>) => {
     for (const candidate of candidates) {
@@ -191,7 +207,8 @@ export const plannedDeletionAlert = Effect.gen(function*() {
           if (Option.isNone(page)) return []
           remember(page.value.items)
           if (!context.alerts.plannedDeletion.enabled) return []
-          return [deletionsState(page.value.items, yield* letGo(page.value.items), context.now)]
+          const schedule = yield* deletionTask(context.now)
+          return [deletionsState(page.value.items, schedule, yield* letGo(page.value.items), context.now)]
         })
     },
     goneWatcher: {

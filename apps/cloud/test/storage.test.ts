@@ -358,7 +358,7 @@ describe("GET /api/storage", () => {
       const { home, api } = yield* phoneOn({
         answer: recordedHome({ "radarr GET /api/v3/diskspace": "radarr/diskspace.json" }),
         services: ["radarr"],
-        protocol: 10
+        protocol: 11
       })
       expect(home.watch(rootsWatchId("radarr"))).toBeUndefined()
       const storage = yield* api.storage.storage({ query: { period: "30d" } })

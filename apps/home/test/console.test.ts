@@ -49,12 +49,16 @@ const consoleServer = (options: {
       )
   })
   const radarr = fakeHttp((incoming) => {
-    // Reclaimerr: a bearer token, with the events:read scope ("scoped") or without it ("unscoped").
+    // Reclaimerr: a bearer token with the events:read and tasks:read scopes ("scoped"), only
+    // events:read ("events"), or neither ("unscoped").
     if (incoming.url.pathname.startsWith("/api/v1/")) {
       const token = incoming.headers["authorization"]
-      if (token !== "Bearer scoped" && token !== "Bearer unscoped") return { status: 401, json: {} }
+      if (!["Bearer scoped", "Bearer events", "Bearer unscoped"].includes(token ?? "")) return { status: 401, json: {} }
       if (incoming.url.pathname === "/api/v1/events") {
-        return token === "Bearer scoped" ? { json: { items: [] } } : { status: 403, json: {} }
+        return token === "Bearer unscoped" ? { status: 403, json: {} } : { json: { items: [] } }
+      }
+      if (incoming.url.pathname.startsWith("/api/v1/tasks/")) {
+        return token === "Bearer scoped" ? { json: { enabled: true } } : { status: 403, json: {} }
       }
       return { json: { status: "ok", version: "0.6.17" } }
     }
@@ -207,7 +211,7 @@ describe("services page", () => {
     })
   })
 
-  it.effect("Reclaimerr's key without events:read passes its check, which says what it leaves out", () => {
+  it.effect("Reclaimerr's key without events:read or tasks:read passes its check, which says what each leaves out", () => {
     const { layer } = consoleServer({ password: "pw" })
     return Effect.gen(function*() {
       const cookie = yield* signIn("pw")
@@ -217,9 +221,17 @@ describe("services page", () => {
       })
       expect(unscoped.json.check).toEqual({
         outcome: "ok",
-        message: "Reclaimerr 0.6.17 · the key lacks events:read: nothing it deletes is said to be gone",
+        message: "Reclaimerr 0.6.17 · the key lacks events:read: nothing it deletes is said to be gone · " +
+          "the key lacks tasks:read: when it deletes is only the earliest",
         version: "0.6.17"
       })
+      const events = yield* request("PUT", "/home-api/services/reclaimerr", {
+        cookie,
+        body: { url: "http://reclaimerr:8000", secret: "events" }
+      })
+      expect(events.json.check.message).toBe(
+        "Reclaimerr 0.6.17 · the key lacks tasks:read: when it deletes is only the earliest"
+      )
       const scoped = yield* request("PUT", "/home-api/services/reclaimerr", {
         cookie,
         body: { url: "http://reclaimerr:8000", secret: "scoped" }

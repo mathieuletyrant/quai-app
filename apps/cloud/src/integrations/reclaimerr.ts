@@ -1,8 +1,8 @@
-import type { PlannedDeletion } from "@quai/api"
-import { Schema } from "effect"
+import { type HomeOffline, HomeProtocol, type PlannedDeletion } from "@quai/api"
+import { Cron, Effect, Option, Result, Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
-import type { Read } from "../home/HomeReads.ts"
+import type { HomeReads, Read } from "../home/HomeReads.ts"
 import * as LibraryId from "../library/LibraryId.ts"
 import { epochSeconds, knownYear, posterOf } from "./arr.ts"
 import type { RadarrMovie } from "./radarr.ts"
@@ -11,7 +11,8 @@ import type { SonarrSeries } from "./sonarr.ts"
 /**
  * Reclaimerr (github.com/jessielw/Reclaimerr): rule-based cleanup for Jellyfin, Plex and Emby. Its
  * external API, `/api/v1`, takes a scoped bearer token (Settings > Integrations); Quai needs
- * `candidates:manage` (which grants `candidates:read`), and `system:read` for its health check.
+ * `candidates:manage` (which grants `candidates:read`), `system:read` for its health check, and
+ * `tasks:read` for when its deletion task runs.
  *
  * No events and no Live Activity action. Its planned deletions (`plannedDeletions`) are decided here
  * once and shown three ways: a fix on the To fix list, the Planned deletion alert
@@ -115,27 +116,108 @@ const factOf = (condition: string): string => {
 /** "2026-11-04 21:35:11.102901" → "2026-11-04". */
 const withDays = (text: string) => text.replace(/(\d{4}-\d{2}-\d{2})[ T]\d{2}:\d{2}:\d{2}(\.\d+)?/g, "$1")
 
+/** Reclaimerr's task that deletes the candidates whose delay is over: once a day by default, at 02:00. */
+export const deletionTaskPath = "/api/v1/tasks/delete_cleanup_candidates"
+
+/** `TaskResponse` (backend/models/api_v1/tasks.py), only the fields Quai reads. */
+const DeletionTask = Schema.Struct({
+  enabled: Schema.Boolean,
+  /** "cron", "interval" (seconds) or "manual". */
+  schedule_type: Schema.String,
+  schedule_value: Schema.String,
+  next_run_at: Schema.optional(Schema.NullOr(Schema.String))
+})
+export type DeletionTask = typeof DeletionTask.Type
+
+/** The deletion task, to tell when a candidate really goes. */
+export const deletionTaskRead: Read<DeletionTask> = {
+  service: "reclaimerr",
+  path: deletionTaskPath,
+  schema: DeletionTask
+}
+
+/**
+ * The deletion task, when Quai Home allows it (`deletionTaskProtocolVersion`); undefined when an older
+ * one would refuse it or Reclaimerr didn't answer it.
+ */
+export const readDeletionTask = (reads: HomeReads["Service"]): Effect.Effect<DeletionTask | undefined, HomeOffline> =>
+  Effect.flatMap(reads.protocol, (protocol) =>
+    protocol >= HomeProtocol.deletionTaskProtocolVersion
+      ? Effect.map(reads.read(deletionTaskRead), Option.getOrUndefined)
+      : Effect.succeed(undefined))
+
+/** When a candidate goes: `exact` when the deletion task's schedule says it, else the earliest. */
+export interface DeletionRun {
+  readonly at: number
+  readonly exact: boolean
+}
+
+/** The runs from `due` on of a cron whose next run is one of its own (Reclaimerr's clock in UTC). */
+const cronRunFrom = (value: string, next: number, due: number): number | undefined => {
+  const parsed = Cron.parse(value, "UTC")
+  if (Result.isFailure(parsed) || !Cron.match(parsed.success, new Date(next * 1000))) return undefined
+  return next >= due ? next : Math.floor(Cron.next(parsed.success, new Date(due * 1000 - 1000)).getTime() / 1000)
+}
+
+/** The runs from `due` on of an interval of a finite, positive number of seconds. */
+const intervalRunFrom = (value: string, next: number, due: number): number | undefined => {
+  const every = Number(value)
+  if (!Number.isFinite(every) || every <= 0) return undefined
+  return next >= due ? next : next + Math.ceil((due - next) / every) * every
+}
+
+/** The first run of the deletion task from `due` (epoch seconds) on, `next` being its next one. */
+const runFrom = (task: DeletionTask, next: number, due: number): number | undefined => {
+  if (task.schedule_type === "interval") return intervalRunFrom(task.schedule_value, next, due)
+  return task.schedule_type === "cron" ? cronRunFrom(task.schedule_value, next, due) : undefined
+}
+
+/**
+ * When Reclaimerr deletes a candidate whose delay ends at `due`: at the first run of its deletion task
+ * from then on, not at `due` itself. None while the task is off: nothing then goes on its own. Without
+ * the task (a key lacking `tasks:read`, an older Quai Home) or a schedule Quai can't follow, `due`
+ * at the earliest.
+ */
+export const deletionRun = (due: number, task: DeletionTask | undefined): DeletionRun | undefined => {
+  if (task === undefined) return { at: due, exact: false }
+  if (!task.enabled || task.schedule_type === "manual") return undefined
+  const next = epochSeconds(task.next_run_at ?? undefined)
+  const at = next === undefined ? undefined : runFrom(task, next, due)
+  return at === undefined ? { at: due, exact: false } : { at, exact: true }
+}
+
 /** The states in which Reclaimerr deletes the title on its own, at a known date. */
 const deleting = new Set(["scheduled", "eligible", "postponed"])
 
 /**
  * A planned deletion: a candidate Reclaimerr is going to delete (or move) by itself, at `deletesAt`
- * (epoch seconds, as Reclaimerr planned it: it may be past, then it goes at the next run).
+ * (epoch seconds, its deletion task's run: `exact`, else the earliest; it may be past, then it goes at
+ * the next run).
  */
 export interface PlannedCandidate extends PlannedDeletion {
   readonly candidate: Candidate
+  readonly exact: boolean
 }
 
-/** Every planned deletion: a deleting state, a known date, not protected. Soonest first. */
-export const plannedDeletions = (candidates: ReadonlyArray<Candidate>): ReadonlyArray<PlannedCandidate> =>
+/**
+ * Every planned deletion: a deleting state, a known date, not protected, a deletion task that runs
+ * (`deletionRun`). Soonest first.
+ */
+export const plannedDeletions = (
+  candidates: ReadonlyArray<Candidate>,
+  task: DeletionTask | undefined
+): ReadonlyArray<PlannedCandidate> =>
   candidates
     .flatMap((candidate): ReadonlyArray<PlannedCandidate> => {
-      const deletesAt = epochSeconds(candidate.auto_delete_eligible_at)
+      const due = epochSeconds(candidate.auto_delete_eligible_at)
       if (
-        !deleting.has(candidate.auto_delete_state) || deletesAt === undefined ||
+        !deleting.has(candidate.auto_delete_state) || due === undefined ||
         candidate.blockers?.includes("protected") === true
       ) return []
-      return [{ candidate, deletesAt, operation: candidate.delete_operation === "move" ? "move" : "delete" }]
+      const run = deletionRun(due, task)
+      if (run === undefined) return []
+      const operation = candidate.delete_operation === "move" ? "move" : "delete"
+      return [{ candidate, deletesAt: run.at, exact: run.exact, operation }]
     })
     .sort((left, right) => left.deletesAt - right.deletesAt)
 
@@ -261,7 +343,7 @@ export const plannedDeletionFixes = (
   planned: ReadonlyArray<PlannedCandidate>,
   sources: PosterSources = {}
 ): ReadonlyArray<Detected> =>
-  planned.map(({ candidate, deletesAt, operation }): Detected => {
+  planned.map(({ candidate, deletesAt, exact, operation }): Detected => {
     const year = knownYear(candidate.year ?? undefined)
     const since = epochSeconds(candidate.created_at)
     const posterUrl = candidatePoster(candidate, sources)
@@ -276,7 +358,7 @@ export const plannedDeletionFixes = (
         reason: reasonSummary(candidate.reason),
         ...(since === undefined ? {} : { since }),
         actions: ["keep", "letGo"],
-        deletion: { deletesAt, operation }
+        deletion: { deletesAt, exact, operation }
       },
       target: { kind: "candidate", candidateId: candidate.id }
     }
@@ -361,6 +443,7 @@ export const carriedOut = (event: FileEvent, known: Candidate | undefined, now: 
   return {
     candidate,
     deletesAt: Math.floor(now / 1000),
+    exact: true,
     operation: event.type === "candidate.moved" ? "move" : "delete"
   }
 }

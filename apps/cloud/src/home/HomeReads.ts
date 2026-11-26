@@ -83,6 +83,8 @@ const countsAgainstService = (outcome: Outcome) =>
 export class HomeReads extends Context.Service<HomeReads, {
   /** The services the connected Quai Home reaches. */
   readonly services: Effect.Effect<ReadonlyArray<HomeProtocol.HomeService>, HomeOffline>
+  /** The protocol the connected Quai Home speaks: which calls it lets through. */
+  readonly protocol: Effect.Effect<number, HomeOffline>
   /** Where an iPhone opens Radarr and Sonarr, as the connected Quai Home gave them. */
   readonly webUrls: Effect.Effect<HomeProtocol.WebUrls, HomeOffline>
   /**
@@ -162,6 +164,13 @@ export class HomeReads extends Context.Service<HomeReads, {
             : Effect.fail(new HomeOffline({ message: offlineMessage }))
       )
 
+      const protocol = Effect.flatMap(
+        link.home,
+        (home) =>
+          Option.isSome(home)
+            ? Effect.succeed(home.value.protocol)
+            : Effect.fail(new HomeOffline({ message: offlineMessage }))
+      )
       const webUrls = Effect.flatMap(
         link.home,
         (home) =>
@@ -224,7 +233,7 @@ export class HomeReads extends Context.Service<HomeReads, {
             ? Effect.succeed(answer.body)
             : Effect.fail(refused(serviceError(answer.status, answer.body))))
 
-      return { services, webUrls, read, all, write } satisfies HomeReads["Service"]
+      return { services, protocol, webUrls, read, all, write } satisfies HomeReads["Service"]
     })
   )
 }
