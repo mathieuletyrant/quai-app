@@ -45,6 +45,10 @@ Live Activities run even with the app closed: they are started and updated by pu
 - **Quai Cloud** runs the flows and sends the pushes to Apple Push Notification service. It stores nothing: no database, nothing on disk. When Quai Home connects, the Cloud loads what it needs from it. It never receives your services' addresses or API keys.
 - **The iPhone app** pairs with your Quai Home by scanning a QR code shown in the console. There is no account. The app talks to Quai Cloud, which relays to your Quai Home.
 
+### What a Quai Cloud can't do
+
+Quai Home, not the Cloud, decides which calls reach your services. Its allowlist (`packages/api/src/Home.ts`) is fixed in the image and checks the body of each write: reading the queues, history and calendars, approving or declining a Seerr request, removing a download from the queue, a manual import, protecting a Reclaimerr candidate, excluding a download from Cleanuparr’s queue cleaner, pausing or stopping a Jellyfin playback. Anything else is refused, so even a Quai Cloud taken over can't delete a movie or a series, run any other Radarr or Sonarr command, read an API key or password, or change Radarr's, Sonarr's or Seerr's settings. Quai Home proves who it is with an Ed25519 key made on your server (the home id is its fingerprint) and signs the Cloud's challenge at each connection.
+
 ## Choose your setup
 
 | | Hosted Quai Cloud | Fully self-hosted |
