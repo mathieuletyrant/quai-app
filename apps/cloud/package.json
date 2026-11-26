@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/main.js --banner:js=\"import { createRequire as __quaiCreateRequire } from 'node:module'; const require = __quaiCreateRequire(import.meta.url);\"",
+    "build:demo": "esbuild test/preview.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/demo.js --banner:js=\"import { createRequire as __quaiCreateRequire } from 'node:module'; const require = __quaiCreateRequire(import.meta.url);\"",
     "start": "node --disable-warning=ExperimentalWarning dist/main.js",
     "check": "tsc -p .",
     "test": "vitest run",

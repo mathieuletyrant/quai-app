@@ -85,6 +85,9 @@ service didn't answer as expected this time (timeout, refused call, non-2xx, unr
 other services still show. A service Quai Home doesn't reach at all is neither: it is skipped.
 Not the *service down* alert, which is unavailable for minutes in a row.
 
+**Demo home**. A home with no stack: Quai Cloud linked to a fake Quai Home answering from recorded
+responses, on demo.quai.stream, for App Review. Paired with the code `QUAIDEMO`; no Live Activity.
+
 ## iPhones
 
 **iPhone** (`Device`, `DeviceId`). An iPhone paired with a home: the app on it, its notification
