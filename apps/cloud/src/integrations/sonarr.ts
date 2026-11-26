@@ -248,7 +248,9 @@ export const SonarrGrabs = Schema.Array(Schema.Struct({
   /** The release's name: "Severance.S02.1080p…". */
   sourceTitle: Schema.optional(Schema.String),
   /** The download's id: a torrent's hash. */
-  downloadId: Schema.optional(Schema.NullOr(Schema.String))
+  downloadId: Schema.optional(Schema.NullOr(Schema.String)),
+  /** The release's size in bytes, as the indexer listed it (a string). */
+  data: Schema.optional(Schema.Struct({ size: Schema.optional(Schema.NullOr(Schema.String)) }))
 }))
 
 /** The grabs since `ms`: what To fix knows was grabbed, what Upcoming ties each torrent to. */

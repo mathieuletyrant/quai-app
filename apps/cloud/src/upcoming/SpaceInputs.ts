@@ -6,7 +6,7 @@ import { candidateTitleKey, type PlannedCandidate } from "../integrations/reclai
 import type { SonarrGrabs, SonarrSeries } from "../integrations/sonarr.ts"
 import * as LibraryId from "../library/LibraryId.ts"
 import { dueAt } from "./Rows.ts"
-import type { SpaceBackInput, TitleKey, TorrentInput } from "./SpaceBack.ts"
+import type { ReleaseInput, SpaceBackInput, TitleKey, TorrentInput } from "./SpaceBack.ts"
 
 /**
  * What space back is decided on, from what Upcoming read. Pure. A read is `null` when its service
@@ -51,6 +51,15 @@ export const grabsByHash = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs
   }
   return grabs
 }
+
+/** Each release grabbed, with its title, name and listed size: what a cross-seed is matched to. */
+export const releasesOf = (reads: Pick<SpaceReads, "radarrGrabs" | "sonarrGrabs">): ReadonlyArray<ReleaseInput> =>
+  [...reads.radarrGrabs ?? [], ...reads.sonarrGrabs ?? []].flatMap((grab) => {
+    const key = grabKey(grab)
+    if (key === undefined || !grab.sourceTitle) return []
+    const size = Number(grab.data?.size ?? Number.NaN)
+    return [{ key, name: grab.sourceTitle, size: Number.isFinite(size) ? size : undefined }]
+  })
 
 /**
  * Whether a title's files may still be in the library. Only a title Radarr or Sonarr lists with no
@@ -116,6 +125,7 @@ export const spaceInputs = (reads: SpaceReads): SpaceBackInput => {
       ? undefined
       : torrentInputs(reads.torrents, reads.cleanups),
     grabs: grabsByHash(reads),
+    releases: releasesOf(reads),
     inLibrary: libraryHolds(reads),
     hardlinks: reads.hardlinks,
     unlinkedCategory: reads.unlinkedCategory

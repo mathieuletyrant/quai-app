@@ -11,7 +11,14 @@ import {
   type PlannedCandidate
 } from "../../src/integrations/reclaimerr.ts"
 import { SonarrSeries } from "../../src/integrations/sonarr.ts"
-import { grabKey, grabsByHash, libraryHolds, spaceInputs, type SpaceReads } from "../../src/upcoming/SpaceInputs.ts"
+import {
+  grabKey,
+  grabsByHash,
+  libraryHolds,
+  releasesOf,
+  spaceInputs,
+  type SpaceReads
+} from "../../src/upcoming/SpaceInputs.ts"
 import { grabsSince, maxGrabLookbackMs } from "../../src/upcoming/Upcoming.ts"
 import { fixture } from "../fixtures.ts"
 
@@ -66,6 +73,29 @@ describe("where a release's files are in the library", () => {
         sourceTitle: "Notre.Maison.S01"
       }, { episodeId: 2, date: "x", downloadId: null }]
     })]).toEqual([["d3904ae6", "movie:304"], ["a0232", "series:233:s1"]])
+  })
+
+  it("each release grabbed, with its title and the size its indexer listed", () => {
+    expect(releasesOf({
+      radarrGrabs: [{
+        movieId: 270,
+        date: "x",
+        sourceTitle: "La.Liste.De.Schindler.1993",
+        data: { size: "41101114996" }
+      }],
+      sonarrGrabs: [
+        { episodeId: 1, seriesId: 123, date: "x", sourceTitle: "Vampire.Diaries.2009.S07.1080p", data: {} },
+        { episodeId: 2, seriesId: 123, date: "x", sourceTitle: "Vampire.Diaries.S08", data: { size: "n/a" } },
+        // No name or no title: nothing to match a cross-seed to.
+        { episodeId: 3, seriesId: 123, date: "x" },
+        { episodeId: 4, date: "x", sourceTitle: "Lost.S01" }
+      ]
+    })).toEqual([
+      { key: "movie:270", name: "La.Liste.De.Schindler.1993", size: 41101114996 },
+      { key: "series:123:s7", name: "Vampire.Diaries.2009.S07.1080p", size: undefined },
+      { key: "series:123:s8", name: "Vampire.Diaries.S08", size: undefined }
+    ])
+    expect(releasesOf({ radarrGrabs: null, sonarrGrabs: undefined })).toEqual([])
   })
 })
 
