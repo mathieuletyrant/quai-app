@@ -85,11 +85,8 @@ struct LibraryView: View {
                 }
                 grid
             }
+            // Read each time the tab opens (`RootView`).
             .refreshable { await connection.loadLibrary() }
-            .task {
-                guard connection.library == nil else { return }
-                await connection.loadLibrary()
-            }
         }
         .sheet(item: $selected) { item in
             TitleDetailView(item: item)

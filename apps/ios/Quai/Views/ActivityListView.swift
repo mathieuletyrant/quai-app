@@ -36,7 +36,6 @@ struct ActivityListView: View {
                 await connection.refresh()
                 await connection.loadJournal()
             }
-            .task { await connection.loadJournal() }
         }
     }
 }

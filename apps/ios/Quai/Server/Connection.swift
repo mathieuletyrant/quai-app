@@ -22,7 +22,7 @@ enum ConnectionError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unreachable: "Can't reach the Quai server. On Wi-Fi at home, or check the address."
+        case .unreachable: "Can't reach the Quai server. Check this iPhone's connection, then try again."
         case .blockedByProxy: "Blocked by your proxy: check the access headers in Settings → Connection."
         case .homeOffline: "Quai Home isn't connected to Quai Cloud. Check that it runs on your server."
         case .invalidCode: "This code is unknown, already used or expired. Show a new one in the console."
@@ -286,6 +286,26 @@ final class Connection {
     ) async -> [String: Components.Schemas.FlowSubject] {
         guard activities.contains(where: { known[$0.attributes.flowId] == nil }), let all = await load() else { return known }
         return Dictionary(all.map { ($0.id, $0.subject) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    // MARK: Tabs
+
+    /// Reads again what a tab shows, each time it opens and each time the app comes back to the
+    /// front on it: a status changed elsewhere shows without pulling. The reads run together.
+    func reload(_ tab: AppTab) async {
+        guard session != nil else { return }
+        switch tab {
+        case .home:
+            async let fixes: Void = loadFixes()
+            async let layout: Void = loadHomeLayout()
+            async let requests: Void = loadRequests()
+            async let upcoming: Void = loadUpcoming()
+            async let library: Void = loadLibrary()
+            _ = await (fixes, layout, requests, upcoming, library)
+        case .library: await loadLibrary()
+        case .activity: await loadJournal()
+        case .settings, .search: break
+        }
     }
 
     // MARK: Library

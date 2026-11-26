@@ -115,23 +115,13 @@ struct HomeView: View {
                 try? await Task.sleep(for: .milliseconds(600))
                 if !Task.isCancelled { showsSearching = true }
             }
+            // The tiles are read each time the tab opens (`RootView`), not polled: the To fix list
+            // asks Radarr, Sonarr, Reclaimerr and Cleanuparr.
             .refreshable {
-                await connection.refresh()
-                await connection.loadFixes()
-                await connection.loadRequests()
-                await connection.loadUpcoming()
-                await connection.loadLibrary()
-                await connection.loadAlerts()
-            }
-            // The To fix list asks Radarr, Sonarr, Reclaimerr and Cleanuparr: read when the screen opens, not polled.
-            .task { await connection.loadFixes() }
-            .task { await connection.loadHomeLayout() }
-            .task { await connection.loadRequests() }
-            .task { await connection.loadUpcoming() }
-            // The disk comes with the library; the Library tab keeps it current once open.
-            .task {
-                guard connection.library == nil else { return }
-                await connection.loadLibrary()
+                async let activities: Void = connection.refresh()
+                async let alerts: Void = connection.loadAlerts()
+                async let tiles: Void = connection.reload(.home)
+                _ = await (activities, alerts, tiles)
             }
             .task {
                 // The activities are read app-wide, for the live bar; the alerts while the Home is open.

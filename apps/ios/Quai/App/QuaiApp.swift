@@ -59,6 +59,7 @@ struct QuaiApp: App {
 /// host it as is, on a given tab.
 struct RootView: View {
     @Environment(Connection.self) private var connection
+    @Environment(\.scenePhase) private var scenePhase
     @Binding var pendingLink: PairingLink?
     @Binding var searchLink: SearchLink?
     @State private var tab: AppTab
@@ -85,6 +86,11 @@ struct RootView: View {
                 }
                 .modifier(LiveAccessory(live: LiveNow(Today(connection.activities, subjects: connection.flowSubjects))) { showsLive = true })
                 .sheet(isPresented: $showsLive) { LiveSheet() }
+                // What the tab shows, read each time it opens and each time the app comes back to the front on it.
+                .task(id: tab) { await connection.reload(tab) }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await connection.reload(tab) } }
+                }
                 .onChange(of: searchLink, initial: true) { _, link in
                     if link != nil {
                         showsLive = false
