@@ -334,8 +334,8 @@ struct UpcomingRow: View {
     }
 }
 
-/// The Home's Upcoming tile: today's rows (four at most), or the next one when nothing is out
-/// today, and what goes this week. Hidden when nothing is planned.
+/// The Home's Upcoming tile: today's rows (four at most), or the next release as a row with its
+/// poster when nothing is out today, and what goes this week. Hidden when nothing is planned.
 struct UpcomingTile: View {
     let upcoming: Components.Schemas.Upcoming
 
@@ -353,15 +353,12 @@ struct UpcomingTile: View {
                     .foregroundStyle(Palette.tertiaryText)
             }
             if today.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Nothing out today")
-                        .font(QuaiFont.bodyEmphasized)
-                        .foregroundStyle(Palette.primaryText)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(next == nil ? "Nothing out today" : "Nothing out today. Next:")
+                        .font(QuaiFont.subheadline)
+                        .foregroundStyle(Palette.secondaryText)
                     if let next {
-                        Text("Next: \(next.headline) · \(schedule.when(next))")
-                            .font(QuaiFont.caption)
-                            .foregroundStyle(Palette.secondaryText)
-                            .lineLimit(1)
+                        UpcomingRow(item: next, when: schedule.when(next), compact: true)
                     }
                 }
             } else {
@@ -378,9 +375,10 @@ struct UpcomingTile: View {
                 }
             }
             if let going = schedule.goingThisWeek(upcoming.items) {
-                Text(going)
-                    .font(QuaiFont.caption)
+                Label(going, systemImage: "trash")
+                    .font(QuaiFont.caption.weight(.semibold))
                     .foregroundStyle(Palette.toFix)
+                    .labelStyle(.titleAndIcon)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: Metrics.tileRadius, style: .continuous))
