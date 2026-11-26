@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/mathieuletyrant/quai-app/compare/v2.3.0...v2.3.1) (2026-11-26)
+
+
+### 🐛 Fixes
+
+* **ios:** request more seasons from the library, tabs read again, no "Can't reach" card per screen ([#167](https://github.com/mathieuletyrant/quai-app/issues/167)) ([b77b0e5](https://github.com/mathieuletyrant/quai-app/commit/b77b0e542d707982b17cf25668b884dd319e37e9))
+
 ## [2.3.0](https://github.com/mathieuletyrant/quai-app/compare/v2.2.0...v2.3.0) (2026-11-26)
 
 
