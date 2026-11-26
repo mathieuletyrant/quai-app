@@ -126,7 +126,6 @@ struct HomeTilesView: View {
                     }
                     .padding(.vertical, 4)
                     .accessibilityElement(children: .contain)
-                    .accessibilityHint(row == .highlights ? "Two square tiles, side by side on the Home" : "")
                     .listRowBackground(Palette.tile)
                 }
                 .onMove { from, to in
