@@ -142,6 +142,13 @@ struct UpcomingSchedule {
             .map { PeriodRows(period: $0.key, items: $0.value) }
     }
 
+    /// After today, the first that comes and the first that goes (a cleanup waiting on a ratio has no date: left out).
+    func nextComingAndGoing(_ items: [UpcomingItem]) -> [UpcomingItem] {
+        let dated = items.filter { $0.at != nil && period($0) != .today }
+        let first = { (rows: [UpcomingItem]) in rows.min { ($0.at ?? 0) < ($1.at ?? 0) } }
+        return [first(dated.filter(\.isComing)), first(dated.filter { !$0.isComing })].compactMap(\.self)
+    }
+
     /// What goes in the next 7 days, in a few words: "1 Reclaimerr deletion this week", "3 going this week".
     func goingThisWeek(_ items: [UpcomingItem]) -> String? {
         let going = items.filter { !$0.isComing && [.today, .thisWeek].contains(period($0)) }
@@ -334,14 +341,14 @@ struct UpcomingRow: View {
     }
 }
 
-/// The Home's Upcoming tile: today's rows (four at most), or the next release as a row with its
-/// poster when nothing is out today, and what goes this week. Hidden when nothing is planned.
+/// The Home's Upcoming tile: today's rows (four at most), or when nothing happens today the next
+/// that comes and the next that goes, and what goes this week. Hidden when nothing is planned.
 struct UpcomingTile: View {
     let upcoming: Components.Schemas.Upcoming
 
     private var schedule: UpcomingSchedule { UpcomingSchedule(timeZone: upcoming.timeZone) }
     private var today: [UpcomingItem] { upcoming.items.filter { schedule.period($0) == .today } }
-    private var next: UpcomingItem? { upcoming.items.first { $0.isComing && schedule.period($0) != .today } }
+    private var next: [UpcomingItem] { schedule.nextComingAndGoing(upcoming.items) }
 
     var body: some View {
         Tile {
@@ -354,11 +361,11 @@ struct UpcomingTile: View {
             }
             if today.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(next == nil ? "Nothing out today" : "Nothing out today. Next:")
+                    Text(next.isEmpty ? "Nothing today" : "Nothing today. Next:")
                         .font(QuaiFont.subheadline)
                         .foregroundStyle(Palette.secondaryText)
-                    if let next {
-                        UpcomingRow(item: next, when: schedule.when(next), compact: true)
+                    ForEach(next) { item in
+                        UpcomingRow(item: item, when: schedule.when(item), compact: true)
                     }
                 }
             } else {
