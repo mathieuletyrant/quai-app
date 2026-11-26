@@ -18,7 +18,8 @@ What the stack has done on its own (a deletion carried out) is not an alert but 
 | Planned deletion | Reclaimerr's `/api/v1/candidates`, every minute | Reclaimerr plans to delete (or move) a title on its own, and again on its last day | deleted, kept, or let go in Quai: without a notification | on or off |
 
 Each is on by default and turned off in the console's **Alerts** page. A kind turned off ends its
-alerts without a notification and stops its reads.
+alerts without a notification and stops its reads, but the disk's: the media disks are still read
+every hour, for the disk readings.
 
 ## How it works
 

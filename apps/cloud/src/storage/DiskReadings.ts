@@ -246,12 +246,10 @@ export class DiskReadings extends Context.Service<DiskReadings, {
           if (month !== null) yield* store.put(key, month)
         })
 
-      const putMark = (at: number, change: (marks: ReadonlyArray<StoredMark>) => ReadonlyArray<StoredMark>) =>
-        Effect.gen(function*() {
-          const key = marksKey(at)
-          const month = decodeOr(MarksMonth, { marks: [] })(yield* store.get(key))
-          yield* store.put(key, { marks: change(month.marks) })
-        })
+      const marksIn = (key: string) => Effect.map(store.get(key), decodeOr(MarksMonth, { marks: [] }))
+
+      const putMark = (key: string, change: (marks: ReadonlyArray<StoredMark>) => ReadonlyArray<StoredMark>) =>
+        Effect.flatMap(marksIn(key), (month) => store.put(key, { marks: change(month.marks) }))
 
       const replacing = (mark: StoredMark) => (marks: ReadonlyArray<StoredMark>) => [
         ...marks.filter((known) => known.id !== mark.id),
@@ -274,13 +272,12 @@ export class DiskReadings extends Context.Service<DiskReadings, {
         arrived: (arrival) =>
           Effect.gen(function*() {
             const day = dayOf(arrival.at, yield* time.zone)
-            const month = decodeOr(MarksMonth, { marks: [] })(yield* store.get(marksKey(arrival.at)))
-            const id = `arrived:${arrival.titleKey}:${day}`
-            const known = month.marks.find((mark) => mark.id === id)
-            // The day's first import dates the mark: it stays in the month it started.
-            yield* putMark(known?.at ?? arrival.at, replacing(arrivedMark(arrival, day, known)))
+            // The home's day picks the month: a day that starts in the previous UTC month is still one mark.
+            const key = `${marksPrefix}${day.slice(0, 7)}`
+            const known = (yield* marksIn(key)).marks.find((mark) => mark.id === `arrived:${arrival.titleKey}:${day}`)
+            yield* putMark(key, replacing(arrivedMark(arrival, day, known)))
           }).pipe(logged("arrived mark")),
-        gone: (departure) => putMark(departure.at, replacing(goneMark(departure))).pipe(logged("gone mark")),
+        gone: (departure) => putMark(marksKey(departure.at), replacing(goneMark(departure))).pipe(logged("gone mark")),
         disks: months(disksPrefix, StoredDisk),
         readings: (id, from) =>
           Effect.map(months(readingsPrefix(id), Month), (all) =>

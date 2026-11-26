@@ -1,11 +1,12 @@
 import { describe, expect, it } from "@effect/vitest"
 import { DeviceAuth, QuaiApi } from "@quai/api"
-import { Effect, Exit } from "effect"
+import { Effect, Exit, Layer } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { goneItem } from "../src/gone/Gone.ts"
 import { HomeDocuments } from "../src/home/HomeLink.ts"
+import { HomeTime } from "../src/home/HomeTime.ts"
 import { mountsWatchId, rootsWatchId } from "../src/integrations/disk.ts"
 import { radarrArrival } from "../src/integrations/radarr.ts"
 import { sonarrArrival } from "../src/integrations/sonarr.ts"
@@ -215,6 +216,25 @@ describe("disk readings: the rules", () => {
     expect(sonarrArrival({ ...single, episodeFile: { size: 5 } }, now)?.bytes).toBe(5)
     expect(sonarrArrival({ ...single, eventType: "Grab" }, now)).toBeUndefined()
   })
+})
+
+describe("disk readings: kept at home", () => {
+  /** The readings on an in-memory home, its day in Paris (an hour ahead of UTC in winter). */
+  const kept = DiskReadings.layer.pipe(
+    Layer.provide(HomeDocuments.memory),
+    Layer.provide(Layer.succeed(HomeTime, { zone: Effect.succeed("Europe/Paris") }))
+  )
+
+  it.effect("a title's imports of one home day add up, even when that day starts in the previous UTC month", () =>
+    Effect.gen(function*() {
+      const readings = yield* DiskReadings
+      const arrival = { service: "radarr" as const, titleKey: "movie:tmdb:1", title: "Dune", bytes: 1e9 }
+      // 00:30 and 11:00 on Feb 1 in Paris: 23:30 on Jan 31 and 10:00 on Feb 1 in UTC.
+      yield* readings.arrived({ ...arrival, at: Date.parse("2026-01-31T23:30:00Z") })
+      yield* readings.arrived({ ...arrival, at: Date.parse("2026-02-01T10:00:00Z") })
+      const marks = yield* readings.marks
+      expect(marks.map((mark) => [mark.id, mark.bytes])).toEqual([["arrived:movie:tmdb:1:2026-02-01", 2e9]])
+    }).pipe(Effect.provide(kept)))
 })
 
 describe("the Storage screen's disks", () => {
