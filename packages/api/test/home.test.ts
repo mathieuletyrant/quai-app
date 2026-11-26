@@ -15,6 +15,23 @@ describe("home id", () => {
 // (apps/cloud/test/fakeHome.ts) refuses, and fails the test on, any call the allowlist refuses.
 // Here: what it must refuse, and the body checks.
 describe("allowlist", () => {
+  // The landing's security section (apps/site/public/index.html, #security) lists these as refused.
+  it("refuses what the landing says it refuses", () => {
+    const refused = [
+      { service: "radarr", method: "DELETE", path: "/api/v3/movie/12" },
+      { service: "sonarr", method: "DELETE", path: "/api/v3/series/12" },
+      { service: "radarr", method: "POST", path: "/api/v3/command", body: { name: "RescanMovie" } },
+      { service: "sonarr", method: "POST", path: "/api/v3/command", body: { name: "SeriesSearch" } },
+      { service: "radarr", method: "GET", path: "/api/v3/config/host" },
+      { service: "sonarr", method: "GET", path: "/api/v3/config/host" },
+      { service: "seerr", method: "GET", path: "/api/v1/settings/main" },
+      { service: "seerr", method: "POST", path: "/api/v1/settings/main", body: {} },
+      { service: "radarr", method: "PUT", path: "/api/v3/config/mediamanagement", body: {} },
+      { service: "sonarr", method: "PUT", path: "/api/v3/config/mediamanagement", body: {} }
+    ] as const
+    expect(refused.filter((call) => HomeProtocol.allowed(call))).toEqual([])
+  })
+
   it("keeps the library read-only: no write, no single title, no other service's path", () => {
     expect(HomeProtocol.allowed({ service: "radarr", method: "POST", path: "/api/v3/movie" })).toBe(false)
     expect(HomeProtocol.allowed({ service: "radarr", method: "GET", path: "/api/v3/movie/12" })).toBe(false)
