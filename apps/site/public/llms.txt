@@ -1,9 +1,10 @@
 # Quai
 
-> Quai puts a self-hosted media stack (Seerr, Radarr, Sonarr, Prowlarr, qBittorrent, Jellyfin, Cleanuparr, Reclaimerr) on the iPhone's Lock Screen. Live Activities follow each movie or episode from the request to "ready to watch", and what plays on Jellyfin. Notifications say when something breaks and when it's fixed. It has two parts: Quai Home, which runs on your server and keeps your keys and data, and Quai Cloud, which sends the pushes through Apple. Use our hosted Quai Cloud (free during the beta) or run your own. Open source (Apache-2.0). The iPhone app is in beta on TestFlight, iPhone only, iOS 26 or later.
+> Quai puts a self-hosted media stack (Seerr, Radarr, Sonarr, Prowlarr, qBittorrent, Jellyfin, Cleanuparr, Reclaimerr) on the iPhone's Lock Screen. Live Activities follow each movie or episode from the request to "ready to watch", and what plays on Jellyfin. Notifications say when something breaks and when it's fixed. It has two parts: Quai Home, which runs on your server and keeps your keys and data, and Quai Cloud, which sends the pushes through Apple. Use our hosted Quai Cloud (free during the beta) or run your own. Open source (Apache-2.0). The iPhone app is free on the App Store, iPhone only, iOS 26 or later, with a public beta on TestFlight.
 
 - Website: https://quai.stream
-- iPhone app (TestFlight public beta): https://testflight.apple.com/join/RpYX68mQ
+- iPhone app (App Store, free): https://apps.apple.com/app/id6836390669
+- Beta of the next version (TestFlight): https://testflight.apple.com/join/RpYX68mQ
 - Source code: https://github.com/mathieuletyrant/quai-app
 - Support: https://quai.stream/support, support@quai.stream
 - Community and help (Discord): https://discord.gg/ytrjjGXTKZ
@@ -54,12 +55,12 @@ Quai Home, not the Cloud, decides which calls reach your services. Its allowlist
 | | Hosted Quai Cloud | Fully self-hosted |
 |---|---|---|
 | You run | Quai Home | Quai Home and Quai Cloud |
-| Works with the TestFlight app | Yes, with Live Activities and notifications | Pairing works, but no Live Activities or notifications: see below |
+| Works with the App Store app | Yes, with Live Activities and notifications | Pairing works, but no Live Activities or notifications: see below |
 | Apple developer account | Not needed | Needed: your own push key and your own build of the app |
 | Away from home | Works out of the box | Needs a public address for your Quai Cloud |
 | Cost | Free during the beta | Your server |
 
-Why a self-hosted Cloud needs its own app build: Apple only accepts pushes signed with the push key of the app's own developer account. The hosted Cloud holds Quai's key, so it can push to the TestFlight app. A Cloud of your own must use your key, which only works with the app built and signed under your own Apple developer account.
+Why a self-hosted Cloud needs its own app build: Apple only accepts pushes signed with the push key of the app's own developer account. The hosted Cloud holds Quai's key, so it can push to the App Store and TestFlight app. A Cloud of your own must use your key, which only works with the app built and signed under your own Apple developer account.
 
 ## Setup 1: Quai Home with the hosted Quai Cloud (recommended)
 
@@ -92,7 +93,7 @@ Requirements: a server that runs Docker (or Umbrel), your media apps on it, an i
 2. Open the console at `http://<server-address>:8788` and sign in with `QUAI_HOME_PASSWORD`.
 3. **Settings**: Quai Cloud shows "Connected".
 4. **Services**: for each service you use, enter its address as Quai Home reaches it and its API key. Each key is checked as you save it, and each service should read "Connected".
-5. Install the app from TestFlight: https://testflight.apple.com/join/RpYX68mQ
+5. Install the app from the App Store: https://apps.apple.com/app/id6836390669
 6. **iPhones → Pair an iPhone** in the console shows a QR code. Scan it with the iPhone's Camera app: it opens Quai and pairs. Allow Live Activities and notifications when asked.
 7. **Flows**: check that the Live Activities you want are enabled, and use a flow's **Test** button to send one to your iPhone.
 
@@ -210,7 +211,7 @@ Every service can be set in the console's **Services** page instead of the envir
 - **"Open the console" is missing in the app, or doesn't work away from home**: set `QUAI_CONSOLE_PUBLIC_URL` on Quai Home to the console's address from outside, then pair the iPhone again from the console.
 - **Remove Quai**: remove each iPhone under iPhones, then uninstall Quai Home (it removes its webhooks from your services), and delete the app.
 
-Ask on the Discord (https://discord.gg/ytrjjGXTKZ) or write to support@quai.stream. When reporting a bug, include the app's build number (TestFlight), Quai Home's version (bottom of the console), whether the Cloud is hosted or self-hosted, what you did and what you expected, and the Journal lines from around that time.
+Ask on the Discord (https://discord.gg/ytrjjGXTKZ) or write to support@quai.stream. When reporting a bug, include the app's version (App Store) or build number (TestFlight), Quai Home's version (bottom of the console), whether the Cloud is hosted or self-hosted, what you did and what you expected, and the Journal lines from around that time.
 
 ## Privacy
 
@@ -220,9 +221,9 @@ Ask on the Discord (https://discord.gg/ytrjjGXTKZ) or write to support@quai.stre
 - The website, quai.stream, counts its visits with Cloudflare Web Analytics, without cookies.
 - Full policy: https://quai.stream/privacy
 
-## Limits of the beta
+## Limits
 
 - iPhone only, iOS 26 or later. No iPad, Mac or Android app.
 - Playback works with Jellyfin; Plex and Emby are not supported.
-- TestFlight builds expire after 90 days; new ones install on their own.
+- On the TestFlight beta, builds expire after 90 days; new ones install on their own.
 - The hosted Quai Cloud is free during the beta.

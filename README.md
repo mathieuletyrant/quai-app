@@ -22,7 +22,8 @@ to date while the app is closed: searching, downloading (percent, speed, time le
 ready to watch.
 
 > [!NOTE]
-> Quai works today on my own setup. The iPhone app is on TestFlight only, iPhone only. Expect rough edges.
+> The iPhone app is free on the [App Store](https://apps.apple.com/app/id6836390669), iPhone only, iOS 26 or later. The next version is on the
+> [TestFlight beta](https://testflight.apple.com/join/RpYX68mQ) first.
 
 ## ✨ What it does
 

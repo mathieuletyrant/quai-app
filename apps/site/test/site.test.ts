@@ -38,6 +38,14 @@ describe("site", () => {
       }
     })
 
+    it("sends to the App Store first, and offers Safari's App Store banner", () => {
+      expect(html).toContain("<meta name=\"apple-itunes-app\" content=\"app-id=6836390669\">")
+      const store = html.indexOf("href=\"https://apps.apple.com/app/id6836390669\"")
+      const beta = html.indexOf("href=\"https://testflight.apple.com/")
+      expect(store).toBeGreaterThan(-1)
+      if (beta > -1) expect(store).toBeLessThan(beta)
+    })
+
     it("counts its visits with Cloudflare Web Analytics", () => {
       expect(html).toContain("src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon=")
     })
