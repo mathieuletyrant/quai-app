@@ -13,18 +13,20 @@ What the stack has done on its own (a deletion carried out) is not an alert but 
 | Alert | Read from | Starts | Over | Setting |
 | --- | --- | --- | --- | --- |
 | Service down | each service Quai Home reaches, its status endpoint, every minute | no answer (or a 5xx) for N minutes | the first answer | N, 5 by default |
-| Disk low | Radarr's (else Sonarr's) `/api/v3/diskspace`, the largest disk, every 10 minutes | under N % free | N + 2 % free, so it doesn't flap | N, 10 by default |
+| Disk low | each media disk (the disks holding Radarr's and Sonarr's root folders, `/api/v3/diskspace` and `/api/v3/rootfolder`), every 10 minutes | under N % free | N + 2 % free, so it doesn't flap | N, 10 by default |
 | *arr health | Radarr's and Sonarr's `/api/v3/health`, Prowlarr's `/api/v1/health`, every 5 minutes | a check at the level or above appears | the check is gone | warnings and errors, or errors only (default) |
 | Planned deletion | Reclaimerr's `/api/v1/candidates`, every minute | Reclaimerr plans to delete (or move) a title on its own, and again on its last day | deleted, kept, or let go in Quai: without a notification | on or off |
 
 Each is on by default and turned off in the console's **Alerts** page. A kind turned off ends its
-alerts without a notification and stops its reads.
+alerts without a notification and stops its reads, but the disk's: the media disks are still read
+every hour, for the disk readings.
 
 ## How it works
 
 - Each source is an integration's `alertWatcher` (`health.ts`, `disk.ts`, `arrHealth.ts`, `plannedDeletionAlert.ts`): its
   reading is an `AlertState`, *every alert of this kind and scope going on now* (scope: a service,
-  or `disk`). Those not listed are over. A reading that knows nothing new says nothing. A planned
+  or `disk`; with several media disks, `disk:<id>` each, named by what they hold: "The Shows disk is
+  running low"). Those not listed are over. A reading that knows nothing new says nothing. A planned
   deletion is one alert per title, its id changing on the last day: the first days' alert ends
   silently (`silentOver`) and the last day's starts with its own notification.
 - Settings saved before a kind existed get that kind's defaults; the others are kept.

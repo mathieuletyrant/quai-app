@@ -71,6 +71,9 @@ final class Connection {
     /// What's coming and going, once loaded.
     private(set) var upcoming: Components.Schemas.Upcoming?
     private(set) var upcomingError: String?
+    /// The media disks over the Storage screen's period, once loaded.
+    private(set) var storage: Components.Schemas.Storage?
+    private(set) var storageError: String?
     /// The alerts going on, and the kinds turned on.
     private(set) var alerts: Components.Schemas.ActiveAlerts?
     /// The journal, newest first: the first page, then the older ones the Activity tab asked for.
@@ -184,6 +187,8 @@ final class Connection {
         requestsError = nil
         upcoming = nil
         upcomingError = nil
+        storage = nil
+        storageError = nil
         alerts = nil
         journal = []
         journalHasMore = false
@@ -335,6 +340,18 @@ final class Connection {
 
     func loadUpcoming() async {
         await read(\.upcoming, failure: \.upcomingError) { try await $0.getUpcoming().ok.body.json }
+    }
+
+    // MARK: Storage
+
+    /// The Storage screen's disks over a period: shown until the next period's answer replaces them.
+    func loadStorage(_ period: StoragePeriod) async {
+        await read(\.storage, failure: \.storageError) { try await $0.getStorage(query: .init(period: period.api)).ok.body.json }
+    }
+
+    /// The disks over a period, without touching what the Storage screen shows (its All marks).
+    func storage(_ period: StoragePeriod) async throws -> Components.Schemas.Storage {
+        try await requiredClient().getStorage(query: .init(period: period.api)).ok.body.json
     }
 
     // MARK: Alerts

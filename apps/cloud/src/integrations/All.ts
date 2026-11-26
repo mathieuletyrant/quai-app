@@ -21,14 +21,14 @@ export const IntegrationsLive = Layer.effect(
   Integrations,
   Effect.all([
     radarr,
-    Effect.succeed(sonarr),
+    sonarr,
     Effect.succeed(qbittorrent),
     jellyfin,
     seerr,
     releases,
     health,
     Effect.map(Effect.service(Journal), cleanuparr),
-    Effect.succeed(disk),
+    disk,
     Effect.succeed(arrHealth),
     plannedDeletionAlert
   ])

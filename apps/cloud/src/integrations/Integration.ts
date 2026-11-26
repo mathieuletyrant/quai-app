@@ -28,7 +28,7 @@ export interface WatchContext {
   readonly timeZone: string
   /** Which alerts are on, and their thresholds. */
   readonly alerts: AlertSettings
-  /** The kinds of gone an iPhone turned on: their feeds are watched only then. */
+  /** The kinds of gone an iPhone turned on: only those are notified. */
   readonly gone: ReadonlyArray<GoneKind>
   /** The linked Home's protocol version; absent: the current one. */
   readonly protocol?: number

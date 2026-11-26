@@ -5,7 +5,7 @@ import { Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { Activities } from "../src/flows/Activities.ts"
-import { DiskSpaces, libraryMovie, mediaDisk, RadarrMovies } from "../src/integrations/radarr.ts"
+import { libraryMovie, RadarrMovies } from "../src/integrations/radarr.ts"
 import { decodeSonarrWebhook, librarySeries, sonarrEvents, SonarrSeries } from "../src/integrations/sonarr.ts"
 import { type FakeHomeOptions, makeFakeHome, recordedHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
@@ -16,7 +16,10 @@ const iphone = { name: "iPhone", apnsEnvironment: "development" as const }
 const routes = {
   "radarr GET /api/v3/movie": "radarr/movies.json",
   "radarr GET /api/v3/diskspace": "radarr/diskspace.json",
-  "sonarr GET /api/v3/series": "sonarr/series.json"
+  "radarr GET /api/v3/rootfolder": "radarr/rootfolder.json",
+  "sonarr GET /api/v3/series": "sonarr/series.json",
+  "sonarr GET /api/v3/diskspace": "sonarr/diskspace.json",
+  "sonarr GET /api/v3/rootfolder": "sonarr/rootfolder.json"
 }
 const recorded = recordedHome(routes)
 
@@ -148,17 +151,10 @@ describe("library adapters", () => {
       expect(libraryMovie({ ...oppenheimer!, monitored: true }).status).toBe("wanted")
       expect(libraryMovie({ ...oppenheimer!, monitored: true, isAvailable: false }).status).toBe("notAvailable")
     }))
-
-  it.effect("the media disk is the largest mount Radarr sees", () =>
-    Effect.gen(function*() {
-      const disks = yield* Schema.decodeUnknownEffect(DiskSpaces)(fixture("radarr/diskspace.json"))
-      expect(mediaDisk(disks)).toEqual({ freeBytes: 759102349312, totalBytes: 1800360124416 })
-      expect(mediaDisk([])).toBeUndefined()
-    }))
 })
 
 describe("GET /api/library", () => {
-  it.effect("lists movies and series newest first, with the disk, and what downloads now", () =>
+  it.effect("lists movies and series newest first, with the fullest media disk, and what downloads now", () =>
     Effect.gen(function*() {
       const { home, api } = yield* phoneOn({ answer: recorded })
       // Sonarr grabbed an episode of Severance: its download activity runs.
@@ -178,6 +174,9 @@ describe("GET /api/library", () => {
       expect(home.calls.map((call) => `${call.service} ${call.method} ${call.path}`).sort()).toEqual([
         "radarr GET /api/v3/diskspace",
         "radarr GET /api/v3/movie",
+        "radarr GET /api/v3/rootfolder",
+        "sonarr GET /api/v3/diskspace",
+        "sonarr GET /api/v3/rootfolder",
         "sonarr GET /api/v3/series"
       ])
     }).pipe(Effect.provide(TestApp)))

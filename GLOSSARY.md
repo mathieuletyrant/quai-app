@@ -157,6 +157,18 @@ _Avoid_: media, item (in words people read)
 **Library** (`Library`). The titles Radarr and Sonarr hold, with their status (available,
 downloading, wanted…), read in the app.
 
+**Disk readings**. Each media disk's free space, read every hour and kept for good, so a cleanup
+can be told from a grab. Shown in the app's **Storage** screen, opened from the Home's storage tile.
+_Avoid_: disk history (history is the *arr's)
+
+**Media disk**. A disk that holds a Radarr or Sonarr root folder. Radarr and Sonarr list every
+mount they see, the same disk several times: two mounts of the same size and free space are one
+disk. The disk low alert and the disk readings are per media disk.
+
+**Disk mark**. Something that happened, placed on the disk readings so a rise or a drop can be read:
+a *gone* (what Upcoming showed as going, done), or an *arrived* (a title's files imported, one mark
+per title and day). Only what a service said it did; a change no mark explains stays unexplained.
+
 **Request** (`MediaRequest`). A Seerr request for a title. The Requests flow and screen follow the
 ones *pending*: waiting for an approval. One Seerr approved on its own never waits and isn't shown.
 

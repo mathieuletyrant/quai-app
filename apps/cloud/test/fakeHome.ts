@@ -16,6 +16,7 @@ import { Hub } from "../src/integrations/Hub.ts"
 import type { Integrations } from "../src/integrations/Integration.ts"
 import { Journal } from "../src/journal/Journal.ts"
 import { Notifier } from "../src/push/Notifier.ts"
+import { DiskReadings } from "../src/storage/DiskReadings.ts"
 import { fixture } from "./fixtures.ts"
 
 type Call = typeof HomeProtocol.Call.Type
@@ -110,7 +111,7 @@ export const recordedHome = (
  * and the calendars, protocol 5 Cleanuparr and `PUT`, protocol 6 Prowlarr and the *arr health
  * checks, protocol 8 Seerr's search, users and new requests, protocol 9 Cleanuparr's download
  * cleaner and the *arr media management setting, protocol 10 Reclaimerr's event feed, protocol 11
- * its deletion task.
+ * its deletion task, protocol 12 the *arr root folders.
  */
 type Allowed = Pick<Call, "service" | "method" | "path">
 
@@ -118,6 +119,7 @@ const pathOf = (call: Allowed) => call.path.split("?")[0]!
 
 /** Newest first: the first protocol whose rule matches the call. */
 const protocolRules: ReadonlyArray<readonly [number, (call: Allowed) => boolean]> = [
+  [12, (call) => pathOf(call) === "/api/v3/rootfolder"],
   [11, (call) => call.service === "reclaimerr" && pathOf(call) === "/api/v1/tasks/delete_cleanup_candidates"],
   [10, (call) => call.service === "reclaimerr" && pathOf(call) === "/api/v1/events"],
   [
@@ -413,7 +415,7 @@ export type FakeHome = Effect.Success<ReturnType<typeof makeFakeHome>>
 
 /**
  * Quai Cloud without its HTTP server: the home link, the home's data on it, the engine and the
- * Hub (without heartbeat: tests call `beat`). Needs `Apns`; `integrations` may use the link.
+ * Hub (without heartbeat: tests call `beat`), the disk readings. Needs `Apns`; `integrations` may use the link.
  */
 export const cloud = <E, R>(
   integrations: Layer.Layer<Integrations, E, R>,
@@ -421,8 +423,10 @@ export const cloud = <E, R>(
 ) =>
   Hub.layerFed.pipe(
     Layer.provideMerge(Layer.mergeAll(Notifier.layer, Alerts.layer, Gone.layer)),
-    Layer.provideMerge(Layer.mergeAll(Activities.layer, HomeTime.layer)),
-    Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer, integrations)),
+    Layer.provideMerge(Layer.mergeAll(Activities.layer, integrations)),
+    Layer.provideMerge(DiskReadings.layer),
+    Layer.provideMerge(HomeTime.layer),
+    Layer.provideMerge(Layer.mergeAll(Devices.layer, FlowStore.layer)),
     Layer.provideMerge(Layer.mergeAll(HomeLink.documents, HomeReads.layer)),
     Layer.provideMerge(Journal.layer),
     Layer.provideMerge(link)

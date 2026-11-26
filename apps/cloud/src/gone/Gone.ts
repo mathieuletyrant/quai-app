@@ -1,4 +1,4 @@
-import type { GoneKind, HomeOffline } from "@quai/api"
+import type { DiskHolds, GoneKind, HomeOffline } from "@quai/api"
 import { Clock, Context, Effect, Layer } from "effect"
 import { Devices } from "../home/Devices.ts"
 import { Journal } from "../journal/Journal.ts"
@@ -19,6 +19,12 @@ export interface GoneItem {
   readonly title: string
   /** Who did what, and the space back when sure: "Deleted by Reclaimerr · 24 GB back". */
   readonly detail: string
+  /** The space surely back, for its disk mark. */
+  readonly spaceBack?: number
+  /** What it was, when the service says: the disks holding it get its mark, else every media disk. */
+  readonly holds?: DiskHolds
+  /** Reclaimerr moved it rather than deleting it. */
+  readonly moved?: boolean
 }
 
 /** What happened longer ago than this goes to the journal only: a notification would come too late. */

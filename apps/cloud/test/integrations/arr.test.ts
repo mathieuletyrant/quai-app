@@ -1,13 +1,23 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
+import { Devices } from "../../src/home/Devices.ts"
+import { HomeLink } from "../../src/home/HomeLink.ts"
 import { HomeReads } from "../../src/home/HomeReads.ts"
+import { HomeTime } from "../../src/home/HomeTime.ts"
 import { decodeRadarrWebhook, radarr, radarrEvents } from "../../src/integrations/radarr.ts"
 import { decodeSonarrWebhook, episodeLabel, sonarr, sonarrEvents } from "../../src/integrations/sonarr.ts"
 import { Journal } from "../../src/journal/Journal.ts"
+import { DiskReadings } from "../../src/storage/DiskReadings.ts"
 import { makeFakeHome, recordedHome, type Recording, testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
-const link = HomeReads.layer.pipe(Layer.provideMerge(Journal.layer), Layer.provideMerge(testLink))
+const link = Layer.mergeAll(HomeReads.layer, DiskReadings.layer).pipe(
+  Layer.provideMerge(HomeTime.layer),
+  Layer.provideMerge(Devices.layer),
+  Layer.provideMerge(HomeLink.documents),
+  Layer.provideMerge(Journal.layer),
+  Layer.provideMerge(testLink)
+)
 
 const radarrPayload = (name: string) => decodeRadarrWebhook(fixture(`radarr/${name}.json`))
 const sonarrPayload = (name: string) => decodeSonarrWebhook(fixture(`sonarr/${name}.json`))
@@ -143,10 +153,10 @@ describe("Sonarr webhooks", () => {
           lookup: { ...severance([{ season: 2, episode: 1 }, { season: 2, episode: 2 }]), imdbId: undefined }
         }
       }])
-      expect((yield* sonarr.webhook!.read(fixture("sonarr/grab.json"))).map((event) => event.type)).toEqual([
+      expect((yield* (yield* sonarr).webhook!.read(fixture("sonarr/grab.json"))).map((event) => event.type)).toEqual([
         "media.grabbed"
       ])
-    }))
+    }).pipe(Effect.provide(link)))
 
   it.effect("an import that needs someone says so on the torrent's activity", () =>
     Effect.gen(function*() {

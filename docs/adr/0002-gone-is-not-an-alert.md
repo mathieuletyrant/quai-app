@@ -42,3 +42,10 @@ user let go has no alert at all, so its deletion would go unseen.
   Services page says the scope is missing.
 - A new thing that happened on its own (a request available, a release grabbed) would be another
   Gone kind only if it was *going* first; otherwise it belongs to a flow.
+
+## Amended
+
+Nov 26, 2026: the disk readings ([#153](https://github.com/mathieuletyrant/quai-app/issues/153))
+place each gone on the media disk's chart, kept for good. The Cloud now watches Reclaimerr's and
+Cleanuparr's events whenever Quai Home reaches them, not only while an iPhone wants Gone; it still
+notifies only the iPhones that turned it on.

@@ -27,6 +27,7 @@ import {
 import { carriedOut, type FileEvent, fileEventsRead, fileEventTitle } from "../src/integrations/reclaimerr.ts"
 import { Journal } from "../src/journal/Journal.ts"
 import { Apns } from "../src/push/Apns.ts"
+import { DiskReadings } from "../src/storage/DiskReadings.ts"
 import { cloud, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -219,15 +220,13 @@ const vampireDeleted = {
 describe("gone: a planned deletion Reclaimerr carried out", () => {
   const deletedWatch = fileEventsWatchId("candidate.deleted")
 
-  it.effect("its feed is watched only while an iPhone wants it, on a Quai Home that allows it", () =>
+  it.effect("its feed is watched while Quai Home reaches it, for the disk marks, on a Quai Home that allows it", () =>
     withApple(() =>
       Effect.gen(function*() {
         yield* TestClock.setTime(now)
         const home = yield* makeFakeHome({ services: ["reclaimerr"] })
         yield* home.connect
-        expect(home.watch(deletedWatch)).toBeUndefined()
-        yield* paired("Mathieu", "note-mathieu", ["plannedDeletion"])
-        yield* (yield* Hub).sync
+        // No iPhone wants Gone: its deletions are still disk marks.
         expect(home.watch(deletedWatch)).toEqual({
           id: deletedWatch,
           service: "reclaimerr",
@@ -306,6 +305,19 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
           }]
         })
         expect(pushed(apple)).toHaveLength(1)
+      })
+    ))
+
+  it.effect("what Reclaimerr deleted is a disk mark, on the disks of its kind, whether an iPhone wants Gone or not", () =>
+    withApple((apple) =>
+      Effect.gen(function*() {
+        yield* TestClock.setTime(now)
+        const home = yield* makeFakeHome({ services: ["reclaimerr"] })
+        yield* home.connect
+        yield* home.snapshot(deletedWatch, deletedPage())
+        expect(pushed(apple)).toEqual([])
+        const marks = (yield* (yield* DiskReadings).marks).map((mark) => [mark.kind, mark.title, mark.holds])
+        expect(marks).toEqual([["gone", "Up", "movies"], ["gone", "Severance S01", "shows"]])
       })
     ))
 

@@ -147,7 +147,9 @@ that self-hosts the Cloud.
   downloads, the titles without a file, release names from the indexers, Reclaimerr's planned
   deletions and Cleanuparr's strikes (release names, their reasons and limits). The journal adds
   what Cleanuparr removed, read from its events every 5 minutes. The Requests tile and flow add Seerr's pending requests (titles, posters, who asked);
-  Today's releases, the day's calendar of Sonarr and Radarr. The iPhones' time zone is kept at
+  Today's releases, the day's calendar of Sonarr and Radarr. The Storage screen adds each media
+  disk's free space over time and its disk marks (the titles imported or gone, and their sizes),
+  kept at home and read from Quai Home when the app asks. The iPhones' time zone is kept at
   home, on their device documents.
 - **Home ↔ cloud:** TLS; the Home proves its home key (Ed25519) by signing the Cloud's challenge
   on each connection. Its home id is the key's fingerprint: nothing to store or issue.

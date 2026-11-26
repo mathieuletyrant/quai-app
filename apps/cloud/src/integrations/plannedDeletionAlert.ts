@@ -19,6 +19,7 @@ import {
   fileEventsRead,
   type FileEventType,
   fileEventTypes,
+  isMovie,
   type PlannedCandidate,
   plannedDeletions,
   readDeletionTask,
@@ -181,14 +182,17 @@ export const plannedDeletionAlert = Effect.gen(function*() {
         source: "reclaimerr",
         at: event.at,
         title,
-        detail: carriedOutDetail(event, spaceBack)
+        detail: carriedOutDetail(event, spaceBack),
+        ...(spaceBack === undefined || spaceBack <= 0 ? {} : { spaceBack }),
+        holds: isMovie(planned.candidate) ? "movies" : "shows",
+        ...(event.type === "candidate.moved" ? { moved: true } : {})
       })
     })
 
   const protocolOf = (context: WatchContext) => context.protocol ?? HomeProtocol.protocolVersion
 
-  const wantsGone = (context: WatchContext) =>
-    context.gone.includes("plannedDeletion") && context.services.includes("reclaimerr")
+  /** Its deletions are disk marks (and Gone for the iPhones that want it): read while Quai Home reaches it. */
+  const wantsGone = (context: WatchContext) => context.services.includes("reclaimerr")
 
   const integration: Integration = {
     service: "quai",

@@ -1,9 +1,10 @@
-import type { DiskSpace, LibraryItem } from "@quai/api"
-import { Effect, Option, Schema } from "effect"
+import type { LibraryItem } from "@quai/api"
+import { Clock, Effect, Option, Schema } from "effect"
 import type { FlowEvent } from "../flows/Events.ts"
 import { knownId, movieKey } from "../flows/Events.ts"
 import { HomeReads, type Read } from "../home/HomeReads.ts"
 import * as LibraryId from "../library/LibraryId.ts"
+import { type Arrival, DiskReadings } from "../storage/DiskReadings.ts"
 import {
   ArrImage,
   epochSeconds,
@@ -26,6 +27,7 @@ const Movie = Schema.Struct({
 export const RadarrWebhook = Schema.Struct({
   eventType: Schema.String,
   movie: Schema.optional(Movie),
+  movieFile: Schema.optional(Schema.Struct({ size: Schema.optional(Schema.Number) })),
   downloadId: Schema.optional(Schema.String)
 })
 export type RadarrWebhook = typeof RadarrWebhook.Type
@@ -66,6 +68,16 @@ export const radarrEvents = (payload: RadarrWebhook): ReadonlyArray<FlowEvent> =
 
 export const decodeRadarrWebhook = Schema.decodeUnknownEffect(RadarrWebhook)
 
+/** A movie's file imported, as its disk mark; none for any other event. */
+export const radarrArrival = (payload: RadarrWebhook, at: number): Arrival | undefined =>
+  payload.eventType !== "Download" || payload.movie === undefined ? undefined : {
+    service: "radarr",
+    titleKey: movieKey(payload.movie.tmdbId),
+    title: titleOf(payload.movie),
+    at,
+    bytes: payload.movieFile?.size ?? 0
+  }
+
 /** A movie by its TMDB id, for Radarr's own verdict on it: "Missing" or "Not Available". */
 export const movieAvailabilityRead = (
   tmdbId: number
@@ -76,12 +88,13 @@ export const movieAvailabilityRead = (
 })
 
 /**
- * Radarr pushes: added, grabbed and imported come by webhook. It has no actions yet. A movie added
+ * Radarr pushes: added, grabbed and imported come by webhook (an import is a disk mark too). It has no actions yet. A movie added
  * before it is out (Radarr lists it "Not Available") starts nothing: Radarr won't search it until
  * then, and its grab starts the activity on the day. When Radarr can't say, the activity starts.
  */
 export const radarr = Effect.gen(function*() {
   const reads = yield* HomeReads
+  const readings = yield* DiskReadings
 
   const notAvailableYet = (tmdbId: number) =>
     reads.read(movieAvailabilityRead(tmdbId)).pipe(
@@ -95,6 +108,8 @@ export const radarr = Effect.gen(function*() {
       read: (body) =>
         Effect.gen(function*() {
           const payload = yield* decodeRadarrWebhook(body)
+          const arrival = radarrArrival(payload, yield* Clock.currentTimeMillis)
+          if (arrival !== undefined) yield* readings.arrived(arrival)
           const events = radarrEvents(payload)
           if (payload.eventType !== "MovieAdded" || payload.movie === undefined) return events
           return (yield* notAvailableYet(payload.movie.tmdbId)) ? [] : events
@@ -105,7 +120,7 @@ export const radarr = Effect.gen(function*() {
   return integration
 })
 
-// The library: `GET /api/v3/movie` and `GET /api/v3/diskspace`, read once when the app asks.
+// The library: `GET /api/v3/movie`, read once when the app asks.
 
 const LibraryMovie = Schema.Struct({
   id: Schema.Number,
@@ -132,12 +147,6 @@ export const radarrMoviesRead: Read<typeof RadarrMovies.Type> & { readonly servi
   path: "/api/v3/movie",
   schema: RadarrMovies
 }
-
-export const DiskSpaces = Schema.Array(Schema.Struct({
-  path: Schema.optional(Schema.String),
-  freeSpace: Schema.Number,
-  totalSpace: Schema.Number
-}))
 
 /**
  * A movie as the library lists it: on disk when it has its file; else wanted while Radarr is
@@ -173,17 +182,6 @@ export const libraryMovie = (movie: RadarrMovie, webBases: ReadonlyArray<string>
     ...(movie.overview === undefined || movie.overview === "" ? {} : { overview: movie.overview }),
     ...(webUrls.length === 0 ? {} : { webUrls })
   }
-}
-
-/**
- * The disk the media is on. Radarr lists every mount it sees (`/`, `/config`, `/downloads`…,
- * often the same disk several times): the largest one holds the library.
- */
-export const mediaDisk = (disks: typeof DiskSpaces.Type): DiskSpace | undefined => {
-  const largest = [...disks].sort((left, right) => right.totalSpace - left.totalSpace)[0]
-  return largest === undefined || largest.totalSpace <= 0
-    ? undefined
-    : { freeBytes: largest.freeSpace, totalBytes: largest.totalSpace }
 }
 
 // The To fix list's reads (fixes/movies.ts): the queue (blocked imports), the movies still without

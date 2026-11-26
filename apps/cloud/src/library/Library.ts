@@ -1,12 +1,14 @@
-import { type DiskSpace, type Flow, type HomeOffline, type Library as LibraryList, type LibraryItem } from "@quai/api"
+import { type Flow, HomeOffline, type Library as LibraryList, type LibraryItem } from "@quai/api"
 import { Context, Effect, Layer, Option } from "effect"
 import { Activities } from "../flows/Activities.ts"
 import type { Activity } from "../flows/Engine.ts"
 import { movieKey, seriesKey } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
+import { HomeLink, offlineMessage } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
-import { DiskSpaces, libraryMovie, mediaDisk, radarrMoviesRead } from "../integrations/radarr.ts"
+import { libraryMovie, radarrMoviesRead } from "../integrations/radarr.ts"
 import { librarySeries, sonarrSeriesRead } from "../integrations/sonarr.ts"
+import { readMediaDisks } from "../storage/MediaDisks.ts"
 
 /** A torrent of this title is being downloaded: its activity sits on the step a grab enters. */
 const downloadsOf = (running: ReadonlyArray<Activity>, flows: ReadonlyArray<Flow>) => {
@@ -33,7 +35,7 @@ const newestFirst = (left: LibraryItem, right: LibraryItem) =>
 
 /**
  * The home's movies and series, read through Quai Home when the app asks (nothing is kept): one
- * call to Radarr, one to Sonarr, one for the disk. A service that doesn't answer is listed as
+ * call to Radarr, one to Sonarr, and the media disks (the fullest is the Home's storage tile). A service that doesn't answer is listed as
  * unavailable, the others still show. What downloads now comes from the running activities.
  */
 export class Library extends Context.Service<Library, {
@@ -43,19 +45,18 @@ export class Library extends Context.Service<Library, {
     Library,
     Effect.gen(function*() {
       const reads = yield* HomeReads
+      const link = yield* HomeLink
       const activities = yield* Activities
       const flowStore = yield* FlowStore
 
       const list = Effect.gen(function*() {
-        const { values, unavailable } = yield* reads.all({
-          movies: radarrMoviesRead,
-          series: sonarrSeriesRead,
-          radarrDisk: { service: "radarr", path: "/api/v3/diskspace", schema: DiskSpaces }
-        }, { optional: ["radarrDisk"] })
-        const { movies, series, radarrDisk } = values
-        const disks = Option.isNone(radarrDisk) && (yield* reads.services).includes("sonarr")
-          ? yield* reads.read({ service: "sonarr", path: "/api/v3/diskspace", schema: DiskSpaces })
-          : radarrDisk
+        const home = yield* link.home
+        if (Option.isNone(home)) return yield* Effect.fail(new HomeOffline({ message: offlineMessage }))
+        const [{ values, unavailable }, media] = yield* Effect.all([
+          reads.all({ movies: radarrMoviesRead, series: sonarrSeriesRead }),
+          readMediaDisks(reads, home.value)
+        ], { concurrency: "unbounded" })
+        const { movies, series } = values
 
         const webUrls = yield* reads.webUrls
         const flows = yield* flowStore.all
@@ -74,9 +75,10 @@ export class Library extends Context.Service<Library, {
             withDownload(seriesKey(show.tvdbId), librarySeries(show, webUrls.sonarr))
           )
         ].sort(newestFirst)
-        const disk: DiskSpace | undefined = Option.getOrUndefined(
-          Option.flatMap(disks, (found) => Option.fromNullishOr(mediaDisk(found)))
-        )
+        const fullest = media.disks[0]
+        const disk = fullest === undefined
+          ? undefined
+          : { freeBytes: fullest.freeBytes, totalBytes: fullest.totalBytes }
         return { items, ...(disk === undefined ? {} : { disk }), unavailable }
       })
 

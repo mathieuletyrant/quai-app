@@ -35,7 +35,10 @@ const shifted = (path: string, days: number): Recording => {
 const previewRoutes = (days: number): Readonly<Record<string, Recording>> => ({
   "radarr GET /api/v3/movie": "radarr/movies.json",
   "radarr GET /api/v3/diskspace": "radarr/diskspace.json",
+  "radarr GET /api/v3/rootfolder": "radarr/rootfolder.json",
   "sonarr GET /api/v3/series": "sonarr/series.json",
+  "sonarr GET /api/v3/diskspace": "sonarr/diskspace.json",
+  "sonarr GET /api/v3/rootfolder": "sonarr/rootfolder.json",
   "radarr GET /api/v3/queue": shifted("radarr/queue.json", days),
   "radarr GET /api/v3/wanted/missing": "radarr/wanted-missing.json",
   "radarr GET /api/v3/history/since": shifted("radarr/history-since.json", days),
@@ -80,6 +83,98 @@ const previewRoutes = (days: number): Readonly<Record<string, Recording>> => ({
   "jellyfin GET /Users": "jellyfin/users.json"
 })
 
+/** The fixtures' media disk (`/downloads`, Radarr's and Sonarr's root folders). */
+const previewDisk = {
+  id: "d1800360124416",
+  name: "Movies · Shows",
+  holds: ["movies", "shows"],
+  totalBytes: 1800360124416
+}
+
+/**
+ * Forty days of hourly readings of the media disk, ending at the fixtures' free space, and what
+ * changed it: imports drain it, a deletion and a seed cleanup give some back, one gives nothing.
+ */
+const storageHistory = (now: number): ReadonlyArray<readonly [string, unknown]> => {
+  const hour = 3600_000
+  const end = 759102349312
+  const marks = [
+    { daysAgo: 33, kind: "arrived", service: "radarr", title: "Dune", detail: "Imported", bytes: 12e9 },
+    {
+      daysAgo: 26,
+      kind: "arrived",
+      service: "sonarr",
+      title: "Severance S02",
+      detail: "8 episodes imported",
+      bytes: 18e9
+    },
+    {
+      daysAgo: 19,
+      kind: "gone",
+      service: "reclaimerr",
+      title: "The Vampire Diaries S07",
+      detail: "Deleted",
+      bytes: 24e9,
+      holds: "shows"
+    },
+    { daysAgo: 12, kind: "gone", service: "cleanuparr", title: "Dune: Part Two", detail: "Seed cleanup", bytes: 0 },
+    {
+      daysAgo: 6,
+      kind: "arrived",
+      service: "sonarr",
+      title: "Slow Horses S04",
+      detail: "6 episodes imported",
+      bytes: 11e9
+    },
+    {
+      daysAgo: 2,
+      kind: "gone",
+      service: "cleanuparr",
+      title: "The Bear S03",
+      detail: "Seed cleanup",
+      bytes: 6e9
+    }
+  ].map(({ daysAgo, ...mark }) => {
+    const at = now - daysAgo * 24 * hour
+    const holds = mark.service === "radarr" ? "movies" : mark.service === "sonarr" ? "shows" : undefined
+    const { bytes, ...rest } = mark
+    return {
+      id: `${mark.kind}:preview:${daysAgo}`,
+      at,
+      ...rest,
+      ...(bytes > 0 ? { bytes } : {}),
+      ...(holds === undefined ? {} : { holds })
+    }
+  })
+  // Backwards from now: an import costs its size before it, what's gone gives its size back.
+  const readings: Array<[number, number]> = []
+  let free = end
+  for (let at = now - (now % hour); at > now - 40 * 24 * hour; at -= hour) {
+    readings.unshift([at, free])
+    free += 0.06e9
+    for (const mark of marks) {
+      if (mark.at >= at - hour && mark.at < at) free += mark.kind === "arrived" ? mark.bytes ?? 0 : -(mark.bytes ?? 0)
+    }
+  }
+  const byMonth = new Map<string, Array<[number, number]>>()
+  for (const reading of readings) {
+    const month = new Date(reading[0]).toISOString().slice(0, 7)
+    byMonth.set(month, [...(byMonth.get(month) ?? []), reading])
+  }
+  const marksByMonth = new Map<string, Array<typeof marks[number]>>()
+  for (const mark of marks) {
+    const month = new Date(mark.at).toISOString().slice(0, 7)
+    marksByMonth.set(month, [...(marksByMonth.get(month) ?? []), mark])
+  }
+  return [
+    [`storage/disks/${previewDisk.id}`, previewDisk],
+    ...[...byMonth].map(([month, list]) =>
+      [`storage/readings/${previewDisk.id}/${month}`, { readings: list }] as const
+    ),
+    ...[...marksByMonth].map(([month, list]) => [`storage/marks/${month}`, { marks: list }] as const)
+  ]
+}
+
 /** Something going on: Dune downloading at 42 %. */
 const downloading = (home: FakeHome) =>
   Effect.gen(function*() {
@@ -101,6 +196,7 @@ const FakeHomeLinked = Layer.effectDiscard(
       },
       answer: recordedHome(previewRoutes(days))
     })
+    for (const [key, value] of storageHistory(now)) home.documents.set(key, value)
     yield* home.connect
     yield* downloading(home)
     // The fake Quai Home keeps answering the snapshot of the torrent: Quai Home polls it every few seconds.

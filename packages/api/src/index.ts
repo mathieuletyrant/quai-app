@@ -5,6 +5,7 @@ import { FixesGroup } from "./Fixes.ts"
 import { ConsoleJournalGroup, JournalGroup } from "./Journal.ts"
 import { LibraryGroup } from "./Library.ts"
 import { RequestsGroup } from "./Requests.ts"
+import { StorageGroup } from "./Storage.ts"
 import { SystemGroup } from "./System.ts"
 import { UpcomingGroup } from "./Upcoming.ts"
 
@@ -18,13 +19,15 @@ export * from "./Journal.ts"
 export * from "./Library.ts"
 export * from "./Requests.ts"
 export * from "./Service.ts"
+export * from "./Storage.ts"
 export * from "./System.ts"
 export * from "./Title.ts"
 export * from "./Upcoming.ts"
 
 /** The single contract: implemented by apps/cloud, imported by apps/console, exported as OpenAPI for apps/ios. */
 export class QuaiApi
-  extends HttpApi.make("quai").add(SystemGroup).add(DevicesGroup).add(LibraryGroup).add(FixesGroup).add(RequestsGroup)
+  extends HttpApi.make("quai").add(SystemGroup).add(DevicesGroup).add(LibraryGroup).add(StorageGroup).add(FixesGroup)
+    .add(RequestsGroup)
     .add(UpcomingGroup).add(ConsoleGroup).add(PushGroup).add(ConnectionGroup).add(FlowsGroup).add(ConsoleJournalGroup)
     .add(JournalGroup).add(AlertsGroup).add(ConsoleAlertsGroup)
 {}

@@ -13,15 +13,17 @@ import { AppJournalHandlers, JournalHandlers } from "./http/JournalHandlers.ts"
 import { LibraryHandlers } from "./http/LibraryHandlers.ts"
 import { PushHandlers } from "./http/PushHandlers.ts"
 import { RequestsHandlers } from "./http/RequestsHandlers.ts"
+import { StorageHandlers } from "./http/StorageHandlers.ts"
 import { SystemHandlers } from "./http/SystemHandlers.ts"
 import { UpcomingHandlers } from "./http/UpcomingHandlers.ts"
 
-/** Every route of the contract, with its handlers. Needs the home link, the stores, the engine, the library, the To fix list, the requests, the journal and the public access. */
+/** Every route of the contract, with its handlers. Needs the home link, the stores, the engine, the library, the storage, the To fix list, the requests, the journal and the public access. */
 export const ApiLive = HttpApiBuilder.layer(QuaiApi, { openapiPath: "/api/openapi.json" }).pipe(
   Layer.provide([
     SystemHandlers,
     DevicesHandlers,
     LibraryHandlers,
+    StorageHandlers,
     FixesHandlers,
     RequestsHandlers,
     UpcomingHandlers,

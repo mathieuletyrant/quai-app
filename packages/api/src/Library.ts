@@ -65,6 +65,7 @@ export const DiskSpace = Schema.Struct({
 export type DiskSpace = typeof DiskSpace.Type
 
 export const LibraryService = Service.pick(["radarr", "sonarr"]).annotate({ identifier: "LibraryService" })
+export type LibraryService = typeof LibraryService.Type
 
 export const Library = Schema.Struct({
   /** Newest first. */
