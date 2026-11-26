@@ -1,0 +1,25 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "quai-demo",
+  "account_id": "8edebadfefbc90337426af94551173ec",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-24",
+  "routes": [{ "pattern": "demo.quai.stream", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true },
+  "containers": [
+    {
+      "class_name": "QuaiDemo",
+      "image": "./Dockerfile",
+      "image_build_context": "../..",
+      "instance_type": "lite",
+      "max_instances": 1,
+      "constraints": { "jurisdiction": "eu" }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "QUAI_DEMO", "class_name": "QuaiDemo" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuaiDemo"] }]
+}
