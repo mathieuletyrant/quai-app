@@ -1,13 +1,15 @@
 # App Store screenshots
 
-The iPhone screenshots of Quai's App Store page, 1320 × 2868 (iPhone 6.9").
+The iPhone screenshots of Quai's App Store page, in one size per display tab of App Store Connect: 6.9" (1320 ×
+2868), 6.5" (1284 × 2778) and 6.1"/6.3" (1206 × 2622). An image of the wrong size is refused with "File dimensions are invalid".
 
 - `index.html`: the template. Each `<section class="shot">` is one screenshot, and its `id` names the PNG it becomes.
   Each one has a headline, where the `<em>` part takes the accent colour, and a phone. The phone shows either a
   capture of the app from `screens/`, or a Lock Screen drawn in the page: a Live Activity or notifications, laid out in
   iPhone points (402 × 874).
 - `screens/`: captures of the app from the CI's `ios` job, which runs the app against the preview server's fake home.
-- `render.mjs`: writes `out/<id>.png`, which is not committed.
+- `render.mjs`: writes `out/6.9/`, `out/6.5/` and `out/6.3/` (`<id>.png`), which are not committed. Upload each folder in its
+  display's tab.
 
 ```sh
 node apps/ios/AppStore/render.mjs              # all of them
