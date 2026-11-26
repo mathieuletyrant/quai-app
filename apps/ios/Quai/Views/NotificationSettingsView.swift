@@ -4,53 +4,72 @@ import UserNotifications
 typealias AlertKind = Components.Schemas.AlertKind
 typealias GoneKind = Components.Schemas.GoneKind
 
-/// What a notification setting is about, as Upcoming names a service over its row: who, in
-/// the color of what it means (red for what's wrong, orange for what goes).
+/// What a notification setting is about: what happens, and the services it comes from (by the
+/// name the API gives them; none: any service).
 protocol NotificationTopic {
-    var service: String { get }
+    var services: [String] { get }
     var label: String { get }
-    var tint: Color { get }
+}
+
+extension NotificationTopic {
+    /// Its services that Quai Home reaches (`home`, unknown: all of them); nil when it can't happen.
+    func reached(by home: [String]?) -> [String]? {
+        guard let home, !services.isEmpty else { return services }
+        let reached = services.filter(home.contains)
+        return reached.isEmpty ? nil : reached
+    }
 }
 
 extension AlertKind: NotificationTopic {
-    var service: String {
+    var services: [String] {
         switch self {
-        case .serviceDown: "Any service"
-        case .diskLow: "Radarr · Sonarr"
-        case .arrHealth: "Radarr · Sonarr · Prowlarr"
-        case .plannedDeletion: "Reclaimerr"
+        case .serviceDown: []
+        case .diskLow: ["radarr", "sonarr"]
+        case .arrHealth: ["radarr", "sonarr", "prowlarr"]
+        case .plannedDeletion: ["reclaimerr"]
         }
     }
 
     var label: String {
         switch self {
-        case .serviceDown: "Stops answering"
+        case .serviceDown: "A service stops answering"
         case .diskLow: "The media disk runs low"
-        case .arrHealth: "Report a problem"
-        case .plannedDeletion: "Plans to delete a title"
+        case .arrHealth: "A service reports a problem"
+        case .plannedDeletion: "A deletion is planned"
         }
     }
-
-    var tint: Color { self == .plannedDeletion ? Palette.toFix : Palette.alert }
 }
 
 extension GoneKind: NotificationTopic {
-    var service: String {
+    var services: [String] {
         switch self {
-        case .plannedDeletion: "Reclaimerr"
-        case .stuckRemoval, .seedCleanup: "Cleanuparr"
+        case .plannedDeletion: ["reclaimerr"]
+        case .stuckRemoval, .seedCleanup: ["cleanuparr"]
         }
     }
 
     var label: String {
         switch self {
-        case .plannedDeletion: "Deleted a title"
-        case .stuckRemoval: "Removed a stuck download"
-        case .seedCleanup: "Cleaned a torrent after seeding"
+        case .plannedDeletion: "A title was deleted"
+        case .stuckRemoval: "A stuck download was removed"
+        case .seedCleanup: "A torrent was cleaned after seeding"
+        }
+    }
+}
+
+/// The settings that can fire: the alerts turned on in the console (`enabled`, unknown: all), whose
+/// services Quai Home reaches, each with the services it shows.
+enum NotificationRows {
+    static func alerts(enabled: [AlertKind]?, home: [String]?) -> [(kind: AlertKind, services: [String])] {
+        AlertKind.allCases.compactMap { kind in
+            guard enabled?.contains(kind) ?? true, let services = kind.reached(by: home) else { return nil }
+            return (kind, services)
         }
     }
 
-    var tint: Color { Palette.toFix }
+    static func gone(home: [String]?) -> [(kind: GoneKind, services: [String])] {
+        GoneKind.allCases.compactMap { kind in kind.reached(by: home).map { (kind, $0) } }
+    }
 }
 
 /// Settings → Notifications: which alerts this iPhone is notified of, and what it hears once gone.
@@ -61,6 +80,16 @@ struct NotificationSettingsView: View {
     @State private var preferences: Components.Schemas.DevicePreferences?
     @State private var allowed = true
     @State private var status: String?
+
+    private var home: [String]? { connection.alerts?.services?.map(\.rawValue) }
+    private var alertRows: [(kind: AlertKind, services: [String])] {
+        NotificationRows.alerts(enabled: connection.alerts?.enabled, home: home)
+    }
+
+    private var goneRows: [(kind: GoneKind, services: [String])] { NotificationRows.gone(home: home) }
+    private var alertsOffInConsole: Bool {
+        connection.alerts.map { $0.enabled.count < AlertKind.allCases.count } ?? false
+    }
 
     var body: some View {
         ScrollView {
@@ -74,20 +103,24 @@ struct NotificationSettingsView: View {
                     )
                 }
                 if let preferences {
-                    GroupedSection(header: "Alerts") {
-                        ForEach(AlertKind.allCases, id: \.self) { kind in
-                            NotificationToggle(topic: kind, isOn: Binding(
-                                get: { !(preferences.mutedAlerts ?? []).contains(kind) },
-                                set: { on in update(kind, on: on) }
-                            ))
+                    if !alertRows.isEmpty {
+                        GroupedSection(header: "Alerts", footer: alertsOffInConsole ? "Some alerts are off in Quai's console." : nil) {
+                            ForEach(alertRows, id: \.kind) { row in
+                                NotificationToggle(label: row.kind.label, services: row.services, isOn: Binding(
+                                    get: { !(preferences.mutedAlerts ?? []).contains(row.kind) },
+                                    set: { on in update(row.kind, on: on) }
+                                ))
+                            }
                         }
                     }
-                    GroupedSection(header: "Gone") {
-                        ForEach(GoneKind.allCases, id: \.self) { kind in
-                            NotificationToggle(topic: kind, isOn: Binding(
-                                get: { (preferences.gone ?? []).contains(kind) },
-                                set: { on in update(kind, on: on) }
-                            ))
+                    if !goneRows.isEmpty {
+                        GroupedSection(header: "Gone") {
+                            ForEach(goneRows, id: \.kind) { row in
+                                NotificationToggle(label: row.kind.label, services: row.services, isOn: Binding(
+                                    get: { (preferences.gone ?? []).contains(row.kind) },
+                                    set: { on in update(row.kind, on: on) }
+                                ))
+                            }
                         }
                     }
                 } else {
@@ -112,6 +145,7 @@ struct NotificationSettingsView: View {
 
     private func load() async {
         allowed = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .authorized
+        await connection.loadAlerts()
         do {
             preferences = try await connection.preferences()
         } catch {
@@ -149,21 +183,19 @@ struct NotificationSettingsView: View {
     }
 }
 
-/// A setting's toggle: its service over what it notifies, like a row of Upcoming.
+/// A setting's toggle: what it notifies, over the services it comes from.
 private struct NotificationToggle: View {
-    let topic: any NotificationTopic
+    let label: String
+    let services: [String]
     @Binding var isOn: Bool
 
     var body: some View {
         Toggle(isOn: $isOn) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(topic.service.uppercased())
-                    .font(QuaiFont.tag)
-                    .tracking(0.6)
-                    .foregroundStyle(topic.tint)
-                Text(topic.label)
+                Text(label)
                     .font(QuaiFont.body)
                     .foregroundStyle(Palette.primaryText)
+                ServiceLine(services: services)
             }
         }
         .tint(.quaiAccent)

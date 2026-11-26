@@ -159,6 +159,21 @@ describe("alerts", () => {
       }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))
 
+  it.effect("the app hears where each alert comes from, and which services Quai Home reaches", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome({ services: ["radarr", "reclaimerr"] })
+      yield* home.connect
+      const alerts = yield* Alerts
+      yield* alerts.apply(radarrDown)
+      yield* alerts.apply(diskState({ freeBytes: 4e10, totalBytes: 2e12 }, 10)!)
+      const active = yield* alerts.active
+      expect(active.items.map((alert) => [alert.kind, alert.source])).toEqual([
+        ["serviceDown", "radarr"],
+        ["diskLow", undefined]
+      ])
+      expect(active.services).toEqual(["radarr", "reclaimerr"])
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
+
   it.effect("settings saved before a kind existed keep their values and get the new kind's defaults", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome()
@@ -288,7 +303,11 @@ describe("alerts", () => {
 
         // Turned off: its alerts end without a notification, and its watches go.
         yield* alerts.saveSettings({ ...defaultAlertSettings, arrHealth: { enabled: false, level: "error" } })
-        expect(yield* alerts.active).toEqual({ items: [], enabled: ["serviceDown", "diskLow", "plannedDeletion"] })
+        expect(yield* alerts.active).toEqual({
+          items: [],
+          enabled: ["serviceDown", "diskLow", "plannedDeletion"],
+          services: ["radarr", "sonarr", "prowlarr"]
+        })
         expect(apple.hits).toHaveLength(5)
       }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.succeed(Apns, apns)))))
     }))

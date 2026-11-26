@@ -8,8 +8,7 @@ struct JournalTests {
         let page = try JSONDecoder().decode(Components.Schemas.JournalPage.self, from: Data(json.utf8))
         #expect(page.more)
         #expect(page.entries[0].date == Date(timeIntervalSince1970: 1_795_150_800))
-        #expect(page.entries[0].look.systemImage == "exclamationmark.triangle.fill")
-        #expect(page.entries[0].source.name == "Radarr")
+        #expect(ServiceLook.name(page.entries[0].source.rawValue) == "Radarr")
     }
 
     @Test func groupsTheLinesByDayNewestFirst() throws {
@@ -54,8 +53,37 @@ struct AlertTests {
         let json = #"{"items":[{"id":"plannedDeletion:reclaimerr:42","kind":"plannedDeletion","title":"Up will be deleted in 5 days","detail":"Unwatched for a year · Last watched more than 365 days ago","since":1795150800000}],"enabled":["plannedDeletion"]}"#
         let alerts = try JSONDecoder().decode(Components.Schemas.ActiveAlerts.self, from: Data(json.utf8))
         #expect(alerts.items.map(\.kind) == [.plannedDeletion])
-        #expect(AlertKind.plannedDeletion.service == "Reclaimerr")
-        #expect(AlertKind.plannedDeletion.label == "Plans to delete a title")
-        #expect(GoneKind.seedCleanup.service == "Cleanuparr")
+        #expect(AlertKind.plannedDeletion.services == ["reclaimerr"])
+        #expect(AlertKind.plannedDeletion.label == "A deletion is planned")
+        #expect(GoneKind.seedCleanup.services == ["cleanuparr"])
+    }
+}
+
+struct ServiceLookTests {
+    @Test func namesTheServicesAndAnyService() {
+        #expect(ServiceLook.names(["radarr", "sonarr"]) == "Radarr, Sonarr")
+        #expect(ServiceLook.names([]) == "Any service")
+        #expect(ServiceLook.name("home") == "Quai Home")
+    }
+}
+
+struct NotificationRowsTests {
+    @Test func offersOnlyWhatCanHappen() {
+        let home = ["radarr", "prowlarr", "cleanuparr"]
+        let alerts = NotificationRows.alerts(enabled: [.serviceDown, .diskLow, .arrHealth, .plannedDeletion], home: home)
+        #expect(alerts.map(\.kind) == [.serviceDown, .diskLow, .arrHealth])
+        #expect(alerts.map(\.services) == [[], ["radarr"], ["radarr", "prowlarr"]])
+        #expect(NotificationRows.gone(home: home).map(\.kind) == [.stuckRemoval, .seedCleanup])
+    }
+
+    @Test func leavesOutTheAlertsTurnedOffInTheConsole() {
+        let alerts = NotificationRows.alerts(enabled: [.serviceDown], home: ["radarr", "reclaimerr"])
+        #expect(alerts.map(\.kind) == [.serviceDown])
+    }
+
+    @Test func offersEverythingWhileTheServicesAreUnknown() {
+        #expect(NotificationRows.alerts(enabled: nil, home: nil).count == AlertKind.allCases.count)
+        #expect(NotificationRows.gone(home: nil).count == GoneKind.allCases.count)
+        #expect(NotificationRows.gone(home: []).isEmpty)
     }
 }

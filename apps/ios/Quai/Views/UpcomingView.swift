@@ -280,7 +280,7 @@ extension Components.Schemas.UpcomingService {
     }
 }
 
-/// One row: its poster, who does it over the title, when under it, and the space it gives back.
+/// One row: its poster, the title, then who does it and when, and the space it gives back.
 struct UpcomingRow: View {
     let item: UpcomingItem
     let when: String
@@ -296,10 +296,6 @@ struct UpcomingRow: View {
             }
             .frame(width: posterWidth, height: posterWidth * 1.5)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.service.name.uppercased())
-                    .font(QuaiFont.tag)
-                    .tracking(0.6)
-                    .foregroundStyle(item.tint)
                 HStack(spacing: 4) {
                     Text(item.title)
                         .lineLimit(1)
@@ -312,17 +308,16 @@ struct UpcomingRow: View {
                 .font(compact ? QuaiFont.subheadline.weight(.semibold) : QuaiFont.bodyEmphasized)
                 .foregroundStyle(Palette.primaryText)
                 HStack(spacing: 4) {
-                    Text(when)
-                        .foregroundStyle(Palette.secondaryText)
+                    ServiceLine(services: [item.service.rawValue], detail: Text(when).monospacedDigit())
                     if let freesBytes = item.freesBytes, let freedText = item.freedText {
                         Text(freedText)
+                            .font(QuaiFont.caption.monospacedDigit())
                             .fontWeight(.semibold)
                             .foregroundStyle(Palette.ok)
+                            .lineLimit(1)
                             .accessibilityLabel("frees \(Format.bytes(freesBytes))")
                     }
                 }
-                .font(QuaiFont.caption.monospacedDigit())
-                .lineLimit(1)
             }
             Spacer(minLength: 8)
             if item.opens, opens, !compact {

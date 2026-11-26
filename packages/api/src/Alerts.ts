@@ -2,6 +2,7 @@ import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { AlertKind } from "./Activity.ts"
 import { DeviceAuth, HomeRequired } from "./Devices.ts"
+import { Service } from "./Service.ts"
 
 /**
  * Alerts: something wrong that may last (a service down, the disk filling up, a problem Radarr
@@ -52,6 +53,9 @@ export const defaultAlertSettings: AlertSettings = {
 /** The free space, in points above the threshold, at which a low disk is over: it doesn't flap around it. */
 export const diskBackAbovePoints = 2
 
+/** A service as the app names one: where an alert comes from, what Quai Home reaches. */
+export const AlertService = Service.annotate({ identifier: "Service" })
+
 /** One alert still going. */
 export const ActiveAlert = Schema.Struct({
   /** `<kind>:<scope>:<what>`: `serviceDown:radarr:down`. */
@@ -61,6 +65,8 @@ export const ActiveAlert = Schema.Struct({
   title: Schema.String,
   /** "87 GB free (4%)" */
   detail: Schema.optionalKey(Schema.String),
+  /** The service it's about; absent when it's about the home itself (the media disk). */
+  source: Schema.optionalKey(AlertService),
   /** Epoch milliseconds. */
   since: Schema.Finite
 }).annotate({ identifier: "ActiveAlert" })
@@ -70,7 +76,12 @@ export const ActiveAlerts = Schema.Struct({
   /** Oldest first. */
   items: Schema.Array(ActiveAlert),
   /** The alerts turned on: the app says "all good" only for what is watched. */
-  enabled: Schema.Array(AlertKind)
+  enabled: Schema.Array(AlertKind),
+  /**
+   * The services Quai Home reaches: the app offers only the notifications that can happen. Absent
+   * from an older Cloud, or while Quai Home is away.
+   */
+  services: Schema.optionalKey(Schema.Array(AlertService))
 }).annotate({ identifier: "ActiveAlerts" })
 export type ActiveAlerts = typeof ActiveAlerts.Type
 
