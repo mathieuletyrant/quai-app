@@ -200,7 +200,7 @@ struct AppScreenshots {
 
         // A series asked for and still on its way: more of its seasons can be requested.
         let asked = try Self.show(
-            SearchResultDetail(result: prophecy, state: .requested) {}.tint(.quaiAccent).preferredColorScheme(.dark),
+            SearchResultDetail(result: station, state: .requested) {}.tint(.quaiAccent).preferredColorScheme(.dark),
             connection
         )
         try await Self.settle(5)
