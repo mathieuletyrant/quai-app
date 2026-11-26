@@ -67,12 +67,15 @@ struct SettingsView: View {
                             ListRow(title: "Notifications", systemImage: "bell.badge.fill", iconColor: Palette.alert, chevron: true)
                         }
                         .buttonStyle(.plain)
-                        NavigationLink {
-                            RequesterSettingsView()
-                        } label: {
-                            ListRow(title: "Request as", systemImage: "person.crop.circle", iconColor: Palette.requests, chevron: true)
+                        // Who requests in Seerr: nothing to choose without Seerr.
+                        if connection.reaches(.seerr) {
+                            NavigationLink {
+                                RequesterSettingsView()
+                            } label: {
+                                ListRow(title: "Request as", systemImage: "person.crop.circle", iconColor: Palette.requests, chevron: true)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     if !connection.consoleURLs.isEmpty {
@@ -120,6 +123,8 @@ struct SettingsView: View {
             .confirmationDialog("Disconnect from the server?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
                 Button("Disconnect", role: .destructive) { connection.disconnect() }
             }
+            // Which services Quai Home reaches decides the settings worth offering.
+            .task { await connection.loadAlerts() }
         }
     }
 }
