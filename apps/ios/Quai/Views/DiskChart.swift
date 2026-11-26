@@ -78,6 +78,37 @@ extension Components.Schemas.DiskReading {
     }
 }
 
+/// The chart's dates: at most about four, on whole hours, days or months, never the same label
+/// twice. Hours ("14:00") while the readings span less than two days (a disk only just read, in
+/// any period), then the period's unit.
+struct DateAxis: Equatable {
+    let unit: Calendar.Component
+    /// Units between two dates.
+    let count: Int
+    let format: Date.FormatStyle
+
+    init(span: TimeInterval, period: StoragePeriod) {
+        let hours = span / 3600
+        let days = hours / 24
+        if days < 2 {
+            self.init(.hour, every: hours, format: .dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute())
+            return
+        }
+        switch period {
+        case .week: self.init(.day, every: days, format: .dateTime.weekday(.abbreviated))
+        case .month: self.init(.day, every: days, format: .dateTime.month(.abbreviated).day())
+        case .year, .all: self.init(.month, every: days / 30, format: .dateTime.month(.abbreviated))
+        }
+    }
+
+    /// One date every quarter of the span, rounded up to a whole unit.
+    private init(_ unit: Calendar.Component, every units: Double, format: Date.FormatStyle) {
+        self.unit = unit
+        count = max(1, Int((units / 4).rounded(.up)))
+        self.format = format
+    }
+}
+
 /// A disk's free space over the period, its marks as ticks in a lane under the curve, the
 /// selected one joined to the curve by a dashed line in its service's color. Pressed then
 /// dragged, a cursor follows the curve and says the free space then; a tap picks a mark.
@@ -103,15 +134,7 @@ struct DiskChart: View {
         return start...end
     }
 
-    /// The axis's dates: hours while the readings span less than two days, then days, then months.
-    private var dateFormat: Date.FormatStyle {
-        if dates.upperBound.timeIntervalSince(dates.lowerBound) < 2 * 24 * 3600 { return .dateTime.hour() }
-        switch period {
-        case .week: return .dateTime.weekday(.abbreviated)
-        case .month: return .dateTime.month(.abbreviated).day()
-        case .year, .all: return .dateTime.month(.abbreviated)
-        }
-    }
+    private var axis: DateAxis { DateAxis(span: dates.upperBound.timeIntervalSince(dates.lowerBound), period: period) }
 
     var body: some View {
         let scale = ChartScale(freeBytes: disk.readings.map(\.freeBytes))
@@ -183,8 +206,8 @@ struct DiskChart: View {
                 .foregroundStyle(Palette.tertiaryText)
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                AxisValueLabel(format: dateFormat)
+            AxisMarks(values: .stride(by: axis.unit, count: axis.count)) { _ in
+                AxisValueLabel(format: axis.format)
                     .font(QuaiFont.caption)
                     .foregroundStyle(Palette.tertiaryText)
             }

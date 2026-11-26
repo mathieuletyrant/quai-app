@@ -70,4 +70,21 @@ struct StorageTests {
         #expect(StoragePeriod.allCases.filter(\.isHourly) == [.week, .month])
         #expect(StoragePeriod.allCases.allSatisfy { $0.api?.rawValue == $0.rawValue })
     }
+
+    /// A disk read for a few hours shows whole hours, never the same label twice; then the period's unit.
+    @Test func theAxisDatesFollowTheReadingsSpan() {
+        let threeHours = DateAxis(span: 3 * 3600, period: .week)
+        #expect(threeHours.unit == .hour)
+        #expect(threeHours.count == 1)
+        #expect(DateAxis(span: 3 * 3600, period: .month).unit == .hour)
+        #expect(DateAxis(span: 30 * 3600, period: .week).count == 8)
+        #expect(DateAxis(span: 0, period: .week).count == 1)
+        let week = DateAxis(span: 7 * 86_400, period: .week)
+        #expect(week.unit == .day)
+        #expect(week.count == 2)
+        #expect(DateAxis(span: 30 * 86_400, period: .month).count == 8)
+        let year = DateAxis(span: 365 * 86_400, period: .year)
+        #expect(year.unit == .month)
+        #expect(year.count == 4)
+    }
 }
