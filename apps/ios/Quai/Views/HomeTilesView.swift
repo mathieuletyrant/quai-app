@@ -142,7 +142,7 @@ struct HomeTilesView: View {
             }
         }
         .environment(\.editMode, .constant(.active))
-        .environment(\.defaultMinListRowHeight, 44)
+        .environment(\.defaultMinListRowHeight, 48)
         .scrollContentBackground(.hidden)
         .background(Palette.background.ignoresSafeArea())
         .disabled(preferences == nil)
