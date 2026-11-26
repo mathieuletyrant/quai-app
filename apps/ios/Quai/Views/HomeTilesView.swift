@@ -109,7 +109,7 @@ struct HomeTilesView: View {
         List {
             Section {
                 ForEach(layout.shownRows) { row in
-                    TileEditRow(title: title(row), pair: row == .highlights, action: .hide) {
+                    TileEditRow(title: title(row), action: .hide) {
                         save(layout.hiding(row))
                     }
                 }
@@ -122,7 +122,7 @@ struct HomeTilesView: View {
             if !layout.hiddenTiles.isEmpty {
                 Section("Hidden") {
                     ForEach(layout.hiddenTiles) { tile in
-                        TileEditRow(title: tile.title, pair: false, action: .show) { save(layout.showing(tile)) }
+                        TileEditRow(title: tile.title, action: .show) { save(layout.showing(tile)) }
                             .moveDisabled(true)
                     }
                 }
@@ -189,8 +189,6 @@ private struct TileEditRow: View {
     enum Action { case hide, show }
 
     let title: String
-    /// Recently added and Wanted, one row of two squares on the Home.
-    let pair: Bool
     let action: Action
     let perform: () -> Void
 
@@ -207,12 +205,6 @@ private struct TileEditRow: View {
             Text(title)
                 .font(QuaiFont.body)
                 .foregroundStyle(action == .hide ? Palette.primaryText : Palette.secondaryText)
-            if pair {
-                Image(systemName: "square.split.2x1")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Palette.tertiaryText)
-                    .accessibilityLabel("two square tiles side by side")
-            }
             Spacer(minLength: 0)
         }
         .frame(minHeight: 44)
