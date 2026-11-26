@@ -125,6 +125,7 @@ struct HomeView: View {
             }
             // The To fix list asks Radarr, Sonarr, Reclaimerr and Cleanuparr: read when the screen opens, not polled.
             .task { await connection.loadFixes() }
+            .task { await connection.loadHomeLayout() }
             .task { await connection.loadRequests() }
             .task { await connection.loadUpcoming() }
             // The disk comes with the library; the Library tab keeps it current once open.
@@ -142,23 +143,9 @@ struct HomeView: View {
         }
     }
 
-    /// The tiles once the first reads have answered: each one only when it has something to show.
+    /// The tiles once the first reads have answered, in this iPhone's order (Settings → Home tiles):
+    /// each one only when it has something to show and isn't hidden. "All quiet" leads when nothing asks for a look.
     @ViewBuilder private var tiles: some View {
-        if !fixes.isEmpty {
-            NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
-                .buttonStyle(.plain)
-        }
-        if !requests.isEmpty {
-            NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
-                .buttonStyle(.plain)
-        }
-        if let upcoming, !upcoming.items.isEmpty {
-            NavigationLink { UpcomingView() } label: { UpcomingTile(upcoming: upcoming) }
-                .buttonStyle(.plain)
-        }
-        if !alerts.isEmpty {
-            AlertsTile(alerts: alerts)
-        }
         if isQuiet, connection.lastError == nil {
             MessageTile(
                 title: "All quiet",
@@ -167,15 +154,67 @@ struct HomeView: View {
                 color: Palette.accent
             )
         }
-        if let highlights, !highlights.isEmpty {
-            TileRow {
-                openLibrary(.recent) { RecentlyAddedTile(highlights: highlights) }
-                openLibrary(.wanted) { WantedTile(count: highlights.wanted) }
+        ForEach(connection.homeLayout.rows) { row in
+            let shown = connection.homeLayout.shown(row)
+            if row == .highlights {
+                highlightsRow(shown)
+            } else if let tile = shown.first {
+                self.tile(tile)
             }
         }
+    }
+
+    @ViewBuilder private func tile(_ tile: HomeTile) -> some View {
+        switch tile {
+        case .toFix: fixesTile
+        case .requests: requestsTile
+        case .upcoming: upcomingTile
+        case .alerts: if !alerts.isEmpty { AlertsTile(alerts: alerts) }
+        case .storage: storageTile
+        case .recentlyAdded, .wanted: highlightsRow([tile])
+        }
+    }
+
+    @ViewBuilder private var fixesTile: some View {
+        if !fixes.isEmpty {
+            NavigationLink { FixesView() } label: { FixesTile(fixes: fixes) }
+                .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder private var requestsTile: some View {
+        if !requests.isEmpty {
+            NavigationLink { RequestsView() } label: { PendingRequestsTile(requests: requests) }
+                .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder private var upcomingTile: some View {
+        if let upcoming, !upcoming.items.isEmpty {
+            NavigationLink { UpcomingView() } label: { UpcomingTile(upcoming: upcoming) }
+                .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder private var storageTile: some View {
         if let disk = connection.library?.disk {
             NavigationLink { StorageView() } label: { StorageTile(reading: DiskReading(disk), isLow: diskIsLow) }
                 .buttonStyle(.plain)
+        }
+    }
+
+    /// Recently added and Wanted, square, side by side; one of them alone keeps its half, on the left.
+    @ViewBuilder private func highlightsRow(_ shown: [HomeTile]) -> some View {
+        if let highlights, !highlights.isEmpty, !shown.isEmpty {
+            TileRow {
+                if shown.contains(.recentlyAdded) {
+                    openLibrary(.recent) { RecentlyAddedTile(highlights: highlights) }
+                }
+                if shown.contains(.wanted) {
+                    openLibrary(.wanted) { WantedTile(count: highlights.wanted) }
+                }
+                if shown.count == 1 { Color.clear.frame(maxWidth: .infinity) }
+            }
         }
     }
 

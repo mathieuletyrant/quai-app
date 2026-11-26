@@ -104,6 +104,18 @@ export const FlowPreference = Schema.Struct({
 export type FlowPreference = typeof FlowPreference.Type
 
 /** What this iPhone wants to receive, per flow id. A flow left out: on, every step. */
+/**
+ * The Home tab's tiles as this iPhone set them (GLOSSARY: Home tiles), by name: `toFix`, `requests`,
+ * `upcoming`, `alerts`, `recentlyAdded`, `wanted`, `storage`. Names, not a closed list: an app that
+ * doesn't know one skips it, and a tile missing from `order` goes last.
+ */
+export const HomeTiles = Schema.Struct({
+  /** Top to bottom; Recently added and Wanted share a row, placed where the first of them is. */
+  order: Schema.Array(Schema.String),
+  hidden: Schema.Array(Schema.String)
+}).annotate({ identifier: "HomeTiles" })
+export type HomeTiles = typeof HomeTiles.Type
+
 export const DevicePreferences = Schema.Struct({
   flows: Schema.Record(Schema.String, FlowPreference),
   /** Alerts this iPhone doesn't want notified. Absent: every alert. */
@@ -111,7 +123,9 @@ export const DevicePreferences = Schema.Struct({
   /** What this iPhone wants notified once gone. Absent: nothing, Gone is off until turned on. */
   gone: Schema.optionalKey(Schema.Array(GoneKind)),
   /** The Seerr user this iPhone requests as. Absent: Seerr's admin, the owner of Quai Home's key. */
-  seerrUserId: Schema.optionalKey(Schema.Int)
+  seerrUserId: Schema.optionalKey(Schema.Int),
+  /** The Home tab's tiles, ordered and hidden. Absent: every tile, in the app's order. */
+  homeTiles: Schema.optionalKey(HomeTiles)
 }).annotate({ identifier: "DevicePreferences" })
 export type DevicePreferences = typeof DevicePreferences.Type
 

@@ -62,6 +62,12 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                         NavigationLink {
+                            HomeTilesView()
+                        } label: {
+                            ListRow(title: "Home tiles", systemImage: "square.grid.2x2.fill", iconColor: Palette.accent, chevron: true)
+                        }
+                        .buttonStyle(.plain)
+                        NavigationLink {
                             NotificationSettingsView()
                         } label: {
                             ListRow(title: "Notifications", systemImage: "bell.badge.fill", iconColor: Palette.alert, chevron: true)

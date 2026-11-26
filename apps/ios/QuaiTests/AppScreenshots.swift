@@ -128,6 +128,14 @@ struct AppScreenshots {
         try await Self.until("the notification toggles") { Self.hasSwitch(in: notifications) }
         try await Self.settle()
         Self.screenshot(notifications, "05-settings-notifications")
+
+        let tiles = try Self.show(
+            NavigationStack { HomeTilesView() }.tint(.quaiAccent).preferredColorScheme(.dark),
+            connection
+        )
+        try await Self.until("the Home tiles' switches") { Self.hasSwitch(in: tiles) }
+        try await Self.settle()
+        Self.screenshot(tiles, "05-settings-home-tiles")
     }
 
     /// The search with "dune" typed: Seerr's results, each with where it stands.

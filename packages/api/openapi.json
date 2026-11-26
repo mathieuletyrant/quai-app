@@ -4794,10 +4794,35 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "homeTiles": {
+            "$ref": "#/components/schemas/HomeTiles"
           }
         },
         "required": [
           "flows"
+        ],
+        "additionalProperties": false
+      },
+      "HomeTiles": {
+        "type": "object",
+        "properties": {
+          "order": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hidden": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "order",
+          "hidden"
         ],
         "additionalProperties": false
       },
