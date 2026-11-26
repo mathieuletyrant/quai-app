@@ -1,5 +1,5 @@
 // Renders each <section class="shot"> of index.html to a PNG per App Store display size:
-// out/6.9/<id>.png (1320 × 2868, the page's own size) and out/6.5/<id>.png (1284 × 2778).
+// out/6.9/<id>.png (1320 × 2868, the page's own size), out/6.5/<id>.png (1284 × 2778) and out/6.3/<id>.png (1206 × 2622).
 // node apps/ios/AppStore/render.mjs            all of them
 // node apps/ios/AppStore/render.mjs 04-upcoming   one
 import { mkdirSync } from "node:fs"
@@ -11,10 +11,12 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 const { chromium } = createRequire(import.meta.url)("playwright")
 const here = dirname(fileURLToPath(import.meta.url))
 
-// The 6.5" screen is a little wider than the 6.9" one: scaled to its width, the shot is cut a few pixels at the bottom.
+// The smaller screens are a little wider than the 6.9" one: scaled to its width, the shot is cut a few pixels at the bottom.
+// One portrait size App Store Connect takes per display tab.
 const sizes = [
   { name: "6.9", width: 1320, height: 2868 },
-  { name: "6.5", width: 1284, height: 2778 }
+  { name: "6.5", width: 1284, height: 2778 },
+  { name: "6.3", width: 1206, height: 2622 }
 ]
 const wanted = process.argv.slice(2)
 const browser = await chromium.launch()
