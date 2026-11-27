@@ -80,4 +80,30 @@ describe("when Reclaimerr deletes a candidate", () => {
       ])
     expect(plannedDeletions(items, { ...task, enabled: false })).toEqual([])
   })
+
+  it("a candidate Reclaimerr holds (`blocked`, since 0.6.19) is not planned, whatever its date", () => {
+    // Reclaimerr 0.6.19 (jessielw/Reclaimerr#556): a candidate a protection or a pending request holds
+    // reads `blocked`, with its `auto_delete_blockers`; before, it stayed `eligible` and never went.
+    const candidate = {
+      id: 7,
+      media_type: "series",
+      title: "Vampire Diaries",
+      scope: "series",
+      reason: "Fully watched seasons",
+      auto_delete_eligible_at: "2026-11-25T00:00:00Z",
+      blockers: [],
+      auto_delete_blockers: [{ code: "active_protection", scope: "season", target_id: 8, season_number: 8 }]
+    }
+    const { items } = Schema.decodeUnknownSync(CandidatePage)({
+      items: [{ ...candidate, auto_delete_state: "blocked" }, {
+        ...candidate,
+        id: 8,
+        scope: "season",
+        season_number: 7,
+        auto_delete_state: "eligible",
+        auto_delete_blockers: []
+      }]
+    })
+    expect(plannedDeletions(items, daily).map(({ candidate }) => candidate.id)).toEqual([8])
+  })
 })
