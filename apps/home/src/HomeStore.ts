@@ -11,7 +11,7 @@ export interface HomeDocument {
 }
 
 /**
- * The home's documents (flows, devices, activity state), kept for the cloud, which stores nothing.
+ * The home's documents (flows, devices, activity state), kept at home: Quai Cloud stores nothing.
  * Quai Home never reads them: one JSON file per key, `flows/download` → `flows/download.json`.
  */
 export class HomeStore extends Context.Service<HomeStore, {

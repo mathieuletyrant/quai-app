@@ -5,6 +5,7 @@ import { timingSafeEqual } from "node:crypto"
 import { HomeKey } from "./HomeKey.ts"
 import { Journal } from "./Journal.ts"
 import { Link } from "./Link.ts"
+import { LocalHome } from "./LocalHome.ts"
 
 /** The URL a service should call, as seen from its container. */
 export const webhookUrl = (internalUrl: string, service: string, token: string) =>
@@ -14,12 +15,13 @@ const sameToken = (given: string, expected: string) =>
   given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected))
 
 /**
- * `POST /webhooks/<service>` forwards the payload to the cloud as it is; `GET /health` says
+ * `POST /webhooks/<service>` hands the payload to the domain as it is; `GET /health` says
  * whether Quai Home is linked, and as which home.
  */
 export const WebhooksLive = HttpRouter.use((router) =>
   Effect.gen(function*() {
     const link = yield* Link
+    const local = yield* LocalHome
     const key = yield* HomeKey
     const journal = yield* Journal
 
@@ -39,14 +41,14 @@ export const WebhooksLive = HttpRouter.use((router) =>
           if (!sameToken(given, key.webhookToken)) return HttpServerResponse.empty({ status: 401 })
           const body = yield* request.json
           const receivedAt = yield* Clock.currentTimeMillis
-          // The service only: what the payload means is for the Cloud to say.
+          // The service only: what the payload means is for its integration to say.
           yield* journal.note({
             level: "info",
             source: service,
             kind: "webhook.received",
             text: `${journalSourceNames[service]} sent a webhook`
           })
-          yield* link.send(HomeProtocol.WebhookReceived.make({ service, receivedAt, body }))
+          yield* local.webhook(service, receivedAt, body)
           return HttpServerResponse.empty({ status: 204 })
         }).pipe(
           Effect.catchTag("HttpServerError", () => Effect.succeed(HttpServerResponse.empty({ status: 400 })))

@@ -142,6 +142,9 @@ importers:
       '@quai/api':
         specifier: workspace:*
         version: link:../../packages/api
+      '@quai/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       effect:
         specifier: 'catalog:'
         version: 4.1.4

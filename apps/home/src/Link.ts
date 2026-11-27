@@ -1,23 +1,21 @@
 import { HomeProtocol } from "@quai/api"
-import { Clock, Context, Deferred, Effect, Layer, PubSub, Queue, Ref, Schema, type Scope, Semaphore } from "effect"
+import type { RelayedAnswer } from "@quai/domain/home/ConsoleRelay.ts"
+import { ApnsError, type ApnsRequest } from "@quai/domain/push/Apns.ts"
+import { Clock, Context, Deferred, Effect, Layer, PubSub, Ref, Schema, type Scope, Semaphore } from "effect"
 import { Socket } from "effect/socket"
-import { Calls } from "./Calls.ts"
 import { CloudSeen } from "./CloudSeen.ts"
 import { configuredServices, HomeConfig } from "./Config.ts"
-import { CloudUnreachable, type StoreError } from "./Errors.ts"
 import { HomeKey } from "./HomeKey.ts"
-import { HomeStore } from "./HomeStore.ts"
 import { Journal } from "./Journal.ts"
+import { LocalHome, startingMessage } from "./LocalHome.ts"
 import { ServiceSettings } from "./ServiceSettings.ts"
 import { homeVersion } from "./Version.ts"
-import { Watches } from "./Watches.ts"
 
 type HomeMessage = HomeProtocol.HomeMessage
 type CloudMessageOf<Tag extends HomeProtocol.CloudMessage["_tag"]> = Extract<
   HomeProtocol.CloudMessage,
   { readonly _tag: Tag }
 >
-type StoreRequest = Extract<HomeProtocol.CloudMessage, { readonly _tag: "StoreList" | "StorePut" | "StoreDelete" }>
 
 const HomeJson = Schema.fromJsonString(HomeProtocol.HomeMessage)
 const CloudJson = Schema.fromJsonString(HomeProtocol.CloudMessage)
@@ -31,47 +29,53 @@ export const reconnectDelayMs = (failures: number) => Math.min(1_000 * 2 ** fail
 /** The cloud pings every 20 s: this long without one, the link is dead even if the socket isn't closed. */
 export const heartbeatTimeoutMs = 60_000
 
-/** How long the console waits for Quai Cloud to answer one of its requests. */
-export const consoleRequestTimeoutMs = 20_000
+/** How long a push waits for Quai Cloud to say what APNs answered (APNs itself gets 10 s there). */
+export const pushTimeoutMs = 15_000
 
-/** What the console is told while there's no Cloud to relay to. */
-export const noCloudMessage = "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home"
+/**
+ * The link down this long is said in the journal, and its return after that: the hosted Cloud's
+ * drops of a few seconds, several times a day, are not.
+ */
+export const unreachableAfterMs = 60_000
+
+/** Why a push didn't go, when it never reached APNs. */
 export const notLinkedMessage = "Quai Cloud isn't reachable"
+export const noCloudMessage = "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home"
 
-/** A console request, as Quai Home relays it. */
-export type ConsoleRequest = Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">
+/** One of the app's requests, as Quai Cloud relays it, and what answers it: the home's own routes. */
+export type AppRequest = Omit<HomeProtocol.AppRequest, "_tag" | "id">
+export type AppHandler = (request: AppRequest) => Effect.Effect<RelayedAnswer>
 
-/** At most this many webhooks wait for the link to come back; past it, the oldest go. */
-export const heldWebhooksLimit = 100
-
-const callConcurrency = 8
+/** The app's requests answered at once; the others wait their turn. */
+const appConcurrency = 8
 
 type Outcome =
   | { readonly _tag: "Closed"; readonly reason: string }
   | { readonly _tag: "Refused"; readonly reason: string; readonly retryAfterSeconds: number }
 
+const unsent = (reason: string) => new ApnsError({ status: null, reason, tokenGone: false })
+
 /**
- * The one WebSocket to the cloud. Proves the home key on each connection, runs the cloud's calls,
- * watches and store operations, and reconnects on its own.
+ * The one WebSocket to Quai Cloud. Quai Home runs Quai for its home (ADR 3): over the link it only
+ * proves the home key, answers the app's requests the Cloud relays, asks the Cloud to send its
+ * pushes, and says which pairing codes are open. It reconnects on its own.
  */
 export class Link extends Context.Service<Link, {
-  /**
-   * Sends a message to the cloud. While the link is down (the hosted Cloud's drops a few times a day,
-   * for seconds) it waits, up to `heldWebhooksLimit`, and goes once the Cloud welcomes this home again.
-   */
-  readonly send: (message: HomeMessage) => Effect.Effect<void>
   /** Whether the cloud welcomed this connection. */
   readonly linked: Effect.Effect<boolean>
-  /** Relays one of the console's requests to the Cloud, and its answer back. */
-  readonly console: (
-    request: ConsoleRequest
-  ) => Effect.Effect<{ readonly status: number; readonly body: string }, CloudUnreachable>
+  /** What the Cloud last said of itself in its Welcome: its push key's settings, its public access. */
+  readonly welcome: () => HomeProtocol.Welcome | null
+  /** Has Quai Cloud send one push to APNs. Fails, as APNs would, when it can't be reached or refuses. */
+  readonly push: (request: ApnsRequest) => Effect.Effect<void, ApnsError>
+  /** Answers the app's requests the Cloud relays. Until set, 503. */
+  readonly answerApp: (handler: AppHandler) => Effect.Effect<void>
 }>()("quai-home/Link") {
-  /** No `QUAI_CLOUD_URL`: nothing to link to, every console request says so. */
+  /** No `QUAI_CLOUD_URL`: nothing to link to. Quai Home runs alone: no app from outside, no push. */
   static readonly unlinked = Layer.succeed(Link, {
-    send: (message) => Effect.logDebug(`no Quai Cloud: dropped ${message._tag}`),
     linked: Effect.succeed(false),
-    console: () => Effect.fail(new CloudUnreachable({ message: noCloudMessage }))
+    welcome: () => null,
+    push: () => Effect.fail(unsent(noCloudMessage)),
+    answerApp: () => Effect.void
   })
 
   static readonly layer = Layer.effect(
@@ -81,20 +85,22 @@ export class Link extends Context.Service<Link, {
       const settings = yield* ServiceSettings
       const cloudSeen = yield* CloudSeen
       const key = yield* HomeKey
-      const calls = yield* Calls
-      const watches = yield* Watches
-      const store = yield* HomeStore
+      const local = yield* LocalHome
       const journal = yield* Journal
       const socket = yield* Socket.Socket
       const current = yield* Ref.make<((message: HomeMessage) => Effect.Effect<void>) | null>(null)
       const linked = yield* Ref.make(false)
       const failures = yield* Ref.make(0)
-      const consoleCount = yield* Ref.make(0)
-      /** What came while the link was down. Sends and the flush on Welcome take turns. */
-      const held: Array<HomeMessage> = []
-      const gate = yield* Semaphore.make(1)
-      /** The console's requests waiting for the Cloud's answer, on the current connection. */
-      const consolePending = new Map<string, Deferred.Deferred<HomeProtocol.ConsoleResponse, CloudUnreachable>>()
+      const pushCount = yield* Ref.make(0)
+      const appHandler = yield* Ref.make<AppHandler | null>(null)
+      let welcome: HomeProtocol.Welcome | null = null
+      /** Why the Cloud last refused this home: said once in the journal, not at every try. */
+      let refusedFor: string | null = null
+      /** Since when the link is down, and whether the journal said so. */
+      let downSince: number | null = null
+      let saidUnreachable = false
+      /** The pushes waiting for the Cloud's answer, on the current connection. */
+      const pushes = new Map<string, Deferred.Deferred<HomeProtocol.PushResponse, ApnsError>>()
 
       const hello = Effect.map(settings.current, (endpoints) =>
         HomeProtocol.Hello.make({
@@ -105,24 +111,6 @@ export class Link extends Context.Service<Link, {
           webUrls: config.webUrls
         }))
 
-      const runStore = (request: StoreRequest): Effect.Effect<HomeMessage> => {
-        const done = HomeProtocol.StoreDone.make({ id: request.id })
-        const operation: Effect.Effect<HomeMessage, StoreError> = request._tag === "StoreList"
-          ? Effect.map(
-            store.list(request.prefix),
-            (documents) => HomeProtocol.StoreDocuments.make({ id: request.id, documents })
-          )
-          : request._tag === "StorePut"
-          ? Effect.as(store.put(request.key, request.value), done)
-          : Effect.as(store.delete(request.key), done)
-        return operation.pipe(
-          Effect.catchTag(
-            "StoreError",
-            (error) => Effect.succeed(HomeProtocol.Failed.make({ id: request.id, reason: error.message }))
-          )
-        )
-      }
-
       const connection = Effect.gen(function*() {
         const pull = yield* Socket.readerString(socket)
         const writer = yield* socket.writer
@@ -131,15 +119,7 @@ export class Link extends Context.Service<Link, {
             Effect.flatMap(writer.write),
             Effect.catch((error) => Effect.logWarning(`could not send ${message._tag}`, error))
           )
-        const semaphore = yield* Semaphore.make(callConcurrency)
-        const watcher = yield* watches.make(write)
-        // Store operations run one at a time, in the order the cloud sent them.
-        const storeQueue = yield* Queue.unbounded<StoreRequest>()
-        yield* Effect.forkScoped(
-          Effect.forever(
-            Effect.flatMap(Queue.take(storeQueue), (storeRequest) => Effect.flatMap(runStore(storeRequest), write))
-          )
-        )
+        const semaphore = yield* Semaphore.make(appConcurrency)
         const lastPing = yield* Ref.make(yield* Clock.currentTimeMillis)
 
         yield* write(yield* hello)
@@ -148,10 +128,8 @@ export class Link extends Context.Service<Link, {
           Effect.gen(function*() {
             yield* Ref.set(current, null)
             yield* Ref.set(linked, false)
-            for (const answer of consolePending.values()) {
-              yield* Deferred.fail(answer, new CloudUnreachable({ message: notLinkedMessage }))
-            }
-            consolePending.clear()
+            for (const answer of pushes.values()) yield* Deferred.fail(answer, unsent(notLinkedMessage))
+            pushes.clear()
           })
         )
         // A service set or removed from the console: the Cloud hears which services this home reaches now.
@@ -162,46 +140,54 @@ export class Link extends Context.Service<Link, {
           yield* write(HomeProtocol.ServicesChanged.make({ services: configuredServices(yield* settings.current) }))
         })))
 
-        /** The Cloud welcomed this home: what waited goes, the watches start over, the journal streams. */
+        /** What this connection last told the Cloud of the pairing codes: said again only when it changed. */
+        let told: string | null = null
+        const pairingCodes = Effect.flatMap(local.pairingHashes, (open) => {
+          const hashes = open.slice(0, HomeProtocol.maxPairingCodes)
+          if (told === hashes.join()) return Effect.void
+          told = hashes.join()
+          return write(HomeProtocol.PairingCodes.make({ hashes }))
+        })
+
+        /** The Cloud welcomed this home: it hears the open pairing codes, now and as they change. */
         const welcomed = (message: CloudMessageOf<"Welcome">) =>
           Effect.gen(function*() {
             if (message.homeId !== key.homeId) {
               yield* Effect.logWarning(`the cloud welcomed home ${message.homeId}, this is ${key.homeId}`)
             }
             yield* Effect.logInfo(`linked as home ${key.homeId}`)
+            welcome = message
+            refusedFor = null
+            yield* reachable
             yield* Ref.set(failures, 0)
-            yield* gate.withPermit(Effect.gen(function*() {
-              yield* Ref.set(linked, true)
-              if (held.length > 0) {
-                yield* Effect.logInfo(`sending ${held.length} message(s) held while the link was down`)
-              }
-              for (const waiting of held.splice(0)) yield* write(waiting)
-            }))
+            yield* Ref.set(linked, true)
             // On disk, without holding up the link.
             yield* Effect.forkDetach(cloudSeen.linked)
-            yield* watcher.reset
-            // Quai Home's own journal lines, for the Cloud's live view: they're kept here already.
-            yield* Effect.forkScoped(
-              Effect.forever(
-                Effect.flatMap(journal.noted, (entries) => write(HomeProtocol.JournalNoted.make({ entries })))
-              )
-            )
+            yield* pairingCodes
+            yield* Effect.forkScoped(Effect.forever(Effect.andThen(local.pairingChanged, pairingCodes)))
           })
 
-        /** The Cloud's answer to a console request still waiting on this connection. */
-        const answered = (message: CloudMessageOf<"ConsoleResponse">) =>
+        /** One of the app's requests: answered by the home's routes, a few at a time. */
+        const answerApp = (message: CloudMessageOf<"AppRequest">) =>
+          Effect.gen(function*() {
+            const { _tag, id, ...request } = message
+            const handler = yield* Ref.get(appHandler)
+            const answer: RelayedAnswer = handler === null || !HomeProtocol.isAppPath(request.path)
+              ? handler === null
+                ? { status: 503, body: JSON.stringify({ _tag: "HomeOffline", message: startingMessage }) }
+                : { status: 404, body: "" }
+              : yield* handler(request)
+            yield* write(HomeProtocol.AppResponse.make({ id, ...answer }))
+          })
+
+        /** What APNs answered a push still waiting on this connection. */
+        const pushed = (message: CloudMessageOf<"PushResponse">) =>
           Effect.suspend(() => {
-            const answer = consolePending.get(message.id)
+            const answer = pushes.get(message.id)
             if (answer === undefined) return Effect.void
-            consolePending.delete(message.id)
+            pushes.delete(message.id)
             return Deferred.succeed(answer, message)
           })
-
-        const journalPage = (message: CloudMessageOf<"JournalRead">) =>
-          Effect.flatMap(
-            journal.read(message.query),
-            (page) => write(HomeProtocol.JournalPage.make({ id: message.id, entries: page.entries, more: page.more }))
-          )
 
         /** One message from the Cloud that keeps the connection going. */
         const handle = (
@@ -217,21 +203,21 @@ export class Link extends Context.Service<Link, {
                 Effect.flatMap(Clock.currentTimeMillis, (now) => Ref.set(lastPing, now)),
                 () => write(HomeProtocol.Pong.make({ at: message.at }))
               )
+            case "AppRequest":
+              return Effect.asVoid(Effect.forkScoped(semaphore.withPermit(answerApp(message))))
+            case "PushResponse":
+              return pushed(message)
+            // What a Cloud asks a Quai Home that doesn't run Quai: this one does, and answers none of it.
             case "Call":
-              return Effect.asVoid(Effect.forkScoped(semaphore.withPermit(Effect.flatMap(calls.run(message), write))))
-            case "SetWatches":
-              return watcher.set(message.watches)
             case "StoreList":
             case "StorePut":
             case "StoreDelete":
-              return Effect.asVoid(Queue.offer(storeQueue, message))
-            // In memory, so in the order sent: a read after an append sees it.
-            case "JournalAppend":
-              return journal.append(message.entries)
-            case "ConsoleResponse":
-              return answered(message)
             case "JournalRead":
-              return journalPage(message)
+              return write(HomeProtocol.Failed.make({ id: message.id, reason: "this Quai Home runs Quai itself" }))
+            case "SetWatches":
+            case "JournalAppend":
+            case "ConsoleResponse":
+              return Effect.void
           }
         }
 
@@ -289,12 +275,54 @@ export class Link extends Context.Service<Link, {
         )
       )
 
+      /** A refusal goes to the journal once per reason: a Cloud too old for this Quai Home says so there. */
+      const refused = (reason: string) =>
+        Effect.suspend(() => {
+          if (refusedFor === reason) return Effect.void
+          refusedFor = reason
+          return journal.note({
+            level: "warn",
+            source: "cloud",
+            kind: "cloud.refused",
+            text: `Quai Cloud refused this Quai Home: ${reason}`
+          })
+        })
+
+      /** Linked again: the journal says so when it said the Cloud was out of reach. */
+      const reachable = Effect.suspend(() => {
+        downSince = null
+        if (!saidUnreachable) return Effect.void
+        saidUnreachable = false
+        return journal.note({
+          level: "info",
+          source: "cloud",
+          kind: "cloud.reachable",
+          text: "Quai Cloud is reachable again"
+        })
+      })
+
+      /** Still not linked: once it has lasted `unreachableAfterMs`, the journal says what that means. */
+      const unreachable = Effect.gen(function*() {
+        const now = yield* Clock.currentTimeMillis
+        downSince ??= now
+        if (saidUnreachable || now - downSince < unreachableAfterMs) return
+        saidUnreachable = true
+        yield* journal.note({
+          level: "warn",
+          source: "cloud",
+          kind: "cloud.unreachable",
+          text: "Quai Cloud isn't reachable: the app can't reach this home from outside, and nothing is pushed"
+        })
+      })
+
       const loop = Effect.gen(function*() {
         while (true) {
           const outcome: Outcome = yield* connection
+          yield* unreachable
           if (outcome._tag === "Refused") {
             const seconds = Math.max(1, outcome.retryAfterSeconds)
             yield* Effect.logWarning(`the cloud refused this home: ${outcome.reason}. Trying again in ${seconds} s`)
+            yield* refused(outcome.reason)
             yield* Ref.set(failures, 0)
             yield* Effect.sleep(`${seconds} seconds`)
           } else {
@@ -307,33 +335,27 @@ export class Link extends Context.Service<Link, {
 
       return {
         linked: Ref.get(linked),
-        console: (request) =>
+        welcome: () => welcome,
+        answerApp: (handler) => Ref.set(appHandler, handler),
+        push: (request) =>
           Effect.gen(function*() {
             const write = yield* Ref.get(current)
-            if (write === null || !(yield* Ref.get(linked))) {
-              return yield* Effect.fail(new CloudUnreachable({ message: notLinkedMessage }))
-            }
-            const id = `c${yield* Ref.updateAndGet(consoleCount, (count) => count + 1)}`
-            const answer = yield* Deferred.make<HomeProtocol.ConsoleResponse, CloudUnreachable>()
-            consolePending.set(id, answer)
-            yield* write(HomeProtocol.ConsoleRequest.make({ ...request, id }))
+            if (write === null || !(yield* Ref.get(linked))) return yield* Effect.fail(unsent(notLinkedMessage))
+            const id = `p${yield* Ref.updateAndGet(pushCount, (count) => count + 1)}`
+            const answer = yield* Deferred.make<HomeProtocol.PushResponse, ApnsError>()
+            pushes.set(id, answer)
+            yield* write(
+              HomeProtocol.PushRequest.make({ ...request, id, body: request.body as Record<string, unknown> })
+            )
             const response = yield* Deferred.await(answer).pipe(
               Effect.timeoutOrElse({
-                duration: consoleRequestTimeoutMs,
-                orElse: () => Effect.fail(new CloudUnreachable({ message: "Quai Cloud didn't answer in time" }))
+                duration: pushTimeoutMs,
+                orElse: () => Effect.fail(unsent("Quai Cloud didn't answer in time"))
               }),
-              Effect.ensuring(Effect.sync(() => consolePending.delete(id)))
+              Effect.ensuring(Effect.sync(() => pushes.delete(id)))
             )
-            return { status: response.status, body: response.body }
-          }),
-        send: (message) =>
-          gate.withPermit(Effect.gen(function*() {
-            const write = yield* Ref.get(current)
-            if (write !== null && (yield* Ref.get(linked))) return yield* write(message)
-            held.push(message)
-            if (held.length > heldWebhooksLimit) held.shift()
-            yield* Effect.logDebug(`not linked: holding ${message._tag}`)
-          }))
+            if (response.error !== undefined) return yield* Effect.fail(new ApnsError(response.error))
+          })
       }
     })
   )

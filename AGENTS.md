@@ -7,9 +7,9 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 | Path | Role |
 | --- | --- |
 | `packages/api` | The contract: Effect `HttpApi` + `Schema`. Single source of truth for routes and types. Generates `openapi.json`. |
-| `packages/domain` | The domain: everything Quai does for one home (integrations, flows and engine, alerts, journal, the app's pages and their routes), on a home link. Quai Cloud runs it today; Quai Home will ([ADR 3](docs/adr/0003-quai-home-runs-quai.md)). |
-| `apps/home` | Quai Home: runs next to the services with their keys (environment, or the console's Services page in `/data`), links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents, serves the console behind `QUAI_HOME_PASSWORD` and relays its `/console-api` requests to the Cloud. |
-| `apps/cloud` | Quai Cloud, Effect on Node, one for many homes: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, answers the console's routes Quai Home relays (never on its public port). No interface, keeps nothing: the home's data lives in Quai Home. |
+| `packages/domain` | The domain: everything Quai does for one home (integrations, flows and engine, alerts, journal, the app's pages and their routes), on a home link. Quai Home runs it; Quai Cloud still does for a Quai Home from before [ADR 3](docs/adr/0003-quai-home-runs-quai.md) (protocol 12 and under). |
+| `apps/home` | Quai Home: runs next to the services with their keys (environment, or the console's Services page in `/data`) and runs Quai for its home: the domain on the home answered in place (`LocalHome`: its allowlisted calls and watches, the home's documents, the journal), the console behind `QUAI_HOME_PASSWORD`. Links to Quai Cloud over a WebSocket to answer the app's requests it relays and to have its pushes sent. |
+| `apps/cloud` | Quai Cloud, Effect on Node, one for many homes: the homes' WebSocket, the app relay to each Quai Home that runs Quai, its pushes to APNs with the key. No interface, keeps nothing, computes nothing for such a home. For an older Quai Home it runs the domain itself, on that home's link (never the console on its public port). |
 | `apps/console` | React + Vite web console, served by Quai Home, with typed clients derived from `packages/api` (`QuaiApi` relayed to the Cloud, `HomeConsoleApi` Quai Home's own). |
 | `apps/site` | The public website (landing, privacy policy, support): static HTML in `public/`, no build. The `site` workflow deploys it on each push to `main` as a Worker with static assets (`wrangler.jsonc`, custom domain `quai.stream`, `_headers` for its headers); it needs the `CLOUDFLARE_API_TOKEN` secret. Fonts are self-hosted: the pages load nothing from another site but Cloudflare Web Analytics' beacon (no cookies), which `_headers`' CSP and the privacy policy's "This website" allow. `pnpm --filter @quai/site dev` serves it on :8790. |
 | `apps/ios` | SwiftUI app + widget extension (Live Activities). XcodeGen project (`project.yml`), client generated from `openapi.json` into `Quai/Generated`, not committed: the CI's `ios-client` job makes it, `pnpm gen:client` locally. |
@@ -21,6 +21,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 
 - Quai ships **two generic Docker images**, `quai-home` and `quai` (the Cloud). No code, type or route may assume Umbrel or any other host.
 - Quai Cloud stores nothing about a home: no database, nothing on disk. A home's data lives in Quai Home, behind the home store.
+- Quai Cloud computes nothing for a home whose Quai Home runs Quai: it relays and pushes. Nothing about a service, a flow or a page is written in `apps/cloud`.
 - The services' keys never reach the Cloud, not even through a page it serves: they are set in Quai Home's console (`ServiceSettings`) or its environment ([ADR 1](docs/adr/0001-console-served-by-quai-home.md)).
 - The contract (`packages/api`) only talks about Quai: *arr services, activities, devices. Never the host.
 - All configuration comes from `QUAI_*` environment variables and the `/data` volume.
@@ -43,7 +44,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 - `effect` and `@effect/*` are pinned to **4.1.4** through the `catalog:` in `pnpm-workspace.yaml`. Never bump them unasked: `effect/http`, `effect/http-api` and `effect/sql` are marked unstable.
 - Reference docs: https://effect.website/llms.txt (v4). When unsure of a signature, read the `.d.ts` files in `node_modules/effect/dist/`.
-- One service = one `Context.Service` + one `Layer` (`static readonly layer`). The Cloud never calls a service itself: its calls go through `HomeReads` (offline is 503, a service that didn't answer is unavailable), its watches through `HomeLink`.
+- One service = one `Context.Service` + one `Layer` (`static readonly layer`). The domain never calls a service itself: its calls go through `HomeReads` (offline is 503, a service that didn't answer is unavailable), its watches through `HomeLink`.
 - Each service's events (webhook or polling) and actions live in one integration module, `packages/domain/src/integrations/<service>.ts` (see [`docs/flows.md`](docs/flows.md#integrations)).
 - Errors: `Data.TaggedError` (or `Schema.TaggedError` when they cross the API). No `throw`.
 - No bare `Promise` or `async` on the server: everything is an `Effect`. `Promise` is only allowed at the console's React boundary.
@@ -61,6 +62,7 @@ states, theme tokens), [`apps/ios/AGENTS.md`](apps/ios/AGENTS.md) (errors, the l
 - **Test relentlessly.** Every change comes with its tests: a feature, a fix (a test that goes red on the bug first), each branch of a rule, and its edges (empty, missing, offline, a date already past, a service that didn't answer). A change is done when every behaviour it adds or touches has a test.
 - `@effect/vitest` (`it.effect`); move time with `TestClock.adjust`, never real waits.
 - Routes: `HttpApiTest.groups(QuaiApi, [...])` with `NodeHttpServer.layerTest`.
+- The domain's tests are in `apps/cloud/test`, over the Cloud's link to a fake Quai Home that only proxies (`proxyProtocol`); Quai Home's own (`apps/home/test`) cover the home answered in place (`localHome.test.ts`), its link to a fake Cloud (`link.test.ts`) and the domain run there end to end (`domain.test.ts`); the Cloud's relay and pushes for a Quai Home that runs Quai are in `test/home/relay.test.ts`.
 - Quai Home in Cloud tests: `makeFakeHome` with `recordedHome(routes, overrides)` (`"radarr GET /api/v3/queue"` → fixture). It enforces the real allowlist and fails the test on a refused call or watch.
 - *arr adapters: recorded real responses (fixtures), never calls to the real stack.
 - Responses recorded from a real home live in `apps/cloud/test/fixtures/real` (its README says how they were changed) and `test/real.test.ts` runs the adapters on them: identity across services (TMDB, TVDB, IMDb ids, download hashes) is tested there first.

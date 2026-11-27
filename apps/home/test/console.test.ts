@@ -1,5 +1,6 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
+import { type ConsoleRequest, HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Effect, FileSystem, Layer, Redacted } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
@@ -7,9 +8,9 @@ import { join } from "node:path"
 import { CloudSeen } from "../src/CloudSeen.ts"
 import { ConsoleAuth, sessionMs, sessionToken, validToken } from "../src/ConsoleAuth.ts"
 import { ConsoleRelayLive, HomeApiLive } from "../src/ConsoleServer.ts"
-import { CloudUnreachable } from "../src/Errors.ts"
 import { HomeKey } from "../src/HomeKey.ts"
-import { type ConsoleRequest, Link } from "../src/Link.ts"
+import { Link } from "../src/Link.ts"
+import { LocalHome, startingMessage } from "../src/LocalHome.ts"
 import { ServiceAuth } from "../src/ServiceAuth.ts"
 import { verdict } from "../src/ServiceCheck.ts"
 import { merged, ServiceSettings } from "../src/ServiceSettings.ts"
@@ -28,7 +29,8 @@ const homeKey = Layer.succeed(HomeKey, {
 /** The console routes on an in-memory server: Radarr and Sonarr left to the Services page. */
 const consoleServer = (options: {
   readonly password?: string
-  readonly cloud?: (request: ConsoleRequest) => Effect.Effect<{ status: number; body: string }, CloudUnreachable>
+  /** What the domain's routes answer the console; without it, they aren't up yet. */
+  readonly domain?: (request: ConsoleRequest) => { status: number; body: string }
 }) => {
   const relayed: Array<ConsoleRequest> = []
   const config = configLayer({
@@ -38,16 +40,21 @@ const consoleServer = (options: {
     suggestedUrls: { sonarr: "http://sonarr_server_1:8989" },
     password: options.password === undefined ? null : Redacted.make(options.password)
   })
-  const link = Layer.succeed(Link, {
-    send: () => Effect.void,
-    linked: Effect.succeed(options.cloud !== undefined),
-    console: (request) =>
-      Effect.andThen(
-        Effect.sync(() => relayed.push(request)),
-        options.cloud?.(request) ??
-          Effect.fail(new CloudUnreachable({ message: "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home" }))
-      )
-  })
+  const link = Layer.mergeAll(
+    Link.unlinked,
+    Layer.succeed(LocalHome, {
+      link: HomeLink.offline,
+      webhook: () => Effect.void,
+      pairingHashes: Effect.succeed([]),
+      pairingChanged: Effect.never,
+      console: (request) =>
+        Effect.sync(() => {
+          relayed.push(request)
+          return options.domain?.(request) ??
+            { status: 503, body: JSON.stringify({ _tag: "HomeOffline", message: startingMessage }) }
+        })
+    })
+  )
   const radarr = fakeHttp((incoming) => {
     // Reclaimerr: a bearer token with the events:read and tasks:read scopes ("scoped"), only
     // events:read ("events"), or neither ("unscoped").
@@ -150,15 +157,13 @@ describe("console session", () => {
 })
 
 describe("console relay", () => {
-  it.effect("relays /console-api and /api/health to the Cloud, signed in only", () => {
+  it.effect("has the domain's routes answer /console-api and /api/health, signed in only", () => {
     const { layer, relayed } = consoleServer({
       password: "pw",
-      cloud: (relayed) =>
-        Effect.succeed(
-          relayed.method === "DELETE"
-            ? { status: 204, body: "" }
-            : { status: 200, body: JSON.stringify({ path: relayed.path }) }
-        )
+      domain: (asked) =>
+        asked.method === "DELETE"
+          ? { status: 204, body: "" }
+          : { status: 200, body: JSON.stringify({ path: asked.path }) }
     })
     return Effect.gen(function*() {
       expect((yield* request("GET", "/console-api/devices")).status).toBe(401)
@@ -179,14 +184,16 @@ describe("console relay", () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect("without a Cloud, answers what the console reads as offline, with what to set", () => {
-    const { layer } = consoleServer({ password: "pw" })
+  it.effect("answers what the console reads as offline until the domain's routes are up; no other path, no other method", () => {
+    const { layer, relayed } = consoleServer({ password: "pw" })
     return Effect.gen(function*() {
       const cookie = yield* signIn("pw")
       expect(yield* request("GET", "/console-api/devices", { cookie })).toMatchObject({
         status: 503,
-        json: { _tag: "HomeOffline", message: "No Quai Cloud is set: set QUAI_CLOUD_URL on Quai Home" }
+        json: { _tag: "HomeOffline", message: startingMessage }
       })
+      expect((yield* request("GET", "/console-api/../api/library", { cookie })).status).toBe(404)
+      expect(relayed).toEqual([{ method: "GET", path: "/console-api/devices" }])
     }).pipe(Effect.provide(layer))
   })
 })

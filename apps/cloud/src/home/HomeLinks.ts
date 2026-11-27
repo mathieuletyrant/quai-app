@@ -1,5 +1,6 @@
 import { HomeProtocol } from "@quai/api"
 import * as HomeId from "@quai/api/HomeId"
+import { pairingHash } from "@quai/domain/home/Devices.ts"
 import {
   type ConsoleHandler,
   type ConsoleRequest,
@@ -9,7 +10,9 @@ import {
   makeDocuments,
   offlineMessage
 } from "@quai/domain/home/HomeLink.ts"
-import { Clock, Config, Context, Deferred, Effect, Layer, Option, Queue, Ref, Schema } from "effect"
+import { PublicAccess } from "@quai/domain/PublicAccess.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { Clock, Config, Context, Deferred, Effect, Layer, Option, Queue, Redacted, Ref, Schema } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { Socket } from "effect/socket"
 import { createPublicKey, randomBytes, verify } from "node:crypto"
@@ -34,16 +37,37 @@ export const Timing = {
   /** Hello and Proof must each come within this. */
   handshakeMs: 10_000,
   /** A call or a store operation that isn't answered in this time fails. */
-  requestMs: 15_000
+  requestMs: 15_000,
+  /** A home may ask for `pushLimit` pushes in this time; past it they are refused until it has passed. */
+  pushWindowMs: 60_000
 } as const
+
+/** Pushes one home may ask for in `Timing.pushWindowMs`: a few iPhones following a few downloads stay far under it. */
+export const pushLimit = 300
+
+/** One of the app's requests, as relayed to its home, and what the home answered. */
+export type AppRelayRequest = Omit<HomeProtocol.AppRequest, "_tag" | "id">
+export interface AppRelayResponse {
+  readonly status: number
+  readonly contentType?: string
+  readonly body: string
+}
+/** Relays one request to a home that runs Quai. */
+export type AppRelay = (request: AppRelayRequest) => Effect.Effect<AppRelayResponse, HomeError>
 
 /** One live connection from a Quai Home, past its handshake. */
 interface Connection {
   services: ReadonlyArray<HomeService>
   readonly protocol: number
+  /** This Quai Home runs Quai itself (`runsQuaiProtocolVersion`): the Cloud relays to it and pushes for it, nothing else. */
+  readonly runsQuai: boolean
   readonly webUrls: HomeProtocol.WebUrls
   readonly send: (message: CloudMessage) => Effect.Effect<void>
   readonly pending: Map<string, Deferred.Deferred<Answer, HomeError>>
+  /** The app's requests relayed on this connection, waiting for the home's answer. */
+  readonly relayed: Map<string, Deferred.Deferred<HomeProtocol.AppResponse, HomeError>>
+  /** When each push of the last `Timing.pushWindowMs` was asked for. */
+  pushedAt: Array<number>
   /** Loaded from Quai Home after the Welcome: until then the home isn't ready. */
   documents: Map<string, unknown> | null
   /** Completed to close this connection: another one of the same home replaced it. */
@@ -55,6 +79,8 @@ interface Slot {
   connection: Connection | null
   readonly events: Queue.Queue<HomeEvent>
   consoleHandler: ConsoleHandler | null
+  /** The hashes of the pairing codes a home that runs Quai said are open. */
+  pairingHashes: ReadonlySet<string>
 }
 
 type HandshakeOutcome =
@@ -91,6 +117,12 @@ export class HomeLinks extends Context.Service<HomeLinks, {
   readonly nextReady: Effect.Effect<string>
   /** Forgets a home that isn't connected, with its events: false, and nothing changes, if it is. */
   readonly forget: (homeId: string) => Effect.Effect<boolean>
+  /** How to relay the app's requests to this home: None unless it is connected and runs Quai itself. */
+  readonly relayOf: (homeId: string) => Effect.Effect<Option.Option<AppRelay>>
+  /** The connected home that runs Quai and said this pairing code is one of its open ones. */
+  readonly pairingHome: (code: string) => Effect.Effect<Option.Option<string>>
+  /** The connected homes that run Quai themselves. */
+  readonly relayHomes: Effect.Effect<ReadonlyArray<string>>
 }>()("quai/HomeLinks") {
   /**
    * `QUAI_HOME_ID`, when set, lists the only homes served (comma-separated): any other is refused at
@@ -112,6 +144,26 @@ export class HomeLinks extends Context.Service<HomeLinks, {
     const maxHomes = yield* Config.option(Config.Int("QUAI_MAX_HOMES")).pipe(Effect.orDie)
     if (Option.isSome(maxHomes) && maxHomes.value < 1) return yield* Effect.die(new Error("QUAI_MAX_HOMES: at least 1"))
 
+    // What a home that runs Quai is told and given: the push key's settings and its pushes, the public access.
+    const apns = yield* Apns
+    const publicAccess = yield* PublicAccess
+    const welcomeOf = (homeId: string, runsQuai: boolean) =>
+      HomeProtocol.Welcome.make({
+        homeId,
+        ...(runsQuai
+          ? {
+            push: apns.settings,
+            publicAccess: {
+              ...Option.match(publicAccess.url, { onNone: () => ({}), onSome: (url) => ({ url }) }),
+              headers: publicAccess.headers.map((header) => ({
+                name: header.name,
+                value: Redacted.value(header.value)
+              }))
+            }
+          }
+          : {})
+      })
+
     const slots = new Map<string, Slot>()
     const readyHomes = yield* Queue.unbounded<string>()
     const requestCount = yield* Ref.make(0)
@@ -121,7 +173,7 @@ export class HomeLinks extends Context.Service<HomeLinks, {
         const existing = slots.get(homeId)
         if (existing !== undefined) return Effect.succeed(existing)
         return Effect.map(Queue.unbounded<HomeEvent>(), (events) => {
-          const created: Slot = { connection: null, events, consoleHandler: null }
+          const created: Slot = { connection: null, events, consoleHandler: null, pairingHashes: new Set() }
           slots.set(homeId, created)
           return created
         })
@@ -156,6 +208,58 @@ export class HomeLinks extends Context.Service<HomeLinks, {
             orElse: () => Effect.fail(new HomeError({ reason: "timeout", message: "Quai Home didn't answer in time" }))
           }),
           Effect.ensuring(Effect.sync(() => connection.pending.delete(id)))
+        )
+      })
+
+    /** Relays one of the app's requests on this connection, and waits for the home's answer. */
+    const relay = (connection: Connection): AppRelay => (appRequest) =>
+      Effect.gen(function*() {
+        const id = `a${yield* Ref.updateAndGet(requestCount, (count) => count + 1)}`
+        const answer = yield* Deferred.make<HomeProtocol.AppResponse, HomeError>()
+        connection.relayed.set(id, answer)
+        yield* connection.send(HomeProtocol.AppRequest.make({ ...appRequest, id }))
+        const response = yield* Deferred.await(answer).pipe(
+          Effect.timeoutOrElse({
+            duration: HomeProtocol.appRequestTimeoutSeconds * 1000,
+            orElse: () => Effect.fail(new HomeError({ reason: "timeout", message: "Quai Home didn't answer in time" }))
+          }),
+          Effect.ensuring(Effect.sync(() => connection.relayed.delete(id)))
+        )
+        return {
+          status: response.status,
+          body: response.body,
+          ...(response.contentType === undefined ? {} : { contentType: response.contentType })
+        }
+      })
+
+    /** Whether this home may ask for one more push now: at most `pushLimit` in `Timing.pushWindowMs`. */
+    const mayPush = (connection: Connection, now: number) => {
+      connection.pushedAt = connection.pushedAt.filter((at) => now - at < Timing.pushWindowMs)
+      if (connection.pushedAt.length >= pushLimit) return false
+      connection.pushedAt.push(now)
+      return true
+    }
+
+    /** Sends the push a home asked for with the Cloud's key, and tells it what APNs answered. */
+    const push = (connection: Connection, message: HomeProtocol.PushRequest) =>
+      Effect.gen(function*() {
+        const refused = (reason: string) =>
+          HomeProtocol.PushResponse.make({ id: message.id, error: { status: null, reason, tokenGone: false } })
+        if (!connection.runsQuai) return refused("this Quai Home doesn't run Quai")
+        if (!(yield* apns.configured)) return refused("this Quai Cloud has no APNs key")
+        if (!mayPush(connection, yield* Clock.currentTimeMillis)) {
+          return refused("too many pushes: try again in a minute")
+        }
+        const { _tag, id, ...request } = message
+        return yield* apns.send(request).pipe(
+          Effect.as(HomeProtocol.PushResponse.make({ id })),
+          Effect.catchTag("ApnsError", (error) =>
+            Effect.succeed(
+              HomeProtocol.PushResponse.make({
+                id,
+                error: { status: error.status, reason: error.reason, tokenGone: error.tokenGone }
+              })
+            ))
         )
       })
 
@@ -324,9 +428,12 @@ export class HomeLinks extends Context.Service<HomeLinks, {
         const connection: Connection = {
           services: outcome.services,
           protocol: outcome.protocol,
+          runsQuai: outcome.protocol >= HomeProtocol.runsQuaiProtocolVersion,
           webUrls: outcome.webUrls,
           send,
           pending: new Map(),
+          relayed: new Map(),
+          pushedAt: [],
           documents: null,
           replaced: yield* Deferred.make<void>()
         }
@@ -338,47 +445,51 @@ export class HomeLinks extends Context.Service<HomeLinks, {
             const wasReady = connection.documents !== null
             if (slot.connection === connection) slot.connection = null
             connection.documents = null
-            for (const answer of connection.pending.values()) {
-              yield* Deferred.fail(answer, new HomeError({ reason: "offline", message: offlineMessage }))
-            }
+            const offline = new HomeError({ reason: "offline", message: offlineMessage })
+            for (const answer of connection.pending.values()) yield* Deferred.fail(answer, offline)
+            for (const answer of connection.relayed.values()) yield* Deferred.fail(answer, offline)
+            if (slot.connection === null) slot.pairingHashes = new Set()
             if (wasReady && slot.connection === null) yield* Queue.offer(events, { _tag: "Gone", homeId })
             yield* Effect.logInfo(`home ${homeId} disconnected`)
           })
         )
 
-        yield* send(HomeProtocol.Welcome.make({ homeId }))
-        yield* Effect.logInfo(`home ${homeId} connected`)
+        yield* send(welcomeOf(homeId, connection.runsQuai))
+        yield* Effect.logInfo(`home ${homeId} connected${connection.runsQuai ? ": it runs Quai, relayed" : ""}`)
 
         // What Quai Home sends on its own waits for its documents, so nothing reads a home half loaded.
         const inbox = yield* Queue.unbounded<HomeEvent>()
-        yield* Effect.forkScoped(
-          Effect.gen(function*() {
-            const answer = yield* request(connection, (id) => HomeProtocol.StoreList.make({ id, prefix: "" })).pipe(
-              Effect.flatMap(failedWith)
-            )
-            if (answer._tag !== "StoreDocuments") {
-              return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
-            }
-            connection.documents = new Map(answer.documents.map((document) => [document.key, document.value]))
-            yield* Queue.offer(events, {
-              _tag: "Ready",
-              home: {
-                homeId,
-                services: connection.services,
-                protocol: connection.protocol,
-                webUrls: connection.webUrls
+        // A home that runs Quai keeps its documents to itself: nothing is loaded, nothing is asked.
+        if (!connection.runsQuai) {
+          yield* Effect.forkScoped(
+            Effect.gen(function*() {
+              const answer = yield* request(connection, (id) => HomeProtocol.StoreList.make({ id, prefix: "" })).pipe(
+                Effect.flatMap(failedWith)
+              )
+              if (answer._tag !== "StoreDocuments") {
+                return yield* Effect.fail(new HomeError({ reason: "failed", message: `unexpected ${answer._tag}` }))
               }
-            })
-            yield* Queue.offer(readyHomes, homeId)
-            yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))
-          }).pipe(
-            Effect.catchTag("HomeError", (error) =>
-              Effect.andThen(
-                Effect.logWarning(`could not load home ${homeId}: ${error.message}`),
-                Deferred.succeed(connection.replaced, undefined)
-              ))
+              connection.documents = new Map(answer.documents.map((document) => [document.key, document.value]))
+              yield* Queue.offer(events, {
+                _tag: "Ready",
+                home: {
+                  homeId,
+                  services: connection.services,
+                  protocol: connection.protocol,
+                  webUrls: connection.webUrls
+                }
+              })
+              yield* Queue.offer(readyHomes, homeId)
+              yield* Effect.forever(Effect.flatMap(Queue.take(inbox), (event) => Queue.offer(events, event)))
+            }).pipe(
+              Effect.catchTag("HomeError", (error) =>
+                Effect.andThen(
+                  Effect.logWarning(`could not load home ${homeId}: ${error.message}`),
+                  Deferred.succeed(connection.replaced, undefined)
+                ))
+            )
           )
-        )
+        }
 
         const read = Effect.forever(Effect.gen(function*() {
           const decoded = yield* next
@@ -435,6 +546,21 @@ export class HomeLinks extends Context.Service<HomeLinks, {
                   webUrls: connection.webUrls
                 }
               })
+            case "AppResponse": {
+              const answer = connection.relayed.get(message.id)
+              if (answer === undefined) {
+                return
+              }
+              connection.relayed.delete(message.id)
+              return yield* Deferred.succeed(answer, message)
+            }
+            case "PushRequest":
+              return yield* Effect.forkScoped(Effect.flatMap(push(connection, message), send))
+            case "PairingCodes":
+              if (connection.runsQuai) {
+                slot.pairingHashes = new Set(message.hashes.slice(0, HomeProtocol.maxPairingCodes))
+              }
+              return
             case "Pong":
             case "Hello":
             case "Proof":
@@ -466,7 +592,23 @@ export class HomeLinks extends Context.Service<HomeLinks, {
         Effect.catchTag("SocketError", () => Effect.void)
       )
 
+    /** The connection of a home that runs Quai, while it is connected. */
+    const relaying = (slot: Slot | undefined) =>
+      slot !== undefined && slot.connection !== null && slot.connection.runsQuai ? slot.connection : null
+
     return {
+      relayOf: (homeId) =>
+        Effect.sync(() => {
+          const connection = relaying(slots.get(homeId))
+          return connection === null ? Option.none() : Option.some(relay(connection))
+        }),
+      pairingHome: (code) =>
+        Effect.sync(() => {
+          const hash = pairingHash(code)
+          const holder = [...slots].find(([, slot]) => relaying(slot) !== null && slot.pairingHashes.has(hash))
+          return Option.fromNullishOr(holder?.[0])
+        }),
+      relayHomes: Effect.sync(() => [...slots].flatMap(([homeId, slot]) => relaying(slot) === null ? [] : [homeId])),
       serve,
       link: linkOf,
       nextReady: Queue.take(readyHomes),

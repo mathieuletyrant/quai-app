@@ -1,9 +1,10 @@
+import { HomeProtocol } from "@quai/api"
 import { Devices } from "@quai/domain/home/Devices.ts"
 import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
 import { HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Clock, Context, Effect, Exit, Layer, Option, Schedule, Scope, Semaphore } from "effect"
-import { HttpRouter, HttpServerRequest, type HttpServerResponse } from "effect/http"
-import { HomeLinks } from "./HomeLinks.ts"
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
+import { type AppRelay, HomeLinks } from "./HomeLinks.ts"
 
 export const Timing = {
   /** A home gone this long is forgotten: its services stop, and come back if it links again. */
@@ -49,6 +50,49 @@ const pairingCodeOf = (request: HttpServerRequest.HttpServerRequest): Effect.Eff
       Effect.orElseSucceed(() => Option.none())
     )
 
+/** The `relayedHeaders` of a request, as the home gets them. */
+const relayedHeadersOf = (request: HttpServerRequest.HttpServerRequest): Record<string, string> =>
+  Object.fromEntries(HomeProtocol.relayedHeaders.flatMap((name) => {
+    const value = request.headers[name]
+    return value === undefined ? [] : [[name, value]]
+  }))
+
+/** What the app is told when its home didn't answer: the API's own `HomeOffline`, 503. */
+const homeOffline = (message: string) =>
+  HttpServerResponse.jsonUnsafe({ _tag: "HomeOffline", message }, { status: 503 })
+
+/**
+ * The app's request, passed to the home that runs Quai and answered with what it answered. The
+ * Cloud reads the path, to relay the API's routes only, and nothing else.
+ */
+export const relayed = (relay: AppRelay): HomeHttp =>
+  Effect.gen(function*() {
+    const request = yield* HttpServerRequest.HttpServerRequest
+    if (!HomeProtocol.isAppPath(request.url)) return HttpServerResponse.empty({ status: 404 })
+    const body = request.method === "GET" || request.method === "HEAD"
+      ? ""
+      : yield* Effect.orElseSucceed(request.text, () => "")
+    return yield* relay({
+      method: request.method,
+      path: request.url,
+      headers: relayedHeadersOf(request),
+      ...(body === "" ? {} : { body })
+    }).pipe(
+      Effect.map((answer) =>
+        answer.body === ""
+          ? HttpServerResponse.empty({ status: answer.status })
+          : HttpServerResponse.text(answer.body, {
+            status: answer.status,
+            contentType: answer.contentType ?? "application/json"
+          })
+      ),
+      Effect.catchTag("HomeError", (error) =>
+        Effect.succeed(
+          homeOffline(error.reason === "offline" ? "Quai Home is not connected" : `Quai Home: ${error.message}`)
+        ))
+    )
+  })
+
 /**
  * The homes this Cloud serves. Each home gets its own services and routes (its home app: the
  * engine, the Hub, the stores, the whole API, on its own link), built when its Quai Home first
@@ -56,6 +100,9 @@ const pairingCodeOf = (request: HttpServerRequest.HttpServerRequest): Effect.Eff
  * by its token, a pairing by its code, the console's by the link it came over. What no home
  * claims goes to an app on no home, which answers what needs none (`/api/health`) and 503 for the
  * rest.
+ *
+ * A home whose Quai Home runs Quai itself (ADR 3) has no app here: its requests are relayed to it
+ * (`relayed`), found the same way, by the token's home id or by the pairing code it said is open.
  */
 export class Homes extends Context.Service<Homes, {
   /** The routes that answer this request. */
@@ -137,24 +184,50 @@ export class Homes extends Context.Service<Homes, {
         Effect.filter([...apps.values()], (home) => Effect.map(home.link.home, Option.isSome))
       )
 
+      /** The routes of the home a token names: relayed when its Quai Home runs Quai, else its app here. */
+      const namedHome = (homeId: string) =>
+        Effect.map(
+          links.relayOf(homeId),
+          (relay) => Option.match(relay, { onNone: () => (apps.get(homeId) ?? nowhere).http, onSome: relayed })
+        )
+
+      /** The only home that runs Quai, when there is exactly one: where what names no home may go. */
+      const onlyRelay = Effect.gen(function*() {
+        const homes = yield* links.relayHomes
+        return homes.length === 1 ? yield* links.relayOf(homes[0]!) : Option.none<AppRelay>()
+      })
+
+      /** A token from before several homes: the linked home that holds it, else the only home that runs Quai. */
+      const legacyHome = (token: string) =>
+        Effect.gen(function*() {
+          const holder = yield* Effect.findFirst(yield* linked, (home) => home.devices.holdsToken(token))
+          if (Option.isSome(holder)) return holder.value.http
+          return Option.match(yield* onlyRelay, { onNone: () => nowhere.http, onSome: relayed })
+        })
+
+      /** A pairing: the home that holds the code, here or as its Quai Home said. */
+      const pairingHome = (code: string) =>
+        Effect.gen(function*() {
+          const homes = yield* linked
+          const holder = yield* Effect.findFirst(homes, (home) => home.devices.holdsPairingCode(code))
+          if (Option.isSome(holder)) return holder.value.http
+          const announced = yield* links.pairingHome(code)
+          if (Option.isSome(announced)) return yield* namedHome(announced.value)
+          // A code no home holds is refused by a linked home, as unknown; with none linked, offline.
+          const fallback = homes[0]?.http
+          if (fallback !== undefined) return fallback
+          return Option.match(yield* onlyRelay, { onNone: () => nowhere.http, onSome: relayed })
+        })
+
       const appFor = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<HomeHttp> =>
         Effect.gen(function*() {
           const token = bearerOf(request)
           if (Option.isSome(token)) {
             const named = DeviceToken.homeOf(token.value)
-            if (Option.isSome(named)) return (apps.get(named.value) ?? nowhere).http
-            // A token from before several homes: the linked home that holds it.
-            const holder = yield* Effect.findFirst(yield* linked, (home) => home.devices.holdsToken(token.value))
-            return Option.match(holder, { onNone: () => nowhere.http, onSome: (home) => home.http })
+            return yield* Option.isSome(named) ? namedHome(named.value) : legacyHome(token.value)
           }
           const code = yield* pairingCodeOf(request)
-          if (Option.isSome(code)) {
-            const homes = yield* linked
-            const holder = yield* Effect.findFirst(homes, (home) => home.devices.holdsPairingCode(code.value))
-            // A code no home holds is refused by a linked home, as unknown; with none linked, offline.
-            return Option.match(holder, { onNone: () => (homes[0] ?? nowhere).http, onSome: (home) => home.http })
-          }
-          return nowhere.http
+          return Option.isSome(code) ? yield* pairingHome(code.value) : nowhere.http
         })
 
       return { appFor, homeIds: Effect.sync(() => [...apps.keys()]) } satisfies Homes["Service"]

@@ -18,39 +18,75 @@ export const ConsoleOnlyThroughHome = HttpRouter.middleware((httpEffect) =>
     return yield* httpEffect
   }), { global: true })
 
-/** A relayed request, as the Cloud's own routes read it. */
-const webRequest = (request: { readonly method: string; readonly path: string; readonly body?: string }) =>
-  new Request(`http://quai-cloud${request.path}`, {
+/** A request that came over the home link, not on a port: the console's, or the app's through Quai Cloud. */
+export interface RelayedRequest {
+  readonly method: string
+  /** Path and query. */
+  readonly path: string
+  readonly headers?: Readonly<Record<string, string>>
+  /** JSON, as it was sent. */
+  readonly body?: string
+}
+
+/** What the routes answered a relayed request. */
+export interface RelayedAnswer {
+  readonly status: number
+  /** Set when there is a body and it isn't JSON. */
+  readonly contentType?: string
+  readonly body: string
+}
+
+/** A relayed request, as the routes read it. */
+const webRequest = (request: RelayedRequest) =>
+  new Request(`http://quai${request.path}`, {
     method: request.method,
-    ...(request.body === undefined ? {} : { body: request.body, headers: { "content-type": "application/json" } })
+    headers: {
+      ...request.headers,
+      ...(request.body === undefined || request.headers?.["content-type"] !== undefined
+        ? {}
+        : { "content-type": "application/json" })
+    },
+    ...(request.body === undefined ? {} : { body: request.body })
   })
 
+const isJson = (contentType: string | null) => contentType === null || contentType.startsWith("application/json")
+
 /**
- * Answers the console requests Quai Home relays with the Cloud's own routes, the same router the
- * public port serves: no second handler for any route.
+ * Answers a relayed request with the home's own routes, the same router a port would serve: no
+ * second handler for any route. `fromConsole` opens the console's routes to it. Never fails: what
+ * goes wrong is a 500, logged.
+ */
+export const answerRelayed = (
+  router: HttpRouter.HttpRouter,
+  request: RelayedRequest,
+  options: { readonly fromConsole: boolean }
+): Effect.Effect<RelayedAnswer> =>
+  Effect.gen(function*() {
+    const response = yield* router.asHttpEffect().pipe(
+      Effect.provideService(HttpServerRequest.HttpServerRequest, HttpServerRequest.fromWeb(webRequest(request))),
+      Effect.provideService(FromHomeConsole, options.fromConsole)
+    )
+    const web = HttpServerResponse.toWeb(response)
+    const body = yield* Effect.promise(() => web.text())
+    const contentType = web.headers.get("content-type")
+    return { status: web.status, body, ...(body === "" || isJson(contentType) ? {} : { contentType: contentType! }) }
+  }).pipe(
+    Effect.scoped,
+    Effect.catchCause((cause) =>
+      Effect.as(Effect.logWarning(`could not answer ${request.method} ${request.path.split("?")[0]}`, cause), {
+        status: 500,
+        body: ""
+      })
+    )
+  )
+
+/**
+ * Answers the console requests Quai Home relays with the home's own routes (`answerRelayed`).
  */
 export const ConsoleRelayLive = Layer.effectDiscard(
   Effect.gen(function*() {
     const router = yield* HttpRouter.HttpRouter
     const link = yield* HomeLink
-    yield* link.answerConsole((request) =>
-      Effect.gen(function*() {
-        const response = yield* router.asHttpEffect().pipe(
-          Effect.provideService(HttpServerRequest.HttpServerRequest, HttpServerRequest.fromWeb(webRequest(request))),
-          Effect.provideService(FromHomeConsole, true)
-        )
-        const web = HttpServerResponse.toWeb(response)
-        const body = yield* Effect.promise(() => web.text())
-        return { status: web.status, body }
-      }).pipe(
-        Effect.scoped,
-        Effect.catchCause((cause) =>
-          Effect.as(Effect.logWarning(`could not answer the console's ${request.method} ${request.path}`, cause), {
-            status: 500,
-            body: ""
-          })
-        )
-      )
-    )
+    yield* link.answerConsole((request) => answerRelayed(router, request, { fromConsole: true }))
   })
 )

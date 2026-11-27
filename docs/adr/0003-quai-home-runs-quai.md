@@ -113,3 +113,26 @@ One pull request each, the app working after every one:
 - The Cloud finds a request's home from the home id its device token starts with, as today, and
   checks nothing else: no list of iPhones in the Cloud.
 - Signed requests, not end-to-end encryption, for now.
+
+## Amended
+
+Nov 27, 2026, with step 2:
+
+- **A Quai Home moves over all at once, not page by page.** Two servers computing for the same
+  home, on the same documents, would be harder to get right than the move itself. A Quai Home at
+  protocol 13 runs the whole domain; the Cloud relays to it and pushes for it, and asks it for
+  nothing. An older one is served as before. Steps 2 and 3 of the plan are one step.
+- **The documents don't move.** They were already Quai Home's: a home updated to protocol 13
+  finds its iPhones, flows and activities where the Cloud left them, and nothing is paired again
+  for that.
+- **A pairing finds its home by its code's hash.** A pairing request carries a code and no token:
+  Quai Home tells the Cloud the SHA-256 of each open code (`PairingCodes`), and the Cloud keeps
+  them in memory while that home is linked.
+- **The Cloud tells a home what only it knows**, in its Welcome: whether it has an APNs key (what
+  the console's Settings shows, never the key) and its public address and access headers, for the
+  pairing QR code.
+- **`QUAI_TZ` is read where Quai runs**: by Quai Home now, by the Cloud for an older one.
+- **A Cloud older than its Quai Home refuses it** (its protocol is unknown to it): update the
+  Cloud first. The hosted one follows each release.
+- **Signed requests come next**, in their own pull request, with the app: until then a request is
+  what it was, the iPhone's token alone.

@@ -7,6 +7,7 @@ import { cloudAppUrl, HomeConfig } from "./Config.ts"
 import { ConsoleAuth, sessionMs } from "./ConsoleAuth.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { Link } from "./Link.ts"
+import { LocalHome } from "./LocalHome.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
 import { checkService } from "./ServiceCheck.ts"
 import { ServiceSettings } from "./ServiceSettings.ts"
@@ -106,18 +107,14 @@ export const HomeApiLive = HttpApiBuilder.layer(HomeConsoleApi).pipe(
   Layer.provide(ConsoleSessionLive)
 )
 
-/** The answer the console reads as "Quai Cloud isn't reachable": the Cloud's own `HomeOffline` shape. */
-const unreachable = (message: string) =>
-  HttpServerResponse.jsonUnsafe({ _tag: "HomeOffline", message }, { status: 503 })
-
 /**
- * The rest of the console, `/console-api` and `/api/health`: Quai Cloud's routes, relayed over the
- * link with the console's session checked here. The Cloud answers them only from a linked Home.
+ * The rest of the console, `/console-api` and `/api/health`: the domain's routes, which Quai Home
+ * runs (`LocalHome.console`), with the console's session checked here.
  */
 export const ConsoleRelayLive = HttpRouter.use((router) =>
   Effect.gen(function*() {
     const auth = yield* ConsoleAuth
-    const link = yield* Link
+    const local = yield* LocalHome
     const relay = Effect.gen(function*() {
       const request = yield* HttpServerRequest.HttpServerRequest
       if ((yield* auth.access(sessionOf(request))) !== "signedIn") {
@@ -129,14 +126,13 @@ export const ConsoleRelayLive = HttpRouter.use((router) =>
       }
       if (!HomeProtocol.isConsolePath(request.url)) return HttpServerResponse.empty({ status: 404 })
       const body = method === "GET" ? "" : yield* Effect.orElseSucceed(request.text, () => "")
-      return yield* link.console({ method, path: request.url, ...(body === "" ? {} : { body }) }).pipe(
-        Effect.map((answer) =>
-          answer.body === ""
-            ? HttpServerResponse.empty({ status: answer.status })
-            : HttpServerResponse.text(answer.body, { status: answer.status, contentType: "application/json" })
-        ),
-        Effect.catchTag("CloudUnreachable", (error) => Effect.succeed(unreachable(error.message)))
-      )
+      const answer = yield* local.console({ method, path: request.url, ...(body === "" ? {} : { body }) })
+      return answer.body === ""
+        ? HttpServerResponse.empty({ status: answer.status })
+        : HttpServerResponse.text(answer.body, {
+          status: answer.status,
+          contentType: answer.contentType ?? "application/json"
+        })
     })
     yield* router.add("*", "/console-api/*", relay)
     yield* router.add("*", "/api/health", relay)

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { HomeProtocol, journalId } from "@quai/api"
+import { HomeProtocol } from "@quai/api"
 import { Effect, Fiber, Layer, Option, Queue } from "effect"
 import { Socket } from "effect/socket"
 import { TestClock } from "effect/testing"
@@ -10,47 +10,12 @@ import { CloudSeen } from "../src/CloudSeen.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { Journal } from "../src/Journal.ts"
-import { heldWebhooksLimit, Link } from "../src/Link.ts"
+import { Link, notLinkedMessage, pushTimeoutMs, unreachableAfterMs } from "../src/Link.ts"
+import { LocalHome, startingMessage } from "../src/LocalHome.ts"
 import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
 import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
-
-const close = Symbol("close")
-
-/** One connection the home opened: what the cloud sends it, and what it wrote. */
-interface Connection {
-  readonly incoming: Queue.Queue<string | typeof close>
-  readonly sent: Queue.Queue<any>
-}
-
-/** A Socket whose every reader acquisition is a new connection, handed to the test. */
-const fakeSocket = Effect.gen(function*() {
-  const connections = yield* Queue.unbounded<Connection>()
-  let latest: Connection | null = null
-  const socket = Socket.make({
-    reader: Effect.gen(function*() {
-      const connection: Connection = {
-        incoming: yield* Queue.unbounded<string | typeof close>(),
-        sent: yield* Queue.unbounded<any>()
-      }
-      latest = connection
-      yield* Queue.offer(connections, connection)
-      return {
-        pull: Effect.flatMap(Queue.take(connection.incoming), (frame) =>
-          frame === close
-            ? Effect.fail(new Socket.SocketError({ reason: new Socket.SocketCloseError({ code: 1006 }) }))
-            : Effect.succeed([frame] as const)),
-        upgrade: Socket.SocketUpgradeError.unsupported
-      }
-    }),
-    writer: Effect.succeed({
-      write: (chunk) =>
-        Queue.offer(latest!.sent, typeof chunk === "string" ? JSON.parse(chunk) : chunk).pipe(Effect.asVoid),
-      writeAll: () => Effect.void
-    })
-  })
-  return { socket, connections }
-})
+import { close, cloud, type Connection, fakeSocket, noConnection, nothingSent, settle } from "./fakeCloud.ts"
 
 /** Answers every call with a 200 echoing its path. */
 const echoCalls = Layer.succeed(Calls, {
@@ -71,7 +36,9 @@ const saved = Layer.mergeAll(
 ).pipe(Layer.provide([configLayer({ sonarr: null }), NodeFileSystem.layer]))
 
 const withLink = <A, E>(
-  test: (fake: Effect.Success<typeof fakeSocket>) => Effect.Effect<A, E, Link | HomeKey | Journal | ServiceSettings>
+  test: (
+    fake: Effect.Success<typeof fakeSocket>
+  ) => Effect.Effect<A, E, Link | LocalHome | HomeKey | Journal | ServiceSettings>
 ) =>
   Effect.gen(function*() {
     const fake = yield* fakeSocket
@@ -79,35 +46,41 @@ const withLink = <A, E>(
       Effect.provide(Link.layer.pipe(
         Layer.provide([
           configLayer({ sonarr: null }),
-          Watches.layer.pipe(Layer.provideMerge(echoCalls)),
           Layer.succeed(Socket.Socket, fake.socket)
         ]),
+        Layer.provideMerge(LocalHome.layer),
+        Layer.provide([configLayer({ sonarr: null }), Watches.layer.pipe(Layer.provideMerge(echoCalls))]),
         Layer.provideMerge(home),
         Layer.provideMerge(saved)
       ))
     )
   })
 
-const cloud = (connection: Connection, message: object | string) =>
-  Queue.offer(connection.incoming, typeof message === "string" ? message : JSON.stringify(message))
-
-/** Lets forked fibers run up to their next wait. */
-const settle = Effect.repeat(Effect.yieldNow, { times: 20 })
-
-const nothingSent = (connection: Connection) =>
-  Effect.map(Effect.andThen(settle, Queue.size(connection.sent)), (size) => size === 0)
-const noConnection = (connections: Queue.Queue<Connection>) =>
-  Effect.map(Effect.andThen(settle, Queue.poll(connections)), Option.isNone)
-
-/** Opens a connection and gets through the handshake. */
-const linked = (connections: Queue.Queue<Connection>) =>
+/** Opens a connection and gets through the handshake: the home then says its open pairing codes (none). */
+const linked = (connections: Queue.Queue<Connection>, welcome: object = {}) =>
   Effect.gen(function*() {
     const connection = yield* Queue.take(connections)
     yield* Queue.take(connection.sent)
-    yield* cloud(connection, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
+    yield* cloud(connection, { _tag: "Welcome", homeId: (yield* HomeKey).homeId, ...welcome })
     yield* settle
+    expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "PairingCodes", hashes: [] })
     return connection
   })
+
+/** Stands for the home's routes: records what was asked, answers the contract's file as text, 204 for the rest. */
+const routes = (asked: Array<unknown>, request: { readonly path: string }) => {
+  asked.push(request)
+  return request.path === "/api/openapi.json"
+    ? { status: 200, body: "openapi", contentType: "text/plain" }
+    : { status: 204, body: "" }
+}
+
+const push = {
+  environment: "production",
+  deviceToken: "token-1",
+  priority: 10,
+  body: { aps: { event: "update" } }
+} as const
 
 describe("link", () => {
   it.effect("says Hello with the public key, the services and where an iPhone opens them, proves the key, and is linked on Welcome", () =>
@@ -145,25 +118,221 @@ describe("link", () => {
       })
     ))
 
-  it.effect("answers a Call, and ignores what it can't read", () =>
+  it.effect("answers the app's requests the Cloud relays with the home's routes, and ignores what it can't read", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const asked: Array<unknown> = []
+        yield* link.answerApp((request) => Effect.succeed(routes(asked, request)))
+        const connection = yield* linked(connections)
+        yield* cloud(connection, "not json")
+        yield* cloud(connection, { _tag: "Unknown" })
+        yield* cloud(connection, {
+          _tag: "AppRequest",
+          id: "a1",
+          method: "DELETE",
+          path: "/api/devices/me?x=1",
+          headers: { authorization: "Bearer t" }
+        })
+        expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "AppResponse", id: "a1", status: 204, body: "" })
+        yield* cloud(connection, {
+          _tag: "AppRequest",
+          id: "a2",
+          method: "GET",
+          path: "/api/openapi.json",
+          headers: {}
+        })
+        expect(yield* Queue.take(connection.sent)).toEqual({
+          _tag: "AppResponse",
+          id: "a2",
+          status: 200,
+          contentType: "text/plain",
+          body: "openapi"
+        })
+        expect(asked).toEqual([
+          { method: "DELETE", path: "/api/devices/me?x=1", headers: { authorization: "Bearer t" } },
+          { method: "GET", path: "/api/openapi.json", headers: {} }
+        ])
+      })
+    ))
+
+  it.effect("answers only the API's routes to the Cloud: never the console's, and 503 until its routes are up", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const connection = yield* linked(connections)
+        const ask = (id: string, path: string) =>
+          Effect.andThen(
+            cloud(connection, { _tag: "AppRequest", id, method: "GET", path, headers: {} }),
+            Queue.take(connection.sent)
+          )
+        expect(yield* ask("a1", "/api/library")).toEqual({
+          _tag: "AppResponse",
+          id: "a1",
+          status: 503,
+          body: JSON.stringify({ _tag: "HomeOffline", message: startingMessage })
+        })
+        let answered = 0
+        yield* link.answerApp(() => Effect.sync(() => (answered++, { status: 200, body: "{}" })))
+        expect((yield* ask("a2", "/console-api/devices")).status).toBe(404)
+        expect((yield* ask("a3", "/api/../console-api/devices")).status).toBe(404)
+        expect(answered).toBe(0)
+        expect((yield* ask("a4", "/api/library")).status).toBe(200)
+      })
+    ))
+
+  it.effect("has the Cloud send a push, and reads what APNs answered", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const connection = yield* linked(connections)
+        const sent = yield* Effect.forkChild(Effect.exit(link.push({ ...push, pushType: "alert" })))
+        const asked = yield* Queue.take(connection.sent)
+        expect(asked).toEqual({ _tag: "PushRequest", id: asked.id, ...push, pushType: "alert" })
+        yield* cloud(connection, { _tag: "PushResponse", id: asked.id })
+        expect((yield* Fiber.join(sent))._tag).toBe("Success")
+
+        const gone = yield* Effect.forkChild(Effect.flip(link.push(push)))
+        const second = yield* Queue.take(connection.sent)
+        expect(second.id).not.toBe(asked.id)
+        yield* cloud(connection, {
+          _tag: "PushResponse",
+          id: second.id,
+          error: { status: 410, reason: "Unregistered", tokenGone: true }
+        })
+        expect(yield* Fiber.join(gone)).toMatchObject({ status: 410, reason: "Unregistered", tokenGone: true })
+        // An answer to a push nobody waits for is left alone: the link stays up.
+        yield* cloud(connection, { _tag: "PushResponse", id: "unknown" })
+        yield* settle
+        expect(yield* link.linked).toBe(true)
+      })
+    ))
+
+  it.effect("a push fails, as one APNs never got, while not linked, when the link drops and when the Cloud is too slow", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        const unsent = { status: null, tokenGone: false }
+        expect(yield* Effect.flip(link.push(push))).toMatchObject({ ...unsent, reason: notLinkedMessage })
+        const connection = yield* linked(connections)
+
+        const slow = yield* Effect.forkChild(Effect.flip(link.push(push)))
+        yield* Queue.take(connection.sent)
+        yield* TestClock.adjust(pushTimeoutMs)
+        expect(yield* Fiber.join(slow)).toMatchObject({ ...unsent, reason: "Quai Cloud didn't answer in time" })
+
+        const dropped = yield* Effect.forkChild(Effect.flip(link.push(push)))
+        yield* Queue.take(connection.sent)
+        yield* Queue.offer(connection.incoming, close)
+        expect(yield* Fiber.join(dropped)).toMatchObject({ ...unsent, reason: notLinkedMessage })
+      })
+    ))
+
+  it.effect("keeps what the Cloud says of itself in its Welcome: the push key's settings, the public access", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const link = yield* Link
+        expect(link.welcome()).toBeNull()
+        const said = {
+          push: { configured: true, keyId: "KEY123", teamId: "TEAM456", topic: "com.mathieuletyrant.quai" },
+          publicAccess: { url: "https://cloud.example.com", headers: [{ name: "X-Key", value: "secret" }] }
+        }
+        yield* linked(connections, said)
+        expect(link.welcome()).toMatchObject(said)
+      })
+    ))
+
+  it.effect("tells the Cloud its open pairing codes on each Welcome, and each time one opens or is spent", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const { link: home } = yield* LocalHome
+        yield* TestClock.setTime(1_000)
+        yield* home.documents.put("pairing/aaa", { expiresAt: 5_000 })
+        yield* home.documents.put("pairing/old", { expiresAt: 500 })
+        const first = yield* Queue.take(connections)
+        yield* Queue.take(first.sent)
+        yield* cloud(first, { _tag: "Welcome", homeId: home.homeId })
+        expect(yield* Queue.take(first.sent)).toEqual({ _tag: "PairingCodes", hashes: ["aaa"] })
+        yield* home.documents.put("pairing/bbb", { expiresAt: 9_000 })
+        expect(yield* Queue.take(first.sent)).toEqual({ _tag: "PairingCodes", hashes: ["aaa", "bbb"] })
+        yield* home.documents.delete("pairing/aaa")
+        expect(yield* Queue.take(first.sent)).toEqual({ _tag: "PairingCodes", hashes: ["bbb"] })
+        // Another document changes nothing the Cloud needs to hear.
+        yield* home.documents.put("devices/x", { id: "x" })
+        expect(yield* nothingSent(first)).toBe(true)
+
+        yield* Queue.offer(first.incoming, close)
+        yield* TestClock.adjust("1 second")
+        const second = yield* Queue.take(connections)
+        yield* Queue.take(second.sent)
+        yield* cloud(second, { _tag: "Welcome", homeId: home.homeId })
+        expect(yield* Queue.take(second.sent)).toEqual({ _tag: "PairingCodes", hashes: ["bbb"] })
+      })
+    ))
+
+  it.effect("answers none of what a Cloud asks a Quai Home that doesn't run Quai", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const connection = yield* linked(connections)
-        yield* cloud(connection, "not json")
-        yield* cloud(connection, { _tag: "Shutdown" })
+        const refused = (id: string) => ({ _tag: "Failed", id, reason: "this Quai Home runs Quai itself" })
+        yield* cloud(connection, { _tag: "Call", id: "1", service: "radarr", method: "GET", path: "/api/v3/movie" })
+        expect(yield* Queue.take(connection.sent)).toEqual(refused("1"))
+        yield* cloud(connection, { _tag: "StoreList", id: "2", prefix: "" })
+        expect(yield* Queue.take(connection.sent)).toEqual(refused("2"))
+        yield* cloud(connection, { _tag: "StorePut", id: "3", key: "devices/x", value: {} })
+        expect(yield* Queue.take(connection.sent)).toEqual(refused("3"))
         yield* cloud(connection, {
-          _tag: "Call",
-          id: "42",
-          service: "radarr",
-          method: "GET",
-          path: "/api/v3/system/status"
+          _tag: "SetWatches",
+          watches: [{ id: "w", service: "jellyfin", path: "/Sessions", everySeconds: 15 }]
         })
-        expect(yield* Queue.take(connection.sent)).toEqual({
-          _tag: "CallResponse",
-          id: "42",
-          status: 200,
-          body: "/api/v3/system/status"
-        })
+        yield* TestClock.adjust("30 seconds")
+        expect(yield* nothingSent(connection)).toBe(true)
+        expect(yield* (yield* LocalHome).link.documents.get("devices/x")).toEqual(Option.none())
+      })
+    ))
+
+  it.effect("says in the journal when the Cloud is out of reach for a minute, and when it is back; never for a short drop", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const journal = yield* Journal
+        const said = Effect.map(
+          journal.read({ limit: 10 }),
+          (page) => page.entries.filter((entry) => entry.source === "cloud").map((entry) => entry.kind)
+        )
+        const first = yield* linked(connections)
+        // A drop of a second: linked again, nothing to say.
+        yield* Queue.offer(first.incoming, close)
+        yield* TestClock.adjust("1 second")
+        const second = yield* linked(connections)
+        expect(yield* said).toEqual([])
+
+        // Out of reach: each try fails, 1 s, 2 s, 4 s… apart.
+        yield* Queue.offer(second.incoming, close)
+        for (let waited = 0; waited < unreachableAfterMs + 64_000; waited += 1_000) {
+          yield* TestClock.adjust("1 second")
+          const attempt = yield* Queue.poll(connections)
+          if (Option.isSome(attempt)) yield* Queue.offer(attempt.value.incoming, close)
+        }
+        expect(yield* said).toEqual(["cloud.unreachable"])
+        yield* TestClock.adjust("1 minute")
+        yield* linked(connections)
+        expect(yield* said).toEqual(["cloud.reachable", "cloud.unreachable"])
+      })
+    ))
+
+  it.effect("writes a refusal to the journal once per reason: a Cloud too old for this Quai Home says so there", () =>
+    withLink(({ connections }) =>
+      Effect.gen(function*() {
+        const journal = yield* Journal
+        const reason = "this Cloud speaks protocols 1 to 12, this Quai Home 13"
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const connection = yield* Queue.take(connections)
+          yield* cloud(connection, { _tag: "Refused", reason, retryAfterSeconds: 60 })
+          yield* settle
+          yield* TestClock.adjust("60 seconds")
+        }
+        const lines = (yield* journal.read({ limit: 10 })).entries.filter((entry) => entry.kind === "cloud.refused")
+        expect(lines.map((entry) => entry.text)).toEqual([`Quai Cloud refused this Quai Home: ${reason}`])
       })
     ))
 
@@ -224,187 +393,6 @@ describe("link", () => {
         yield* TestClock.adjust("1 second")
         const second = yield* Queue.take(connections)
         expect(yield* Queue.take(second.sent)).toMatchObject({ _tag: "Hello" })
-      })
-    ))
-
-  it.effect("sends webhooks while linked, holds them while not and sends them once welcomed again", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const link = yield* Link
-        const connection = yield* linked(connections)
-        const webhook = (eventType: string) =>
-          ({ _tag: "WebhookReceived", service: "sonarr", receivedAt: 0, body: { eventType } }) as const
-        yield* link.send(webhook("Grab"))
-        expect(yield* Queue.take(connection.sent)).toEqual(webhook("Grab"))
-
-        // The hosted Cloud's link drops for a few seconds: a grab in between isn't lost.
-        yield* Queue.offer(connection.incoming, close)
-        yield* settle
-        yield* link.send(webhook("Download"))
-        yield* link.send(webhook("ManualInteractionRequired"))
-        expect(yield* nothingSent(connection)).toBe(true)
-        yield* TestClock.adjust("1 second")
-        const next = yield* Queue.take(connections)
-        yield* Queue.take(next.sent)
-        // Nothing before the Cloud welcomes the home.
-        expect(yield* nothingSent(next)).toBe(true)
-        yield* cloud(next, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
-        yield* settle
-        expect(yield* Queue.take(next.sent)).toEqual(webhook("Download"))
-        expect(yield* Queue.take(next.sent)).toEqual(webhook("ManualInteractionRequired"))
-      })
-    ))
-
-  it.effect(`holds at most ${heldWebhooksLimit} webhooks, the newest`, () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const link = yield* Link
-        for (let webhook = 0; webhook < heldWebhooksLimit + 5; webhook++) {
-          yield* link.send({ _tag: "WebhookReceived", service: "radarr", receivedAt: webhook, body: {} })
-        }
-        const connection = yield* linked(connections)
-        yield* settle
-        const sent: Array<any> = []
-        while ((yield* Queue.size(connection.sent)) > 0) sent.push(yield* Queue.take(connection.sent))
-        const webhooks = sent.filter((message) => message._tag === "WebhookReceived")
-        expect(webhooks).toHaveLength(heldWebhooksLimit)
-        expect(webhooks[0].receivedAt).toBe(5)
-      })
-    ))
-
-  it.effect("runs store operations in order and answers each", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const connection = yield* linked(connections)
-        yield* cloud(connection, { _tag: "StorePut", id: "1", key: "flows/download", value: { on: true } })
-        yield* cloud(connection, { _tag: "StorePut", id: "2", key: "devices/a", value: 1 })
-        yield* cloud(connection, { _tag: "StoreList", id: "3", prefix: "flows/" })
-        yield* cloud(connection, { _tag: "StoreDelete", id: "4", key: "flows/download" })
-        yield* cloud(connection, { _tag: "StoreList", id: "5", prefix: "" })
-        yield* cloud(connection, { _tag: "StorePut", id: "6", key: "../escape", value: 1 })
-        const answers = [] as Array<unknown>
-        for (let answer = 0; answer < 6; answer++) answers.push(yield* Queue.take(connection.sent))
-        expect(answers).toEqual([
-          { _tag: "StoreDone", id: "1" },
-          { _tag: "StoreDone", id: "2" },
-          { _tag: "StoreDocuments", id: "3", documents: [{ key: "flows/download", value: { on: true } }] },
-          { _tag: "StoreDone", id: "4" },
-          { _tag: "StoreDocuments", id: "5", documents: [{ key: "devices/a", value: 1 }] },
-          { _tag: "Failed", id: "6", reason: "invalid key: ../escape" }
-        ])
-      })
-    ))
-
-  it.effect("keeps the Cloud's journal lines and answers a read with a page, in the order sent", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const connection = yield* linked(connections)
-        const line = (index: number, source: string) => ({
-          id: journalId(1_000 + index, "c", index),
-          at: 1_000 + index,
-          level: "info",
-          source,
-          kind: "media.grabbed",
-          text: `line ${index}`
-        })
-        yield* cloud(connection, {
-          _tag: "JournalAppend",
-          entries: [line(1, "radarr"), line(2, "sonarr"), line(3, "radarr")]
-        })
-        yield* cloud(connection, { _tag: "JournalRead", id: "r9", query: { limit: 1, sources: ["radarr"] } })
-        expect(yield* Queue.take(connection.sent)).toEqual({
-          _tag: "JournalPage",
-          id: "r9",
-          entries: [line(3, "radarr")],
-          more: true
-        })
-      })
-    ))
-
-  it.effect("hands its own journal lines to the Cloud once linked", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const journal = yield* Journal
-        yield* journal.note({ level: "warn", source: "radarr", kind: "call.refused", text: "refused" })
-        const connection = yield* linked(connections)
-        const noted = yield* Queue.take(connection.sent)
-        expect(noted._tag).toBe("JournalNoted")
-        expect(noted.entries.map((entry: { text: string }) => entry.text)).toEqual(["refused"])
-        const page = yield* journal.read({ limit: 10 })
-        expect(page.entries.map((entry) => entry.text)).toEqual(["refused"])
-      })
-    ))
-
-  it.effect("polls watches while linked, stops on disconnect, and sends snapshots again after the next Welcome", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const watches = {
-          _tag: "SetWatches",
-          watches: [{ id: "w", service: "jellyfin", path: "/Sessions", everySeconds: 15 }]
-        }
-        const snapshot = { _tag: "WatchSnapshot", watchId: "w", status: 200, body: "/Sessions" }
-        const first = yield* linked(connections)
-        yield* cloud(first, watches)
-        expect(yield* Queue.take(first.sent)).toEqual(snapshot)
-        yield* TestClock.adjust("15 seconds")
-        expect(yield* nothingSent(first)).toBe(true)
-
-        yield* Queue.offer(first.incoming, close)
-        yield* settle
-        yield* TestClock.adjust("1 second")
-        const second = yield* linked(connections)
-        yield* TestClock.adjust("30 seconds")
-        expect(yield* nothingSent(second)).toBe(true)
-        yield* cloud(second, watches)
-        expect(yield* Queue.take(second.sent)).toEqual(snapshot)
-      })
-    ))
-
-  it.effect("relays a console request to the Cloud and its answer back", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const link = yield* Link
-        const connection = yield* linked(connections)
-        const answer = yield* Effect.forkChild(link.console({ method: "GET", path: "/console-api/devices" }))
-        yield* settle
-        const request = yield* Queue.take(connection.sent)
-        expect(request).toEqual({ _tag: "ConsoleRequest", id: request.id, method: "GET", path: "/console-api/devices" })
-        yield* cloud(connection, { _tag: "ConsoleResponse", id: request.id, status: 200, body: "[]" })
-        expect(yield* Fiber.join(answer)).toEqual({ status: 200, body: "[]" })
-      })
-    ))
-
-  it.effect("stays linked after a console answer: the next request goes over the same link", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const link = yield* Link
-        const connection = yield* linked(connections)
-        for (const path of ["/console-api/devices", "/console-api/push-settings"]) {
-          const answer = yield* Effect.forkChild(link.console({ method: "GET", path }))
-          yield* settle
-          const request = yield* Queue.take(connection.sent)
-          yield* cloud(connection, { _tag: "ConsoleResponse", id: request.id, status: 200, body: "[]" })
-          expect(yield* Fiber.join(answer)).toEqual({ status: 200, body: "[]" })
-          yield* settle
-          expect(yield* link.linked).toBe(true)
-        }
-      })
-    ))
-
-  it.effect("a console request fails while the Cloud hasn't welcomed this home, and when the link drops", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const link = yield* Link
-        const connection = yield* Queue.take(connections)
-        yield* settle
-        expect((yield* Effect.flip(link.console({ method: "GET", path: "/api/health" })))._tag).toBe("CloudUnreachable")
-        yield* Queue.take(connection.sent)
-        yield* cloud(connection, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
-        yield* settle
-        const answer = yield* Effect.forkChild(link.console({ method: "GET", path: "/api/health" }))
-        yield* settle
-        yield* Queue.offer(connection.incoming, close)
-        expect((yield* Effect.flip(Fiber.join(answer)))._tag).toBe("CloudUnreachable")
       })
     ))
 

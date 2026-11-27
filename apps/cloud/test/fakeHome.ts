@@ -12,12 +12,15 @@ import { IntegrationsLive } from "@quai/domain/integrations/All.ts"
 import { Hub } from "@quai/domain/integrations/Hub.ts"
 import type { Integrations } from "@quai/domain/integrations/Integration.ts"
 import { Journal } from "@quai/domain/journal/Journal.ts"
+import { PublicAccess } from "@quai/domain/PublicAccess.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
 import { Notifier } from "@quai/domain/push/Notifier.ts"
 import { DiskReadings } from "@quai/domain/storage/DiskReadings.ts"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
 import { Socket } from "effect/socket"
 import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
 import { HomeLinks } from "../src/home/HomeLinks.ts"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { fixture } from "./fixtures.ts"
 
 type Call = typeof HomeProtocol.Call.Type
@@ -39,6 +42,16 @@ export type Answer =
   | { readonly silent: true }
   | { readonly drop: true }
 
+/** What a fake Quai Home that runs Quai answers one of the app's requests. */
+export interface AppAnswer {
+  readonly status: number
+  readonly body?: string
+  readonly contentType?: string
+}
+
+/** The last protocol of a Quai Home that only proxies: the Cloud runs Quai for it. */
+export const proxyProtocol = HomeProtocol.runsQuaiProtocolVersion - 1
+
 const close = Symbol("close")
 
 /** The fake home's key unless a test gives another: the same home in every test, `testHomeId`. */
@@ -54,7 +67,13 @@ const publicKeyOf = (key: KeyObject) => createPublicKey(key).export({ format: "d
 export const testHomeId = HomeId.homeId(publicKeyOf(testHomeKey))
 
 /** Links for Quai Homes, and the link to the tests' home (`testHomeId`). */
-export const testLink = HomeLinks.linkOf(testHomeId)
+/** What the links tell a home that runs Quai, in tests that don't look at it: no APNs key, no public address. */
+export const noKeyNoAddress = Layer.mergeAll(
+  Layer.effect(Apns, makeApns(null)),
+  Layer.succeed(PublicAccess, PublicAccess.make(Option.none(), []))
+)
+
+export const testLink = HomeLinks.linkOf(testHomeId).pipe(Layer.provide(noKeyNoAddress))
 
 /** Lets forked fibers run up to their next wait. */
 export const settle = Effect.repeat(Effect.yieldNow, { times: 50 })
@@ -74,7 +93,13 @@ export interface FakeHomeOptions {
   readonly services?: ReadonlyArray<HomeProtocol.HomeService>
   /** Where an iPhone opens Radarr and Sonarr, sent in Hello. Default: none. */
   readonly webUrls?: HomeProtocol.WebUrls
+  /** Default: `proxyProtocol`, the last Quai Home the Cloud runs Quai for. */
   readonly protocol?: number
+  /**
+   * A Quai Home that runs Quai (protocol `runsQuaiProtocolVersion` and up): what its own routes
+   * answer the app's requests the Cloud relays. Default: 404. "silent": no answer.
+   */
+  readonly answerApp?: (request: HomeProtocol.AppRequest) => AppAnswer | "silent"
   /** Signs with another key than the one in Hello. */
   readonly badProof?: boolean
   /** Another home: its own key. Default: `testHomeKey`. */
@@ -147,7 +172,7 @@ const allowedSince = (call: Allowed): number => protocolRules.find(([, matches])
  */
 export const makeFakeHome = (options: FakeHomeOptions = {}) =>
   Effect.gen(function*() {
-    const protocol = options.protocol ?? HomeProtocol.protocolVersion
+    const protocol = options.protocol ?? proxyProtocol
     /** What the allowlist refused, as `routeOf` (and the watch id for a watch). */
     const notAllowed: Array<string> = []
     const allows = (request: Parameters<typeof HomeProtocol.allowRule>[0]) =>
@@ -169,6 +194,8 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
     const journal: Array<JournalEntry> = []
     const calls: Array<Call> = []
     const consoleAnswers = new Map<string, HomeProtocol.ConsoleResponse>()
+    const appRequests: Array<HomeProtocol.AppRequest> = []
+    const pushAnswers = new Map<string, HomeProtocol.PushResponse>()
     let consoleCount = 0
     const received: Array<HomeProtocol.CloudMessage> = []
     const state = {
@@ -283,6 +310,20 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       ConsoleResponse: (message) => {
         consoleAnswers.set(message.id, message)
         return null
+      },
+      AppRequest: (message) => {
+        appRequests.push(message)
+        const answer = options.answerApp?.(message) ?? { status: 404 }
+        return answer === "silent" ? null : HomeProtocol.AppResponse.make({
+          id: message.id,
+          status: answer.status,
+          body: answer.body ?? "",
+          ...(answer.contentType === undefined ? {} : { contentType: answer.contentType })
+        })
+      },
+      PushResponse: (message) => {
+        pushAnswers.set(message.id, message)
+        return null
       }
     }
 
@@ -332,7 +373,7 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
       yield* Queue.offer(
         toCloud,
         JSON.stringify(HomeProtocol.Hello.make({
-          protocol: options.protocol ?? HomeProtocol.protocolVersion,
+          protocol,
           homeVersion: "test",
           publicKey,
           services: options.services ?? ["radarr", "sonarr", "qbittorrent", "jellyfin"],
@@ -354,6 +395,18 @@ export const makeFakeHome = (options: FakeHomeOptions = {}) =>
           Effect.andThen(send(HomeProtocol.JournalNoted.make({ entries: [entry] })), settle)
         ),
       calls,
+      /** The app's requests the Cloud relayed, to a fake home that runs Quai. */
+      appRequests,
+      /** Asks the Cloud for a push, as a home that runs Quai does: what it answered, once it did. */
+      push: (request: Omit<HomeProtocol.PushRequest, "_tag">) =>
+        Effect.gen(function*() {
+          yield* send(HomeProtocol.PushRequest.make(request))
+          for (let attempt = 0; attempt < 20 && !pushAnswers.has(request.id); attempt++) yield* settle
+          return Option.fromNullishOr(pushAnswers.get(request.id))
+        }),
+      /** Tells the Cloud this home's open pairing codes, by their hashes. */
+      pairingCodes: (hashes: ReadonlyArray<string>) =>
+        Effect.andThen(send(HomeProtocol.PairingCodes.make({ hashes })), settle),
       received,
       /** What the allowlist refused (calls as `routeOf`, and watches). */
       notAllowed,
@@ -448,7 +501,7 @@ export const linkDroppingOn = (...routes: ReadonlyArray<string>) =>
             ? Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
             : link.call(request, options)
       }))
-  ).pipe(Layer.provideMerge(HomeLinks.layer))
+  ).pipe(Layer.provideMerge(HomeLinks.layer), Layer.provide(noKeyNoAddress))
 
 /** With the real integrations. */
 export const cloudLive = cloud(IntegrationsLive)

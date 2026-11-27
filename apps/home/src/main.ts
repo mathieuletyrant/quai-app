@@ -9,10 +9,12 @@ import { CloudSeen } from "./CloudSeen.ts"
 import { HomeConfig } from "./Config.ts"
 import { ConsoleAuth } from "./ConsoleAuth.ts"
 import { ConsoleFilesLive, ConsoleRelayLive, HomeApiLive } from "./ConsoleServer.ts"
+import { DomainLive } from "./Domain.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
 import { Journal } from "./Journal.ts"
 import { Link } from "./Link.ts"
+import { LocalHome } from "./LocalHome.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
 import { ServiceSettings } from "./ServiceSettings.ts"
 import { Watches } from "./Watches.ts"
@@ -26,8 +28,8 @@ const HttpLive = Layer.unwrap(
   })
 )
 
-// The link to Quai Cloud, when QUAI_CLOUD_URL is set; without it, Quai Home runs on its own and
-// its console says what to set.
+// The link to Quai Cloud, when QUAI_CLOUD_URL is set; without it, Quai Home runs on its own: its
+// console works, no iPhone reaches it from outside and nothing is pushed.
 const LinkLive = Layer.unwrap(
   Effect.gen(function*() {
     const { cloudUrl } = yield* HomeConfig
@@ -46,7 +48,9 @@ const Home = Layer.mergeAll(HomeKey.layer, HomeStore.layer, Journal.layer, Servi
   Layer.provide(NodeFileSystem.layer)
 )
 
-const Services = Watches.layer.pipe(
+// The home, answered in place: what the domain reads, calls and keeps.
+const Services = LocalHome.layer.pipe(
+  Layer.provideMerge(Watches.layer),
   Layer.provideMerge(Calls.layer),
   Layer.provideMerge(ServiceAuth.layer),
   Layer.provide(NodeHttpClient.layerUndici),
@@ -54,9 +58,11 @@ const Services = Watches.layer.pipe(
   Layer.provideMerge(Home)
 )
 
+// Quai Home runs Quai for its home (the domain): its own port serves the webhooks and the console.
 const App = Layer.mergeAll(
   HttpRouter.serve(Layer.mergeAll(WebhooksLive, HomeApiLive, ConsoleRelayLive, ConsoleFilesLive)),
-  WebhookSetupLive
+  WebhookSetupLive,
+  DomainLive
 ).pipe(
   Layer.provide(HttpLive),
   Layer.provideMerge(LinkLive),
