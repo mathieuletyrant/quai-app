@@ -6,7 +6,8 @@ shows: acting on a row happens where it already can (To fix). No console page.
 ## The screen
 
 - Opened from the Home's **Upcoming** tile, which replaces the Today tile and `ReleasesView`. The tile
-  shows today's rows and one line on what goes this week ("1 Reclaimerr deletion this week").
+  shows the three soonest rows, whatever their day, and one line on what goes this week ("1 Reclaimerr
+  deletion this week"). It is hidden when nothing is planned with a date.
 - Filters **All / Coming / Going**, then periods **Today**, **This week** (next 7 days), **This month**
   (next 30 days), **Later**. Rolling from today, not calendar weeks or months.
 - A row: the service's name in small coloured capitals above the title (blue for what comes, orange for
