@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.0](https://github.com/mathieuletyrant/quai-app/compare/v2.3.1...v2.4.0) (2026-11-27)
+
+
+### ✨ Features
+
+* an iPhone signs its requests with a device key made at pairing ([#174](https://github.com/mathieuletyrant/quai-app/issues/174)) ([0665725](https://github.com/mathieuletyrant/quai-app/commit/0665725f84d8d484bca3205f3db1fe8035c4943b))
+* Quai Home runs Quai; Quai Cloud relays the app and sends the pushes ([#173](https://github.com/mathieuletyrant/quai-app/issues/173)) ([5324f40](https://github.com/mathieuletyrant/quai-app/commit/5324f401be2b04013ed1d1cd4f91b4eaa1bd0d75))
+
+
+### ⚡ Performance
+
+* **cloud:** reads of the same GET share one call to Quai Home ([#170](https://github.com/mathieuletyrant/quai-app/issues/170)) ([08aaff3](https://github.com/mathieuletyrant/quai-app/commit/08aaff36cb0f7f359915dd52aea846fa2f19f02a))
+
 ## [2.3.1](https://github.com/mathieuletyrant/quai-app/compare/v2.3.0...v2.3.1) (2026-11-26)
 
 
