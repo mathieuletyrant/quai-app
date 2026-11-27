@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/mathieuletyrant/quai-app/compare/v3.0.0...v3.1.0) (2026-11-27)
+
+
+### ✨ Features
+
+* **ios:** posters are kept on the phone, and one that failed loads again ([#184](https://github.com/mathieuletyrant/quai-app/issues/184)) ([50e05e4](https://github.com/mathieuletyrant/quai-app/commit/50e05e4ab0867b25062342abf9d53e7c0e15e856))
+
 ## [3.0.0](https://github.com/mathieuletyrant/quai-app/compare/v2.5.0...v3.0.0) (2026-11-27)
 
 
