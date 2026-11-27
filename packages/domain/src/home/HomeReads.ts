@@ -57,15 +57,70 @@ type Outcome =
 const isSuccess = (status: number) => status >= 200 && status < 300
 
 /**
- * How long a GET's 2xx answer serves the reads that ask for it again. A screen's routes are asked
- * together and read the same lists (the movies, the queues, the strikes): one call answers them all.
+ * How long a GET's 2xx answer serves the reads that ask for it again, unless they say otherwise
+ * (`AnswersKeptFor`). A screen's routes are asked together and read the same lists (the movies,
+ * the queues, the strikes): one call answers them all. Short, for what acts on what it reads: an
+ * action, a flow.
  */
 export const answerKeptMs = 5_000
 
-/** A GET on its way, or answered and kept `until` then. */
-interface SharedGet {
-  readonly answer: Deferred.Deferred<Outcome, HomeOffline>
-  until: number
+/**
+ * How long a kept answer serves the app's screens (its GETs): opened again, or another tab opened,
+ * within the minute, a screen reads nothing again. What the stack says it changed meanwhile isn't
+ * kept: a service's webhook forgets its answers, a write forgets them all.
+ */
+export const screenAnswerKeptMs = 60_000
+
+/**
+ * How old a kept answer may be for whoever reads now. `answerKeptMs` unless the reader allows
+ * more, as the app's screens do (`DeviceAuthLive`).
+ */
+export const AnswersKeptFor = Context.Reference<number>("quai/AnswersKeptFor", {
+  defaultValue: () => answerKeptMs
+})
+
+/** A GET on its way (`at` null), or answered at `at` and kept. */
+interface KeptGet<A> {
+  readonly service: HomeProtocol.HomeService
+  readonly answer: A
+  at: number | null
+}
+
+/**
+ * The GETs on their way and their 2xx answers, by service and path, each kept `keptMs` at most.
+ * One reader may take an answer another finds too old: how old is the reader's to say.
+ */
+export const makeKeptGets = <A>(keptMs: number = screenAnswerKeptMs) => {
+  const gets = new Map<string, KeptGet<A>>()
+  const keyOf = (service: HomeProtocol.HomeService, path: string) => `${service} ${path}`
+  return {
+    /** The GET on its way, or its answer when it is at most `maxAgeMs` old. */
+    find: (service: HomeProtocol.HomeService, path: string, now: number, maxAgeMs: number): A | undefined => {
+      const found = gets.get(keyOf(service, path))
+      return found !== undefined && (found.at === null || now - found.at < maxAgeMs) ? found.answer : undefined
+    },
+    /**
+     * A GET leaves: until it settles, every reader waits for it. What is too old to serve anyone
+     * goes. Gives what to call when it came back: kept from then when `keep`, forgotten otherwise
+     * (nothing, if another GET of the same took its place meanwhile).
+     */
+    begin: (service: HomeProtocol.HomeService, path: string, answer: A, now: number) => {
+      for (const [key, kept] of gets) if (kept.at !== null && now - kept.at >= keptMs) gets.delete(key)
+      const key = keyOf(service, path)
+      const leaving: KeptGet<A> = { service, answer, at: null }
+      gets.set(key, leaving)
+      return (settledAt: number, keep: boolean) => {
+        if (gets.get(key) !== leaving) return
+        if (keep) leaving.at = settledAt
+        else gets.delete(key)
+      }
+    },
+    /** Forgets a service's answers, or every answer. */
+    forget: (service?: HomeProtocol.HomeService) => {
+      for (const [key, kept] of gets) if (service === undefined || kept.service === service) gets.delete(key)
+    },
+    size: () => gets.size
+  }
 }
 
 /** What a read's outcome holds: its value, the read's `notFound` for a 404 that has one, else None. */
@@ -91,8 +146,9 @@ const countsAgainstService = (outcome: Outcome) =>
  * None for a read, logged once with its service and path (never what it answered), and a refusal
  * in words for a write. The journal gets a line when a service stops answering the reads (no
  * answer, a 5xx, a body Quai can't read; not a 404) and one when it answers again. Reads of the
- * same GET at once share one call, and its 2xx answer serves them for `answerKeptMs`; a write
- * forgets every answer kept, so what it changed is read again.
+ * same GET at once share one call, and its 2xx answer serves those that follow for as long as each
+ * allows (`AnswersKeptFor`: `answerKeptMs`, a minute for the app's screens); a write forgets every
+ * answer kept, and a service's webhook its own (`forget`), so what changed is read again.
  */
 export class HomeReads extends Context.Service<HomeReads, {
   /** The services the connected Quai Home reaches. */
@@ -124,6 +180,8 @@ export class HomeReads extends Context.Service<HomeReads, {
     refused: (message: string) => E,
     options?: { readonly timeoutMs?: number }
   ) => Effect.Effect<string, HomeOffline | E>
+  /** Forgets the answers kept of a service: it said something changed (a webhook). */
+  readonly forget: (service: HomeProtocol.HomeService) => Effect.Effect<void>
 }>()("quai/HomeReads") {
   static readonly layer = Layer.effect(
     HomeReads,
@@ -171,34 +229,30 @@ export class HomeReads extends Context.Service<HomeReads, {
         )
 
       const scope = yield* Effect.scope
-      const gets = new Map<string, SharedGet>()
-
-      /** Settles a shared GET: a 2xx answer is kept a while, anything else is forgotten. */
-      const settle = (key: string, get: SharedGet, exit: Exit.Exit<Outcome, HomeOffline>) =>
-        Effect.gen(function*() {
-          const kept = Exit.isSuccess(exit) && exit.value._tag === "Answered" && isSuccess(exit.value.status)
-          if (kept) get.until = (yield* Clock.currentTimeMillis) + answerKeptMs
-          else if (gets.get(key) === get) gets.delete(key)
-          yield* Deferred.done(get.answer, exit)
-        })
+      const gets = makeKeptGets<Deferred.Deferred<Outcome, HomeOffline>>()
 
       /**
-       * A GET's outcome, from the call already on its way or answered moments ago when there is one.
-       * The call runs on its own: a read given up (an iPhone that stopped waiting) leaves it to the others.
+       * A GET's outcome, from the call already on its way, or from its last answer when the reader
+       * finds it recent enough. The call runs on its own: a read given up (an iPhone that stopped
+       * waiting) leaves it to the others. A 2xx answer is kept; anything else is forgotten.
        */
       const get = (service: HomeProtocol.HomeService, path: string) =>
         Effect.gen(function*() {
-          const key = `${service} ${path}`
           const now = yield* Clock.currentTimeMillis
-          const found = gets.get(key)
-          if (found !== undefined && now < found.until) return yield* Deferred.await(found.answer)
-          const shared: SharedGet = { answer: yield* Deferred.make<Outcome, HomeOffline>(), until: Infinity }
-          gets.set(key, shared)
+          const found = gets.find(service, path, now, yield* AnswersKeptFor)
+          if (found !== undefined) return yield* Deferred.await(found)
+          const answer = yield* Deferred.make<Outcome, HomeOffline>()
+          const settle = gets.begin(service, path, answer, now)
           yield* Effect.forkIn(
-            Effect.flatMap(Effect.exit(call({ service, method: "GET", path })), (exit) => settle(key, shared, exit)),
+            Effect.gen(function*() {
+              const exit = yield* Effect.exit(call({ service, method: "GET", path }))
+              const keep = Exit.isSuccess(exit) && exit.value._tag === "Answered" && isSuccess(exit.value.status)
+              settle(yield* Clock.currentTimeMillis, keep)
+              yield* Deferred.done(answer, exit)
+            }),
             scope
           )
-          return yield* Deferred.await(shared.answer)
+          return yield* Deferred.await(answer)
         })
 
       const services = Effect.flatMap(
@@ -269,8 +323,8 @@ export class HomeReads extends Context.Service<HomeReads, {
       /** A write: what was kept before it, or read while it ran, may be what it changes. */
       const forgetting = <A, E>(effect: Effect.Effect<A, E>) =>
         Effect.suspend(() => {
-          gets.clear()
-          return Effect.ensuring(effect, Effect.sync(() => gets.clear()))
+          gets.forget()
+          return Effect.ensuring(effect, Effect.sync(() => gets.forget()))
         })
 
       const write = <E>(
@@ -288,7 +342,9 @@ export class HomeReads extends Context.Service<HomeReads, {
               : Effect.fail(refused(serviceError(answer.status, answer.body)))
         )
 
-      return { services, protocol, webUrls, read, all, write } satisfies HomeReads["Service"]
+      const forget = (service: HomeProtocol.HomeService) => Effect.sync(() => gets.forget(service))
+
+      return { services, protocol, webUrls, read, all, write, forget } satisfies HomeReads["Service"]
     })
   )
 }

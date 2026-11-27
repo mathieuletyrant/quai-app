@@ -7,7 +7,7 @@ import { Calls } from "../src/Calls.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { Journal } from "../src/Journal.ts"
-import { callConcurrency, LocalHome, openPairingHashes, startingMessage } from "../src/LocalHome.ts"
+import { LocalHome, openPairingHashes, startingMessage } from "../src/LocalHome.ts"
 import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
 import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
@@ -100,21 +100,20 @@ describe("the home, answered in place", () => {
       expect(new Set(called.map((call) => call.id)).size).toBe(2)
     }).pipe(Effect.provide(local)))
 
-  it.effect("makes a few calls at once, the others wait their turn", () =>
+  it.effect("makes its calls as they are asked, however many at once: a screen's reads leave together", () =>
     Effect.gen(function*() {
       const { link } = yield* LocalHome
       const asked = yield* Effect.forkChild(
         Effect.forEach(
-          Array.from({ length: callConcurrency * 3 }, (_, index) => index),
+          Array.from({ length: 40 }, (_, index) => index),
           (index) => link.call({ service: "seerr", method: "GET", path: `/api/v1/request/${index}` }),
           { concurrency: "unbounded" }
         )
       )
       yield* settle
-      expect(inFlight.most).toBe(callConcurrency)
-      yield* TestClock.adjust("3 seconds")
-      expect(yield* Fiber.join(asked)).toHaveLength(callConcurrency * 3)
-      expect(inFlight.most).toBe(callConcurrency)
+      expect(inFlight.most).toBe(40)
+      yield* TestClock.adjust("1 second")
+      expect(yield* Fiber.join(asked)).toHaveLength(40)
     }).pipe(Effect.provide(local)))
 
   it.effect("keeps the documents in the home store: another start reads them back", () =>

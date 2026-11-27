@@ -9,7 +9,7 @@ import {
   type LinkedHome,
   makeDocuments
 } from "@quai/domain/home/HomeLink.ts"
-import { Clock, Context, Effect, Layer, Option, PubSub, Queue, Ref, Schema, Semaphore } from "effect"
+import { Clock, Context, Effect, Layer, Option, PubSub, Queue, Ref, Schema } from "effect"
 import { Calls } from "./Calls.ts"
 import { configuredServices, HomeConfig } from "./Config.ts"
 import { HomeKey } from "./HomeKey.ts"
@@ -20,9 +20,6 @@ import { Watches } from "./Watches.ts"
 
 const pairingPrefix = "pairing/"
 const decodePairing = Schema.decodeUnknownOption(Schema.Struct({ expiresAt: Schema.Number }))
-
-/** The calls made to the services at once; the others wait their turn. */
-export const callConcurrency = 8
 
 /** What the console is told until the home's routes are up. */
 export const startingMessage = "Quai Home is starting"
@@ -37,7 +34,7 @@ export const openPairingHashes = (documents: ReadonlyMap<string, unknown>, now: 
 
 /**
  * The home, for the domain that runs in Quai Home (ADR 3): its home link answered in place. The
- * calls go to the services on the LAN (`Calls`, within the allowlist), the watches are polled here
+ * calls go to the services on the LAN (`Calls`, within the allowlist, as many at once as are asked), the watches are polled here
  * (`Watches`), the documents are the home store's, the journal is Quai Home's own. Nothing crosses
  * a WebSocket: this home is never offline.
  */
@@ -68,7 +65,6 @@ export class LocalHome extends Context.Service<LocalHome, {
       const pairingChanges = yield* Queue.sliding<void>(1)
       const consoleHandler = yield* Ref.make<ConsoleHandler | null>(null)
       const callCount = yield* Ref.make(0)
-      const calling = yield* Semaphore.make(callConcurrency)
 
       const failed = (error: { readonly message: string }) =>
         new HomeError({ reason: "failed", message: error.message })
@@ -131,7 +127,7 @@ export class LocalHome extends Context.Service<LocalHome, {
         call: (request) =>
           Effect.gen(function*() {
             const id = `l${yield* Ref.updateAndGet(callCount, (count) => count + 1)}`
-            const answer = yield* calling.withPermit(calls.run(HomeProtocol.Call.make({ ...request, id })))
+            const answer = yield* calls.run(HomeProtocol.Call.make({ ...request, id }))
             return answer._tag === "Failed"
               ? yield* Effect.fail(new HomeError({ reason: "failed", message: answer.reason }))
               : { status: answer.status, body: answer.body }

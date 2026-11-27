@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { DeviceAuth, QuaiApi, type UpcomingItem } from "@quai/api"
+import { screenAnswerKeptMs } from "@quai/domain/home/HomeReads.ts"
 import { Effect } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
@@ -87,6 +88,34 @@ describe("upcoming route", () => {
       expect(deletion.fixId).toBe("deletion-9")
       // Its delay ends on the 30th at 10:00, after that day's run: the next one, at 02:00, takes it.
       expect(deletion).toMatchObject({ at: Date.parse("2026-12-01T02:00:00Z") / 1000, timed: true, earliest: false })
+    }).pipe(Effect.provide(TestApp)))
+
+  it.effect("opened again within the minute, reads nothing again; a service's webhook has its lists read again", () =>
+    Effect.gen(function*() {
+      yield* TestClock.setTime(now)
+      const home = yield* makeFakeHome({ services: [...everything], answer: recordedHome(realHome) })
+      yield* home.connect
+      const api = yield* pairedApi
+      const first = yield* api.upcoming.list()
+      const asked = home.calls.length
+      expect(asked).toBeGreaterThan(10)
+      yield* TestClock.adjust(screenAnswerKeptMs - 1_000)
+      // The same lists, read at another moment: the same rows.
+      expect(kinds((yield* api.upcoming.list()).items)).toEqual(kinds(first.items))
+      expect(home.calls).toHaveLength(asked)
+
+      // Radarr says something changed: its lists are read again, the others' are kept.
+      yield* home.webhook("radarr", { eventType: "Test" })
+      yield* api.upcoming.list()
+      const again = home.calls.slice(asked).map((call) => call.service)
+      expect(again.length).toBeGreaterThan(0)
+      expect(new Set(again)).toEqual(new Set(["radarr"]))
+
+      // Past the minute, everything is read again.
+      yield* TestClock.adjust(screenAnswerKeptMs)
+      const before = home.calls.length
+      yield* api.upcoming.list()
+      expect(new Set(home.calls.slice(before).map((call) => call.service))).toEqual(new Set(everything))
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("an older Quai Home gets no seed cleanup and no space, and is asked nothing it would refuse", () =>
