@@ -10,10 +10,9 @@ extension Components.Schemas.LibraryItem {
     /// "Movie · 2024"
     var caption: String { [kindLabel, year.map { String($0) }].compactMap(\.self).joined(separator: " · ") }
 
-    /// The grid's poster, 342 px wide.
+    /// The poster of the grid and of the title's detail: one size, so opening a title shows the
+    /// image the grid already loaded instead of loading another.
     var posterThumbnail: URL? { PosterSize.grid.url(posterUrl) }
-
-    var posterLarge: URL? { PosterSize.large.url(posterUrl) }
 
     var serviceName: String { kind == .movie ? "Radarr" : "Sonarr" }
 

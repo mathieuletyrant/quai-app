@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// The Settings tab: this iPhone's Live Activities, notifications and requester, the connection, disconnecting.
+/// The Settings tab: this iPhone's Live Activities, notifications, requester and posters, the connection, disconnecting.
 struct SettingsView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.openURL) private var openURL
     @State private var confirmDisconnect = false
+    /// The bytes of the posters kept on this iPhone; nil until read.
+    @State private var postersBytes: Int?
 
     private var host: String { connection.serverURL?.host() ?? connection.serverURL?.absoluteString ?? "—" }
 
@@ -94,6 +96,28 @@ struct SettingsView: View {
                         }
                     }
 
+                    GroupedSection(
+                        header: "Posters",
+                        footer: "Posters are kept on this iPhone. Clear them to see a poster changed since in Radarr or Sonarr."
+                    ) {
+                        ListRow(title: "Kept", value: postersBytes.map { Format.bytes(Double($0)) } ?? "…")
+                        Button {
+                            Posters.shared.clear()
+                            postersBytes = 0
+                        } label: {
+                            HStack {
+                                Text("Clear posters").font(QuaiFont.body).foregroundStyle(Palette.accent)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 48)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(postersBytes == 0)
+                        .accessibilityIdentifier("clear-posters")
+                    }
+
                     if !connection.consoleURLs.isEmpty {
                         GroupedSection(footer: "Services, flows and iPhones are set up in Quai's console.") {
                             Button {
@@ -141,6 +165,7 @@ struct SettingsView: View {
             }
             // Which services Quai Home reaches decides the settings worth offering.
             .task { await connection.loadAlerts() }
+            .task { postersBytes = await Posters.shared.keptBytes() }
         }
     }
 }
