@@ -141,19 +141,23 @@ final class Connection {
         let url = try await ServerSession.firstReachable(link.serverURLs, accessHeaders: link.accessHeaders)
         let middlewares: [any ClientMiddleware] = [QuaiErrorsMiddleware(), AccessHeadersMiddleware(headers: link.accessHeaders)]
         let client = Client(serverURL: url, transport: URLSessionTransport(), middlewares: middlewares)
+        // A key of this pairing's own: the home will answer only what it signs.
+        let deviceKey = DeviceKey()
         let body = Components.Schemas.PairDevice(
             code: link.code,
             name: name,
             apnsEnvironment: Self.apnsEnvironment,
             pushToStartToken: pushToStartToken,
-            timeZone: TimeZone.current.identifier
+            timeZone: TimeZone.current.identifier,
+            deviceKey: deviceKey.publicKey
         )
         let paired = try await client.pairDevice(body: .json(body)).ok.body.json
         let session = ServerSession(
             token: paired.token,
             urls: ServerSession.pairedURLs(link.serverURLs, answered: url),
             accessHeaders: link.accessHeaders,
-            consoleURLs: link.consoleURLs
+            consoleURLs: link.consoleURLs,
+            deviceKey: deviceKey
         )
         session.save()
         self.session = session

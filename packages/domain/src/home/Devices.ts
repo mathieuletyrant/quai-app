@@ -37,6 +37,8 @@ export interface Device {
   readonly pairedAt: number
   readonly lastSeenAt: number | null
   readonly timeZone: string | null
+  /** Its device key's public half: this iPhone signs its requests. Null: paired without one, its token alone. */
+  readonly deviceKey: string | null
 }
 
 /** One iPhone as the notifier sees it for one activity. */
@@ -90,6 +92,8 @@ export const DeviceDocument = Schema.Struct({
   activityTokens: Schema.Record(Schema.String, Schema.String),
   /** The APNs token for notifications (alerts); absent until the user allows them. */
   notificationToken: Schema.optional(Schema.String),
+  /** The device key's public half (Ed25519, raw, base64); absent on iPhones paired without one. */
+  deviceKey: Schema.optional(Schema.String),
   /** Activity key → where it was when swiped away. */
   dismissed: Schema.Record(
     Schema.String,
@@ -147,7 +151,8 @@ const toDevice = (device: DeviceDocument): Device => ({
   pushToStartToken: device.pushToStartToken,
   pairedAt: device.pairedAt,
   lastSeenAt: device.lastSeenAt,
-  timeZone: device.timeZone ?? null
+  timeZone: device.timeZone ?? null,
+  deviceKey: device.deviceKey ?? null
 })
 
 export class Devices extends Context.Service<Devices, {
@@ -159,6 +164,7 @@ export class Devices extends Context.Service<Devices, {
     readonly apnsEnvironment: ApnsEnvironment
     readonly pushToStartToken?: string | undefined
     readonly timeZone?: string | undefined
+    readonly deviceKey?: string | undefined
   }) => Effect.Effect<Option.Option<{ readonly deviceId: DeviceId; readonly token: string }>, HomeOffline>
   readonly authenticate: (token: string) => Effect.Effect<Option.Option<Device>, HomeOffline>
   /** Whether an iPhone of this home holds this token, without counting it as seen. False while offline. */
@@ -282,6 +288,7 @@ export class Devices extends Context.Service<Devices, {
               lastSeenAt: now,
               preferences: defaultPreferences,
               ...(input.timeZone !== undefined && isTimeZone(input.timeZone) ? { timeZone: input.timeZone } : {}),
+              ...(input.deviceKey === undefined ? {} : { deviceKey: input.deviceKey }),
               activityTokens: {},
               dismissed: {}
             })

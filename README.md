@@ -63,7 +63,8 @@ Quai has two parts.
   a fixed allowlist. It connects out: no port to open.
 - ☁️ **Quai Cloud** is how the app reaches your Quai Home from anywhere, and what sends its pushes
   through Apple, signed with the push key. It relays, computes nothing and stores nothing
-  ([why](docs/adr/0003-quai-home-runs-quai.md)).
+  ([why](docs/adr/0003-quai-home-runs-quai.md)). Each iPhone signs its requests with a key made at
+  pairing that never leaves it, so the Cloud can carry a request but not make one.
 
 ```
  your server                                   anywhere

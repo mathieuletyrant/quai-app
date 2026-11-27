@@ -30,6 +30,8 @@ interface Device {
   readonly name: string
   readonly apnsEnvironment: "development" | "production"
   readonly canStartActivities: boolean
+  /** Paired with a device key. Absent from a Quai that doesn't say. */
+  readonly signsRequests?: boolean | undefined
   readonly lastSeenAt?: DateTime.Utc | undefined
 }
 
@@ -249,6 +251,13 @@ const columns: ReadonlyArray<Column<Device>> = [
     header: "Live Activities",
     cell: (device) =>
       device.canStartActivities ? <Status tone="ok">Allowed</Status> : <Status tone="warn">Not allowed yet</Status>
+  },
+  {
+    header: "Requests",
+    cell: (device) =>
+      device.signsRequests === true
+        ? <Status tone="ok">Signed</Status>
+        : <Status tone="warn">Pair again to sign them</Status>
   },
   {
     header: "Last seen",

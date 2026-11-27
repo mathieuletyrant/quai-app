@@ -131,10 +131,17 @@ its QR link, the app sends it back and gets its device token.
 as a hash only. The home id routes the request; the secret is checked by that home. Tokens issued
 before Quai Cloud served several homes are the secret alone: the linked home that holds it answers.
 
-**Device key**. The key pair an iPhone makes at pairing: the private key never leaves the iPhone,
-its home keeps the public one. The app signs each request with it, with its time, and Quai Home
-answers only what its iPhones signed: Quai Cloud, which carries the requests, can't make one or
-play one again (ADR 3, with the app relay).
+**Device key** (`deviceKey`, `DeviceKey.swift`). The Ed25519 key pair an iPhone makes at pairing:
+the private key never leaves the iPhone (its Keychain, this device only), its home keeps the
+public one on the iPhone's document. An iPhone paired by an app from before has none, and is known
+by its device token alone until it is paired again.
+
+**Signed request** (`RequestSignature`, `InvalidSignature`). A request of an iPhone that has a
+device key: it carries the iPhone's clock, a nonce and the key's signature of the request (method,
+path, time, nonce, the body's hash). Its home answers it once, and only within 5 minutes of its
+own clock: Quai Cloud, which carries the requests, can't make one or play one again (ADR 3). One
+that fails is `InvalidSignature`, with what to do, never `Unauthorized`: the iPhone is still
+paired.
 
 **iPhone preferences** (`DevicePreferences`). What one iPhone chooses for itself, in the app: which
 flows and steps it shows, the alerts it mutes, its requester.
