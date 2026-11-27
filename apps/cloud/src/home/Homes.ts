@@ -105,11 +105,16 @@ export class Homes extends Context.Service<Homes, {
       return homes.length === 1 ? yield* links.relayOf(homes[0]!) : Option.none<AppRelay>()
     })
 
-    /** A pairing: the home that said its code is open, else the only home, which refuses a code it doesn't hold. */
+    /**
+     * A pairing: the home that said its code is open, else a home connected, which refuses a code it
+     * doesn't hold as unknown. Offline only when no home is connected.
+     */
     const pairingHome = (code: string) =>
       Effect.gen(function*() {
         const announced = yield* links.pairingHome(code)
-        return yield* Option.isSome(announced) ? links.relayOf(announced.value) : onlyHome
+        if (Option.isSome(announced)) return yield* links.relayOf(announced.value)
+        const [anyHome] = yield* links.homeIds
+        return anyHome === undefined ? Option.none<AppRelay>() : yield* links.relayOf(anyHome)
       })
 
     const appFor = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<HomeHttp> =>

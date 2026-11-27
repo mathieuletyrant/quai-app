@@ -57,7 +57,7 @@ export const UpcomingItem = Schema.Struct({
 export type UpcomingItem = typeof UpcomingItem.Type
 
 export const Upcoming = Schema.Struct({
-  /** The time zone the days are read in: the iPhones' (IANA), else Quai Cloud's `QUAI_TZ`, else UTC. */
+  /** The time zone the days are read in: the iPhones' (IANA), else Quai Home's `QUAI_TZ`, else UTC. */
   timeZone: Schema.String,
   /** Releases cover the next 14 days, what goes every date known; by `at`, undated last. */
   items: Schema.Array(UpcomingItem),

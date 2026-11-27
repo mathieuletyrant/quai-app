@@ -256,11 +256,12 @@ describe("a pairing, relayed", () => {
       yield* second.pairingCodes([pairingHash("BBBB2222"), pairingHash("CCCC3333")])
       expect(json((yield* pairing(" bbbb2222 ")).text)).toEqual({ home: "second" })
       expect(json((yield* pairing("AAAA1111")).text)).toEqual({ home: "first" })
-      // The list replaces the one before: a code spent is no longer the home's.
+      // The list replaces the one before: a code spent is no longer the home's, and goes to a home
+      // connected, which refuses it as unknown.
       yield* second.pairingCodes([pairingHash("CCCC3333")])
-      expect((yield* pairing("BBBB2222")).status).toBe(503)
-      expect(first.appRequests).toHaveLength(1)
-      expect(second.appRequests).toHaveLength(1)
+      expect(yield* (yield* HomeLinks).pairingHome("BBBB2222")).toEqual(Option.none())
+      yield* pairing("BBBB2222")
+      expect(first.appRequests.length + second.appRequests.length).toBe(3)
     }).pipe(Effect.provide(Cloud)))
 
   it.effect("a code no home said: the only home refuses it itself; a home gone forgets its codes", () =>
@@ -273,6 +274,17 @@ describe("a pairing, relayed", () => {
       yield* home.disconnect
       expect(yield* (yield* HomeLinks).pairingHome("AAAA1111")).toEqual(Option.none())
       expect((yield* pairing("AAAA1111")).status).toBe(503)
+    }).pipe(Effect.provide(Cloud)))
+
+  it.effect("a code no home said, with two homes linked: one of them refuses it, as unknown", () =>
+    Effect.gen(function*() {
+      const refuses = () => ({ status: 401, body: "{\"_tag\":\"InvalidPairingCode\"}" })
+      const first = yield* homeRunningQuai({ answerApp: refuses })
+      const second = yield* homeRunningQuai({ answerApp: refuses, privateKey: otherHomeKey() })
+      const answer = yield* pairing("ZZZZ9999")
+      expect(answer.status).toBe(401)
+      expect(json(answer.text)).toEqual({ _tag: "InvalidPairingCode" })
+      expect(first.appRequests.length + second.appRequests.length).toBe(1)
     }).pipe(Effect.provide(Cloud)))
 
   it.effect("remembers at most the protocol's count of codes for a home", () =>

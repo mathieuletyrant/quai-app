@@ -36,8 +36,9 @@ user let go has no alert at all, so its deletion would go unseen.
 
 ## Consequences
 
-- Quai Home protocol 10 allows Reclaimerr's event feed; an older Quai Home refuses it and Gone ·
-  Planned deletion stays quiet.
+- Reclaimerr's event feed is always watched while an iPhone wants Gone · Planned deletion. (Until
+  ADR 3's old path was removed, a Quai Home older than protocol 10 refused it and Gone stayed quiet
+  there; a Quai Home older than 13 no longer links.)
 - A Reclaimerr token without `events:read` keeps working for everything else; the console's
   Services page says the scope is missing.
 - A new thing that happened on its own (a request available, a release grabbed) would be another
