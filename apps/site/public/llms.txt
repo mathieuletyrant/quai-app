@@ -96,7 +96,7 @@ Requirements: a server that runs Docker (or Umbrel), your media apps on it, an i
    - `QUAI_INTERNAL_URL` is how Radarr, Sonarr and Seerr reach Quai Home, for the webhooks it sets up in them. Use an address they can reach: the server's LAN address, or the container's name if they share a Docker network (`http://quai-home:8788`).
 
 2. Open the console at `http://<server-address>:8788` and sign in with `QUAI_HOME_PASSWORD`.
-3. **Settings**: Quai Cloud shows "Connected".
+3. At the foot of the console's sidebar, Quai Cloud shows its version with a green dot: Quai Home is linked to it. (With the hosted Cloud there is nothing to set, so there is no Settings page; with your own Cloud, Settings shows its address, push key and public address.)
 4. **Services**: for each service you use, enter its address as Quai Home reaches it and its API key. Each key is checked as you save it, and each service should read "Connected".
 5. Install the app from the App Store: https://apps.apple.com/app/id6836390669
 6. **iPhones → Pair an iPhone** in the console shows a QR code. Scan it with the iPhone's Camera app: it opens Quai and pairs. Allow Live Activities and notifications when asked.
@@ -208,8 +208,8 @@ Every service can be set in the console's **Services** page instead of the envir
 
 ## Troubleshooting
 
-- **No Live Activity shows up**: check iPhone Settings → Quai → Live Activities, that the flow is enabled in the console under Flows, and that Quai Cloud reads "Connected" in the console. Then use the flow's Test button. With a self-hosted Cloud, check that the Apple push key reads "Ready" in Settings.
-- **The app doesn't connect away from home**: with the hosted Cloud, check that Quai Home is linked (console → Settings). With your own Cloud, set `QUAI_CLOUD_PUBLIC_URL` (and `QUAI_CLOUD_PUBLIC_HEADERS`) and pair the iPhone again.
+- **No Live Activity shows up**: check iPhone Settings → Quai → Live Activities, that the flow is enabled in the console under Flows, and that Quai Cloud shows a green dot at the foot of the console's sidebar. Then use the flow's Test button. With a self-hosted Cloud, check that the Apple push key reads "Ready" in Settings.
+- **The app doesn't connect away from home**: with the hosted Cloud, check that Quai Home is linked (a green dot by Quai Cloud, at the foot of the console's sidebar). With your own Cloud, set `QUAI_CLOUD_PUBLIC_URL` (and `QUAI_CLOUD_PUBLIC_HEADERS`) and pair the iPhone again.
 - **A service isn't connected**: check its address (as Quai Home reaches it, inside Docker) and its API key under Services. A service marked "Env" is set in Quai Home's environment, which wins over the page.
 - **Seerr requests arrive late**: if Seerr's webhook already posts somewhere else, Quai leaves it and checks requests regularly instead. The Journal says so.
 - **"Quai Cloud isn't reachable" in the Journal**: Quai Home lost its link to Quai Cloud for more than a minute (shorter drops, which happen a few times a day with the hosted Cloud, are reconnections and aren't logged). Meanwhile the app can't reach your home from outside and nothing is pushed; Quai Home keeps following your downloads, and the Journal says when the Cloud is reachable again. Check that Quai Home is running and reaches the internet. With a Quai Home older than 2.4 the line reads "Quai Home went offline".
