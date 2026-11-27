@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
 import { HomeOffline } from "@quai/api"
+import { offlineMessage } from "@quai/domain/home/HomeLink.ts"
+import { answerKeptMs, HomeReads } from "@quai/domain/home/HomeReads.ts"
+import { Journal } from "@quai/domain/journal/Journal.ts"
 import { Effect, Fiber, Layer, Logger, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import { offlineMessage } from "../../src/home/HomeLink.ts"
-import { answerKeptMs, HomeReads } from "../../src/home/HomeReads.ts"
-import { Journal } from "../../src/journal/Journal.ts"
 import { type Answer, makeFakeHome, recordedHome, type Recording, settle, testLink } from "../fakeHome.ts"
 
 const Status = Schema.Struct({ version: Schema.String })

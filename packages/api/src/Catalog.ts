@@ -2,7 +2,7 @@ import type { ActionType, EventType, Flow, FlowSubject, ServiceName, StepShow } 
 
 /**
  * Every event a flow can use, with its subject, the services that produce it, and how the console
- * names it. On the server, each service's integration (apps/cloud/src/integrations) emits them.
+ * names it. On the server, each service's integration (packages/domain/src/integrations) emits them.
  */
 export const catalog: ReadonlyArray<{
   readonly type: EventType

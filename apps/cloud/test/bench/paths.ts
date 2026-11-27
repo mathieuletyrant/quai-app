@@ -4,19 +4,24 @@
  * input from the home's lists (not timed), `run` is the computation.
  */
 import { HomeProtocol, type LibraryItem, upcomingReleaseDays } from "@quai/api"
+import { blockedMovie, moviesWithoutSource, queuedMovie } from "@quai/domain/fixes/movies.ts"
+import { blockedEpisodes, episodesWithoutSource, queuedEpisodes } from "@quai/domain/fixes/series.ts"
+import { isImportBlocked } from "@quai/domain/integrations/arr.ts"
+import {
+  queuedByDownload,
+  seedCleanups,
+  stuckRemovals,
+  unlinkedCategory
+} from "@quai/domain/integrations/cleanuparr.ts"
+import { libraryMovie } from "@quai/domain/integrations/radarr.ts"
+import { plannedDeletionFixes, plannedDeletions } from "@quai/domain/integrations/reclaimerr.ts"
+import { librarySeries } from "@quai/domain/integrations/sonarr.ts"
+import { rangeReleases } from "@quai/domain/releases/ReleaseDays.ts"
+import { plannedDeletionItems, releaseItems, seedItems } from "@quai/domain/upcoming/Rows.ts"
+import { spaceBack } from "@quai/domain/upcoming/SpaceBack.ts"
+import { spaceInputs, type SpaceReads } from "@quai/domain/upcoming/SpaceInputs.ts"
+import { type Gathered, plansOf, reachOf, type StackReads, upcomingOf } from "@quai/domain/upcoming/Upcoming.ts"
 import { Option } from "effect"
-import { blockedMovie, moviesWithoutSource, queuedMovie } from "../../src/fixes/movies.ts"
-import { blockedEpisodes, episodesWithoutSource, queuedEpisodes } from "../../src/fixes/series.ts"
-import { isImportBlocked } from "../../src/integrations/arr.ts"
-import { queuedByDownload, seedCleanups, stuckRemovals, unlinkedCategory } from "../../src/integrations/cleanuparr.ts"
-import { libraryMovie } from "../../src/integrations/radarr.ts"
-import { plannedDeletionFixes, plannedDeletions } from "../../src/integrations/reclaimerr.ts"
-import { librarySeries } from "../../src/integrations/sonarr.ts"
-import { rangeReleases } from "../../src/releases/ReleaseDays.ts"
-import { plannedDeletionItems, releaseItems, seedItems } from "../../src/upcoming/Rows.ts"
-import { spaceBack } from "../../src/upcoming/SpaceBack.ts"
-import { spaceInputs, type SpaceReads } from "../../src/upcoming/SpaceInputs.ts"
-import { type Gathered, plansOf, reachOf, type StackReads, upcomingOf } from "../../src/upcoming/Upcoming.ts"
 import { type BigHome, bigHome, recordedAt, recordedDay, recordedZone } from "../bigHome.ts"
 
 export interface Path<I = any> {

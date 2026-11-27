@@ -8,9 +8,8 @@
  * downloaded, Sonarr imported by hand, and Jellyfin named "Notre maison".
  */
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
-import { moviesWithoutSource } from "../src/fixes/movies.ts"
-import { episodesWithoutSource } from "../src/fixes/series.ts"
+import { moviesWithoutSource } from "@quai/domain/fixes/movies.ts"
+import { episodesWithoutSource } from "@quai/domain/fixes/series.ts"
 import {
   queueCleanerJobRead,
   removalsRead,
@@ -18,7 +17,7 @@ import {
   slowRulesRead,
   stallRulesRead,
   strikesRead
-} from "../src/integrations/cleanuparr.ts"
+} from "@quai/domain/integrations/cleanuparr.ts"
 import {
   EpisodesResult,
   hasEpisodes,
@@ -26,10 +25,16 @@ import {
   libraryUser,
   matchItem,
   Users
-} from "../src/integrations/jellyfin.ts"
-import { progressEvent, Torrents } from "../src/integrations/qbittorrent.ts"
-import { libraryMovie, RadarrCalendar, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
-import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "../src/integrations/reclaimerr.ts"
+} from "@quai/domain/integrations/jellyfin.ts"
+import { progressEvent, Torrents } from "@quai/domain/integrations/qbittorrent.ts"
+import {
+  libraryMovie,
+  RadarrCalendar,
+  RadarrGrabs,
+  RadarrMissing,
+  RadarrMovies
+} from "@quai/domain/integrations/radarr.ts"
+import { candidatesRead, plannedDeletionFixes, plannedDeletions } from "@quai/domain/integrations/reclaimerr.ts"
 import {
   searchResults,
   seasonChoices,
@@ -41,7 +46,7 @@ import {
   SeerrUserPage,
   seerrUsers,
   toMediaRequest
-} from "../src/integrations/seerr.ts"
+} from "@quai/domain/integrations/seerr.ts"
 import {
   librarySeries,
   SonarrCalendar,
@@ -49,9 +54,10 @@ import {
   SonarrGrabs,
   SonarrMissing,
   SonarrSeries
-} from "../src/integrations/sonarr.ts"
-import { dayReleases } from "../src/releases/ReleaseDays.ts"
-import { DiskSpaces, mediaDisks } from "../src/storage/MediaDisks.ts"
+} from "@quai/domain/integrations/sonarr.ts"
+import { dayReleases } from "@quai/domain/releases/ReleaseDays.ts"
+import { DiskSpaces, mediaDisks } from "@quai/domain/storage/MediaDisks.ts"
+import { Schema } from "effect"
 import { fixture } from "./fixtures.ts"
 
 const real = <A, I>(schema: Schema.Codec<A, I>, path: string) =>

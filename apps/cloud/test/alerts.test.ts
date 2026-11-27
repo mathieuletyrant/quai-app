@@ -1,16 +1,17 @@
 import { describe, expect, it } from "@effect/vitest"
 import { defaultAlertSettings, type DeviceId } from "@quai/api"
+import { Alerts, alertState, reconcile } from "@quai/domain/alerts/Alerts.ts"
+import { deviceKey, Devices } from "@quai/domain/home/Devices.ts"
+import { HomeDocuments } from "@quai/domain/home/HomeLink.ts"
+import { IntegrationsLive } from "@quai/domain/integrations/All.ts"
+import { arrHealthState, HealthChecks } from "@quai/domain/integrations/arrHealth.ts"
+import { diskDetail, diskState, diskStates, mountsWatchId } from "@quai/domain/integrations/disk.ts"
+import { deletionsState, deletionsWatchId } from "@quai/domain/integrations/plannedDeletionAlert.ts"
+import { CandidatePage, reasonSummary } from "@quai/domain/integrations/reclaimerr.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
 import { Effect, Layer, Redacted, Schema } from "effect"
 import { generateKeyPairSync } from "node:crypto"
-import { Alerts, alertState, reconcile } from "../src/alerts/Alerts.ts"
-import { deviceKey, Devices } from "../src/home/Devices.ts"
-import { HomeDocuments } from "../src/home/HomeLink.ts"
-import { IntegrationsLive } from "../src/integrations/All.ts"
-import { arrHealthState, HealthChecks } from "../src/integrations/arrHealth.ts"
-import { diskDetail, diskState, diskStates, mountsWatchId } from "../src/integrations/disk.ts"
-import { deletionsState, deletionsWatchId } from "../src/integrations/plannedDeletionAlert.ts"
-import { CandidatePage, reasonSummary } from "../src/integrations/reclaimerr.ts"
-import { Apns } from "../src/push/Apns.ts"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { cloud, makeFakeHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -135,7 +136,7 @@ describe("alerts", () => {
   it.effect("a planned deletion is notified when planned and on its last day; kept, it ends without a word", () =>
     Effect.gen(function*() {
       const apple = yield* fakeApns
-      const apns = yield* Apns.make({
+      const apns = yield* makeApns({
         keyPem: Redacted.make(keyPem),
         keyId: "KEY123",
         teamId: "TEAM456",
@@ -203,7 +204,7 @@ describe("alerts", () => {
         ["diskLow", undefined]
       ])
       expect(active.services).toEqual(["radarr", "reclaimerr"])
-    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, makeApns(null)))))))
 
   it.effect("settings saved before a kind existed keep their values and get the new kind's defaults", () =>
     Effect.gen(function*() {
@@ -215,7 +216,7 @@ describe("alerts", () => {
         ...defaultAlertSettings,
         diskLow: { enabled: false, belowPercent: 7 }
       })
-    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, makeApns(null)))))))
 
   it.effect("what a home stored under an alert kind's older name reads under the new one", () =>
     Effect.gen(function*() {
@@ -252,12 +253,12 @@ describe("alerts", () => {
       )
       yield* documents.put(key, { ...stored, preferences: { flows: {}, mutedAlerts: ["deletionPlanned", "diskLow"] } })
       expect((yield* devices.preferences(paired.value.deviceId)).mutedAlerts).toEqual(["plannedDeletion", "diskLow"])
-    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, makeApns(null)))))))
 
   it.effect("watched, notified once to the iPhones that allowed it and didn't mute it, ended once, kept at home", () =>
     Effect.gen(function*() {
       const apple = yield* fakeApns
-      const apns = yield* Apns.make({
+      const apns = yield* makeApns({
         keyPem: Redacted.make(keyPem),
         keyId: "KEY123",
         teamId: "TEAM456",

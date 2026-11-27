@@ -1,16 +1,16 @@
 import { describe, expect, it } from "@effect/vitest"
 import { defaultAlertSettings } from "@quai/api"
-import { Effect, Schema } from "effect"
-import { TestClock } from "effect/testing"
-import type { Activity } from "../../src/flows/Engine.ts"
-import type { WatchContext } from "../../src/integrations/Integration.ts"
+import type { Activity } from "@quai/domain/flows/Engine.ts"
+import type { WatchContext } from "@quai/domain/integrations/Integration.ts"
 import {
   qbittorrent,
   removedDetail,
   removedDownloads,
   Torrents,
   torrentsWatchId
-} from "../../src/integrations/qbittorrent.ts"
+} from "@quai/domain/integrations/qbittorrent.ts"
+import { Effect, Schema } from "effect"
+import { TestClock } from "effect/testing"
 import { fixture } from "../fixtures.ts"
 import { download } from "../flows/helpers.ts"
 

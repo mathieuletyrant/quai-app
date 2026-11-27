@@ -6,6 +6,7 @@ WORKDIR /repo
 RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY packages/api/package.json packages/api/
+COPY packages/domain/package.json packages/domain/
 COPY apps/cloud/package.json apps/cloud/
 RUN pnpm install --frozen-lockfile --filter @quai/cloud...
 COPY tsconfig.base.json ./

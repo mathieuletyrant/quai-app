@@ -8,18 +8,19 @@ import {
   journalId,
   QuaiApi
 } from "@quai/api"
+import { Devices } from "@quai/domain/home/Devices.ts"
+import { HomeReads } from "@quai/domain/home/HomeReads.ts"
+import { Integrations } from "@quai/domain/integrations/Integration.ts"
+import { torrentsWatchId } from "@quai/domain/integrations/qbittorrent.ts"
+import { eventNote } from "@quai/domain/journal/describe.ts"
+import { Journal, Timing } from "@quai/domain/journal/Journal.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
 import { Effect, Exit, Layer, Redacted, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { generateKeyPairSync } from "node:crypto"
-import { Devices } from "../src/home/Devices.ts"
-import { HomeReads } from "../src/home/HomeReads.ts"
-import { Integrations } from "../src/integrations/Integration.ts"
-import { torrentsWatchId } from "../src/integrations/qbittorrent.ts"
-import { eventNote } from "../src/journal/describe.ts"
-import { Journal, Timing } from "../src/journal/Journal.ts"
-import { Apns } from "../src/push/Apns.ts"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { cloud, cloudLive, makeFakeHome, recordedHome, testLink } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -32,7 +33,7 @@ const keyPem = generateKeyPairSync("ec", { namedCurve: "prime256v1" }).privateKe
 const journalOnly = Journal.layer.pipe(Layer.provideMerge(testLink))
 
 /** The Cloud with no integration and no APNs key: its Hub hands the journal what Quai Home notes. */
-const quietCloud = cloud(Layer.succeed(Integrations, [])).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
+const quietCloud = cloud(Layer.succeed(Integrations, [])).pipe(Layer.provide(Layer.effect(Apns, makeApns(null))))
 
 const texts = (entries: ReadonlyArray<JournalEntry>) =>
   entries.map((entry) => `${entry.level} ${entry.source} ${entry.text}`)
@@ -223,7 +224,7 @@ describe("what the Cloud logs", () => {
   it.effect("Quai Home linked and gone, a webhook and what it meant, an activity's steps and its pushes, Apple's refusal", () =>
     Effect.gen(function*() {
       const apnsServer = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: apnsServer.url, production: apnsServer.url }
       )

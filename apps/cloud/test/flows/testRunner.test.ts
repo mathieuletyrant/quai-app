@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
 import type { DeviceId } from "@quai/api"
+import { TestRunner } from "@quai/domain/flows/TestRunner.ts"
+import { Notifier } from "@quai/domain/push/Notifier.ts"
 import { Effect, Layer, Option } from "effect"
 import { TestClock } from "effect/testing"
-import { TestRunner } from "../../src/flows/TestRunner.ts"
-import { Notifier } from "../../src/push/Notifier.ts"
 import { fixedFlows } from "./helpers.ts"
 
 describe("flow tests", () => {

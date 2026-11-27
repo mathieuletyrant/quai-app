@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { spaceBack, type SpaceBackInput, surelyLast, type TorrentInput } from "../../src/upcoming/SpaceBack.ts"
+import { spaceBack, type SpaceBackInput, surelyLast, type TorrentInput } from "@quai/domain/upcoming/SpaceBack.ts"
 
 const day = 24 * 3600_000
 const T1 = Date.parse("2026-11-30T10:00:00Z")

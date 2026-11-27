@@ -1,8 +1,9 @@
+import { Devices } from "@quai/domain/home/Devices.ts"
+import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
+import { HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Clock, Context, Effect, Exit, Layer, Option, Schedule, Scope, Semaphore } from "effect"
 import { HttpRouter, HttpServerRequest, type HttpServerResponse } from "effect/http"
-import { Devices } from "./Devices.ts"
-import * as DeviceToken from "./DeviceToken.ts"
-import { HomeLink, HomeLinks } from "./HomeLink.ts"
+import { HomeLinks } from "./HomeLinks.ts"
 
 export const Timing = {
   /** A home gone this long is forgotten: its services stop, and come back if it links again. */

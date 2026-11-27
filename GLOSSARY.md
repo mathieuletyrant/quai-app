@@ -48,7 +48,7 @@ See [ADR 1](docs/adr/0001-console-served-by-quai-home.md).
 **Domain** (`@quai/domain`, `packages/domain`). Everything Quai does for one home: its integrations,
 its flows and engine, its alerts, its journal, the app's pages. One package, so Quai Home can run it
 at home and Quai Cloud only carry what comes out of it
-([ADR 3](docs/adr/0003-quai-home-runs-quai.md), being built: until then it lives in `apps/cloud`).
+([ADR 3](docs/adr/0003-quai-home-runs-quai.md); today Quai Cloud runs it for each home).
 What an image adds around it (its HTTP server, the WebSocket, APNs) stays in its app.
 _Avoid_: core, shared
 
@@ -169,7 +169,7 @@ blocked: drawn grey until it moves again.
 **Engine** (`Engine`). The pure rules that turn events into activities: start, move forward, end,
 stall, expire.
 
-**Integration** (`Integration`, `apps/cloud/src/integrations/`). Everything Quai Cloud knows about
+**Integration** (`Integration`, `packages/domain/src/integrations/`). Everything Quai Cloud knows about
 one service: its webhook reader, its watches, its actions, its alert sources.
 
 **Hub** (`Hub`). What runs the integrations for one home: it sets the watch list, hands snapshots
@@ -232,7 +232,7 @@ view and hands the rest to Quai Home in batches (`JournalAppend`); Quai Home kee
 `JournalRead`.
 _Avoid_: log, history (that is the *arr's)
 
-**Alert** (`Alerts`, `packages/api/src/Alerts.ts`, `apps/cloud/src/alerts/`). Something wrong that
+**Alert** (`Alerts`, `packages/api/src/Alerts.ts`, `packages/domain/src/alerts/`). Something wrong that
 may last: a service that stopped answering (*service down*), the media disk under a share of free
 space (*disk low*), a problem Radarr, Sonarr or Prowlarr report on their System > Status page (*arr
 health*), a planned deletion. Not a Live Activity: one notification when it starts, one when it's

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
+import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
 import { Option } from "effect"
-import * as DeviceToken from "../../src/home/DeviceToken.ts"
 
 describe("device token", () => {
   it("names its home, and only a token Quai made names one", () => {

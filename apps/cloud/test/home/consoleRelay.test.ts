@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
 import { QuaiApi } from "@quai/api"
+import { ConsoleOnlyThroughHome, ConsoleRelayLive } from "@quai/domain/home/ConsoleRelay.ts"
+import { HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpRouter } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
-import { ConsoleOnlyThroughHome, ConsoleRelayLive } from "../../src/home/ConsoleRelay.ts"
-import { HomeLink } from "../../src/home/HomeLink.ts"
 import { makeFakeHome } from "../fakeHome.ts"
 import { TestApp } from "../testApp.ts"
 

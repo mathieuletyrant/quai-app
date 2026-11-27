@@ -1,9 +1,9 @@
 import { builtInFlows, type Flow } from "@quai/api"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import type { FlowEvent, Subject } from "@quai/domain/flows/Events.ts"
+import { FlowStore } from "@quai/domain/flows/FlowStore.ts"
+import { HomeDocuments } from "@quai/domain/home/HomeLink.ts"
 import { Effect, Layer, Option } from "effect"
-import { Activities } from "../../src/flows/Activities.ts"
-import type { FlowEvent, Subject } from "../../src/flows/Events.ts"
-import { FlowStore } from "../../src/flows/FlowStore.ts"
-import { HomeDocuments } from "../../src/home/HomeLink.ts"
 
 export const download = builtInFlows.find((flow) => flow.id === "download")!
 export const playback = builtInFlows.find((flow) => flow.id === "playback")!

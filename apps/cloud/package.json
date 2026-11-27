@@ -17,6 +17,7 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@quai/api": "workspace:*",
+    "@quai/domain": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

@@ -1,5 +1,4 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
 import {
   DownloadCleanerSettings,
   seedCleanups,
@@ -7,7 +6,8 @@ import {
   seedingRuleOf,
   type SeedingTorrent,
   unlinkedCategory
-} from "../../src/integrations/cleanuparr.ts"
+} from "@quai/domain/integrations/cleanuparr.ts"
+import { Schema } from "effect"
 import { fixture } from "../fixtures.ts"
 
 const hour = 3600_000

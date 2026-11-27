@@ -7,6 +7,7 @@ Rules for agents working on Quai. Read the specs before building a feature: [`do
 | Path | Role |
 | --- | --- |
 | `packages/api` | The contract: Effect `HttpApi` + `Schema`. Single source of truth for routes and types. Generates `openapi.json`. |
+| `packages/domain` | The domain: everything Quai does for one home (integrations, flows and engine, alerts, journal, the app's pages and their routes), on a home link. Quai Cloud runs it today; Quai Home will ([ADR 3](docs/adr/0003-quai-home-runs-quai.md)). |
 | `apps/home` | Quai Home: runs next to the services with their keys (environment, or the console's Services page in `/data`), links to Quai Cloud over a WebSocket, runs its allowlisted calls and watches, keeps the home's documents, serves the console behind `QUAI_HOME_PASSWORD` and relays its `/console-api` requests to the Cloud. |
 | `apps/cloud` | Quai Cloud, Effect on Node, one for many homes: implements the contract, reads what Quai Home forwards, runs the flows, pushes to APNs, answers the console's routes Quai Home relays (never on its public port). No interface, keeps nothing: the home's data lives in Quai Home. |
 | `apps/console` | React + Vite web console, served by Quai Home, with typed clients derived from `packages/api` (`QuaiApi` relayed to the Cloud, `HomeConsoleApi` Quai Home's own). |
@@ -43,7 +44,7 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 - `effect` and `@effect/*` are pinned to **4.1.4** through the `catalog:` in `pnpm-workspace.yaml`. Never bump them unasked: `effect/http`, `effect/http-api` and `effect/sql` are marked unstable.
 - Reference docs: https://effect.website/llms.txt (v4). When unsure of a signature, read the `.d.ts` files in `node_modules/effect/dist/`.
 - One service = one `Context.Service` + one `Layer` (`static readonly layer`). The Cloud never calls a service itself: its calls go through `HomeReads` (offline is 503, a service that didn't answer is unavailable), its watches through `HomeLink`.
-- Each service's events (webhook or polling) and actions live in one integration module, `apps/cloud/src/integrations/<service>.ts` (see [`docs/flows.md`](docs/flows.md#integrations)).
+- Each service's events (webhook or polling) and actions live in one integration module, `packages/domain/src/integrations/<service>.ts` (see [`docs/flows.md`](docs/flows.md#integrations)).
 - Errors: `Data.TaggedError` (or `Schema.TaggedError` when they cross the API). No `throw`.
 - No bare `Promise` or `async` on the server: everything is an `Effect`. `Promise` is only allowed at the console's React boundary.
 - Time goes through `Clock` (never `Date.now()` in logic) so `TestClock` works. One exception: the start time in `ServerInfo.layer`.
@@ -51,8 +52,8 @@ Everything in the repo is in English: code, comments, UI strings, docs, commit m
 
 ## Per app
 
-Each app's own rules sit next to its code, read when working there: [`apps/cloud/AGENTS.md`](apps/cloud/AGENTS.md)
-(one Cloud for many homes, reads, adapters, ids), [`apps/console/AGENTS.md`](apps/console/AGENTS.md) (pages, `ui/`,
+Each app's own rules sit next to its code, read when working there: [`packages/domain/AGENTS.md`](packages/domain/AGENTS.md)
+(reads, adapters, ids), [`apps/cloud/AGENTS.md`](apps/cloud/AGENTS.md) (one Cloud for many homes), [`apps/console/AGENTS.md`](apps/console/AGENTS.md) (pages, `ui/`,
 states, theme tokens), [`apps/ios/AGENTS.md`](apps/ios/AGENTS.md) (errors, the loop without a Mac).
 
 ## Tests

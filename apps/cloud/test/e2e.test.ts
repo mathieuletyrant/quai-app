@@ -1,13 +1,14 @@
 import { describe, expect, it } from "@effect/vitest"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import { Devices } from "@quai/domain/home/Devices.ts"
+import { Hub } from "@quai/domain/integrations/Hub.ts"
+import { watchIds } from "@quai/domain/integrations/jellyfin.ts"
+import { torrentsWatchId } from "@quai/domain/integrations/qbittorrent.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
 import { Effect, Layer, Redacted } from "effect"
 import { TestClock } from "effect/testing"
 import { generateKeyPairSync } from "node:crypto"
-import { Activities } from "../src/flows/Activities.ts"
-import { Devices } from "../src/home/Devices.ts"
-import { Hub } from "../src/integrations/Hub.ts"
-import { watchIds } from "../src/integrations/jellyfin.ts"
-import { torrentsWatchId } from "../src/integrations/qbittorrent.ts"
-import { Apns } from "../src/push/Apns.ts"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { cloudLive, makeFakeHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -19,7 +20,7 @@ describe("end to end", () => {
   it.effect("a movie added in Radarr reaches \"ready\" on the iPhone, all of it through Quai Home", () =>
     Effect.gen(function*() {
       const apnsServer = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: apnsServer.url, production: apnsServer.url }
       )

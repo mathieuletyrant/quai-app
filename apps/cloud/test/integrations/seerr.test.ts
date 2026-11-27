@@ -1,13 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
 import { builtInFlows, defaultAlertSettings, DeviceAuth, QuaiApi } from "@quai/api"
-import { Effect, Exit, Layer, Schema } from "effect"
-import { HttpClientRequest } from "effect/http"
-import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
-import { TestClock } from "effect/testing"
-import { ActionRunner } from "../../src/flows/ActionRunner.ts"
-import { Activities } from "../../src/flows/Activities.ts"
-import { Hub } from "../../src/integrations/Hub.ts"
-import { Integrations } from "../../src/integrations/Integration.ts"
+import { ActionRunner } from "@quai/domain/flows/ActionRunner.ts"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import { Hub } from "@quai/domain/integrations/Hub.ts"
+import { Integrations } from "@quai/domain/integrations/Integration.ts"
 import {
   decodeSeerrWebhook,
   pendingWatchId,
@@ -17,9 +13,14 @@ import {
   splitSubject,
   toMediaRequest,
   waiting
-} from "../../src/integrations/seerr.ts"
-import { Apns } from "../../src/push/Apns.ts"
-import { Requests } from "../../src/requests/Requests.ts"
+} from "@quai/domain/integrations/seerr.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { Requests } from "@quai/domain/requests/Requests.ts"
+import { Effect, Exit, Layer, Schema } from "effect"
+import { HttpClientRequest } from "effect/http"
+import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
+import { TestClock } from "effect/testing"
+import { makeApns } from "../../src/push/ApnsClient.ts"
 import { cloudLive, type FakeHomeOptions, makeFakeHome, recordedHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp, testAppDroppingOn } from "../testApp.ts"
@@ -47,7 +48,7 @@ const seerrAnswers = (state: { request12: "pending" | "approved" | "gone"; pendi
   })
 }
 
-const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
+const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, makeApns(null))))
 const running = Effect.gen(function*() {
   return [...(yield* (yield* Activities).snapshot).activities.values()]
 })

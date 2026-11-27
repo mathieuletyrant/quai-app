@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import type { DevicePreferences } from "@quai/api"
-import type { Activity, Push } from "../../src/flows/Engine.ts"
-import { deliveryFor } from "../../src/flows/Targeting.ts"
+import type { Activity, Push } from "@quai/domain/flows/Engine.ts"
+import { deliveryFor } from "@quai/domain/flows/Targeting.ts"
 import { download, playback } from "./helpers.ts"
 
 const activity = (over: Partial<Activity> = {}): Activity => ({
