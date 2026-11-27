@@ -17,8 +17,8 @@ import { type FakeHome, makeFakeHome, settle } from "../fakeHome.ts"
 /** main.ts's composition: the links, a home app per home, and the routes that pick it. */
 const Cloud = HttpRouter.serve(Layer.mergeAll(HomeRoute, HomesRoute), { disableLogger: true }).pipe(
   Layer.provideMerge(Homes.layer(HomeApp)),
+  Layer.provideMerge(HomeLinks.layer),
   Layer.provideMerge(Layer.mergeAll(
-    HomeLinks.layer,
     Layer.effect(Apns, makeApns(null)),
     Layer.succeed(PublicAccess, PublicAccess.make(Option.none(), [])),
     Layer.succeed(ServerInfo, { version: "test", startedAt: 0 })

@@ -87,7 +87,7 @@ Next in the catalog: "Other release" and "Retry" for downloads (spec v1, Live Ac
 
 ## Integrations
 
-In Quai Cloud, each service is one module in `packages/domain/src/integrations/`: everything Quai
+In the domain, each service is one module in `packages/domain/src/integrations/`: everything Quai
 knows about it sits together, so its events and actions are readable at a glance. The Cloud never
 reaches a service itself: Quai Home forwards the webhooks, polls the watches and runs the calls.
 
@@ -121,7 +121,7 @@ push nothing and write nothing.
 
 **Time zone.** A home has no clock of its own and Quai Cloud may serve homes anywhere, so the day
 follows the iPhones: each reports its time zone (IANA) when it pairs and whenever the app comes to
-the front; the most recently seen iPhone's wins. Before any did, Quai Cloud's `QUAI_TZ`, else UTC.
+the front; the most recently seen iPhone's wins. Before any did, `QUAI_TZ` (Quai Home's; Quai Cloud's for a Quai Home it still runs Quai for), else UTC.
 The app writes air times in its own time. The day's releases are computed once for this flow and
 the app's Upcoming screen (`rangeReleases`: one day here, 14 there; docs/upcoming.md).
 

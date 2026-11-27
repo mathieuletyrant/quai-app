@@ -56,11 +56,14 @@ The app is for living with Quai, the console for setting it up: services, flows 
 
 Quai has two parts.
 
-- 🏠 **Quai Home** runs next to your services, on your server. It holds their API keys and your data
-  (paired iPhones, flows, preferences). It sets up the Radarr and Sonarr webhooks, polls only
-  what's needed, and makes only the calls on a fixed allowlist. It connects out: no port to open.
-- ☁️ **Quai Cloud** turns what Home sends into Live Activities and pushes them through Apple. It
-  stores nothing: when Home connects, Cloud loads what it needs from it.
+- 🏠 **Quai Home** runs next to your services, on your server, and runs Quai: it follows your
+  downloads and playbacks, works out the Live Activities and every screen of the app, and serves
+  the console. It holds your services' API keys and your data (paired iPhones, flows, preferences).
+  It sets up the Radarr and Sonarr webhooks, polls only what's needed, and makes only the calls on
+  a fixed allowlist. It connects out: no port to open.
+- ☁️ **Quai Cloud** is how the app reaches your Quai Home from anywhere, and what sends its pushes
+  through Apple, signed with the push key. It relays, computes nothing and stores nothing
+  ([why](docs/adr/0003-quai-home-runs-quai.md)).
 
 ```
  your server                                   anywhere
@@ -130,6 +133,7 @@ your own account.
 | `QUAI_CONSOLE_PUBLIC_URL` | The console's address from outside, behind your own proxy or tunnel. Added to the pairing QR code: the app's "Open the console" opens it when the console's address at home doesn't answer |
 | `QUAI_INTERNAL_URL` | How Radarr and Sonarr reach Home, for the webhooks it sets up |
 | `QUAI_DATA_DIR` | Where Home keeps its data (default `./data`, `/data` in the image) |
+| `QUAI_TZ` | Time zone for "today", until an iPhone reports its own (default `UTC`) |
 | `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (Settings → General). Each service can be set in the console's Services page instead; a variable set here wins |
 | `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | Sonarr (Settings → General) |
 | `QUAI_RADARR_WEB_URL`, `QUAI_RADARR_PUBLIC_URL` | Optional: where an iPhone opens Radarr, at home and from outside. The app's Library links each movie to its page, at the one that matches where the iPhone reaches Quai |
@@ -152,7 +156,7 @@ A service set neither here nor in the console's Services page is skipped.
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The app's bundle id |
 | `QUAI_CLOUD_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
 | `QUAI_CLOUD_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
-| `QUAI_TZ` | `UTC` | Time zone for "today", until an iPhone reports its own |
+| `QUAI_TZ` | `UTC` | Only for a Quai Home older than 2.4, whose flows the Cloud still runs; a newer one reads its own |
 | `QUAI_HOME_ID` | | The only Quai Homes served, comma-separated (the id each logs as `linked as home …`); any other is refused ([docs](docs/proxy.md#quai_home_id)) |
 | `QUAI_MAX_HOMES` | | How many Quai Homes may be linked at once; past it, a new one is refused |
 

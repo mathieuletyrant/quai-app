@@ -11,19 +11,23 @@ Home's key). Not the app's Home tab.
 _Avoid_: tenant, account, server
 
 **Quai Home** (`apps/home`). The server that runs at home, next to the services, with their URLs
-and keys. It opens one WebSocket to Quai Cloud, runs the calls and watches the Cloud asks for
-within the allowlist, forwards webhooks, and keeps the home's documents (paired iPhones, flows,
-activities) on its `/data` volume. It serves the console. Always named in full.
+and keys. It runs Quai for its home (the domain): it calls and watches the services itself, within
+the allowlist, takes their webhooks, keeps the home's documents (paired iPhones, flows,
+activities) on its `/data` volume, and serves the console. It opens one WebSocket to Quai Cloud,
+to be reached by the app and to have its pushes sent
+([ADR 3](docs/adr/0003-quai-home-runs-quai.md)). Always named in full.
 _Avoid_: "home" alone for the server, the agent, the bridge
 
-**Quai Cloud** (`apps/cloud`). The server the app talks to, and the console through Quai Home. It
-runs the flows and pushes to APNs, from what Quai Home reads and sends. It serves no interface and
-keeps nothing: no database, nothing on disk; the home's documents are in memory while the home is
-linked. One Quai Cloud serves many homes.
+**Quai Cloud** (`apps/cloud`). The server the app talks to. For a Quai Home that runs Quai it is
+that home's public address and its push sender, nothing more: it relays the app's requests (the
+app relay) and sends the pushes Quai Home asks for (push requests) with the APNs key. It serves no
+interface and keeps nothing: no database, nothing on disk. One Quai Cloud serves many homes. For a
+Quai Home from before ADR 3 (protocol 12 and under) it still runs the domain itself, on that
+home's link, its documents in memory while it is linked.
 _Avoid_: the backend, the server (when it could be Quai Home)
 
 **Home documents** (`HomeStore`). What Quai keeps for a home (iPhones, flows, running activities,
-alert settings, hidden fixes), stored by Quai Home and read by the Cloud over the home link.
+alert settings, hidden fixes), stored by Quai Home and read by the domain through its home link.
 
 **Service**. One app of the media stack Quai talks to: Radarr, Sonarr, Prowlarr, qBittorrent,
 Jellyfin, Seerr, Reclaimerr, Cleanuparr.
@@ -40,39 +44,47 @@ password (`QUAI_HOME_PASSWORD`, a 30-day session cookie). Its own routes are Qua
 (`/home-api`, `HomeConsoleApi`); the rest (`/console-api`) are Quai Cloud's, relayed.
 _Avoid_: dashboard, admin
 
-**Console relay** (`ConsoleRequest`, `ConsoleResponse`). Quai Home passes the console's
-`/console-api` requests to Quai Cloud over the home link, and the Cloud answers them with its own
-routes. The Cloud's public port refuses `/console-api`: only what Quai Home relays gets an answer.
-See [ADR 1](docs/adr/0001-console-served-by-quai-home.md).
+**Console relay** (`LocalHome.console`, `answerRelayed`). Quai Home answers the console's
+`/console-api` requests with the domain's own routes, in place, its session checked first: they
+never leave home, and the Cloud relays no console path. For a Quai Home from before ADR 3 they
+cross the home link (`ConsoleRequest`, `ConsoleResponse`) and the Cloud answers them; its public
+port refuses `/console-api` either way. See [ADR 1](docs/adr/0001-console-served-by-quai-home.md).
 
 **Domain** (`@quai/domain`, `packages/domain`). Everything Quai does for one home: its integrations,
 its flows and engine, its alerts, its journal, the app's pages. One package, so Quai Home can run it
 at home and Quai Cloud only carry what comes out of it
-([ADR 3](docs/adr/0003-quai-home-runs-quai.md); today Quai Cloud runs it for each home).
+([ADR 3](docs/adr/0003-quai-home-runs-quai.md)). Quai Home runs it on its home answered in place
+(`LocalHome`); Quai Cloud still runs it for a Quai Home from before.
 What an image adds around it (its HTTP server, the WebSocket, APNs) stays in its app.
 _Avoid_: core, shared
 
 **App relay** (`AppRequest`, `AppResponse`). Quai Cloud passes the app's requests to the home their
 device token names, over the home link, and sends back what Quai Home answered: the console relay
-the other way round. The Cloud reads the home id and nothing else (ADR 3).
+the other way round. The Cloud reads the home id and the path, to relay the API's routes only, and
+nothing else. A pairing carries a code and no token: Quai Home tells the Cloud the hashes of its
+open pairing codes (`PairingCodes`), so the request finds its home (ADR 3).
 
 **Push request** (`PushRequest`, `PushResponse`). Quai Home asking Quai Cloud to send one push it
 built (a Live Activity update, a notification) to one iPhone's APNs token; the Cloud signs it with
-the APNs key and answers what APNs said (ADR 3).
+the APNs key and answers what APNs said, within a limit of pushes a minute per home (ADR 3).
 
-**Home link** (`HomeLink`, `HomeLinks`). The WebSocket between the two, its handshake, and the
-messages on it (`packages/api/src/Home.ts`, `HomeProtocol`). `HomeLinks` serves every Quai Home's
-WebSocket; each home's services read their own `HomeLink`, never another's. Features don't call
-through it themselves: their calls go through `HomeReads`, the watches through the Hub.
+**Home link** (`HomeLink`, `LocalHome`, `HomeLinks`). What the domain reaches its home through: the
+calls to its services, the watches, the documents, the journal, the events. In Quai Home it is
+answered in place (`LocalHome`): nothing crosses a WebSocket and the home is never offline. In
+Quai Cloud, for a Quai Home from before ADR 3, it is that home's WebSocket (`HomeLinks`, which
+serves every Quai Home's, its handshake and the messages of `packages/api/src/Home.ts`,
+`HomeProtocol`). Features don't call through it themselves: their calls go through `HomeReads`,
+the watches through the Hub.
 
 **Home app** (`HomeApp`, `Homes`). One home's services and routes on its own link: stores, engine,
-Hub, journal, the whole API and the console relay. Quai Cloud builds one per home when its Quai
-Home links (`Homes`), forgets it an hour after it went away, and sends each request to its home's
-app: an iPhone's by its device token, a pairing by its code, the console's by the link it came
-over. What no home claims gets an app on no home: `/api/health`, and 503 for the rest.
+Hub, journal, the whole API and the console relay. Quai Home builds its own (`DomainLive`). Quai
+Cloud builds one for each Quai Home from before ADR 3 when it links (`Homes`), and forgets it an
+hour after it went away. `Homes` sends each request where its home is: relayed to a Quai Home that
+runs Quai, else to that home's app here; an iPhone's by its device token, a pairing by its code.
+What no home claims gets an app on no home: `/api/health`, and 503 for the rest.
 
-**Home read** (`HomeReads`). A call the Cloud has Quai Home make to a service when it needs the
-answer now: a GET (`read`, `all`) or a write (`write`). One policy for all of them: Quai Home gone
+**Home read** (`HomeReads`). A call the domain makes to a service, through its home link, when it
+needs the answer now: a GET (`read`, `all`) or a write (`write`). One policy for all of them: Quai Home gone
 is *offline*; a service that didn't answer as expected is *unavailable* (None, logged with its
 service and path, never what it answered), or a refusal in words for a write. Reads of the same
 GET at once share one call, and its 2xx answer serves them for a few seconds (`answerKeptMs`): a
@@ -80,18 +92,19 @@ screen's routes, asked together, read the same lists once. A write forgets what 
 
 **Watch**. A GET Quai Home polls on its own, every few seconds to an hour, while a flow needs it
 (or the journal: Cleanuparr's removals, while Quai Home reaches it), sending a snapshot when the
-answer changes. The Hub sets the list; Quai Home stops polling when the link drops.
+answer changes. The Hub sets the list.
 _Avoid_: subscription, poller
 
 **Allowlist** (`HomeProtocol.allowlist`, `allowRule`). The method, path and, for some writes, body
-checks of everything the Cloud may ask Quai Home to call or watch. Quai Home enforces it: a
-compromised Cloud can't read settings (but for Cleanuparr's queue cleaner, which holds no secret)
-or delete a library. The Cloud's tests run against a fake
-Quai Home that enforces it too (`apps/cloud/test/fakeHome.ts`), so a path it refuses fails them.
+checks of everything Quai Home may call or watch on a service, whoever asks: the domain it runs,
+or the Cloud of a Quai Home from before ADR 3. Quai Home enforces it (`Calls`, `Watches`): nothing
+reads settings (but for Cleanuparr's queue cleaner, which holds no secret) or deletes a library.
+The domain's tests run against a fake Quai Home that enforces it too
+(`apps/cloud/test/fakeHome.ts`), so a path it refuses fails them.
 
 **Checked against** (`AllowRule.against`). A write that replaces a whole document of a service
 (Cleanuparr's queue cleaner settings): Quai Home reads the document first and sends the write only
-if the rule's check of the two passes, so the Cloud changes the one field it may change.
+if the rule's check of the two passes, so only the one field Quai may change changes.
 
 **Offline** (`HomeOffline`, 503). Quai Home and Quai Cloud aren't linked (no `QUAI_CLOUD_URL`, the
 Cloud down, or the link dropped during the request). Nothing can be read: the whole answer fails,

@@ -121,6 +121,8 @@ export const deviceKey = (id: string) => `devices/${id}`
 /** A code as typed: spaces around it and lowercase letters are forgiven. */
 const normalizedCode = (code: string) => code.trim().toUpperCase()
 export const pairingKey = (code: string) => `pairing/${sha256(code)}`
+/** The SHA-256 of a pairing code as typed: what names it outside its home (its document's key, the Cloud's memory). */
+export const pairingHash = (code: string) => sha256(normalizedCode(code))
 
 const decodeDeviceDocument = Schema.decodeUnknownOption(DeviceDocument)
 

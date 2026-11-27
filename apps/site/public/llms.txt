@@ -43,13 +43,17 @@ Live Activities run even with the app closed: they are started and updated by pu
 +-------------------------------+
 ```
 
-- **Quai Home** runs next to your services. It holds their addresses and API keys, the paired iPhones, the flows, the alert settings and a 7-day journal, in its `/data` volume. It sets up the Radarr, Sonarr and Seerr webhooks itself, polls only what's needed, and only makes calls on a fixed allowlist. It connects *out* to Quai Cloud over a WebSocket: no port to open for the Cloud.
-- **Quai Cloud** runs the flows and sends the pushes to Apple Push Notification service. It stores nothing: no database, nothing on disk. When Quai Home connects, the Cloud loads what it needs from it. It never receives your services' addresses or API keys.
-- **The iPhone app** pairs with your Quai Home by scanning a QR code shown in the console. There is no account. The app talks to Quai Cloud, which relays to your Quai Home.
+- **Quai Home** runs next to your services, and runs Quai: it reads your services on your network, follows the downloads and playbacks, works out the Live Activities, the alerts and every screen of the app, and serves the console. It holds your services' addresses and API keys, the paired iPhones, the flows, the alert settings and a 7-day journal, in its `/data` volume. It sets up the Radarr, Sonarr and Seerr webhooks itself, polls only what's needed, and only makes calls on a fixed allowlist. It connects *out* to Quai Cloud over a WebSocket: no port to open for the Cloud.
+- **Quai Cloud** does two things for a Quai Home: it is the address the app reaches it at, from anywhere (it relays the app's requests over that WebSocket and sends back what Quai Home answered), and it sends the pushes Quai Home asks for to Apple Push Notification service, signed with the push key. It computes nothing and stores nothing: no database, nothing on disk. It never receives your services' addresses or API keys, and asks Quai Home for nothing.
+- **The iPhone app** pairs with your Quai Home by scanning a QR code shown in the console. There is no account. The app talks to Quai Cloud, which relays to your Quai Home; Quai Home checks the iPhone's token itself.
+
+Quai Home runs Quai since version 2.4 (protocol 13). With an older Quai Home, Quai Cloud still runs the flows and works out the app's screens itself, from the calls it asks Quai Home to make: update Quai Home to move that work home, where it is faster.
 
 ### What a Quai Cloud can't do
 
-Quai Home, not the Cloud, decides which calls reach your services. Its allowlist (`packages/api/src/Home.ts`) is fixed in the image and checks the body of each write: reading the queues, history and calendars, approving or declining a Seerr request, removing a download from the queue, a manual import, protecting a Reclaimerr candidate, excluding a download from Cleanuparr’s queue cleaner, pausing or stopping a Jellyfin playback. Anything else is refused, so even a Quai Cloud taken over can't delete a movie or a series, run any other Radarr or Sonarr command, read an API key or password, or change Radarr's, Sonarr's or Seerr's settings. Quai Home proves who it is with an Ed25519 key made on your server (the home id is its fingerprint) and signs the Cloud's challenge at each connection.
+Quai Cloud asks Quai Home for nothing: it can only pass on requests, and Quai Home answers the ones that carry the token of an iPhone paired with it. So a Quai Cloud taken over could at most do what the app does (approve or decline a request, remove a download from the queue, grab a release, a manual import, keep a title Reclaimerr plans to delete, pause a playback) while it sees an iPhone's token pass. It can't delete a movie or a series, read an API key or password, change Radarr's, Sonarr's or Seerr's settings, or reach the console, which never leaves Quai Home.
+
+Quai Home also limits itself: whatever asks, it only makes the calls on its allowlist (`packages/api/src/Home.ts`), fixed in the image, which checks the body of each write: reading the queues, history and calendars, approving or declining a Seerr request, removing a download from the queue, a manual import, protecting a Reclaimerr candidate, excluding a download from Cleanuparr’s queue cleaner, pausing or stopping a Jellyfin playback. Anything else is refused. Quai Home proves who it is with an Ed25519 key made on your server (the home id is its fingerprint) and signs the Cloud's challenge at each connection.
 
 ## Choose your setup
 
@@ -166,6 +170,7 @@ The console is served by Quai Home (port 8788), behind `QUAI_HOME_PASSWORD`. It 
 | `QUAI_HOME_PORT` | The console, the webhooks and `/health`. Default `8788`. |
 | `QUAI_INTERNAL_URL` | How Radarr, Sonarr and Seerr reach Quai Home, for the webhooks it sets up. |
 | `QUAI_DATA_DIR` | Where Quai Home keeps its data. `/data` in the image. |
+| `QUAI_TZ` | Time zone for "today", until an iPhone reports its own. Default `UTC`. |
 | `QUAI_RADARR_URL`, `QUAI_RADARR_API_KEY` | Radarr (key in Settings → General). |
 | `QUAI_SONARR_URL`, `QUAI_SONARR_API_KEY` | Sonarr (key in Settings → General). |
 | `QUAI_RADARR_WEB_URL`, `QUAI_RADARR_PUBLIC_URL` | Optional: where the iPhone opens Radarr, at home and from outside ("Open in Radarr"). |
@@ -189,7 +194,7 @@ Every service can be set in the console's **Services** page instead of the envir
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | Your app's bundle id. |
 | `QUAI_CLOUD_PUBLIC_URL` | | The Cloud's address from outside, added to the pairing QR code. |
 | `QUAI_CLOUD_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app: `Name: value` pairs separated by `;`. |
-| `QUAI_TZ` | `UTC` | Time zone for "today", until an iPhone reports its own. |
+| `QUAI_TZ` | `UTC` | Only for a Quai Home older than 2.4, whose flows the Cloud still runs: the time zone for "today", until an iPhone reports its own. A newer Quai Home reads its own `QUAI_TZ`. |
 | `QUAI_HOME_ID` | | The only Quai Homes served, comma-separated; any other is refused. |
 | `QUAI_MAX_HOMES` | | How many Quai Homes may be linked at once. |
 
@@ -197,7 +202,7 @@ Every service can be set in the console's **Services** page instead of the envir
 
 - Quai Home: `ghcr.io/mathieuletyrant/quai-home` (tags `latest`, `X.Y`, `X.Y.Z`), linux/amd64 and linux/arm64.
 - Quai Cloud: `ghcr.io/mathieuletyrant/quai` (same tags).
-- Update Quai Home and a self-hosted Quai Cloud together: they speak a versioned protocol. The hosted Cloud follows each release.
+- Update a self-hosted Quai Cloud before, or together with, Quai Home: they speak a versioned protocol, and a Quai Cloud older than its Quai Home refuses it (Quai Home's journal says so, and the app can't reach it until the Cloud is updated). A Quai Cloud serves older Quai Homes as before. The hosted Cloud follows each release.
 
 ## Troubleshooting
 
@@ -218,7 +223,7 @@ Ask on the Discord (https://discord.gg/ytrjjGXTKZ) or write to support@quai.stre
 ## Privacy
 
 - Your services' addresses, API keys, library and journal stay in Quai Home, on your server. Quai Home never sends addresses or keys to any Quai Cloud.
-- The hosted Quai Cloud receives only the content of each update (a title, an episode, a step, a percentage, the name of a service that is down) and the iPhones' Apple push tokens. It forwards updates to Apple and keeps nothing on disk. Push tokens are held in memory while your Quai Home is connected. It runs on Cloudflare, in the European Union.
+- The hosted Quai Cloud carries, and keeps none of: the content of each push (a title, an episode, a step, a percentage, the name of a service that is down) with the Apple push token it goes to, and what the app asks your Quai Home and what it answers, as it passes (the screens you open, the iPhone's token). It forwards pushes to Apple and writes nothing to disk. It runs on Cloudflare, in the European Union; Cloudflare keeps a technical log of each request for a few days (time, address asked, IP address, country, app version).
 - No account, no analytics, no ads, no tracking, no third-party SDK in the app.
 - The website, quai.stream, counts its visits with Cloudflare Web Analytics, without cookies.
 - Full policy: https://quai.stream/privacy

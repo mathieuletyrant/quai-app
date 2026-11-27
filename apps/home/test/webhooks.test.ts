@@ -1,24 +1,36 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
-import type { HomeProtocol } from "@quai/api"
+import { HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
 import { ensureWebhook } from "../src/ArrWebhooks.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { Link } from "../src/Link.ts"
+import { LocalHome } from "../src/LocalHome.ts"
 import { ensureSeerrWebhook, seerrPayloadTemplate } from "../src/SeerrWebhook.ts"
 import { ServiceAuth } from "../src/ServiceAuth.ts"
 import { WebhooksLive } from "../src/Webhooks.ts"
 import { configLayer, journalLayer } from "./config.ts"
 import { fakeHttp, type Seen } from "./fakeHttp.ts"
 
-const sent: Array<HomeProtocol.HomeMessage> = []
-const fakeLink = Layer.succeed(Link, {
-  send: (message) => Effect.sync(() => void sent.push(message)),
-  linked: Effect.succeed(true),
-  console: () => Effect.die(new Error("not in this test"))
-})
+/** The webhooks handed to the domain. */
+const sent: Array<{ readonly service: string; readonly receivedAt: number; readonly body: unknown }> = []
+const fakeLink = Layer.mergeAll(
+  Layer.succeed(Link, {
+    linked: Effect.succeed(true),
+    welcome: () => null,
+    push: () => Effect.die(new Error("not in this test")),
+    answerApp: () => Effect.void
+  }),
+  Layer.succeed(LocalHome, {
+    link: HomeLink.offline,
+    webhook: (service, receivedAt, body) => Effect.sync(() => void sent.push({ service, receivedAt, body })),
+    console: () => Effect.die(new Error("not in this test")),
+    pairingHashes: Effect.succeed([]),
+    pairingChanged: Effect.never
+  })
+)
 
 const homeKey = Layer.succeed(HomeKey, {
   publicKey: "pk",
@@ -34,7 +46,7 @@ const server = HttpRouter.serve(WebhooksLive).pipe(
 )
 
 describe("webhook receiver", () => {
-  it.effect("forwards a webhook with the right token, refuses the others", () =>
+  it.effect("hands a webhook with the right token to the domain, refuses the others", () =>
     Effect.gen(function*() {
       sent.length = 0
       const client = yield* HttpClient.HttpClient
@@ -49,7 +61,6 @@ describe("webhook receiver", () => {
       yield* TestClock.adjust("1234 millis")
       expect((yield* post("s3cret")).status).toBe(204)
       expect(sent).toEqual([{
-        _tag: "WebhookReceived",
         service: "sonarr",
         receivedAt: 1234,
         body: { eventType: "Download" }

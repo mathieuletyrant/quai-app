@@ -13,8 +13,8 @@ export interface Watcher {
 }
 
 /**
- * Polls what the cloud watches, on the LAN, and sends a snapshot only when it changed. The meaning
- * of a snapshot is the cloud's business; Quai Home only compares status and body.
+ * Polls what Quai watches, on the LAN, and sends a snapshot only when it changed. The meaning
+ * of a snapshot is its integration's business; this only compares status and body.
  */
 export class Watches extends Context.Service<Watches, {
   /** A watcher for one connection: its polls stop when the scope closes. */

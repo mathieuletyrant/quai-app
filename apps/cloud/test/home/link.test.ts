@@ -9,12 +9,15 @@ import { Socket } from "effect/socket"
 import { TestClock } from "effect/testing"
 import { createPublicKey, generateKeyPairSync, sign } from "node:crypto"
 import { HomeLinks, HomeRoute } from "../../src/home/HomeLinks.ts"
-import { makeFakeHome, settle, testLink } from "../fakeHome.ts"
+import { makeFakeHome, noKeyNoAddress, proxyProtocol, settle, testLink } from "../fakeHome.ts"
 
 const link = testLink
 const linkTo = (homeId: string) => Effect.flatMap(Effect.service(HomeLinks), (links) => links.link(homeId))
 const otherKey = () => generateKeyPairSync("ed25519").privateKey
 const nextEvent = Effect.flatMap(Effect.service(HomeLink), (homeLink) => homeLink.nextEvent)
+
+/** The links alone, with no APNs key and no public address to tell. */
+const Links = HomeLinks.layer.pipe(Layer.provide(noKeyNoAddress))
 
 describe("home link", () => {
   it.effect("a good proof is welcomed under the key's home id, and the home's documents are loaded", () =>
@@ -28,7 +31,7 @@ describe("home link", () => {
         Option.some({
           homeId: home.homeId,
           services: ["radarr", "jellyfin"],
-          protocol: HomeProtocol.protocolVersion,
+          protocol: proxyProtocol,
           webUrls: {}
         })
       )
@@ -38,7 +41,7 @@ describe("home link", () => {
         home: {
           homeId: home.homeId,
           services: ["radarr", "jellyfin"],
-          protocol: HomeProtocol.protocolVersion,
+          protocol: proxyProtocol,
           webUrls: {}
         }
       })
@@ -87,7 +90,7 @@ describe("home link", () => {
     const secondId = HomeId.homeId(
       createPublicKey(secondKey).export({ format: "der", type: "spki" }).toString("base64")
     )
-    const pinned = HomeLinks.layer.pipe(
+    const pinned = Links.pipe(
       Layer.provide(
         ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: `${ownId.toUpperCase()}, ${secondId}` } }))
       )
@@ -126,7 +129,7 @@ describe("home link", () => {
       expect(second.state.welcomed).toBe(second.homeId)
     }).pipe(
       Effect.provide(
-        HomeLinks.layer.pipe(
+        Links.pipe(
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_MAX_HOMES: "1" } })))
         )
       )
@@ -149,12 +152,12 @@ describe("home link", () => {
           Effect.flatMap(Fiber.join)
         )
       ).toEqual(Option.none())
-    }).pipe(Effect.provide(HomeLinks.layer)))
+    }).pipe(Effect.provide(Links)))
 
   it.effect("a QUAI_HOME_ID that isn't a home id stops the Cloud", () =>
     Effect.gen(function*() {
       const exit = yield* Effect.exit(Effect.scoped(Layer.build(
-        HomeLinks.layer.pipe(
+        Links.pipe(
           Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: { QUAI_HOME_ID: "my-home" } })))
         )
       )))
@@ -293,7 +296,7 @@ const server = HttpRouter.serve(HomeRoute, { disableLogger: true }).pipe(
 describe("home link over a WebSocket", () => {
   const { privateKey } = generateKeyPairSync("ed25519")
   const publicKey = createPublicKey(privateKey).export({ format: "der", type: "spki" }).toString("base64")
-  const hello = (protocol = HomeProtocol.protocolVersion) => ({
+  const hello = (protocol = proxyProtocol) => ({
     _tag: "Hello",
     protocol,
     homeVersion: "test",

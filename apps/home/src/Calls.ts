@@ -18,10 +18,10 @@ const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unkno
 const unreadable = "against what it holds, which it can't read"
 
 /**
- * Runs the calls the cloud asks for, within the allowlist (method, path and, for the writes that
+ * Runs the calls Quai makes to the services, within the allowlist (method, path and, for the writes that
  * need it, the body; for a write that replaces a whole document, the body against what the service
  * holds, read just before). Never fails: anything that goes wrong
- * is a `Failed` the cloud can read. The journal gets each refusal, and a line when a service
+ * is a `Failed` the caller can read. The journal gets each refusal, and a line when a service
  * stops answering (unreachable, a login refused, too slow) and when it answers again: once per
  * streak, not per call.
  */
@@ -97,7 +97,7 @@ export class Calls extends Context.Service<Calls, {
           )
         })
 
-      /** The service didn't answer (unreachable, a login refused, too slow): the journal hears it once, the cloud each time. */
+      /** The service didn't answer (unreachable, a login refused, too slow): the journal hears it once, the caller each time. */
       const notAnswered =
         (call: HomeProtocol.Call) => (error: ServiceError | HttpClientError.HttpClientError | Cause.TimeoutError) => {
           const reason = error._tag === "ServiceError"

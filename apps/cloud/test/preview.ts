@@ -57,7 +57,9 @@ const HttpLive = Layer.unwrap(
 
 // One home's routes, as main.ts builds them for each home, on the fake Quai Home linked in memory.
 // The console's routes answer on the public port here: the preview has no Quai Home to relay them.
-const Shared = Layer.mergeAll(HomeLinks.linkOf(testHomeId), Layer.effect(Apns, makeApns(null)), PublicAccessLive)
+const Shared = HomeLinks.linkOf(testHomeId).pipe(
+  Layer.provideMerge(Layer.mergeAll(Layer.effect(Apns, makeApns(null)), PublicAccessLive))
+)
 
 HttpRouter.serve(Layer.mergeAll(HomeRoutes, FakeHomeLinked)).pipe(
   Layer.provide(Shared),

@@ -14,7 +14,7 @@ import type { TitleKind } from "./Title.ts"
  * either side may send anything below; the Cloud pings every 20 s and the Home reconnects after
  * 60 s without one.
  */
-export const protocolVersion = 12
+export const protocolVersion = 13
 
 /**
  * The oldest Home the Cloud still serves. Protocol 2 added Reclaimerr, `DELETE` calls and body
@@ -38,6 +38,11 @@ export const protocolVersion = 12
  * older Home refuses it, and a planned deletion then shows the day its delay ends, at the earliest.
  * Protocol 12 added Radarr's and Sonarr's root folders, for the media disks: on an older Home the
  * Cloud doesn't ask for them (`storageProtocolVersion`) and takes the largest disk as the one media disk.
+ * Protocol 13 is the Home that runs Quai itself ([ADR 3](../../../docs/adr/0003-quai-home-runs-quai.md),
+ * `runsQuaiProtocolVersion`): the Cloud asks it for nothing (no call, watch, document or journal), relays
+ * the app's requests to it (`AppRequest`, answered `AppResponse`) and sends the pushes it asks for
+ * (`PushRequest`, answered `PushResponse`). It tells the Cloud its open pairing codes' hashes
+ * (`PairingCodes`), so a pairing finds its home. For an older Home the Cloud still runs Quai, as before.
  */
 export const minProtocolVersion = 1
 
@@ -64,6 +69,9 @@ export const deletionTaskProtocolVersion = 11
 
 /** The first protocol whose Home allows Radarr's and Sonarr's root folders (which disks hold the media). */
 export const storageProtocolVersion = 12
+
+/** The first protocol whose Home runs Quai itself: the Cloud only relays to it and pushes for it. */
+export const runsQuaiProtocolVersion = 13
 
 /** The services a Home can reach. */
 export const HomeService = Service
@@ -176,6 +184,47 @@ export const ServicesChanged = Schema.TaggedStruct("ServicesChanged", {
   services: Schema.Array(HomeService)
 })
 
+/**
+ * The answer to an `AppRequest`: what the home's own route answered. `contentType` when there is a
+ * body and it isn't JSON.
+ */
+export const AppResponse = Schema.TaggedStruct("AppResponse", {
+  id: Schema.String,
+  status: Schema.Number,
+  contentType: Schema.optionalKey(Schema.String),
+  body: Schema.String
+})
+export type AppResponse = typeof AppResponse.Type
+
+/**
+ * One push for the Cloud to send to APNs with its key: a Live Activity update or a notification,
+ * built by the Home, to one iPhone's token. Answered with `PushResponse`. The topic is the Cloud's:
+ * a Home can only push to the Quai app.
+ */
+export const PushRequest = Schema.TaggedStruct("PushRequest", {
+  id: Schema.String,
+  /** Absent: a Live Activity. */
+  pushType: Schema.optionalKey(Schema.Literals(["liveactivity", "alert"])),
+  environment: Schema.Literals(["development", "production"]),
+  deviceToken: Schema.String,
+  priority: Schema.Literals([5, 10]),
+  /** The APNs payload, as JSON. */
+  body: Schema.Record(Schema.String, Schema.Unknown)
+})
+export type PushRequest = typeof PushRequest.Type
+
+/** At most this many pairing codes are open for a home at once, as far as the Cloud remembers. */
+export const maxPairingCodes = 20
+
+/**
+ * The home's open pairing codes, as SHA-256 hashes (hex): every one of them, each time one opens
+ * or is spent, and after each Welcome. The Cloud keeps them in memory to send a pairing
+ * (`POST /api/devices`, which carries a code and no token) to its home.
+ */
+export const PairingCodes = Schema.TaggedStruct("PairingCodes", {
+  hashes: Schema.Array(Schema.String)
+})
+
 export const HomeMessage = Schema.Union([
   Hello,
   Proof,
@@ -189,7 +238,10 @@ export const HomeMessage = Schema.Union([
   JournalPage,
   JournalNoted,
   ConsoleRequest,
-  ServicesChanged
+  ServicesChanged,
+  AppResponse,
+  PushRequest,
+  PairingCodes
 ])
 export type HomeMessage = typeof HomeMessage.Type
 
@@ -206,10 +258,29 @@ export const Challenge = Schema.TaggedStruct("Challenge", {
  */
 export const challengePayload = (nonce: string) => `quai-challenge:${nonce}`
 
-/** The Cloud accepted the Home, under the home id it computed from the Hello's public key. */
+/** A header a reverse proxy in front of the Cloud requires: it goes into the pairing QR code. */
+export const AccessHeader = Schema.Struct({ name: Schema.String, value: Schema.String })
+
+/**
+ * The Cloud accepted the Home, under the home id it computed from the Hello's public key. To a Home
+ * that runs Quai it also says what that Home can't know alone: whether it has an APNs key (`push`,
+ * what the console's Settings page shows, never the key) and how the app reaches it from outside
+ * (`publicAccess`), for the pairing QR code.
+ */
 export const Welcome = Schema.TaggedStruct("Welcome", {
-  homeId: Schema.String
+  homeId: Schema.String,
+  push: Schema.optionalKey(Schema.Struct({
+    configured: Schema.Boolean,
+    keyId: Schema.optionalKey(Schema.String),
+    teamId: Schema.optionalKey(Schema.String),
+    topic: Schema.String
+  })),
+  publicAccess: Schema.optionalKey(Schema.Struct({
+    url: Schema.optionalKey(Schema.String),
+    headers: Schema.Array(AccessHeader)
+  }))
 })
+export type Welcome = typeof Welcome.Type
 
 /** The Cloud turns the Home away (protocol too old, bad proof): retry after the delay. */
 export const Refused = Schema.TaggedStruct("Refused", {
@@ -300,6 +371,47 @@ export const isConsolePath = (path: string) => {
   return !route.includes("..") && (route.startsWith("/console-api/") || route === "/api/health")
 }
 
+/** The headers of the app's request the Cloud passes on with it; any other stays at the Cloud. */
+export const relayedHeaders: ReadonlyArray<string> = ["authorization", "content-type", "accept-language"]
+
+/** What the Cloud relays of the app: the API's routes, never the console's. */
+export const isAppPath = (path: string) => {
+  const route = path.split("?")[0]!
+  return !route.includes("..") && route.startsWith("/api/")
+}
+
+/** How long the Cloud waits for a home to answer one of the app's requests (a release search takes up to 50 s). */
+export const appRequestTimeoutSeconds = 60
+
+/**
+ * A request of the app, relayed to the home its device token names (or, for a pairing, the home
+ * that holds its code): the Home answers it with its own routes, `AppResponse`. The Cloud reads
+ * nothing of it but where it goes. Only `isAppPath` paths.
+ */
+export const AppRequest = Schema.TaggedStruct("AppRequest", {
+  id: Schema.String,
+  method: Schema.String,
+  /** Path and query: `/api/library`. */
+  path: Schema.String,
+  /** The `relayedHeaders` the app sent, lowercase. */
+  headers: Schema.Record(Schema.String, Schema.String),
+  body: Schema.optionalKey(Schema.String)
+})
+export type AppRequest = typeof AppRequest.Type
+
+/** What APNs answered a `PushRequest`: nothing when it took the push, else why not. */
+export const PushResponse = Schema.TaggedStruct("PushResponse", {
+  id: Schema.String,
+  error: Schema.optionalKey(Schema.Struct({
+    /** APNs' HTTP status; null when it never answered, or the Cloud refused the push itself. */
+    status: Schema.NullOr(Schema.Number),
+    reason: Schema.String,
+    /** APNs says the token is gone for good: stop sending to it. */
+    tokenGone: Schema.Boolean
+  }))
+})
+export type PushResponse = typeof PushResponse.Type
+
 export const CloudMessage = Schema.Union([
   Challenge,
   Welcome,
@@ -312,7 +424,9 @@ export const CloudMessage = Schema.Union([
   JournalAppend,
   JournalRead,
   Ping,
-  ConsoleResponse
+  ConsoleResponse,
+  AppRequest,
+  PushResponse
 ])
 export type CloudMessage = typeof CloudMessage.Type
 

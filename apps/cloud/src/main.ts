@@ -18,8 +18,13 @@ const HttpLive = Layer.unwrap(
   })
 )
 
-/** What every home shares: the links, the APNs key, the public access, the server's facts. */
-const Shared = Layer.mergeAll(HomeLinks.layer, ApnsLive, PublicAccessLive, ServerInfo.layer)
+/**
+ * What every home shares: the APNs key, the public access, the server's facts, and the links, which
+ * tell a home that runs Quai the first two and send its pushes.
+ */
+const Shared = HomeLinks.layer.pipe(
+  Layer.provideMerge(Layer.mergeAll(ApnsLive, PublicAccessLive, ServerInfo.layer))
+)
 
 // Quai Home's WebSocket, and every other request to the app of the home it is for.
 HttpRouter.serve(Layer.mergeAll(HomeRoute, HomesRoute)).pipe(

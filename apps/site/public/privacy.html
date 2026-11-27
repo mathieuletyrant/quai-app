@@ -43,7 +43,7 @@
 
 <div style="max-width: 1200px; margin: 0 auto; padding: 64px 24px 24px; display: flex; flex-direction: column; gap: 14px;">
 <h1 style="margin: 0; font-size: clamp(36px, 5vw, 56px); line-height: 1.05; font-weight: 800; letter-spacing: -1.2px;">Privacy policy</h1>
-<p style="margin: 0; font-size: 15px; color: #8E8E93;">Last updated 24 November 2026 · Applies to the Quai iPhone app, Quai Home, our Quai Cloud and this website.</p>
+<p style="margin: 0; font-size: 15px; color: #8E8E93;">Last updated 27 November 2026 · Applies to the Quai iPhone app, Quai Home, our Quai Cloud and this website.</p>
 </div>
 
 <div style="max-width: 1200px; margin: 0 auto; padding: 24px 24px 96px; display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start;">
@@ -70,7 +70,7 @@
 <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px;">
 <li style="display: flex; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 5px;"><path d="M5 12l5 5 9-10"></path></svg>Your service addresses, API keys, library and journal stay on your own server, in Quai Home.</li>
 <li style="display: flex; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 5px;"><path d="M5 12l5 5 9-10"></path></svg>No account, no analytics, no ads, no tracking, no third-party SDK in the app. This website only counts visits, without cookies.</li>
-<li style="display: flex; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 5px;"><path d="M5 12l5 5 9-10"></path></svg>If you use our Quai Cloud, it only relays Live Activity updates to Apple. Self-host it and nothing goes through us.</li>
+<li style="display: flex; gap: 10px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FD3C2" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-top: 5px;"><path d="M5 12l5 5 9-10"></path></svg>If you use our Quai Cloud, it only carries what passes between your iPhone, your Quai Home and Apple, and keeps none of it. Self-host it and nothing goes through us.</li>
 </ul>
 </div>
 
@@ -85,7 +85,7 @@
 <div style="border: 1px solid #26262C; border-radius: 16px; overflow: hidden;">
 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; padding: 14px 18px; background: #18181D; font-size: 12px; font-weight: 700; letter-spacing: 0.8px; color: #8E8E93;"><span>PART</span><span>WHERE IT RUNS</span></div>
 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px; line-height: 1.55;"><span style="color: #F5F5F7; font-weight: 600;">Quai Home</span><span>Always on your server, next to your media apps.</span></div>
-<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px; line-height: 1.55;"><span style="color: #F5F5F7; font-weight: 600;">Quai Cloud</span><span>Ours, or yours if you self-host it. It runs the flows and sends pushes to Apple.</span></div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px; line-height: 1.55;"><span style="color: #F5F5F7; font-weight: 600;">Quai Cloud</span><span>Ours, or yours if you self-host it. It is your Quai Home’s address for the app, and it sends its pushes to Apple.</span></div>
 <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; padding: 14px 18px; border-top: 1px solid #222228; font-size: 15px; line-height: 1.55;"><span style="color: #F5F5F7; font-weight: 600;">iPhone app</span><span>On your iPhone, paired to your Quai Home.</span></div>
 </div>
 </section>
@@ -97,17 +97,18 @@
 
 <section id="cloud" style="display: flex; flex-direction: column; gap: 10px;">
 <h2 data-reveal style="margin: 0; font-size: 24px; font-weight: 700; color: #F5F5F7; letter-spacing: -0.3px;">Our Quai Cloud: only if you link to it</h2>
-<p style="margin: 0;">To start and update your Live Activities and alerts, our Quai Cloud receives from your Quai Home:</p>
+<p style="margin: 0;">Your Quai Home works out everything itself, on your server. Our Quai Cloud is how the app reaches it from anywhere, and what sends its pushes to Apple. So it carries, without keeping any of it:</p>
 <ul style="margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px;">
-<li>the content of each update: for example a title, an episode number, the current step, a progress percentage, or the name of a service that is down;</li>
+<li>the content of each push: for example a title, an episode number, the current step, a progress percentage, or the name of a service that is down;</li>
+<li>what the app asks your Quai Home and what your Quai Home answers, as it passes: the screens you open (your library’s titles, what is coming, what needs fixing, your requests, the journal), and the token your iPhone was given at pairing;</li>
 <li>the Apple push tokens of your paired iPhones, so it can address them.</li>
 </ul>
-<p style="margin: 0;">It forwards updates to Apple Push Notification service and does not keep their content once sent. It holds push tokens in memory only, while your Quai Home is connected, and writes nothing to disk: they are stored in your Quai Home. It never receives your service addresses, API keys, library or journal. If you run Quai Cloud yourself, none of this reaches us.</p>
+<p style="margin: 0;">It forwards pushes to Apple Push Notification service and passes the app’s requests on to your Quai Home; it does not read or keep their content, and writes nothing to disk. Cloudflare, which runs it, keeps a technical log of each request for a few days: its time, the address asked (for a search, that includes what you typed), your IP address and country, and the app’s version. It never receives your service addresses or API keys, and it asks your Quai Home for nothing. With a Quai Home older than version 2.4, our Quai Cloud also works out the Live Activities and the app’s screens itself, from what your Quai Home reads for it, in memory only. If you run Quai Cloud yourself, none of this reaches us.</p>
 </section>
 
 <section id="app" style="display: flex; flex-direction: column; gap: 10px;">
 <h2 data-reveal style="margin: 0; font-size: 24px; font-weight: 700; color: #F5F5F7; letter-spacing: -0.3px;">The iPhone app</h2>
-<p style="margin: 0;">The app keeps on your iPhone the pairing details read from the QR code (your Quai Home’s local and public addresses, and Cloudflare Access headers, stored in the Keychain) and your preferences, such as which Live Activities and alerts you receive. It talks only to your Quai Home.</p>
+<p style="margin: 0;">The app keeps on your iPhone the pairing details read from the QR code (your Quai Home’s local and public addresses, and Cloudflare Access headers, stored in the Keychain) and your preferences, such as which Live Activities and alerts you receive. It talks to your Quai Home, through the Quai Cloud you paired it with.</p>
 <p style="margin: 0;">The app has no account, no analytics, no advertising and no third-party SDK, and it does not track you across apps or websites. It does not access your contacts, photos or location.</p>
 </section>
 
