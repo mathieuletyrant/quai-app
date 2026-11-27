@@ -32,7 +32,6 @@ struct RequestPoster: View {
 struct RequestsView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
-    @State private var declining: MediaRequest?
     @State private var working: Int?
     @State private var failure: String?
 
@@ -72,23 +71,12 @@ struct RequestsView: View {
                     request: request,
                     busy: working == request.id,
                     approve: { run(request) { try await connection.approve(request) } },
-                    decline: { declining = request }
+                    decline: { run(request) { try await connection.decline(request) } }
                 )
             }
         }
         .refreshable { await connection.loadRequests() }
         .task { await connection.loadRequests() }
-        .confirmationDialog(
-            "Decline this request?",
-            isPresented: Binding(get: { declining != nil }, set: { if !$0 { declining = nil } }),
-            titleVisibility: .visible,
-            presenting: declining
-        ) { request in
-            Button("Decline", role: .destructive) { run(request) { try await connection.decline(request) } }
-            Button("Cancel", role: .cancel) {}
-        } message: { request in
-            Text("\(request.requester) asked for \(request.title). Seerr tells them it was declined.")
-        }
         .alert("Couldn't do it", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -110,6 +98,7 @@ private struct RequestCard: View {
     let busy: Bool
     let approve: () -> Void
     let decline: () -> Void
+    @State private var confirmingDecline = false
 
     var body: some View {
         Card(spacing: 12) {
@@ -131,7 +120,15 @@ private struct RequestCard: View {
             .accessibilityElement(children: .combine)
             HStack(spacing: 8) {
                 Button("Approve", action: approve).buttonStyle(FixButtonStyle())
-                Button("Decline", action: decline).buttonStyle(FixButtonStyle(prominent: false))
+                // On the button itself: on iOS 26 the dialog is a popover pointing at the view it hangs on.
+                Button("Decline") { confirmingDecline = true }
+                    .buttonStyle(FixButtonStyle(prominent: false))
+                    .confirmationDialog("Decline this request?", isPresented: $confirmingDecline, titleVisibility: .visible) {
+                        Button("Decline", role: .destructive, action: decline)
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("\(request.requester) asked for \(request.title). Seerr tells them it was declined.")
+                    }
             }
             .disabled(busy)
         }

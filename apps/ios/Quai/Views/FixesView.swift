@@ -106,7 +106,6 @@ struct FixesView: View {
     @Environment(Connection.self) private var connection
     @Environment(\.dismiss) private var dismiss
     @State private var sheet: FixSheet?
-    @State private var removing: Fix?
     @State private var working: String?
     @State private var failure: String?
 
@@ -163,18 +162,6 @@ struct FixesView: View {
                     .presentationDragIndicator(.visible)
             }
         }
-        .confirmationDialog(
-            "Remove this download?",
-            isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
-            titleVisibility: .visible,
-            presenting: removing
-        ) { fix in
-            Button("Remove", role: .destructive) { run(fix) { try await connection.removeDownload(fix, blocklist: false) } }
-            Button("Remove and blocklist", role: .destructive) { run(fix) { try await connection.removeDownload(fix, blocklist: true) } }
-            Button("Cancel", role: .cancel) {}
-        } message: { fix in
-            Text("\(fix.download?.release ?? fix.title) leaves the queue and the download client. Blocklisting it keeps \(fix.serviceName) from grabbing it again.")
-        }
         .alert("Couldn't fix it", isPresented: Binding(get: { failure != nil }, set: { if !$0 { failure = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -189,7 +176,7 @@ struct FixesView: View {
         case let .ignoreAndWait(days): run(fix) { try await connection.ignoreAndWait(fix, days: days) }
         case .searchReleases: sheet = .releases(fix)
         case .importAnyway: sheet = .importing(fix)
-        case .remove: removing = fix
+        case let .remove(blocklist): run(fix) { try await connection.removeDownload(fix, blocklist: blocklist) }
         }
     }
 
@@ -208,7 +195,9 @@ struct FixesView: View {
 }
 
 enum FixCardAction {
-    case keep, letGo, searchReleases, importAnyway, remove
+    case keep, letGo, searchReleases, importAnyway
+    /// Confirmed on the card: the dialog points at its Remove button.
+    case remove(blocklist: Bool)
     /// `nil`: until a release is grabbed.
     case ignoreAndWait(days: Int?)
 }
@@ -237,6 +226,7 @@ private struct FixCard: View {
     let fix: Fix
     let busy: Bool
     let act: (FixCardAction) -> Void
+    @State private var confirmingRemove = false
 
     var body: some View {
         Card(spacing: 12) {
@@ -279,8 +269,23 @@ private struct FixCard: View {
             }
         case .importBlocked:
             if fix.offers(.importAnyway) { Button("Import anyway") { act(.importAnyway) }.buttonStyle(FixButtonStyle()) }
-            if fix.offers(.remove) { Button("Remove") { act(.remove) }.buttonStyle(FixButtonStyle(prominent: !fix.offers(.importAnyway))) }
+            if fix.offers(.remove) { removeButton }
         }
+    }
+}
+
+extension FixCard {
+    /// Attached to the button itself: on iOS 26 the dialog is a popover pointing at the view it hangs on.
+    private var removeButton: some View {
+        Button("Remove") { confirmingRemove = true }
+            .buttonStyle(FixButtonStyle(prominent: !fix.offers(.importAnyway)))
+            .confirmationDialog("Remove this download?", isPresented: $confirmingRemove, titleVisibility: .visible) {
+                Button("Remove", role: .destructive) { act(.remove(blocklist: false)) }
+                Button("Remove and blocklist", role: .destructive) { act(.remove(blocklist: true)) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("\(fix.download?.release ?? fix.title) leaves the queue and the download client. Blocklisting it keeps \(fix.serviceName) from grabbing it again.")
+            }
     }
 }
 
