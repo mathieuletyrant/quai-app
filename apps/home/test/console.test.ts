@@ -7,7 +7,7 @@ import { TestClock } from "effect/testing"
 import { join } from "node:path"
 import { CloudSeen } from "../src/CloudSeen.ts"
 import { ConsoleAuth, sessionMs, sessionToken, validToken } from "../src/ConsoleAuth.ts"
-import { ConsoleRelayLive, HomeApiLive } from "../src/ConsoleServer.ts"
+import { ConsoleRelayLive, HomeApiLive, OpenApiLive, openApiPath } from "../src/ConsoleServer.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { Link } from "../src/Link.ts"
 import { LocalHome, startingMessage } from "../src/LocalHome.ts"
@@ -80,7 +80,7 @@ const consoleServer = (options: {
       Effect.flatMap(tempDir, (dir) => CloudSeen.make(join(dir, "cloud.json"), "ws://cloud:8787/home"))
     )
   ).pipe(Layer.provide(NodeFileSystem.layer))
-  const layer = HttpRouter.serve(Layer.mergeAll(HomeApiLive, ConsoleRelayLive)).pipe(
+  const layer = HttpRouter.serve(Layer.mergeAll(HomeApiLive, OpenApiLive, ConsoleRelayLive)).pipe(
     Layer.provideMerge(NodeHttpServer.layerTest),
     Layer.provide(ServiceAuth.layer.pipe(Layer.provide(radarr))),
     Layer.provideMerge(ConsoleAuth.layer),
@@ -194,6 +194,26 @@ describe("console relay", () => {
       })
       expect((yield* request("GET", "/console-api/../api/library", { cookie })).status).toBe(404)
       expect(relayed).toEqual([{ method: "GET", path: "/console-api/devices" }])
+    }).pipe(Effect.provide(layer))
+  })
+})
+
+describe("what Quai Home answers, as OpenAPI", () => {
+  it.effect("is read by whoever is signed in to the console, and nobody else", () => {
+    const { layer, relayed } = consoleServer({ password: "pw" })
+    return Effect.gen(function*() {
+      expect(yield* request("GET", openApiPath)).toMatchObject({ status: 401, json: { _tag: "Unauthorized" } })
+      const cookie = yield* signIn("pw")
+      const answer = yield* request("GET", openApiPath, { cookie })
+      expect(answer.status).toBe(200)
+      expect(answer.json).toMatchObject({ openapi: "3.1.0", info: { title: "Quai Home", version: "dev" } })
+      expect(Object.keys(answer.json.paths)).toEqual(
+        expect.arrayContaining(["/health", "/webhooks/{service}", "/home-api/services", "/api/library"])
+      )
+      // Quai Home's own: the domain's routes aren't asked for it.
+      expect(relayed).toEqual([])
+      yield* TestClock.adjust(sessionMs)
+      expect((yield* request("GET", openApiPath, { cookie })).status).toBe(401)
     }).pipe(Effect.provide(layer))
   })
 })
