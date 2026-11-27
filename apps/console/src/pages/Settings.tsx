@@ -1,4 +1,4 @@
-import { type CloudLink, type ConnectionSettings, type Health, isHostedCloud, type PushSettings } from "@quai/api"
+import { type CloudLink, type ConnectionSettings, isHostedCloud, type PushSettings } from "@quai/api"
 import type { ReactNode } from "react"
 import { call, type LinkStatus, useLink } from "../client.ts"
 import { useLoad } from "../load.ts"
@@ -18,15 +18,6 @@ import {
   Status
 } from "../ui"
 import { CloudChanged, loadOverview, SetupChecklist } from "./setup.tsx"
-
-/** "Less than a minute", "42 min", "5 h 12 min", "3 days" */
-const uptime = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60)
-  if (minutes < 1) return "Less than a minute"
-  if (minutes < 60) return `${minutes} min`
-  if (minutes < 2880) return `${Math.floor(minutes / 60)} h ${minutes % 60} min`
-  return `${Math.floor(minutes / 1440)} days`
-}
 
 function LoadingRows({ labels }: { labels: ReadonlyArray<string> }) {
   return (
@@ -56,7 +47,8 @@ function LinkAdvice({ cloud, status }: { cloud: CloudLink; status: LinkStatus })
     return (
       <Callout tone="warn" icon="unlink" title="No Quai Cloud yet">
         Set <Code>QUAI_CLOUD_URL</Code> on Quai Home to the Cloud's <Code>/home</Code>{" "}
-        address (<Code>wss://…/home</Code>) and restart it. The services can be set meanwhile.
+        address (<Code>wss://…/home</Code>) and restart it. Everything here works without it; the app needs it to reach
+        this home, and to get its Live Activities and alerts.
       </Callout>
     )
   }
@@ -91,16 +83,19 @@ function HostedPushWarning() {
   )
 }
 
+/** The Cloud's version, as it said when it last welcomed this home. */
+const cloudVersion = (cloud: CloudLink) => cloud.version === undefined ? notSet : <Mono>{cloud.version}</Mono>
+
 const hostedDescription =
-  "Quai's own Cloud runs your flows and sends the Live Activities and alerts to your iPhones. Nothing to set up: it keeps nothing, and your services' keys stay here."
+  "How the app reaches this home from anywhere, and what sends its Live Activities and alerts to your iPhones. Nothing to set up: it keeps nothing, and your services' keys stay here."
 
 /** Quai's hosted Cloud: is it linked, and which version. */
-function HostedCloud({ cloud, status, health }: { cloud: CloudLink; status: LinkStatus; health: Health | null }) {
+function HostedCloud({ cloud, status }: { cloud: CloudLink; status: LinkStatus }) {
   return (
     <div className="flex flex-col gap-4">
       <Rows>
         <Row label="Link">{linkStatus[status]}</Row>
-        <Row label="Version">{health === null ? notSet : <Mono>{health.version}</Mono>}</Row>
+        <Row label="Version">{cloudVersion(cloud)}</Row>
       </Rows>
       <LinkAdvice cloud={cloud} status={status} />
       <HostedPushWarning />
@@ -108,17 +103,14 @@ function HostedCloud({ cloud, status, health }: { cloud: CloudLink; status: Link
   )
 }
 
-/** A Cloud of one's own: where it is, the link, its version and uptime. */
-function OwnCloud({ cloud, status, health }: { cloud: CloudLink; status: LinkStatus; health: Health | null }) {
+/** A Cloud of one's own: where it is, the link, its version. */
+function OwnCloud({ cloud, status }: { cloud: CloudLink; status: LinkStatus }) {
   return (
     <div className="flex flex-col gap-4">
       <Rows>
         <Row label="Address">{cloud.url === undefined ? notSet : <Mono>{cloud.url}</Mono>}</Row>
         <Row label="Link">{cloud.configured ? linkStatus[status] : <Status tone="warn">Not set</Status>}</Row>
-        <Row label="Version">{health === null ? notSet : <Mono>{health.version}</Mono>}</Row>
-        <Row label="Running for">
-          {health === null ? notSet : <span className="tabular-nums">{uptime(health.uptimeSeconds)}</span>}
-        </Row>
+        <Row label="Version">{cloudVersion(cloud)}</Row>
       </Rows>
       <LinkAdvice cloud={cloud} status={status} />
     </div>
@@ -126,14 +118,13 @@ function OwnCloud({ cloud, status, health }: { cloud: CloudLink; status: LinkSta
 }
 
 const ownDescription = <>
-  Your own Quai Cloud runs the flows and sends the pushes. Quai Home reaches it at <Code>QUAI_CLOUD_URL</Code>.
+  How the app reaches this home, and what sends its pushes. Quai Home links to it at <Code>QUAI_CLOUD_URL</Code>.
 </>
 
 /** The Quai Cloud this home links to: Quai's, with nothing to show but the link, or one's own. */
 function CloudPanel() {
   const { status, epoch } = useLink()
   const overview = useLoad(loadOverview, [epoch])
-  const health = useLoad<Health>(() => call((api) => api.system.health()), [epoch])
   return (
     <Async
       state={overview}
@@ -151,8 +142,8 @@ function CloudPanel() {
             <Panel title="Quai Cloud" description={hosted ? hostedDescription : ownDescription}>
               <div className="flex flex-col gap-4">
                 {hosted
-                  ? <HostedCloud cloud={home.cloud} status={status} health={health.data} />
-                  : <OwnCloud cloud={home.cloud} status={status} health={health.data} />}
+                  ? <HostedCloud cloud={home.cloud} status={status} />
+                  : <OwnCloud cloud={home.cloud} status={status} />}
                 <CloudChanged cloud={home.cloud} onDone={overview.refresh} />
               </div>
             </Panel>
@@ -212,7 +203,7 @@ const loadCloudSettings = () =>
   ) => ({ push, access }))
 
 const cloudSettingsOffline = <p className="text-body text-muted">
-  Shown once Quai Home is connected to your Quai Cloud.
+  Shown once Quai Home has started.
 </p>
 
 /** A Cloud of one's own: what's set on it, shown here, changed with its environment variables. */

@@ -128,7 +128,7 @@ function Brand() {
   )
 }
 
-/** Across the top of every page while Quai Home isn't linked to Quai Cloud: what still works, and a retry. */
+/** Across the top of every page while Quai Home isn't linked to its Quai Cloud: what that stops, and a retry. */
 function OfflineBanner() {
   const [checking, setChecking] = useState(false)
   return (
@@ -140,8 +140,8 @@ function OfflineBanner() {
       <p className="min-w-0 flex-1 text-body text-text-2">
         <span className="font-semibold text-text">Quai Cloud isn't reachable.</span>{" "}
         <span className="hidden text-muted sm:inline">
-          The services can still be set. iPhones, flows and the journal need Quai Cloud: they come back as soon as Quai
-          Home links to it.
+          Everything here still works. Until Quai Home links to it again, the app can't reach this home from outside and
+          nothing is pushed.
         </span>
       </p>
       <Button
@@ -209,7 +209,7 @@ function App() {
       </Drawer>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        {status === "offline" && <OfflineBanner />}
+        {status === "offline" && overview.data?.cloud.configured === true && <OfflineBanner />}
         <div key={page} className="flex min-w-0 flex-1 flex-col">{pages[page].render()}</div>
       </main>
     </div>

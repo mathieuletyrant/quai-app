@@ -12,6 +12,7 @@ import {
 } from "@quai/domain/home/HomeLink.ts"
 import { PublicAccess } from "@quai/domain/PublicAccess.ts"
 import { Apns } from "@quai/domain/push/Apns.ts"
+import { ServerInfo } from "@quai/domain/Version.ts"
 import { Clock, Config, Context, Deferred, Effect, Layer, Option, Queue, Redacted, Ref, Schema } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { Socket } from "effect/socket"
@@ -147,11 +148,13 @@ export class HomeLinks extends Context.Service<HomeLinks, {
     // What a home that runs Quai is told and given: the push key's settings and its pushes, the public access.
     const apns = yield* Apns
     const publicAccess = yield* PublicAccess
+    const info = yield* ServerInfo
     const welcomeOf = (homeId: string, runsQuai: boolean) =>
       HomeProtocol.Welcome.make({
         homeId,
         ...(runsQuai
           ? {
+            version: info.version,
             push: apns.settings,
             publicAccess: {
               ...Option.match(publicAccess.url, { onNone: () => ({}), onSome: (url) => ({ url }) }),

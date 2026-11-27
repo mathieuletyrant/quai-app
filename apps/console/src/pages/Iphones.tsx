@@ -2,14 +2,13 @@ import type { DeviceId, HomeOverview } from "@quai/api"
 import { DateTime } from "effect"
 import QRCode from "qrcode"
 import { type ReactNode, useEffect, useState } from "react"
-import { call, isCloudOffline, useLink } from "../client.ts"
+import { call, isNotReady, useLink } from "../client.ts"
 import { duration } from "../format.ts"
 import { useLoad } from "../load.ts"
 import {
   Async,
   Badge,
   Button,
-  CloudOfflineState,
   type Column,
   DataTable,
   EmptyState,
@@ -17,6 +16,7 @@ import {
   Icon,
   IconButton,
   Mono,
+  NotReadyState,
   PageBar,
   PageBody,
   Panel,
@@ -316,7 +316,7 @@ export function IphonesPage() {
   }
 
   const errors = [devices.error, pairingError]
-  const offline = errors.some(isCloudOffline)
+  const offline = errors.some(isNotReady)
   const count = devices.data?.length ?? 0
   const pairButton = (
     <Button icon="qr" disabled={starting || offline} onClick={start}>
@@ -336,7 +336,7 @@ export function IphonesPage() {
       <PageBody>
         <ErrorCallout
           unlessOffline
-          error={errors.find((error) => error !== null && !isCloudOffline(error)) ?? null}
+          error={errors.find((error) => error !== null && !isNotReady(error)) ?? null}
           title="Something went wrong"
         />
         {overview.data && <CloudChanged cloud={overview.data.cloud} onDone={overview.refresh} />}
@@ -349,9 +349,9 @@ export function IphonesPage() {
         >
           <div className="border-t border-line">
             <Async
-              state={{ data: devices.data, error: errors.find(isCloudOffline) ?? devices.error }}
+              state={{ data: devices.data, error: errors.find(isNotReady) ?? devices.error }}
               loading={table(null)}
-              offline={<CloudOfflineState what="Paired iPhones" />}
+              offline={<NotReadyState what="Paired iPhones" />}
             >
               {table}
             </Async>

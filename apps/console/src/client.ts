@@ -18,24 +18,27 @@ type Client = Effect.Success<typeof client>
 type HomeClient = Effect.Success<typeof homeClient>
 
 /**
- * The console is served by Quai Home, which relays the Cloud's routes: they answer `HomeOffline`
- * (503) while Quai Home and Quai Cloud aren't linked (no `QUAI_CLOUD_URL`, or the Cloud down).
+ * Quai Home serves the console and answers it with Quai's routes, which it runs itself. For the
+ * second or two it takes to start, they answer `HomeOffline` (503): not ready yet.
  */
-export const isCloudOffline = (error: unknown) =>
+export const isNotReady = (error: unknown) =>
   typeof error === "object" && error !== null && "_tag" in error && error._tag === "HomeOffline"
 
 /**
- * Whether Quai Home is linked to Quai Cloud, as the console last saw it. Any call answered
- * `HomeOffline` marks it offline; the shell's probe marks it back online. `epoch` grows at each
- * reconnection, so pages reload what they couldn't read.
+ * Whether Quai Home is linked to Quai Cloud, as it last said (`/home-api/home`). Nothing here
+ * needs the link: without it the app can't reach this home from outside and nothing is pushed.
+ * `epoch` grows when the link comes back, and once Quai Home is ready, so pages read again.
  */
 export type LinkStatus = "checking" | "online" | "offline"
 let home: { readonly status: LinkStatus; readonly epoch: number } = { status: "checking", epoch: 0 }
 const listeners = new Set<() => void>()
+const changed = (next: typeof home) => {
+  home = next
+  listeners.forEach((listener) => listener())
+}
 const setHome = (status: LinkStatus) => {
   if (home.status === status) return
-  home = { status, epoch: status === "online" && home.status === "offline" ? home.epoch + 1 : home.epoch }
-  listeners.forEach((listener) => listener())
+  changed({ status, epoch: status === "online" && home.status === "offline" ? home.epoch + 1 : home.epoch })
 }
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
@@ -44,23 +47,36 @@ const subscribe = (listener: () => void) => {
   }
 }
 
+/** How long after a "not ready" the pages read again. */
+const readAgainMs = 2_000
+let readingAgain = false
+/** Quai Home wasn't ready: the pages read again in a moment, once for however many calls said so. */
+const readAgainSoon = () => {
+  if (readingAgain) return
+  readingAgain = true
+  setTimeout(() => {
+    readingAgain = false
+    changed({ ...home, epoch: home.epoch + 1 })
+  }, readAgainMs)
+}
+
 /** Runs one call to Quai Home's own routes at the React boundary. */
 export const callHome = <A, E>(request: (client: HomeClient) => Effect.Effect<A, E>) =>
   Effect.runPromise(Effect.flatMap(homeClient, request))
 
-/** Runs one call to Quai Cloud's routes, through Quai Home, at the React boundary. */
+/** Runs one call to Quai's routes (`/console-api`, `/api/health`), which Quai Home answers, at the React boundary. */
 export const call = <A, E>(request: (client: Client) => Effect.Effect<A, E>) =>
   Effect.runPromise(Effect.flatMap(client, request)).catch((error: unknown) => {
-    if (isCloudOffline(error)) setHome("offline")
+    if (isNotReady(error)) readAgainSoon()
     throw error
   })
 
-/** Asks a route that needs the Cloud and the home's data: answered, they are linked. */
+/** Asks Quai Home whether it is linked to Quai Cloud. No answer may be the session that expired. */
 export const probeLink = () =>
-  call((api) => api.console.devices()).then(() => setHome("online"), (error: unknown) => {
-    // Anything but the Cloud being away may be the session that expired.
-    if (!isCloudOffline(error)) void refreshSession()
-  })
+  callHome((api) => api.home.overview()).then(
+    (overview) => setHome(overview.cloud.linked ? "online" : "offline"),
+    () => void refreshSession()
+  )
 
 /** Whether this browser may open the console: `null` until Quai Home answered. */
 export type SessionState = ConsoleAccess["state"] | null
@@ -85,7 +101,7 @@ export const useSession = () =>
 
 export const useLink = () => useSyncExternalStore(subscribe, () => home)
 
-/** Keeps probing the home: often while it's offline, rarely while it's linked, and when the tab comes back. */
+/** Keeps asking about the link: often while it's down, rarely while it's up, and when the tab comes back. */
 export const useLinkProbe = () => {
   const { status } = useLink()
   useEffect(() => {
