@@ -6,6 +6,7 @@ import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { Gone, type GoneItem } from "../gone/Gone.ts"
 import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
+import { HomeReads } from "../home/HomeReads.ts"
 import { HomeTime } from "../home/HomeTime.ts"
 import { eventNote, type From } from "../journal/describe.ts"
 import { Journal } from "../journal/Journal.ts"
@@ -115,6 +116,7 @@ export class Hub extends Context.Service<Hub, {
     const flows = yield* FlowStore
     const integrations = yield* Integrations
     const link = yield* HomeLink
+    const reads = yield* HomeReads
     const time = yield* HomeTime
     const journal = yield* Journal
     const alerts = yield* Alerts
@@ -282,13 +284,18 @@ export class Hub extends Context.Service<Hub, {
         []
       )
 
+    /** A service says something changed: what was read of it before is forgotten, then the webhook is read. */
     const webhook = (event: EventOf<"Webhook">) => {
       const reader = integrations.find((integration) => integration.service === event.service)?.webhook
-      if (reader === undefined) return Effect.void
-      return fromHome(event.service, () =>
-        reader.read(event.body).pipe(
-          Effect.catchTag("SchemaError", () => unreadableWebhook(event.service))
-        ))
+      const forgotten = reads.forget(event.service)
+      if (reader === undefined) return forgotten
+      return Effect.andThen(
+        forgotten,
+        fromHome(event.service, () =>
+          reader.read(event.body).pipe(
+            Effect.catchTag("SchemaError", () => unreadableWebhook(event.service))
+          ))
+      )
     }
 
     const handle = (event: HomeEvent): Effect.Effect<void> => {

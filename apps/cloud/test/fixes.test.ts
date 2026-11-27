@@ -3,7 +3,7 @@ import { DeviceAuth, QuaiApi } from "@quai/api"
 import { noSourceAfterMs } from "@quai/domain/fixes/Detected.ts"
 import { blockedMovie, moviesWithoutSource } from "@quai/domain/fixes/movies.ts"
 import { blockedEpisodes, episodesWithoutSource } from "@quai/domain/fixes/series.ts"
-import { answerKeptMs } from "@quai/domain/home/HomeReads.ts"
+import { screenAnswerKeptMs } from "@quai/domain/home/HomeReads.ts"
 import { isImportBlocked, QueuePage } from "@quai/domain/integrations/arr.ts"
 import { RadarrGrabs, RadarrMissing, RadarrMovies } from "@quai/domain/integrations/radarr.ts"
 import {
@@ -415,8 +415,8 @@ describe("ignore and wait, let go", () => {
       })
       yield* api.ignoreAndWait({ params: { id: "missing-season-3-2" }, payload: {} })
       down = true
-      // Past what the reads keep: the queue is asked again, and Sonarr doesn't answer.
-      yield* TestClock.adjust(answerKeptMs)
+      // Past what a screen's reads keep: the queue is asked again, and Sonarr doesn't answer.
+      yield* TestClock.adjust(screenAnswerKeptMs)
       expect((yield* api.list()).unavailable).toEqual(["sonarr"])
       expect(home.documents.has("fixes/snoozed/missing-season-3-2")).toBe(true)
     }).pipe(Effect.provide(TestApp)))

@@ -3,6 +3,7 @@ import { Clock, Effect, Layer, Option, Redacted } from "effect"
 import { HttpServerRequest } from "effect/http"
 import { HttpApiError } from "effect/http-api"
 import { Devices } from "../home/Devices.ts"
+import { answerKeptMs, AnswersKeptFor, screenAnswerKeptMs } from "../home/HomeReads.ts"
 import { makeNonces, problemMessages, signatureProblem } from "../home/RequestSignature.ts"
 
 /** The request's body as it was sent, to check its signature; none for a GET. */
@@ -48,10 +49,12 @@ export const DeviceAuthLive = Layer.effect(
           const device = yield* devices.authenticate(Redacted.value(credential))
           if (Option.isNone(device)) return yield* Effect.fail(new HttpApiError.Unauthorized())
           if (device.value.deviceKey !== null) yield* signed(device.value.deviceKey)
-          return yield* Effect.provideService(httpEffect, CurrentDevice, {
-            id: device.value.id,
-            name: device.value.name
-          })
+          const request = yield* HttpServerRequest.HttpServerRequest
+          return yield* httpEffect.pipe(
+            Effect.provideService(CurrentDevice, { id: device.value.id, name: device.value.name }),
+            // A screen may show what was read within the minute; what acts reads again.
+            Effect.provideService(AnswersKeptFor, request.method === "GET" ? screenAnswerKeptMs : answerKeptMs)
+          )
         })
     }
   })

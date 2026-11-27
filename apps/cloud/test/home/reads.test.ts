@@ -1,7 +1,13 @@
 import { describe, expect, it } from "@effect/vitest"
 import { HomeOffline } from "@quai/api"
 import { offlineMessage } from "@quai/domain/home/HomeLink.ts"
-import { answerKeptMs, HomeReads } from "@quai/domain/home/HomeReads.ts"
+import {
+  answerKeptMs,
+  AnswersKeptFor,
+  HomeReads,
+  makeKeptGets,
+  screenAnswerKeptMs
+} from "@quai/domain/home/HomeReads.ts"
 import { Journal } from "@quai/domain/journal/Journal.ts"
 import { Effect, Fiber, Layer, Logger, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
@@ -182,6 +188,46 @@ describe("HomeReads, the same GET read again", () => {
       expect(yield* homeReads.read(status)).toEqual(Option.some({ version: "5.2" }))
     }).pipe(Effect.provide(reads)))
 
+  it.effect("serves a reader for as long as that reader allows: a screen a minute, anything else a few seconds", () =>
+    Effect.gen(function*() {
+      let version = "5.2"
+      const home = yield* homeAnswering(() => ({ json: { version } }))
+      const homeReads = yield* HomeReads
+      const screen = Effect.provideService(homeReads.read(status), AnswersKeptFor, screenAnswerKeptMs)
+      expect(yield* screen).toEqual(Option.some({ version: "5.2" }))
+      version = "5.3"
+      yield* TestClock.adjust(screenAnswerKeptMs - 1)
+      // Nearly a minute old: fine for a screen.
+      expect(yield* screen).toEqual(Option.some({ version: "5.2" }))
+      expect(statusCalls(home)).toBe(1)
+      // Too old for what acts on it: read again, and the screen then has the new answer too.
+      expect(yield* homeReads.read(status)).toEqual(Option.some({ version: "5.3" }))
+      expect(yield* screen).toEqual(Option.some({ version: "5.3" }))
+      expect(statusCalls(home)).toBe(2)
+      version = "5.4"
+      yield* TestClock.adjust(screenAnswerKeptMs)
+      expect(yield* screen).toEqual(Option.some({ version: "5.4" }))
+      expect(statusCalls(home)).toBe(3)
+    }).pipe(Effect.provide(reads)))
+
+  it.effect("forgets a service's answers when it says something changed, and only that service's", () =>
+    Effect.gen(function*() {
+      const home = yield* makeFakeHome({
+        strict: false,
+        services: ["radarr", "sonarr"],
+        answer: () => ({ json: { version: "5" } })
+      })
+      yield* home.connect
+      const homeReads = yield* HomeReads
+      const sonarr = { ...status, service: "sonarr" } as const
+      const screen = <A>(read: Effect.Effect<A, HomeOffline>) =>
+        Effect.provideService(read, AnswersKeptFor, screenAnswerKeptMs)
+      yield* screen(homeReads.all({ radarr: status, sonarr }))
+      yield* homeReads.forget("radarr")
+      yield* screen(homeReads.all({ radarr: status, sonarr }))
+      expect(home.calls.map((call) => call.service)).toEqual(["radarr", "sonarr", "radarr"])
+    }).pipe(Effect.provide(reads)))
+
   it.effect("a write forgets what was kept: what it changed is read again", () =>
     Effect.gen(function*() {
       const home = yield* homeAnswering({ json: { version: "5.2" } })
@@ -270,4 +316,67 @@ describe("HomeReads.write", () => {
       answer = { drop: true }
       expect(yield* Effect.flip(write(grab, refused))).toEqual(new HomeOffline({ message: offlineMessage }))
     }).pipe(Effect.provide(reads)))
+})
+
+describe("the answers kept", () => {
+  const now = 1_000_000
+
+  it("serve a GET on its way to every reader, then its answer to those that find it recent enough", () => {
+    const gets = makeKeptGets<string>(60_000)
+    expect(gets.find("radarr", "/movie", now, 5_000)).toBeUndefined()
+    const settle = gets.begin("radarr", "/movie", "answer", now)
+    // On its way: whatever the reader allows, it waits for this one.
+    expect(gets.find("radarr", "/movie", now + 90_000, 0)).toBe("answer")
+    settle(now + 100, true)
+    expect(gets.find("radarr", "/movie", now + 5_099, 5_000)).toBe("answer")
+    expect(gets.find("radarr", "/movie", now + 5_100, 5_000)).toBeUndefined()
+    expect(gets.find("radarr", "/movie", now + 5_100, 60_000)).toBe("answer")
+    // Another service, another path: another GET.
+    expect(gets.find("sonarr", "/movie", now + 200, 60_000)).toBeUndefined()
+    expect(gets.find("radarr", "/movie?tmdbId=1", now + 200, 60_000)).toBeUndefined()
+  })
+
+  it("forget a GET that came back with nothing to keep", () => {
+    const gets = makeKeptGets<string>()
+    gets.begin("radarr", "/movie", "failed", now)(now + 100, false)
+    expect(gets.find("radarr", "/movie", now + 100, 60_000)).toBeUndefined()
+    expect(gets.size()).toBe(0)
+  })
+
+  it("leave a newer GET alone when an older one of the same comes back late", () => {
+    const gets = makeKeptGets<string>()
+    const first = gets.begin("radarr", "/movie", "first", now)
+    gets.forget()
+    const second = gets.begin("radarr", "/movie", "second", now + 10)
+    first(now + 20, false)
+    expect(gets.find("radarr", "/movie", now + 20, 0)).toBe("second")
+    second(now + 30, true)
+    first(now + 40, true)
+    expect(gets.find("radarr", "/movie", now + 50, 60_000)).toBe("second")
+  })
+
+  it("forget one service's, or all", () => {
+    const gets = makeKeptGets<string>()
+    gets.begin("radarr", "/movie", "movies", now)(now, true)
+    gets.begin("radarr", "/queue", "queue", now)(now, true)
+    gets.begin("sonarr", "/series", "series", now)(now, true)
+    gets.forget("radarr")
+    expect(gets.size()).toBe(1)
+    expect(gets.find("sonarr", "/series", now, 60_000)).toBe("series")
+    gets.forget()
+    expect(gets.size()).toBe(0)
+  })
+
+  it("don't pile up: a path asked once (a history since a moment) goes when it is too old for anyone", () => {
+    const gets = makeKeptGets<string>(60_000)
+    for (let minute = 0; minute < 100; minute++) {
+      const at = now + minute * 60_000
+      gets.begin("radarr", `/history/since?date=${at}`, "grabs", at)(at, true)
+    }
+    expect(gets.size()).toBe(1)
+    // One still on its way is never dropped, however long it takes.
+    gets.begin("sonarr", "/slow", "waiting", now)
+    gets.begin("radarr", "/movie", "movies", now + 10 * 3_600_000)
+    expect(gets.find("sonarr", "/slow", now + 10 * 3_600_000, 0)).toBe("waiting")
+  })
 })
