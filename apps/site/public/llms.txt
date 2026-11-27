@@ -157,6 +157,8 @@ For developers with an Apple developer account. You build the iPhone app yoursel
 
 The console is served by Quai Home (port 8788), behind `QUAI_HOME_PASSWORD`. It is not on Quai Cloud, hosted or not. To open it from outside, put Quai Home behind your own reverse proxy or tunnel (Cloudflare Tunnel with Access, Tailscale, Pangolin…), and set `QUAI_CONSOLE_PUBLIC_URL` on Quai Home to that address. The pairing QR code carries the address the console was opened at and this public one; the app's "Open the console" opens the first that answers, so the local one at home and the public one when out. `QUAI_CLOUD_PUBLIC_URL` is unrelated: it is the address of a self-hosted Quai Cloud for the app.
 
+To see everything your Quai Home answers, and to whom, open `/home-api/openapi.json` on the console's address while signed in: one OpenAPI 3.1 document for the app's routes (which only Quai Cloud relays), the console's, the services' webhooks and `/health`. Each route's first tag says who reaches it.
+
 ## Configuration reference
 
 ### Quai Home

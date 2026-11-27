@@ -8,7 +8,7 @@ import { Calls } from "./Calls.ts"
 import { CloudSeen } from "./CloudSeen.ts"
 import { HomeConfig } from "./Config.ts"
 import { ConsoleAuth } from "./ConsoleAuth.ts"
-import { ConsoleFilesLive, ConsoleRelayLive, HomeApiLive } from "./ConsoleServer.ts"
+import { ConsoleFilesLive, ConsoleRelayLive, HomeApiLive, OpenApiLive } from "./ConsoleServer.ts"
 import { DomainLive } from "./Domain.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { HomeStore } from "./HomeStore.ts"
@@ -60,7 +60,7 @@ const Services = LocalHome.layer.pipe(
 
 // Quai Home runs Quai for its home (the domain): its own port serves the webhooks and the console.
 const App = Layer.mergeAll(
-  HttpRouter.serve(Layer.mergeAll(WebhooksLive, HomeApiLive, ConsoleRelayLive, ConsoleFilesLive)),
+  HttpRouter.serve(Layer.mergeAll(WebhooksLive, HomeApiLive, OpenApiLive, ConsoleRelayLive, ConsoleFilesLive)),
   WebhookSetupLive,
   DomainLive
 ).pipe(

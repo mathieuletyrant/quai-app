@@ -148,6 +148,9 @@ your own account.
 
 A service set neither here nor in the console's Services page is skipped.
 
+Signed in to the console, `/home-api/openapi.json` lists everything Quai Home answers, and to whom: the app
+(through Quai Cloud), the console, the services' webhooks.
+
 **Quai Cloud**
 
 | Env | Default | |

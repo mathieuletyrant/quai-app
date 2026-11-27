@@ -8,6 +8,7 @@ import { ConsoleAuth, sessionMs } from "./ConsoleAuth.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { Link } from "./Link.ts"
 import { LocalHome } from "./LocalHome.ts"
+import { homeOpenApi } from "./OpenApiDocument.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
 import { checkService } from "./ServiceCheck.ts"
 import { ServiceSettings } from "./ServiceSettings.ts"
@@ -136,6 +137,30 @@ export const ConsoleRelayLive = HttpRouter.use((router) =>
     })
     yield* router.add("*", "/console-api/*", relay)
     yield* router.add("*", "/api/health", relay)
+  })
+)
+
+/** Where the console reads what Quai Home answers. */
+export const openApiPath = "/home-api/openapi.json"
+
+/**
+ * `GET /home-api/openapi.json`: everything Quai Home answers, as one OpenAPI document
+ * (`homeOpenApi`), for whoever is signed in to the console.
+ */
+export const OpenApiLive = HttpRouter.use((router) =>
+  Effect.gen(function*() {
+    const auth = yield* ConsoleAuth
+    const document = homeOpenApi(homeVersion)
+    yield* router.add(
+      "GET",
+      openApiPath,
+      Effect.gen(function*() {
+        const request = yield* HttpServerRequest.HttpServerRequest
+        return (yield* auth.access(sessionOf(request))) === "signedIn"
+          ? HttpServerResponse.jsonUnsafe(document)
+          : HttpServerResponse.jsonUnsafe({ _tag: "Unauthorized" }, { status: 401 })
+      })
+    )
   })
 )
 
