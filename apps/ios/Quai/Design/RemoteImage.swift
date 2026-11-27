@@ -35,16 +35,26 @@ struct PosterDisk: Sendable {
 
     /// Removes the least recently shown posters until those kept fit in `limit`.
     func prune() {
-        let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
-        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys)) ?? []
-        let kept = files.compactMap { file -> KeptPoster? in
-            guard let values = try? file.resourceValues(forKeys: Set(keys)) else { return nil }
-            return KeptPoster(file: file, shown: values.contentModificationDate ?? .distantPast, size: values.fileSize ?? 0)
-        }
+        let kept = keptPosters()
         var total = kept.reduce(0) { $0 + $1.size }
         for poster in kept.sorted(by: { $0.shown < $1.shown }) where total > limit {
             try? FileManager.default.removeItem(at: poster.file)
             total -= poster.size
+        }
+    }
+
+    /// The bytes of the posters kept.
+    func size() -> Int { keptPosters().reduce(0) { $0 + $1.size } }
+
+    /// Forgets every kept poster.
+    func clear() { try? FileManager.default.removeItem(at: directory) }
+
+    private func keptPosters() -> [KeptPoster] {
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: keys)) ?? []
+        return files.compactMap { file in
+            guard let values = try? file.resourceValues(forKeys: Set(keys)) else { return nil }
+            return KeptPoster(file: file, shown: values.contentModificationDate ?? .distantPast, size: values.fileSize ?? 0)
         }
     }
 
@@ -85,6 +95,15 @@ final class ImageStore: @unchecked Sendable {
 
     /// The image already in memory: shown on the first frame, without a placeholder.
     func cached(_ url: URL) -> UIImage? { memory.object(forKey: url as NSURL) }
+
+    /// The bytes of the posters kept on disk.
+    func keptBytes() -> Int { disk.size() }
+
+    /// Forgets every poster, in memory and on disk: each one shown next is asked again.
+    func clear() {
+        memory.removeAllObjects()
+        disk.clear()
+    }
 
     /// The image from memory, else the disk, else the network; decoded off the main thread and
     /// kept. Throws `CancellationError` when the view that asked went away: it asks again when it
@@ -143,6 +162,29 @@ final class ImageStore: @unchecked Sendable {
     }
 }
 
+/// The posters kept on this iPhone, and the times they were cleared: a poster on screen loads
+/// again when they are, so a poster changed in Radarr or Sonarr shows without reinstalling.
+@MainActor @Observable
+final class Posters {
+    static let shared = Posters(store: .shared)
+
+    private(set) var cleared = 0
+    private let store: ImageStore
+
+    init(store: ImageStore) { self.store = store }
+
+    /// The bytes kept on disk, read off the main thread.
+    func keptBytes() async -> Int {
+        let store = store
+        return await Task.detached(priority: .utility) { store.keptBytes() }.value
+    }
+
+    func clear() {
+        store.clear()
+        cleared += 1
+    }
+}
+
 /// What a `RemoteImage` shows: the image, while it loads, or when there is none.
 enum RemoteImagePhase {
     case loading
@@ -157,7 +199,7 @@ struct RemoteImage<Content: View>: View {
     let url: URL?
     @ViewBuilder var content: (RemoteImagePhase) -> Content
     @Environment(\.scenePhase) private var scenePhase
-    @State private var loaded: (url: URL, image: UIImage)?
+    @State private var loaded: Loaded?
     @State private var failed: URL?
 
     init(url: URL?, @ViewBuilder content: @escaping (RemoteImagePhase) -> Content) {
@@ -165,28 +207,31 @@ struct RemoteImage<Content: View>: View {
         self.content = content
         // A poster seen before is there on the first frame: no placeholder flash on scroll back.
         if let url, let image = ImageStore.shared.cached(url) {
-            _loaded = State(initialValue: (url, image))
+            _loaded = State(initialValue: Loaded(url: url, image: image, cleared: Posters.shared.cleared))
         }
     }
 
     private var phase: RemoteImagePhase {
         guard let url else { return .unavailable }
-        if let loaded, loaded.url == url { return .loaded(Image(uiImage: loaded.image)) }
+        if let loaded, loaded.url == url, loaded.cleared == Posters.shared.cleared {
+            return .loaded(Image(uiImage: loaded.image))
+        }
         if let cached = ImageStore.shared.cached(url) { return .loaded(Image(uiImage: cached)) }
         return failed == url ? .unavailable : .loading
     }
 
     var body: some View {
         content(phase)
-            .task(id: Load(url: url, active: scenePhase == .active)) {
-                guard let url, loaded?.url != url else { return }
+            .task(id: Load(url: url, active: scenePhase == .active, cleared: Posters.shared.cleared)) {
+                let cleared = Posters.shared.cleared
+                guard let url, loaded?.url != url || loaded?.cleared != cleared else { return }
                 do {
                     let image = try await ImageStore.keepTrying(after: ImageStore.retryDelays) {
                         try await ImageStore.shared.image(for: url)
                     } failed: {
                         failed = url
                     }
-                    loaded = (url, image)
+                    loaded = Loaded(url: url, image: image, cleared: cleared)
                 } catch {
                     // Cancelled: the view left, or the app went to the background. It loads again
                     // when it comes back.
@@ -194,9 +239,17 @@ struct RemoteImage<Content: View>: View {
             }
     }
 
-    /// What starts a load again: another URL, or the app back in the foreground.
+    /// What starts a load again: another URL, the app back in the foreground, or the posters cleared.
     private struct Load: Hashable {
         let url: URL?
         let active: Bool
+        let cleared: Int
+    }
+
+    /// The image shown, for its URL and since the posters were last cleared.
+    private struct Loaded {
+        let url: URL
+        let image: UIImage
+        let cleared: Int
     }
 }

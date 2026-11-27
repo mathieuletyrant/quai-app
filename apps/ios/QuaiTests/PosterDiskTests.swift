@@ -65,4 +65,33 @@ struct PosterDiskTests {
         disk.prune()
         #expect(disk.data(for: poster) != nil)
     }
+
+    @Test func theSizeIsTheKeptPostersBytes() throws {
+        let disk = emptyDisk()
+        #expect(disk.size() == 0)
+        disk.store(Data(count: 10), for: poster)
+        try disk.store(Data(count: 5), for: #require(URL(string: "https://image.tmdb.org/t/p/w342/other.jpg")))
+        #expect(disk.size() == 15)
+    }
+
+    @Test func clearedPostersAreGoneAndKeptAgainAfter() {
+        let disk = emptyDisk()
+        disk.store(Data([1]), for: poster)
+        disk.clear()
+        #expect(disk.data(for: poster) == nil)
+        #expect(disk.size() == 0)
+        disk.store(Data([2]), for: poster)
+        #expect(disk.data(for: poster) == Data([2]))
+    }
+
+    @Test @MainActor func clearingThePostersEmptiesTheDiskAndCountsIt() async {
+        let disk = emptyDisk()
+        disk.store(Data(count: 10), for: poster)
+        let posters = Posters(store: ImageStore(disk: disk))
+        #expect(await posters.keptBytes() == 10)
+        posters.clear()
+        #expect(posters.cleared == 1)
+        #expect(await posters.keptBytes() == 0)
+        #expect(disk.data(for: poster) == nil)
+    }
 }
