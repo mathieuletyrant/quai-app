@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.5.0](https://github.com/mathieuletyrant/quai-app/compare/v2.4.0...v2.5.0) (2026-11-27)
+
+
+### ✨ Features
+
+* **console:** no Settings page for the hosted Cloud, and the Cloud's version in the sidebar ([#179](https://github.com/mathieuletyrant/quai-app/issues/179)) ([b377d80](https://github.com/mathieuletyrant/quai-app/commit/b377d80fa8abe5b13a818708b03ba182f7bd011b))
+* **home:** Quai Home describes everything it answers, as OpenAPI ([#175](https://github.com/mathieuletyrant/quai-app/issues/175)) ([ce0bed6](https://github.com/mathieuletyrant/quai-app/commit/ce0bed680a2d37c225266b9e2cb93ee511e09188))
+
+
+### 🐛 Fixes
+
+* **console:** the console says what Quai Cloud does now, and whether it is really linked ([#178](https://github.com/mathieuletyrant/quai-app/issues/178)) ([c6fe37a](https://github.com/mathieuletyrant/quai-app/commit/c6fe37a7158dfb58f5ae248cab866a5f3103ad11))
+
+
+### ⚡ Performance
+
+* a screen's reads are kept a minute, and Quai Home's calls leave together ([#177](https://github.com/mathieuletyrant/quai-app/issues/177)) ([85d4da7](https://github.com/mathieuletyrant/quai-app/commit/85d4da7019afc2fba045823b79efc7e41b4b76de))
+
 ## [2.4.0](https://github.com/mathieuletyrant/quai-app/compare/v2.3.1...v2.4.0) (2026-11-27)
 
 
