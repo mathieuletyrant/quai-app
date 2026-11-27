@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import Quai
 
 /// Posters stay on the phone across launches, and the least recently shown go past the limit.
@@ -93,5 +94,31 @@ struct PosterDiskTests {
         #expect(posters.cleared == 1)
         #expect(await posters.keptBytes() == 0)
         #expect(disk.data(for: poster) == nil)
+    }
+}
+
+/// A poster kept on disk is shown without the network, then from memory.
+@MainActor
+struct ImageStoreDiskTests {
+    @Test func aKeptPosterIsReadFromTheDiskThenFromMemory() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        let disk = PosterDisk(directory: directory)
+        // A host that never answers: only the disk can give this poster.
+        let poster = try #require(URL(string: "https://poster.invalid/t/p/w342/kept.png"))
+        // Scale 1: the PNG is 2 × 3 pixels, as `UIImage(data:)` reads it back.
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 3), format: format).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 2, height: 3))
+        }
+        try disk.store(#require(image.pngData()), for: poster)
+        let store = ImageStore(disk: disk)
+        #expect(store.cached(poster) == nil)
+
+        let shown = try await store.image(for: poster)
+
+        #expect(shown.size == CGSize(width: 2, height: 3))
+        #expect(store.cached(poster) != nil)
     }
 }
