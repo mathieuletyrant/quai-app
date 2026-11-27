@@ -1,7 +1,6 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
 import { HomeProtocol } from "@quai/api"
-import { HomeApp } from "@quai/domain/App.ts"
 import { pairingHash } from "@quai/domain/home/Devices.ts"
 import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
 import { PublicAccess } from "@quai/domain/PublicAccess.ts"
@@ -10,11 +9,11 @@ import { ServerInfo } from "@quai/domain/Version.ts"
 import { Effect, Fiber, Layer, Option, Redacted } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
-import { generateKeyPairSync } from "node:crypto"
 import { HomeLinks, HomeRoute, pushLimit, Timing } from "../../src/home/HomeLinks.ts"
 import { Homes, HomesRoute } from "../../src/home/Homes.ts"
 import { makeApns } from "../../src/push/ApnsClient.ts"
-import { type AppAnswer, type FakeHomeOptions, makeFakeHome, settle } from "../fakeHome.ts"
+import { settle } from "../fakeHome.ts"
+import { type AppAnswer, type LinkedHomeOptions, makeLinkedHome, otherHomeKey } from "./linkedHome.ts"
 
 /** The pushes the Cloud sent to APNs: a token starting with "dead" is gone for good. */
 const pushes: Array<ApnsRequest> = []
@@ -40,7 +39,7 @@ const publicUrl = "https://cloud.example.com"
 /** main.ts's composition, with an APNs that records and a public address. */
 const cloudWith = (apns: Layer.Layer<Apns>) =>
   HttpRouter.serve(Layer.mergeAll(HomeRoute, HomesRoute), { disableLogger: true }).pipe(
-    Layer.provideMerge(Homes.layer(HomeApp)),
+    Layer.provideMerge(Homes.layer),
     Layer.provideMerge(HomeLinks.layer),
     Layer.provideMerge(Layer.mergeAll(
       apns,
@@ -51,14 +50,11 @@ const cloudWith = (apns: Layer.Layer<Apns>) =>
   )
 const Cloud = cloudWith(FakeApns)
 
-const runsQuai = HomeProtocol.runsQuaiProtocolVersion
-
-/** A fake Quai Home that runs Quai, connected: its routes answer `answerApp`. */
-const homeRunningQuai = (options: FakeHomeOptions = {}) =>
+/** A fake Quai Home, connected: its routes answer `answerApp`. */
+const homeRunningQuai = (options: LinkedHomeOptions = {}) =>
   Effect.gen(function*() {
-    const home = yield* makeFakeHome({ protocol: runsQuai, services: ["radarr"], ...options })
-    yield* home.open
-    yield* settle
+    const home = yield* makeLinkedHome(options)
+    yield* home.connect
     return home
   })
 
@@ -92,7 +88,7 @@ const json = (text: string) => JSON.parse(text) as Record<string, any>
 const welcomeOf = (home: { readonly received: ReadonlyArray<HomeProtocol.CloudMessage> }) =>
   home.received.find((message) => message._tag === "Welcome")
 
-describe("a Quai Home that runs Quai", () => {
+describe("a Quai Home", () => {
   it.effect("is welcomed with the push key's settings and the public access, and asked for nothing", () =>
     Effect.gen(function*() {
       const home = yield* homeRunningQuai()
@@ -106,15 +102,7 @@ describe("a Quai Home that runs Quai", () => {
       yield* TestClock.adjust("5 seconds")
       // No document, no call, no watch, no journal: the home keeps them to itself.
       expect(home.received.map((message) => message._tag)).toEqual(["Challenge", "Welcome"])
-      expect(yield* (yield* Homes).homeIds).toEqual([])
-    }).pipe(Effect.provide(Cloud)))
-
-  it.effect("an older Quai Home is welcomed as before: no key settings, no access headers", () =>
-    Effect.gen(function*() {
-      const home = yield* makeFakeHome()
-      yield* home.connect
-      expect(welcomeOf(home)).toEqual({ _tag: "Welcome", homeId: home.homeId })
-      expect(yield* (yield* HomeLinks).relayHomes).toEqual([])
+      expect(yield* (yield* HomeLinks).homeIds).toEqual([home.homeId])
     }).pipe(Effect.provide(Cloud)))
 })
 
@@ -124,7 +112,7 @@ describe("the app relay", () => {
       const home = yield* homeRunningQuai({ answerApp: echo })
       const other = yield* homeRunningQuai({
         answerApp: () => ({ status: 200, body: "\"other\"" }),
-        privateKey: generateKeyPairSync("ed25519").privateKey
+        privateKey: otherHomeKey()
       })
       const token = DeviceToken.make(home.homeId)
       const answer = yield* request("POST", "/api/requests/12/approve?season=2", {
@@ -219,13 +207,33 @@ describe("the app relay", () => {
       expect(home.appRequests).toEqual([])
     }).pipe(Effect.provide(Cloud)))
 
-  it.effect("a token from before several homes goes to the only home that runs Quai, to none when there are two", () =>
+  it.effect("with no home connected: the Cloud's health answers, the API is offline, the rest isn't here", () =>
+    Effect.gen(function*() {
+      expect(json((yield* request("GET", "/api/health")).text)).toMatchObject({ status: "ok", version: "test" })
+      const library = yield* request("GET", "/api/library", { token: DeviceToken.make("a".repeat(32)) })
+      expect(library.status).toBe(503)
+      expect(json(library.text)).toEqual({ _tag: "HomeOffline", message: "Quai Home is not connected" })
+      expect((yield* request("GET", "/api/library")).status).toBe(503)
+      expect((yield* request("GET", "/console-api/devices")).status).toBe(404)
+      expect((yield* request("GET", "/home-api/home")).status).toBe(404)
+    }).pipe(Effect.provide(Cloud)))
+
+  it.effect("a Quai Home at protocol 13 is relayed too; what it still says of its services is left", () =>
+    Effect.gen(function*() {
+      const home = yield* homeRunningQuai({ protocol: 13, answerApp: echo })
+      yield* home.sendRaw({ _tag: "ServicesChanged", services: ["radarr"] })
+      const answer = yield* request("GET", "/api/library", { token: DeviceToken.make(home.homeId) })
+      expect(json(answer.text)).toMatchObject({ method: "GET", path: "/api/library" })
+      expect(home.state.closed).toBe(false)
+    }).pipe(Effect.provide(Cloud)))
+
+  it.effect("a token from before several homes goes to the only home, to none when there are two", () =>
     Effect.gen(function*() {
       const home = yield* homeRunningQuai({ answerApp: () => ({ status: 200, body: "\"mine\"" }) })
       expect((yield* request("GET", "/api/library", { token: "an-old-secret" })).text).toBe("\"mine\"")
       yield* homeRunningQuai({
         answerApp: () => ({ status: 200, body: "\"other\"" }),
-        privateKey: generateKeyPairSync("ed25519").privateKey
+        privateKey: otherHomeKey()
       })
       expect((yield* request("GET", "/api/library", { token: "an-old-secret" })).status).toBe(503)
       expect(home.appRequests).toHaveLength(1)
@@ -242,20 +250,21 @@ describe("a pairing, relayed", () => {
       const first = yield* homeRunningQuai({ answerApp: paired("first") })
       const second = yield* homeRunningQuai({
         answerApp: paired("second"),
-        privateKey: generateKeyPairSync("ed25519").privateKey
+        privateKey: otherHomeKey()
       })
       yield* first.pairingCodes([pairingHash("AAAA1111")])
       yield* second.pairingCodes([pairingHash("BBBB2222"), pairingHash("CCCC3333")])
       expect(json((yield* pairing(" bbbb2222 ")).text)).toEqual({ home: "second" })
       expect(json((yield* pairing("AAAA1111")).text)).toEqual({ home: "first" })
-      // The list replaces the one before: a code spent is no longer the home's.
+      // The list replaces the one before: a code spent is no longer the home's, and goes to a home
+      // connected, which refuses it as unknown.
       yield* second.pairingCodes([pairingHash("CCCC3333")])
-      expect((yield* pairing("BBBB2222")).status).toBe(503)
-      expect(first.appRequests).toHaveLength(1)
-      expect(second.appRequests).toHaveLength(1)
+      expect(yield* (yield* HomeLinks).pairingHome("BBBB2222")).toEqual(Option.none())
+      yield* pairing("BBBB2222")
+      expect(first.appRequests.length + second.appRequests.length).toBe(3)
     }).pipe(Effect.provide(Cloud)))
 
-  it.effect("a code no home said: the only home that runs Quai refuses it itself; a home gone forgets its codes", () =>
+  it.effect("a code no home said: the only home refuses it itself; a home gone forgets its codes", () =>
     Effect.gen(function*() {
       const home = yield* homeRunningQuai({
         answerApp: () => ({ status: 401, body: "{\"_tag\":\"InvalidPairingCode\"}" })
@@ -267,12 +276,15 @@ describe("a pairing, relayed", () => {
       expect((yield* pairing("AAAA1111")).status).toBe(503)
     }).pipe(Effect.provide(Cloud)))
 
-  it.effect("an older Quai Home can't claim a code: only its documents, read by the Cloud, say it holds one", () =>
+  it.effect("a code no home said, with two homes linked: one of them refuses it, as unknown", () =>
     Effect.gen(function*() {
-      const older = yield* makeFakeHome()
-      yield* older.connect
-      yield* older.pairingCodes([pairingHash("AAAA1111")])
-      expect(yield* (yield* HomeLinks).pairingHome("AAAA1111")).toEqual(Option.none())
+      const refuses = () => ({ status: 401, body: "{\"_tag\":\"InvalidPairingCode\"}" })
+      const first = yield* homeRunningQuai({ answerApp: refuses })
+      const second = yield* homeRunningQuai({ answerApp: refuses, privateKey: otherHomeKey() })
+      const answer = yield* pairing("ZZZZ9999")
+      expect(answer.status).toBe(401)
+      expect(json(answer.text)).toEqual({ _tag: "InvalidPairingCode" })
+      expect(first.appRequests.length + second.appRequests.length).toBe(1)
     }).pipe(Effect.provide(Cloud)))
 
   it.effect("remembers at most the protocol's count of codes for a home", () =>
@@ -313,19 +325,6 @@ describe("a push request", () => {
       )
     }).pipe(Effect.provide(Cloud)))
 
-  it.effect("is refused from an older Quai Home, whose pushes the Cloud makes itself", () =>
-    Effect.gen(function*() {
-      const older = yield* makeFakeHome()
-      yield* older.connect
-      const answer = yield* older.push(push("p1"))
-      expect(Option.getOrThrow(answer).error).toEqual({
-        status: null,
-        reason: "this Quai Home doesn't run Quai",
-        tokenGone: false
-      })
-      expect(pushes).toEqual([])
-    }).pipe(Effect.provide(Cloud)))
-
   it.effect("is refused past the limit of a minute, and taken again once the minute has passed", () =>
     Effect.gen(function*() {
       const home = yield* homeRunningQuai()
@@ -336,7 +335,7 @@ describe("a push request", () => {
       expect(over.error).toEqual({ status: null, reason: "too many pushes: try again in a minute", tokenGone: false })
       expect(pushes).toHaveLength(pushLimit)
       // Another home's pushes are counted apart.
-      const other = yield* homeRunningQuai({ privateKey: generateKeyPairSync("ed25519").privateKey })
+      const other = yield* homeRunningQuai({ privateKey: otherHomeKey() })
       expect(Option.getOrThrow(yield* other.push(push("o1"))).error).toBeUndefined()
       yield* TestClock.adjust(Timing.pushWindowMs)
       expect(Option.getOrThrow(yield* home.push(push("again"))).error).toBeUndefined()

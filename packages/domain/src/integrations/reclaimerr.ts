@@ -1,4 +1,4 @@
-import { type HomeOffline, HomeProtocol, type PlannedDeletion } from "@quai/api"
+import { type HomeOffline, type PlannedDeletion } from "@quai/api"
 import { Cron, Effect, Option, Result, Schema } from "effect"
 import type { Detected } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
@@ -136,15 +136,9 @@ export const deletionTaskRead: Read<DeletionTask> = {
   schema: DeletionTask
 }
 
-/**
- * The deletion task, when Quai Home allows it (`deletionTaskProtocolVersion`); undefined when an older
- * one would refuse it or Reclaimerr didn't answer it.
- */
+/** The deletion task; undefined when Reclaimerr didn't answer it. */
 export const readDeletionTask = (reads: HomeReads["Service"]): Effect.Effect<DeletionTask | undefined, HomeOffline> =>
-  Effect.flatMap(reads.protocol, (protocol) =>
-    protocol >= HomeProtocol.deletionTaskProtocolVersion
-      ? Effect.map(reads.read(deletionTaskRead), Option.getOrUndefined)
-      : Effect.succeed(undefined))
+  Effect.map(reads.read(deletionTaskRead), Option.getOrUndefined)
 
 /** When a candidate goes: `exact` when the deletion task's schedule says it, else the earliest. */
 export interface DeletionRun {
@@ -175,7 +169,7 @@ const runFrom = (task: DeletionTask, next: number, due: number): number | undefi
 /**
  * When Reclaimerr deletes a candidate whose delay ends at `due`: at the first run of its deletion task
  * from then on, not at `due` itself. None while the task is off: nothing then goes on its own. Without
- * the task (a key lacking `tasks:read`, an older Quai Home) or a schedule Quai can't follow, `due`
+ * the task (a key lacking `tasks:read`) or a schedule Quai can't follow, `due`
  * at the earliest.
  */
 export const deletionRun = (due: number, task: DeletionTask | undefined): DeletionRun | undefined => {

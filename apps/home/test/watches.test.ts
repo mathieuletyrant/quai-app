@@ -1,10 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
-import type { HomeProtocol } from "@quai/api"
+import type { Watch } from "@quai/domain/home/HomeLink.ts"
 import { Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"
 import { Calls } from "../src/Calls.ts"
-import { Watches } from "../src/Watches.ts"
-import { journalLayer } from "./config.ts"
+import { Watches, type WatchEvent } from "../src/Watches.ts"
 
 /** What the fake services answer, by path; `null` fails the call. */
 let answers: Record<string, string | null> = {}
@@ -15,33 +14,33 @@ const fakeCalls = Layer.succeed(Calls, {
       polls.push(call.path)
       const body = answers[call.path]
       return body === null || body === undefined
-        ? { _tag: "Failed" as const, id: call.id, reason: "unreachable" }
-        : { _tag: "CallResponse" as const, id: call.id, status: 200, body }
+        ? { _tag: "Failed" as const, reason: "unreachable" }
+        : { _tag: "Answered" as const, status: 200, body }
     })
 })
 
 const withWatcher = <A, E>(
   test: (
     watcher: Effect.Success<ReturnType<Watches["Service"]["make"]>>,
-    sent: Array<HomeProtocol.HomeMessage>
+    sent: Array<WatchEvent>
   ) => Effect.Effect<A, E>
 ) =>
   Effect.gen(function*() {
     answers = {}
     polls.length = 0
-    const sent: Array<HomeProtocol.HomeMessage> = []
-    const watcher = yield* (yield* Watches).make((message) => Effect.sync(() => void sent.push(message)))
+    const sent: Array<WatchEvent> = []
+    const watcher = yield* (yield* Watches).make((event) => Effect.sync(() => void sent.push(event)))
     return yield* test(watcher, sent)
-  }).pipe(Effect.scoped, Effect.provide(Watches.layer.pipe(Layer.provide([fakeCalls, journalLayer]))))
+  }).pipe(Effect.scoped, Effect.provide(Watches.layer.pipe(Layer.provide(fakeCalls))))
 
-const sessions: HomeProtocol.Watch = { id: "w1", service: "jellyfin", path: "/Sessions", everySeconds: 15 }
-const torrents: HomeProtocol.Watch = {
+const sessions: Watch = { id: "w1", service: "jellyfin", path: "/Sessions", everySeconds: 15 }
+const torrents: Watch = {
   id: "w2",
   service: "qbittorrent",
   path: "/api/v2/torrents/info?hashes=a",
   everySeconds: 5
 }
-const snapshot = (watchId: string, body: string) => ({ _tag: "WatchSnapshot", watchId, status: 200, body })
+const snapshot = (watchId: string, body: string) => ({ _tag: "Snapshot", watchId, status: 200, body })
 
 const after = (seconds: number) => TestClock.adjust(`${seconds} seconds`)
 
@@ -67,28 +66,26 @@ describe("watches", () => {
       })
     ))
 
-  it.effect("refuses a watch outside the allowlist or its period range, and polls the others", () =>
+  it.effect("refuses a watch outside its period range, and polls the others", () =>
     withWatcher((watcher, sent) =>
       Effect.gen(function*() {
         answers["/api/v2/torrents/info?hashes=a"] = "[]"
         yield* watcher.set([
-          { id: "bad", service: "radarr", path: "/api/v3/config/host", everySeconds: 5 },
-          { id: "post-only", service: "jellyfin", path: "/Sessions/x/Playing/Stop", everySeconds: 5 },
           { id: "too-fast", service: "jellyfin", path: "/Sessions", everySeconds: 1 },
+          { id: "too-slow", service: "jellyfin", path: "/Sessions", everySeconds: 3601 },
           torrents
         ])
         yield* after(0)
         expect(sent).toEqual([
-          { _tag: "Failed", id: "bad", reason: "not allowed" },
-          { _tag: "Failed", id: "post-only", reason: "not allowed" },
-          { _tag: "Failed", id: "too-fast", reason: "period out of range" },
+          { _tag: "WatchFailed", watchId: "too-fast", reason: "period out of range" },
+          { _tag: "WatchFailed", watchId: "too-slow", reason: "period out of range" },
           snapshot("w2", "[]")
         ])
         expect(polls).toEqual(["/api/v2/torrents/info?hashes=a"])
       })
     ))
 
-  it.effect("SetWatches replaces the whole set; a watch kept as it was isn't sent again", () =>
+  it.effect("setting the watches replaces the whole set; a watch kept as it was isn't sent again", () =>
     withWatcher((watcher, sent) =>
       Effect.gen(function*() {
         answers["/Sessions"] = "[]"
@@ -107,7 +104,7 @@ describe("watches", () => {
       })
     ))
 
-  it.effect("after a reset (a new Welcome), every snapshot goes out again", () =>
+  it.effect("after a reset, every snapshot goes out again", () =>
     withWatcher((watcher, sent) =>
       Effect.gen(function*() {
         answers["/Sessions"] = "[]"
@@ -134,16 +131,16 @@ describe("watches", () => {
         yield* after(15)
         yield* after(15)
         yield* after(15)
-        expect(sent).toEqual([snapshot("w1", "[]"), { _tag: "Failed", id: "w1", reason: "unreachable" }])
+        expect(sent).toEqual([snapshot("w1", "[]"), { _tag: "WatchFailed", watchId: "w1", reason: "unreachable" }])
 
-        // Back with the same body: the cloud hears it recovered.
+        // Back with the same body: the domain hears it recovered.
         answers["/Sessions"] = "[]"
         yield* after(15)
         expect(sent.at(-1)).toEqual(snapshot("w1", "[]"))
 
         answers["/Sessions"] = null
         yield* after(15)
-        expect(sent.filter((message) => message._tag === "Failed")).toHaveLength(2)
+        expect(sent.filter((event) => event._tag === "WatchFailed")).toHaveLength(2)
         expect(polls).toHaveLength(6)
       })
     ))

@@ -1,4 +1,4 @@
-import { HomeProtocol, type JournalNote, type RemovalReason } from "@quai/api"
+import { type JournalNote, type RemovalReason } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import type { Detected, RemovalTarget } from "../fixes/Detected.ts"
 import * as FixId from "../fixes/FixId.ts"
@@ -8,6 +8,14 @@ import type { Read } from "../home/HomeReads.ts"
 import type { Journal } from "../journal/Journal.ts"
 import { epochSeconds, type QueueRecord } from "./arr.ts"
 import { eventFeed, unseenSince } from "./EventFeed.ts"
+
+/**
+ * A download as Radarr and Sonarr name it, and Cleanuparr after them: a torrent's info hash, or
+ * SABnzbd's job id. Never a category, a tag or a tracker, which Cleanuparr's ignore list also takes
+ * and which would spare every download they cover.
+ */
+export const isDownloadId = (value: unknown) =>
+  typeof value === "string" && (/^[0-9a-fA-F]{40}$/.test(value) || /^SABnzbd_nzo_[A-Za-z0-9_]{1,80}$/.test(value))
 import { type Integration, readSnapshot, watchOf } from "./Integration.ts"
 
 /**
@@ -282,8 +290,8 @@ export const stuckRemovals = (input: RemovalInput): ReadonlyArray<Detected<Remov
         ...(media.posterUrl === undefined ? {} : { posterUrl: media.posterUrl }),
         reason: kind.reason === "failedImport" ? media.messages[0] ?? kind.words : kind.words,
         ...(Number.isFinite(since) ? { since } : {}),
-        // Keep adds the download id to the ignore list: only a torrent hash or a SABnzbd job, which Quai Home lets through.
-        actions: HomeProtocol.isDownloadId(download.downloadId) ? ["keep", "letGo"] : ["letGo"],
+        // Keep adds the download id to the ignore list: only a torrent hash or a SABnzbd job.
+        actions: isDownloadId(download.downloadId) ? ["keep", "letGo"] : ["letGo"],
         removal: {
           release: download.title,
           reason: kind.reason,

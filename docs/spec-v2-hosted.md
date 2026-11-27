@@ -3,11 +3,11 @@
 Nov 19, 2026 · Mathieu Le Tyrant
 
 > **Changed by [ADR 3](adr/0003-quai-home-runs-quai.md) (Nov 27, 2026).** Quai Home now runs Quai
-> for its home; Quai Cloud is that home's public address and its push sender. What follows is the
-> design as it was decided on Nov 19: it still describes how the Cloud serves a Quai Home from
-> before ADR 3, and why there are two servers. "The Home is dumb on purpose", "the Cloud is the
-> brain" and the allowlist as what protects a home from the Cloud are no longer how a current Quai
-> Home works.
+> for its home; Quai Cloud is that home's public address and its push sender, and serves no Quai
+> Home from before ADR 3 any more. What follows is the design as it was decided on Nov 19, kept for
+> why there are two servers. "The Home is dumb on purpose", "the Cloud is the brain", the calls and
+> watches the Cloud sends and the allowlist that limited them are all gone: the protocol now only
+> carries the app relay and the push requests (`packages/api/src/Home.ts`).
 
 ## Why
 

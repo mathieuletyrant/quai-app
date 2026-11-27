@@ -6,17 +6,16 @@ import { ServerInfo } from "@quai/domain/Version.ts"
 import { Config, Effect, Layer } from "effect"
 import { HttpRouter } from "effect/http"
 import { createServer } from "node:http"
-import { HomeLinks } from "../src/home/HomeLinks.ts"
 import { PublicAccessLive } from "../src/PublicAccess.ts"
 import { makeApns } from "../src/push/ApnsClient.ts"
-import { makeFakeHome, recordedHome, testHomeId } from "./fakeHome.ts"
+import { makeFakeHome, recordedHome, testLink } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { dayMs, downloading, previewRoutes, recordedDay, storageHistory } from "./previewHome.ts"
 
 /**
- * Quai Cloud on a real port, linked to the tests' fake Quai Home answering from the recorded
- * fixtures: what the iPhone app (or the console) shows of a home, without a stack. Run with
- * `pnpm --filter @quai/cloud preview`; pair from `POST /console-api/pairing-codes`.
+ * Quai, as Quai Home runs it, on a real port, on the tests' fake Quai Home answering from the
+ * recorded fixtures: what the iPhone app (or the console) shows of a home, without a stack. Run
+ * with `pnpm --filter @quai/cloud preview`; pair from `POST /console-api/pairing-codes`.
  */
 
 const FakeHomeLinked = Layer.effectDiscard(
@@ -24,7 +23,6 @@ const FakeHomeLinked = Layer.effectDiscard(
     const now = yield* Effect.clockWith((clock) => clock.currentTimeMillis)
     const days = Math.floor((now - recordedDay) / dayMs)
     const home = yield* makeFakeHome({
-      strict: false,
       services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"],
       webUrls: {
         radarr: ["http://umbrel.local:7878", "https://radarr.example.com"],
@@ -44,7 +42,7 @@ const FakeHomeLinked = Layer.effectDiscard(
         )
       )
     )
-    yield* Effect.logInfo("Preview: Quai Cloud linked to a fake Quai Home. Pair with POST /console-api/pairing-codes.")
+    yield* Effect.logInfo("Preview: Quai on a fake Quai Home. Pair with POST /console-api/pairing-codes.")
   })
 )
 
@@ -55,9 +53,9 @@ const HttpLive = Layer.unwrap(
   })
 )
 
-// One home's routes, as main.ts builds them for each home, on the fake Quai Home linked in memory.
-// The console's routes answer on the public port here: the preview has no Quai Home to relay them.
-const Shared = HomeLinks.linkOf(testHomeId).pipe(
+// The home's routes, on the fake Quai Home in memory, with no APNs key. The console's routes answer
+// on the public port here: the preview has no Quai Home in front of them.
+const Shared = testLink.pipe(
   Layer.provideMerge(Layer.mergeAll(Layer.effect(Apns, makeApns(null)), PublicAccessLive))
 )
 

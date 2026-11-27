@@ -14,7 +14,7 @@ import {
 } from "@quai/domain/integrations/reclaimerr.ts"
 import { SonarrGrabs, SonarrMissing, SonarrSeries } from "@quai/domain/integrations/sonarr.ts"
 import { Journal } from "@quai/domain/journal/Journal.ts"
-import { Effect, Exit, Schema } from "effect"
+import { Effect, Exit, Fiber, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
@@ -735,13 +735,6 @@ describe("Cleanuparr's planned removals", () => {
       expect(list.items.some((fix) => fix.service === "radarr")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
 
-  it.effect("an older Quai Home doesn't reach Cleanuparr: nothing is asked of it", () =>
-    Effect.gen(function*() {
-      const { home, api } = yield* setUp({ services, protocol: 4 })
-      expect((yield* api.list()).items.some((fix) => fix.service === "cleanuparr")).toBe(false)
-      expect(home.calls.some((call) => call.service === "cleanuparr")).toBe(false)
-    }).pipe(Effect.provide(TestApp)))
-
   it.effect("keep: Cleanuparr's queue cleaner leaves the download alone, every other setting as it was", () =>
     Effect.gen(function*() {
       const { home, api } = yield* setUp({ services: withCleanuparr })
@@ -769,29 +762,39 @@ describe("Cleanuparr's planned removals", () => {
         answer: recorded({ "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: answered }) })
       })
       yield* api.keep({ params: { id: wildRobot } })
-      // The fake Quai Home ran the real check against the same answer: it let it through.
       expect(writes(home).map((write) => write.body)).toEqual([{
         ...answered,
         ignoredDownloads: ["A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"]
       }])
     }).pipe(Effect.provide(TestApp)))
 
-  it.effect("keep: settings changed since they were read are refused by Quai Home, a FixFailed", () =>
+  it.effect("two Keeps at once: one after the other, so the second doesn't undo the first", () =>
     Effect.gen(function*() {
-      let reads = 0
+      let held = settings()
       const { home, api } = yield* setUp({
         services: withCleanuparr,
-        strict: false,
         answer: recorded({
-          // The Cloud reads them twice (to find the problem, then to send them back); then they change.
-          "cleanuparr GET /api/configuration/queue_cleaner": () => ({
-            json: ++reads <= 2 ? settings() : { ...settings(), cronExpression: "0 0 * * * ?" }
-          })
+          // A Cleanuparr that takes its settings whole, as they are sent, and answers its reads a second later.
+          "cleanuparr GET /api/configuration/queue_cleaner": () => ({ json: structuredClone(held), afterMs: 1000 }),
+          "cleanuparr PUT /api/configuration/queue_cleaner": (call) => {
+            held = call.body as Record<string, unknown>
+            return { json: {} }
+          }
         })
       })
-      const error = yield* Effect.flip(api.keep({ params: { id: wildRobot } }))
-      expect(error).toMatchObject({ _tag: "FixFailed", message: "Quai Home: not allowed" })
-      expect(home.notAllowed).toEqual(["cleanuparr PUT /api/configuration/queue_cleaner"])
+      const ignored = () => held.ignoredDownloads as Array<string>
+      const before = ignored().length
+      const both = yield* Effect.forkChild(
+        Effect.all([api.keep({ params: { id: wildRobot } }), api.keep({ params: { id: amazingStories } })], {
+          concurrency: "unbounded"
+        })
+      )
+      for (let second = 0; second < 6; second++) yield* TestClock.adjust("1 second")
+      yield* Fiber.join(both)
+      // Read at once, the second write would have sent the settings without the first's download.
+      expect(ignored()).toHaveLength(before + 2)
+      expect(ignored()).toContain("A1B2C3D4E5F60718293A4B5C6D7E8F9012345678")
+      expect(home.calls.filter((call) => call.method === "PUT")).toHaveLength(2)
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("let it go: hidden in Quai, Cleanuparr isn't told", () =>

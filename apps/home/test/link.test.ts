@@ -15,11 +15,11 @@ import { LocalHome, startingMessage } from "../src/LocalHome.ts"
 import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
 import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
-import { close, cloud, type Connection, fakeSocket, noConnection, nothingSent, settle } from "./fakeCloud.ts"
+import { close, cloud, type Connection, fakeSocket, noConnection, nothingSent, settle, welcomeOf } from "./fakeCloud.ts"
 
 /** Answers every call with a 200 echoing its path. */
 const echoCalls = Layer.succeed(Calls, {
-  run: (call) => Effect.succeed({ _tag: "CallResponse" as const, id: call.id, status: 200, body: call.path })
+  run: (call) => Effect.succeed({ _tag: "Answered" as const, status: 200, body: call.path })
 })
 
 /** The real home key and store, in a temporary directory. */
@@ -61,7 +61,7 @@ const linked = (connections: Queue.Queue<Connection>, welcome: object = {}) =>
   Effect.gen(function*() {
     const connection = yield* Queue.take(connections)
     yield* Queue.take(connection.sent)
-    yield* cloud(connection, { _tag: "Welcome", homeId: (yield* HomeKey).homeId, ...welcome })
+    yield* cloud(connection, welcomeOf((yield* HomeKey).homeId, welcome))
     yield* settle
     expect(yield* Queue.take(connection.sent)).toEqual({ _tag: "PairingCodes", hashes: [] })
     return connection
@@ -83,7 +83,7 @@ const push = {
 } as const
 
 describe("link", () => {
-  it.effect("says Hello with the public key, the services and where an iPhone opens them, proves the key, and is linked on Welcome", () =>
+  it.effect("says Hello with its protocol and public key, proves the key, and is linked on Welcome", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const key = yield* HomeKey
@@ -92,9 +92,7 @@ describe("link", () => {
           _tag: "Hello",
           protocol: HomeProtocol.protocolVersion,
           homeVersion: "dev",
-          publicKey: key.publicKey,
-          services: ["radarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"],
-          webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"] }
+          publicKey: key.publicKey
         })
         const nonce = randomBytes(32).toString("base64")
         yield* cloud(connection, { _tag: "Challenge", nonce })
@@ -112,7 +110,7 @@ describe("link", () => {
 
         const link = yield* Link
         expect(yield* link.linked).toBe(false)
-        yield* cloud(connection, { _tag: "Welcome", homeId: key.homeId })
+        yield* cloud(connection, welcomeOf(key.homeId))
         yield* settle
         expect(yield* link.linked).toBe(true)
       })
@@ -251,7 +249,7 @@ describe("link", () => {
         yield* home.documents.put("pairing/old", { expiresAt: 500 })
         const first = yield* Queue.take(connections)
         yield* Queue.take(first.sent)
-        yield* cloud(first, { _tag: "Welcome", homeId: home.homeId })
+        yield* cloud(first, welcomeOf(home.homeId))
         expect(yield* Queue.take(first.sent)).toEqual({ _tag: "PairingCodes", hashes: ["aaa"] })
         yield* home.documents.put("pairing/bbb", { expiresAt: 9_000 })
         expect(yield* Queue.take(first.sent)).toEqual({ _tag: "PairingCodes", hashes: ["aaa", "bbb"] })
@@ -265,29 +263,8 @@ describe("link", () => {
         yield* TestClock.adjust("1 second")
         const second = yield* Queue.take(connections)
         yield* Queue.take(second.sent)
-        yield* cloud(second, { _tag: "Welcome", homeId: home.homeId })
+        yield* cloud(second, welcomeOf(home.homeId))
         expect(yield* Queue.take(second.sent)).toEqual({ _tag: "PairingCodes", hashes: ["bbb"] })
-      })
-    ))
-
-  it.effect("answers none of what a Cloud asks a Quai Home that doesn't run Quai", () =>
-    withLink(({ connections }) =>
-      Effect.gen(function*() {
-        const connection = yield* linked(connections)
-        const refused = (id: string) => ({ _tag: "Failed", id, reason: "this Quai Home runs Quai itself" })
-        yield* cloud(connection, { _tag: "Call", id: "1", service: "radarr", method: "GET", path: "/api/v3/movie" })
-        expect(yield* Queue.take(connection.sent)).toEqual(refused("1"))
-        yield* cloud(connection, { _tag: "StoreList", id: "2", prefix: "" })
-        expect(yield* Queue.take(connection.sent)).toEqual(refused("2"))
-        yield* cloud(connection, { _tag: "StorePut", id: "3", key: "devices/x", value: {} })
-        expect(yield* Queue.take(connection.sent)).toEqual(refused("3"))
-        yield* cloud(connection, {
-          _tag: "SetWatches",
-          watches: [{ id: "w", service: "jellyfin", path: "/Sessions", everySeconds: 15 }]
-        })
-        yield* TestClock.adjust("30 seconds")
-        expect(yield* nothingSent(connection)).toBe(true)
-        expect(yield* (yield* LocalHome).link.documents.get("devices/x")).toEqual(Option.none())
       })
     ))
 
@@ -376,7 +353,7 @@ describe("link", () => {
         const third = yield* reconnectsAfter(2)
         yield* Queue.offer(third.incoming, close)
         const fourth = yield* reconnectsAfter(4)
-        yield* cloud(fourth, { _tag: "Welcome", homeId: (yield* HomeKey).homeId })
+        yield* cloud(fourth, welcomeOf((yield* HomeKey).homeId))
         yield* Queue.offer(fourth.incoming, close)
         yield* reconnectsAfter(1)
       })
@@ -396,17 +373,13 @@ describe("link", () => {
       })
     ))
 
-  it.effect("tells the Cloud which services it reaches when one is set from the console", () =>
+  it.effect("tells the Cloud nothing of its services: one set from the console stays at home", () =>
     withLink(({ connections }) =>
       Effect.gen(function*() {
         const connection = yield* linked(connections)
         const settings = yield* ServiceSettings
         yield* settings.save("sonarr", { url: "http://sonarr:8989", secret: "k" })
-        yield* settle
-        expect(yield* Queue.take(connection.sent)).toEqual({
-          _tag: "ServicesChanged",
-          services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "reclaimerr", "seerr", "cleanuparr", "prowlarr"]
-        })
+        expect(yield* nothingSent(connection)).toBe(true)
       })
     ))
 })

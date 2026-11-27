@@ -8,7 +8,7 @@ import { HttpApiBuilder } from "effect/http-api"
 import { makeFakeHome } from "../fakeHome.ts"
 import { TestApp } from "../testApp.ts"
 
-/** The Cloud's routes on its public port, as main.ts serves them: the console only through Quai Home. */
+/** The domain's routes on a port: the console only through Quai Home, which hands its requests over. */
 const CloudServer = HttpRouter.serve(
   Layer.mergeAll(HttpApiBuilder.layer(QuaiApi), ConsoleRelayLive, ConsoleOnlyThroughHome)
 ).pipe(
@@ -16,7 +16,7 @@ const CloudServer = HttpRouter.serve(
 )
 
 describe("console relay", () => {
-  it.effect("answers the console's requests Quai Home relays, with the Cloud's own routes", () =>
+  it.effect("answers the console's requests with the domain's own routes", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome()
       yield* home.connect
@@ -29,12 +29,9 @@ describe("console relay", () => {
       expect(qr.status).toBe(200)
       expect((qr.json as { link: string }).link).toContain("url=https%3A%2F%2Fquai.example.com")
       expect((yield* home.console({ method: "GET", path: "/api/health" })).status).toBe(200)
-      // Only the console's routes: not the iPhone's, not a way around the path check.
-      expect((yield* home.console({ method: "GET", path: "/api/activities" })).status).toBe(404)
-      expect((yield* home.console({ method: "GET", path: "/console-api/../api/activities" })).status).toBe(404)
     }).pipe(Effect.provide(CloudServer)))
 
-  it.effect("refuses /console-api on the public port: the console is Quai Home's", () =>
+  it.effect("refuses /console-api on a port: the console is Quai Home's, behind its password", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome()
       yield* home.connect

@@ -39,7 +39,7 @@ export const webhookBody = (service: "radarr" | "sonarr", url: string) => ({
 
 /**
  * Makes sure Radarr or Sonarr calls Quai Home: creates the webhook, or points the existing one at
- * `url`. Quai Home's own write to the stack, outside the cloud's allowlist.
+ * `url`.
  */
 export const ensureWebhook = (service: "radarr" | "sonarr", url: string) =>
   Effect.gen(function*() {

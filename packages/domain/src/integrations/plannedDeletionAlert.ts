@@ -1,4 +1,4 @@
-import { HomeProtocol, type JournalNote } from "@quai/api"
+import { type JournalNote } from "@quai/api"
 import { Effect, Option } from "effect"
 import { type AlertState, alertState, type Raised } from "../alerts/Alerts.ts"
 import { letGoKey } from "../fixes/Fixes.ts"
@@ -169,7 +169,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
       const planned = carriedOut(event, candidateId === undefined ? undefined : known.get(candidateId), context.now)
       const spaceBack = yield* spaceBackOfCarriedOut(
         reads,
-        reachOf({ services: context.services, protocol: protocolOf(context) }),
+        reachOf({ services: context.services }),
         planned,
         context.now
       ).pipe(
@@ -188,8 +188,6 @@ export const plannedDeletionAlert = Effect.gen(function*() {
         ...(event.type === "candidate.moved" ? { moved: true } : {})
       })
     })
-
-  const protocolOf = (context: WatchContext) => context.protocol ?? HomeProtocol.protocolVersion
 
   /** Its deletions are disk marks (and Gone for the iPhones that want it): read while Quai Home reaches it. */
   const wantsGone = (context: WatchContext) => context.services.includes("reclaimerr")
@@ -213,7 +211,7 @@ export const plannedDeletionAlert = Effect.gen(function*() {
     },
     goneWatcher: {
       watches: (context) =>
-        wantsGone(context) && protocolOf(context) >= HomeProtocol.goneProtocolVersion
+        wantsGone(context)
           ? fileEventTypes.map((type) =>
             watchOf(fileEventsWatchId(type), fileEventsRead(type, context.now), fileEventsEverySeconds)
           )

@@ -1,4 +1,4 @@
-import { HomeProtocol } from "@quai/api"
+import { isStoreKey } from "@quai/domain/home/HomeLink.ts"
 import { Context, Effect, FileSystem, Layer } from "effect"
 import { randomBytes } from "node:crypto"
 import { dirname, join, sep } from "node:path"
@@ -27,7 +27,7 @@ export class HomeStore extends Context.Service<HomeStore, {
       const fs = yield* FileSystem.FileSystem
       const fail = (message: string) => (cause: unknown) => new StoreError({ message, cause })
       const pathOf = (key: string) =>
-        HomeProtocol.isStoreKey(key)
+        isStoreKey(key)
           ? Effect.succeed(join(root, ...key.split("/")) + ".json")
           : Effect.fail(new StoreError({ message: `invalid key: ${key}` }))
 
@@ -42,7 +42,7 @@ export class HomeStore extends Context.Service<HomeStore, {
             const keys = files
               .filter((file) => file.endsWith(".json"))
               .map((file) => file.slice(0, -".json".length).split(sep).join("/"))
-              .filter((key) => HomeProtocol.isStoreKey(key) && key.startsWith(prefix))
+              .filter((key) => isStoreKey(key) && key.startsWith(prefix))
               .sort()
             // One unreadable document must not keep the home from linking: it is left out, and
             // logged by key only (what it holds stays in /data).

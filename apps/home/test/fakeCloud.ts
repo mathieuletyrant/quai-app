@@ -43,6 +43,16 @@ export const fakeSocket = Effect.gen(function*() {
 export const cloud = (connection: Connection, message: object | string) =>
   Queue.offer(connection.incoming, typeof message === "string" ? message : JSON.stringify(message))
 
+/** The Cloud's Welcome to this home: no APNs key, no public address, unless `said` says otherwise. */
+export const welcomeOf = (homeId: string, said: object = {}) => ({
+  _tag: "Welcome",
+  homeId,
+  version: "test",
+  push: { configured: false, topic: "com.mathieuletyrant.quai" },
+  publicAccess: { headers: [] },
+  ...said
+})
+
 /** Lets forked fibers run up to their next wait. */
 export const settle = Effect.repeat(Effect.yieldNow, { times: 20 })
 

@@ -57,13 +57,13 @@ export const UpcomingItem = Schema.Struct({
 export type UpcomingItem = typeof UpcomingItem.Type
 
 export const Upcoming = Schema.Struct({
-  /** The time zone the days are read in: the iPhones' (IANA), else Quai Cloud's `QUAI_TZ`, else UTC. */
+  /** The time zone the days are read in: the iPhones' (IANA), else Quai Home's `QUAI_TZ`, else UTC. */
   timeZone: Schema.String,
   /** Releases cover the next 14 days, what goes every date known; by `at`, undated last. */
   items: Schema.Array(UpcomingItem),
   /** Services Quai Home reaches that couldn't be read this time: what they plan is missing. */
   unavailable: Schema.Array(UpcomingService),
-  /** Quai Home is too old to read seed cleanups and the space that comes back: update it to see them. */
+  /** Always false now (a Quai Home too old to read seed cleanups no longer links); kept for the apps that read it. */
   homeOutdated: Schema.Boolean
 }).annotate({ identifier: "Upcoming" })
 export type Upcoming = typeof Upcoming.Type

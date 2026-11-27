@@ -28,14 +28,13 @@ import { Upcoming } from "@quai/domain/upcoming/Upcoming.ts"
 import { ServerInfo } from "@quai/domain/Version.ts"
 import { Effect, Layer, Option } from "effect"
 import { HttpApiError } from "effect/http-api"
-import { type HomeLinks } from "../src/home/HomeLinks.ts"
 import { makeApns } from "../src/push/ApnsClient.ts"
-import { cloud, linkDroppingOn, makeFakeHome, testLink } from "./fakeHome.ts"
+import { cloud, type FakeLinks, linkDroppingOn, makeFakeHome, testLink } from "./fakeHome.ts"
 
-/** Everything the routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
+/** Everything the domain's routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
 export const testAppWith = <E>(
   publicAccess: Layer.Layer<PublicAccess, E>,
-  link: Layer.Layer<HomeLink | HomeLinks> = testLink
+  link: Layer.Layer<HomeLink | FakeLinks> = testLink
 ) =>
   Layer.mergeAll(
     SystemHandlers,

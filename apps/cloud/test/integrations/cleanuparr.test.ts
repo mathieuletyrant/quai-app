@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
-import { HomeProtocol } from "@quai/api"
 import { queuedMovie } from "@quai/domain/fixes/movies.ts"
 import { QueuePage } from "@quai/domain/integrations/arr.ts"
 import {
   cleanuparr,
   completion,
   excluding,
+  isDownloadId,
   newRemovals,
   queuedByDownload,
   type QueueRules,
@@ -174,7 +174,7 @@ describe("Cleanuparr: what it removes next", () => {
     expect(stuckRemovals(input(mouse, { settings: { ...settings(), enabled: false } }))).toEqual([])
   })
 
-  it("keep sends back what Cleanuparr answered, the download added to its ignore list, and passes Quai Home's check", () => {
+  it("keep sends back what Cleanuparr answered, the download added to its ignore list", () => {
     const hash = "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"
     const recorded = fixture("cleanuparr/queue-cleaner.json") as Record<string, unknown>
     // A field Quai doesn't model, nulls, numbers written as Cleanuparr writes them: all sent back as they came.
@@ -189,9 +189,6 @@ describe("Cleanuparr: what it removes next", () => {
       const body = Option.getOrThrow(excluding(JSON.stringify(answered), hash))
       const before = answered.ignoredDownloads as Array<string> | null
       expect(body).toEqual({ ...answered, ignoredDownloads: [...before ?? [], hash] })
-      expect(
-        HomeProtocol.ignoresOneMoreDownload(JSON.parse(JSON.stringify(answered)), JSON.parse(JSON.stringify(body)))
-      ).toBe(true)
     }
     // The rules read the same answer, nulls included.
     expect(Schema.decodeUnknownSync(settingsRead.schema)({ ...recorded, errored: null, ignoredDownloads: null }))
@@ -206,6 +203,17 @@ describe("Cleanuparr: what it removes next", () => {
     const [mouse] = stuckRemovals(input([struck(["Stalled", "Stalled"], { downloadId: nzbget })], { queued }))
     expect(mouse?.fix.actions).toEqual(["letGo"])
     expect(stuckRemovals(input([struck(["Stalled", "Stalled"])]))[0]?.fix.actions).toEqual(["keep", "letGo"])
+  })
+})
+
+describe("Cleanuparr: the downloads Keep may add to its ignore list", () => {
+  it("a download id is a torrent hash or a SABnzbd job, never a category, tag or tracker", () => {
+    const hash = "A1B2C3D4E5F60718293A4B5C6D7E8F9012345678"
+    expect(isDownloadId(hash)).toBe(true)
+    expect(isDownloadId("SABnzbd_nzo_kyt1f0")).toBe(true)
+    for (const id of ["12345", "radarr", hash.slice(1), `${hash}0`, "SABnzbd_nzo_", 42]) {
+      expect(isDownloadId(id)).toBe(false)
+    }
   })
 })
 

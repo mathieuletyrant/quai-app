@@ -1,4 +1,5 @@
 import { ConsoleSession, consoleSession, HomeConsoleApi, type HomeOverview, HomeProtocol } from "@quai/api"
+import { isConsolePath } from "@quai/domain/home/HomeLink.ts"
 import { Effect, Layer, Option, Redacted } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse, HttpStaticServer } from "effect/http"
 import { HttpApiBuilder, HttpApiError } from "effect/http-api"
@@ -73,7 +74,7 @@ const HomeHandlers = HttpApiBuilder.group(HomeConsoleApi, "home", (handlers) =>
             cloud: {
               configured: config.cloudUrl !== null,
               linked,
-              ...(linked && welcomed?.version !== undefined ? { version: welcomed.version } : {}),
+              ...(linked && welcomed !== null ? { version: welcomed.version } : {}),
               ...(appUrl === null ? {} : { url: appUrl }),
               ...Option.match(previous, { onNone: () => ({}), onSome: (previousUrl) => ({ previousUrl }) })
             },
@@ -128,7 +129,7 @@ export const ConsoleRelayLive = HttpRouter.use((router) =>
       if (method !== "GET" && method !== "POST" && method !== "PUT" && method !== "DELETE") {
         return HttpServerResponse.empty({ status: 405 })
       }
-      if (!HomeProtocol.isConsolePath(request.url)) return HttpServerResponse.empty({ status: 404 })
+      if (!isConsolePath(request.url)) return HttpServerResponse.empty({ status: 404 })
       const body = method === "GET" ? "" : yield* Effect.orElseSucceed(request.text, () => "")
       const answer = yield* local.console({ method, path: request.url, ...(body === "" ? {} : { body }) })
       return answer.body === ""

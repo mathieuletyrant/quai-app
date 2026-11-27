@@ -20,7 +20,7 @@ const defaultTopic = "com.mathieuletyrant.quai"
 const CloudApns = Layer.effect(
   Apns,
   Effect.map(Effect.service(Link), (link): Apns["Service"] => ({
-    configured: Effect.sync(() => link.welcome()?.push?.configured ?? false),
+    configured: Effect.sync(() => link.welcome()?.push.configured ?? false),
     get settings() {
       return link.welcome()?.push ?? { configured: false, topic: defaultTopic }
     },

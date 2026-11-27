@@ -235,10 +235,6 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
           everySeconds: 60
         })
         expect(home.watch(fileEventsWatchId("candidate.moved"))?.service).toBe("reclaimerr")
-
-        const older = yield* makeFakeHome({ services: ["reclaimerr"], protocol: 9 })
-        yield* older.connect
-        expect(older.watch(deletedWatch)).toBeUndefined()
       })
     ))
 

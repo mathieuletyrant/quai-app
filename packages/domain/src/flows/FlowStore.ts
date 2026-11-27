@@ -1,14 +1,6 @@
-import {
-  builtInFlows,
-  type Flow,
-  Flow as FlowSchema,
-  flowProblem,
-  type HomeOffline,
-  HomeProtocol,
-  InvalidFlow
-} from "@quai/api"
+import { builtInFlows, type Flow, Flow as FlowSchema, flowProblem, type HomeOffline, InvalidFlow } from "@quai/api"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { HomeDocuments, toOffline } from "../home/HomeLink.ts"
+import { HomeDocuments, isStoreKey, toOffline } from "../home/HomeLink.ts"
 
 const decode = Schema.decodeUnknownOption(FlowSchema)
 
@@ -49,7 +41,7 @@ export class FlowStore extends Context.Service<FlowStore, {
         save: (input) =>
           Effect.gen(function*() {
             const flow: Flow = { ...input, builtIn: isBuiltIn(input.id) }
-            if (!HomeProtocol.isStoreKey(flowKey(flow.id))) {
+            if (!isStoreKey(flowKey(flow.id))) {
               return yield* Effect.fail(
                 new InvalidFlow({ message: "A flow id is lowercase letters, digits, dots, dashes or underscores." })
               )
@@ -66,7 +58,7 @@ export class FlowStore extends Context.Service<FlowStore, {
                 new InvalidFlow({ message: "Built-in flows can't be deleted: turn them off instead." })
               )
             }
-            if (!HomeProtocol.isStoreKey(flowKey(id))) return false
+            if (!isStoreKey(flowKey(id))) return false
             const existing = yield* Effect.mapError(store.get(flowKey(id)), toOffline)
             if (Option.isNone(existing)) return false
             yield* Effect.mapError(store.delete(flowKey(id)), toOffline)

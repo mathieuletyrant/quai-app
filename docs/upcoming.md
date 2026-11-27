@@ -30,8 +30,7 @@ first one's time. Seerr requests: later.
 - **Reclaimerr**: deletions in state `scheduled`, `eligible` or `postponed`, at the run of its deletion
   task (`GET /api/v1/tasks/delete_cleanup_candidates`, its next run and its cron or interval) from
   `auto_delete_eligible_at` on: "today 03:00", not the day the delay ends. Not `disabled`, `protected` or
-  `canceled`, and none while the task is off. Without the task (a key lacking `tasks:read`, Quai Home
-  before protocol 11) or a schedule Quai can't follow, "earliest" the day the delay ends.
+  `canceled`, and none while the task is off. Without the task (a key lacking `tasks:read`) or a schedule Quai can't follow, "earliest" the day the delay ends.
 - **Cleanuparr**, stuck removals: one row per download, "Earliest 14:30", since it goes only if still stuck.
 - **Cleanuparr**, seed cleanups (download cleaner): one row per week ("14 torrents"). Due at completion +
   the rule's max seed time, then the job's next run. Public torrents removed at once are not shown;
@@ -71,11 +70,9 @@ A service Quai Home doesn't reach is never mentioned. One that didn't answer get
 
 - Releases are read for a range of days; Today's releases, the tile and the Live Activity read one day.
 - Deletions and stuck removals come from the functions that feed To fix and the Planned deletion alert.
-- Allowlist additions (Quai Home protocol 9): Cleanuparr `GET /api/configuration/download_cleaner` and
-  `GET /api/jobs/DownloadCleaner`, Radarr's and Sonarr's `GET /api/v3/config/mediamanagement`. The
-  history and the finished torrents were already allowed.
-- Allowlist addition (Quai Home protocol 11): Reclaimerr's `GET /api/v1/tasks/delete_cleanup_candidates`,
-  when its deletion task runs. An older Quai Home isn't asked for it (`readDeletionTask`).
+- Reads: Cleanuparr `GET /api/configuration/download_cleaner` and `GET /api/jobs/DownloadCleaner`,
+  Radarr's and Sonarr's `GET /api/v3/config/mediamanagement`, and Reclaimerr's
+  `GET /api/v1/tasks/delete_cleanup_candidates`, when its deletion task runs (`readDeletionTask`).
 - Code: `upcoming/Rows.ts` (the rows), `reclaimerr.ts` `plannedDeletions` (the planned deletions, read once), `upcoming/SpaceInputs.ts` and `upcoming/SpaceBack.ts` (the space),
   `seedCleanups` in `integrations/cleanuparr.ts`, all pure and tested; `upcoming/Upcoming.ts` only reads.
 

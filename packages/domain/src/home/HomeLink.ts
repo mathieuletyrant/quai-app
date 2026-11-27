@@ -1,7 +1,7 @@
-import { HomeOffline, HomeProtocol, HomeRequired, type JournalEntry, type JournalQuery } from "@quai/api"
+import { HomeOffline, HomeRequired, type JournalEntry, type JournalQuery, type Service } from "@quai/api"
 import { Context, Data, Effect, Layer, Option } from "effect"
 
-type HomeService = HomeProtocol.HomeService
+type HomeService = Service
 
 /** What the app and the console are told while no Quai Home is connected. */
 export const offlineMessage = "Quai Home is not connected"
@@ -16,15 +16,18 @@ export class HomeError extends Data.TaggedError("HomeError")<{
 export const toOffline = (error: HomeError) =>
   new HomeOffline({ message: error.reason === "offline" ? offlineMessage : `Quai Home: ${error.message}` })
 
-/** A home Quai Cloud serves, once its documents are loaded. */
+/** Where an iPhone opens Radarr's and Sonarr's own pages, at home first, then from outside: the app's links to a title. */
+export interface WebUrls {
+  readonly radarr?: ReadonlyArray<string>
+  readonly sonarr?: ReadonlyArray<string>
+}
+
+/** The home, once it is up. */
 export interface LinkedHome {
   readonly homeId: string
-  /** The services this Quai Home reaches (from its Hello). */
+  /** The services Quai Home reaches (a URL and a key set). */
   readonly services: ReadonlyArray<HomeService>
-  /** The protocol it speaks (from its Hello): what it can do, `journalProtocolVersion` and up a journal. */
-  readonly protocol: number
-  /** Where an iPhone opens Radarr and Sonarr (from its Hello), at home first. */
-  readonly webUrls?: HomeProtocol.WebUrls
+  readonly webUrls?: WebUrls
 }
 
 /** What Quai Home tells, in the order it told it. */
@@ -44,18 +47,59 @@ export interface HomeDocument {
   readonly value: unknown
 }
 
-export type CallRequest = Omit<HomeProtocol.Call, "_tag" | "id">
+export type CallMethod = "GET" | "POST" | "PUT" | "DELETE"
 
-/** A console request Quai Home relays, and what answers it: the Cloud's own routes. */
-export type ConsoleRequest = Omit<HomeProtocol.ConsoleRequest, "_tag" | "id">
+/** One HTTP call to a service: a button press, or a one-off read. */
+export interface CallRequest {
+  readonly service: HomeService
+  readonly method: CallMethod
+  /** Path and query, as the service expects them: `/api/v2/torrents/info?hashes=a|b`. */
+  readonly path: string
+  /** Sent as JSON. */
+  readonly body?: unknown
+}
+
+/** A GET Quai Home polls, sending a snapshot each time its answer changes. */
+export interface Watch {
+  readonly id: string
+  readonly service: HomeService
+  readonly path: string
+  /** Between `minWatchSeconds` and `maxWatchSeconds`. */
+  readonly everySeconds: number
+}
+
+export const minWatchSeconds = 5
+export const maxWatchSeconds = 3600
+
+/**
+ * Keys of home documents: lowercase segments separated by slashes (`flows/download`), lowercase so
+ * they can't collide on a case-insensitive disk. A key and a folder may share a name (`flows` and
+ * `flows/download`): they are separate documents, and listing `flows` returns both.
+ */
+export const isStoreKey = (key: string) =>
+  /^[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)*$/.test(key) && key.length <= 200
+
+/** A request of the console, which Quai Home serves: answered by the domain's routes. */
+export interface ConsoleRequest {
+  readonly method: "GET" | "POST" | "PUT" | "DELETE"
+  /** Path and query: `/console-api/journal?limit=50`. */
+  readonly path: string
+  /** JSON, as the console sent it. */
+  readonly body?: string
+}
+
+/** What the console asks the domain for: its `/console-api` routes and its health. */
+export const isConsolePath = (path: string) => {
+  const route = path.split("?")[0]!
+  return !route.includes("..") && (route.startsWith("/console-api/") || route === "/api/health")
+}
 export type ConsoleHandler = (
   request: ConsoleRequest
 ) => Effect.Effect<{ readonly status: number; readonly body: string }>
 
 /**
- * The home's documents (paired iPhones, flows, activities), as Quai Home keeps them. Quai Cloud
- * holds them in memory while the home is connected and writes every change back: a write returns
- * once Quai Home said it is on disk.
+ * The home's documents (paired iPhones, flows, activities), as Quai Home keeps them on its disk: a
+ * write returns once it is there.
  */
 export class HomeDocuments extends Context.Service<HomeDocuments, {
   /** Whose documents these are. */
@@ -80,7 +124,7 @@ export class HomeDocuments extends Context.Service<HomeDocuments, {
   })
 }
 
-/** A copy as it would come back from disk: what is cached is what a restarted Cloud would read. */
+/** A copy as it would come back from disk: what is cached is what a restarted Quai Home would read. */
 const asStored = (value: unknown): unknown => JSON.parse(JSON.stringify(value) ?? "null")
 
 /** The home `HomeDocuments.memory` keeps documents for. */
@@ -92,7 +136,7 @@ export const makeDocuments = (
   write: (key: string, value: unknown | undefined) => Effect.Effect<void, HomeError>
 ): Omit<HomeDocuments["Service"], "homeId"> => {
   const checked = (key: string) =>
-    HomeProtocol.isStoreKey(key) ? Effect.void : Effect.die(new Error(`invalid home document key: ${key}`))
+    isStoreKey(key) ? Effect.void : Effect.die(new Error(`invalid home document key: ${key}`))
   return {
     get: (key) => Effect.map(documents, (all) => Option.fromNullishOr(all.get(key))),
     list: (prefix) =>
@@ -110,38 +154,35 @@ export const makeDocuments = (
 }
 
 /**
- * The link to one home's Quai Home: the calls and store operations Quai Cloud sends it, and what
- * it sends on its own (snapshots, webhooks), as events. Every service of a home reads its own link
- * (see `Homes`): it never sees another home.
+ * The domain's way to its home: the calls to the services, the watches, the documents, the
+ * journal, and what comes on its own (snapshots, webhooks), as events. Quai Home answers it in
+ * place (`LocalHome`); the tests with a fake home.
  */
 export class HomeLink extends Context.Service<HomeLink, {
   /** The home this link is to. */
   readonly homeId: string
-  /** The home, once its documents are loaded; None while its Quai Home isn't connected. */
+  /** The home, once it is up; None while it isn't. */
   readonly home: Effect.Effect<Option.Option<LinkedHome>>
-  /**
-   * One HTTP call to a service, through Quai Home's allowlist. `timeoutMs` for the slow ones (a
-   * release search): a little longer than Quai Home itself waits for the service.
-   */
+  /** One HTTP call to a service. `timeoutMs` for the slow ones (a release search). */
   readonly call: (
     request: CallRequest,
     options?: { readonly timeoutMs?: number }
   ) => Effect.Effect<{ readonly status: number; readonly body: string }, HomeError>
   /** Replaces what Quai Home polls. */
-  readonly setWatches: (watches: ReadonlyArray<HomeProtocol.Watch>) => Effect.Effect<void, HomeError>
-  /** Hands Quai Home lines for its journal, unanswered. Only to a Home at `journalProtocolVersion` or later. */
+  readonly setWatches: (watches: ReadonlyArray<Watch>) => Effect.Effect<void, HomeError>
+  /** Hands Quai Home lines for its journal. */
   readonly appendJournal: (entries: ReadonlyArray<JournalEntry>) => Effect.Effect<void, HomeError>
   /** A page of the journal Quai Home keeps. */
   readonly readJournal: (
     query: JournalQuery
   ) => Effect.Effect<{ readonly entries: ReadonlyArray<JournalEntry>; readonly more: boolean }, HomeError>
   readonly documents: HomeDocuments["Service"]
-  /** The next event from Quai Home. One reader: the Hub. */
+  /** The next event from the home. One reader: the Hub. */
   readonly nextEvent: Effect.Effect<HomeEvent>
-  /** Answers the console requests Quai Home relays (its console is served there). Until set, 503. */
+  /** Answers the console's requests (its console is served by Quai Home). Until set, 503. */
   readonly answerConsole: (handler: ConsoleHandler) => Effect.Effect<void>
 }>()("quai/HomeLink") {
-  /** A link to no home: always offline, never an event. What answers a request no home is found for. */
+  /** A link to no home: always offline, never an event. */
   static readonly offline: HomeLink["Service"] = (() => {
     const offline = Effect.fail(new HomeError({ reason: "offline", message: offlineMessage }))
     return {
@@ -164,7 +205,7 @@ export class HomeLink extends Context.Service<HomeLink, {
   )
 }
 
-/** The API's routes that need the home: 503 while it isn't connected. */
+/** The API's routes that need the home: 503 while it isn't up. */
 export const HomeRequiredLive = Layer.effect(
   HomeRequired,
   Effect.gen(function*() {

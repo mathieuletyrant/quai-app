@@ -1,8 +1,9 @@
-import { diskBackAbovePoints, type DiskSpace, HomeProtocol, type LibraryService } from "@quai/api"
+import { diskBackAbovePoints, type DiskSpace, type LibraryService } from "@quai/api"
 import { Effect, Option } from "effect"
 import { type AlertState, alertState } from "../alerts/Alerts.ts"
+import type { Watch } from "../home/HomeLink.ts"
 import { DiskReadings } from "../storage/DiskReadings.ts"
-import { diskReads, type DiskView, freeShare, type MediaDisk, mediaDisks, readsRoots } from "../storage/MediaDisks.ts"
+import { diskReads, type DiskView, freeShare, type MediaDisk, mediaDisks } from "../storage/MediaDisks.ts"
 import { type Integration, readSnapshot, type Snapshot, type WatchContext, watchOf } from "./Integration.ts"
 
 /** How often Quai Home reads the disks while the alert is on. */
@@ -61,13 +62,13 @@ export const diskStates = (disks: ReadonlyArray<MediaDisk>, belowPercent: number
   })
 
 /** The watches for one service: its disks, faster while the alert is on, and its root folders. */
-const watchesOf = (service: LibraryService, context: WatchContext): ReadonlyArray<HomeProtocol.Watch> => {
+const watchesOf = (service: LibraryService, context: WatchContext): ReadonlyArray<Watch> => {
   const every = context.alerts.diskLow.enabled ? diskEverySeconds : readingEverySeconds
   const reads = diskReads[service]
-  const mounts = watchOf(mountsWatchId(service), reads.mounts, every)
-  return readsRoots({ protocol: context.protocol ?? HomeProtocol.protocolVersion })
-    ? [mounts, watchOf(rootsWatchId(service), reads.roots, readingEverySeconds)]
-    : [mounts]
+  return [
+    watchOf(mountsWatchId(service), reads.mounts, every),
+    watchOf(rootsWatchId(service), reads.roots, readingEverySeconds)
+  ]
 }
 
 /**

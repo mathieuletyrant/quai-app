@@ -1,10 +1,14 @@
-import { HomeProtocol, journalSourceNames } from "@quai/api"
+import { journalSourceNames } from "@quai/api"
+import type { Service } from "@quai/api"
 import { Clock, Effect } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { timingSafeEqual } from "node:crypto"
 import { HomeKey } from "./HomeKey.ts"
 import { Journal } from "./Journal.ts"
 import { Link } from "./Link.ts"
+
+/** The services whose webhooks Quai Home receives. Jellyfin is polled (its sessions). */
+export const webhookServices: ReadonlyArray<Service> = ["radarr", "sonarr", "seerr"]
 import { LocalHome } from "./LocalHome.ts"
 
 /** The URL a service should call, as seen from its container. */
@@ -31,7 +35,7 @@ export const WebhooksLive = HttpRouter.use((router) =>
       Effect.map(link.linked, (linked) => HttpServerResponse.jsonUnsafe({ status: "ok", linked, homeId: key.homeId }))
     )
 
-    for (const service of HomeProtocol.webhookServices) {
+    for (const service of webhookServices) {
       yield* router.add(
         "POST",
         `/webhooks/${service}`,

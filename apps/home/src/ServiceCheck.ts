@@ -5,8 +5,7 @@ import { ServiceAuth } from "./ServiceAuth.ts"
 
 /**
  * What the Services page reads to check a service: a route that needs the key (a public one would
- * answer even with a wrong key), and that says nothing secret. Quai Home's own call, outside the
- * Cloud's allowlist.
+ * answer even with a wrong key), and that says nothing secret.
  */
 export const checkPaths: Record<HomeProtocol.HomeService, string> = {
   radarr: "/api/v3/system/status",

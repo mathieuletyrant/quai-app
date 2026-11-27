@@ -4,7 +4,7 @@ import { Devices } from "./Devices.ts"
 
 /**
  * The home's time zone, for "today" and "midnight". A home has no clock of its own: it follows
- * the iPhones, which report theirs (the most recently seen one wins). Before any did, Quai Cloud's
+ * the iPhones, which report theirs (the most recently seen one wins). Before any did, Quai Home's
  * `QUAI_TZ`, else UTC.
  */
 export class HomeTime extends Context.Service<HomeTime, {

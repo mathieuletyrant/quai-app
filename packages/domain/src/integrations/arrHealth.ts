@@ -1,4 +1,4 @@
-import { type AlertSettings, HomeProtocol, journalSourceNames } from "@quai/api"
+import { type AlertSettings, journalSourceNames } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import { type AlertState, alertState } from "../alerts/Alerts.ts"
 import type { Read } from "../home/HomeReads.ts"
@@ -62,10 +62,8 @@ const isArr = (service: string): service is ArrService => (arrServices as Readon
 export const arrHealth: Integration = {
   service: "quai",
   alertWatcher: {
-    // A Home older than protocol 6 doesn't allow the health checks.
     watches: (context) =>
-      context.alerts.arrHealth.enabled &&
-        (context.protocol ?? HomeProtocol.protocolVersion) >= HomeProtocol.arrHealthProtocolVersion
+      context.alerts.arrHealth.enabled
         ? arrServices.filter((service) => context.services.includes(service)).map((service) =>
           watchOf(arrHealthWatchId(service), healthReads[service], arrHealthEverySeconds)
         )

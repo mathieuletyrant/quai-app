@@ -403,19 +403,6 @@ describe("GET /api/storage", () => {
       expect(storage.disks.map((disk) => disk.id)).toEqual(["d2000000000000", "d4000000000000"])
     }).pipe(Effect.provide(TestApp)))
 
-  it.effect("an older Quai Home: no root folders asked, the largest disk is the media disk", () =>
-    Effect.gen(function*() {
-      const { home, api } = yield* phoneOn({
-        answer: recordedHome({ "radarr GET /api/v3/diskspace": "radarr/diskspace.json" }),
-        services: ["radarr"],
-        protocol: 11
-      })
-      expect(home.watch(rootsWatchId("radarr"))).toBeUndefined()
-      const storage = yield* api.storage.storage({ query: { period: "30d" } })
-      expect(storage.disks.map((disk) => [disk.name, disk.totalBytes])).toEqual([["Movies", 1800360124416]])
-      expect(home.calls.map((call) => call.path)).toEqual(["/api/v3/diskspace"])
-    }).pipe(Effect.provide(TestApp)))
-
   it.effect("the disks are read every hour while the disk low alert is off", () =>
     Effect.gen(function*() {
       const { home } = yield* phoneOn({ answer: routes })

@@ -1,7 +1,7 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
-import type { HomeProtocol } from "@quai/api"
-import { type ConsoleRequest, HomeLink } from "@quai/domain/home/HomeLink.ts"
+import { HomeProtocol } from "@quai/api"
+import { type ConsoleRequest, HomeLink, isConsolePath } from "@quai/domain/home/HomeLink.ts"
 import { Effect, FileSystem, Layer, Redacted } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
@@ -26,6 +26,15 @@ const homeKey = Layer.succeed(HomeKey, {
   webhookToken: "w",
   consoleSecret: secret
 })
+
+/** What a Cloud of this version says when it welcomes this home: no APNs key, no public address. */
+const welcome = (version: string) =>
+  HomeProtocol.Welcome.make({
+    homeId: "h",
+    version,
+    push: { configured: false, topic: "com.mathieuletyrant.quai" },
+    publicAccess: { headers: [] }
+  })
 
 /** The console routes on an in-memory server: Radarr and Sonarr left to the Services page. */
 const consoleServer = (options: {
@@ -217,20 +226,11 @@ describe("where the home stands", () => {
   })
 
   it.effect("says the Cloud's version once it welcomed this home, as the Cloud said it", () => {
-    const { layer } = consoleServer({ password: "pw", welcomed: { _tag: "Welcome", homeId: "h", version: "2.5.0" } })
+    const { layer } = consoleServer({ password: "pw", welcomed: welcome("2.5.0") })
     return Effect.gen(function*() {
       const cookie = yield* signIn("pw")
       const overview = yield* request("GET", "/home-api/home", { cookie })
       expect(overview.json.cloud).toEqual({ configured: true, linked: true, version: "2.5.0", url: "http://cloud" })
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect("an older Cloud says no version: linked all the same", () => {
-    const { layer } = consoleServer({ password: "pw", welcomed: { _tag: "Welcome", homeId: "h" } })
-    return Effect.gen(function*() {
-      const cookie = yield* signIn("pw")
-      const overview = yield* request("GET", "/home-api/home", { cookie })
-      expect(overview.json.cloud).toEqual({ configured: true, linked: true, url: "http://cloud" })
     }).pipe(Effect.provide(layer))
   })
 })
@@ -398,4 +398,16 @@ describe("cloud seen", () => {
       yield* moved.acknowledge
       expect((yield* moved.previous)._tag).toBe("None")
     }).pipe(Effect.provide(NodeFileSystem.layer)))
+})
+
+describe("what the console asks the domain for", () => {
+  it("its routes and the health, nothing else", () => {
+    expect(isConsolePath("/console-api/devices")).toBe(true)
+    expect(isConsolePath("/console-api/journal?limit=5")).toBe(true)
+    expect(isConsolePath("/api/health")).toBe(true)
+    expect(isConsolePath("/api/activities")).toBe(false)
+    expect(isConsolePath("/console-api")).toBe(false)
+    expect(isConsolePath("/console-api/../api/activities")).toBe(false)
+    expect(isConsolePath("/home")).toBe(false)
+  })
 })

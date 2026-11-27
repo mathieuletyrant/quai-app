@@ -139,11 +139,11 @@ describe("home journal", () => {
           const grabbed = line(morning, { subject: "movie:tmdb:1", title: "Dune" })
           yield* journal.append([grabbed])
           yield* TestClock.adjust(1000)
-          yield* journal.note({ level: "warn", source: "home", kind: "call.refused", text: "refused" })
+          yield* journal.note({ level: "warn", source: "home", kind: "service.unreached", text: "unreached" })
           const all = yield* journal.read({ limit: 10 })
-          expect(textsOf(all)).toEqual(["refused", grabbed.text])
+          expect(textsOf(all)).toEqual(["unreached", grabbed.text])
           expect(all.entries[0]!.id).toMatch(/-h/)
-          expect(textsOf(yield* journal.read({ limit: 10, level: "warn" }))).toEqual(["refused"])
+          expect(textsOf(yield* journal.read({ limit: 10, level: "warn" }))).toEqual(["unreached"])
           expect((yield* journal.read({ limit: 10, subject: "movie:tmdb:1" })).entries).toEqual([grabbed])
           expect((yield* journal.read({ limit: 1 })).more).toBe(true)
           expect(yield* journal.noted).toHaveLength(1)
@@ -155,7 +155,7 @@ describe("home journal", () => {
 const lineText = (entry: JournalEntry) => `${entry.level} ${entry.source} ${entry.text}`
 
 describe("home journal lines", () => {
-  it.effect("a refused call, a service that stops answering and comes back: once per streak", () =>
+  it.effect("a service that stops answering and comes back: once per streak", () =>
     inTemp((dir) =>
       Effect.gen(function*() {
         let up = false
@@ -168,14 +168,7 @@ describe("home journal lines", () => {
         yield* Effect.gen(function*() {
           const calls = yield* Calls
           const journal = yield* Journal
-          const status = {
-            _tag: "Call",
-            id: "r",
-            service: "radarr",
-            method: "GET",
-            path: "/api/v3/system/status"
-          } as const
-          yield* calls.run({ ...status, path: "/api/v3/config/host?apikey=x" })
+          const status = { service: "radarr", method: "GET", path: "/api/v3/system/status" } as const
           yield* calls.run(status)
           yield* calls.run(status)
           up = true
@@ -183,7 +176,6 @@ describe("home journal lines", () => {
           yield* calls.run(status)
           const texts = (yield* journal.read({ limit: 10 })).entries.map(lineText).reverse()
           expect(texts).toEqual([
-            "warn radarr Quai Home refused a call outside its allowlist: Radarr GET /api/v3/config/host",
             "warn radarr Quai Home can't reach Radarr: unreachable",
             "info radarr Quai Home reaches Radarr again"
           ])

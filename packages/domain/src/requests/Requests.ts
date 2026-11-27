@@ -2,13 +2,11 @@ import {
   type CreateRequest,
   type DeviceId,
   HomeOffline,
-  HomeProtocol,
   type MediaRequest,
   type MediaRequests,
   type RequestCreated,
   RequestFailed,
   type SearchResults,
-  type SearchStatus,
   type SeerrUsers,
   type SeriesSeasons
 } from "@quai/api"
@@ -56,21 +54,14 @@ export class Requests extends Context.Service<Requests, {
       const devices = yield* Devices
 
       const reaches = Effect.map(reads.services, (services) => services.includes("seerr"))
-      /**
-       * Whether the search, the users and new requests can go: `ok`, or why not. A Home older
-       * than protocol 8 would refuse them.
-       */
+      /** Whether the search, the users and new requests can go: `ok`, or why not. */
       const searchable = Effect.gen(function*() {
         const home = yield* link.home
         if (Option.isNone(home)) return yield* Effect.fail(new HomeOffline({ message: offlineMessage }))
         if (!home.value.services.includes("seerr")) return "notConfigured" as const
-        if (home.value.protocol < HomeProtocol.searchProtocolVersion) return "outdated" as const
         return "ok" as const
       })
-      const notSearchable = (status: Exclude<SearchStatus, "ok" | "unavailable">) =>
-        status === "outdated"
-          ? new RequestFailed({ message: "Update Quai Home to request from the app." })
-          : new HttpApiError.NotFound()
+      const notSearchable = () => new HttpApiError.NotFound()
 
       /** What the last list said of each request, to name it in the journal. */
       const listed = new Map<number, MediaRequest>()
@@ -153,7 +144,7 @@ export class Requests extends Context.Service<Requests, {
             const tmdbId = Number(raw)
             if (!/^\d+$/.test(raw) || tmdbId <= 0) return yield* Effect.fail(new HttpApiError.NotFound())
             const status = yield* searchable
-            if (status !== "ok") return yield* Effect.fail(notSearchable(status))
+            if (status !== "ok") return yield* Effect.fail(notSearchable())
             const seasons = yield* seerr.seasons(tmdbId)
             if (Option.isNone(seasons)) return yield* Effect.fail(new RequestFailed({ message: "Seerr didn't answer" }))
             return { seasons: seasons.value }
@@ -164,7 +155,7 @@ export class Requests extends Context.Service<Requests, {
         create: (device, request) =>
           Effect.gen(function*() {
             const status = yield* searchable
-            if (status !== "ok") return yield* Effect.fail(notSearchable(status))
+            if (status !== "ok") return yield* Effect.fail(notSearchable())
             if (request.kind === "series" && (request.seasons ?? []).length === 0) {
               return yield* Effect.fail(new RequestFailed({ message: "Choose at least one season." }))
             }

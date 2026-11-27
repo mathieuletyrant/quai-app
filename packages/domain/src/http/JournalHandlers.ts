@@ -29,8 +29,8 @@ export const JournalHandlers = HttpApiBuilder.group(QuaiApi, "consoleJournal", (
   }))
 
 /**
- * The app's journal, `/api/journal`: only `appJournalKinds`. The page is filtered again here
- * because a Quai Home older than the `kinds` filter returns every kind.
+ * The app's journal, `/api/journal`: only `appJournalKinds`, filtered again here so that no
+ * other kind ever reaches the app, whatever the page holds.
  */
 export const AppJournalHandlers = HttpApiBuilder.group(QuaiApi, "journal", (handlers) =>
   Effect.gen(function*() {

@@ -1,6 +1,5 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
-import { HomeProtocol } from "@quai/api"
 import { pairingHash } from "@quai/domain/home/Devices.ts"
 import { deviceKeyOf, signatureHeadersOf } from "@quai/domain/home/RequestSignature.ts"
 import { Clock, Effect, Layer, Queue } from "effect"
@@ -18,7 +17,7 @@ import { LocalHome } from "../src/LocalHome.ts"
 import { ServiceSettings } from "../src/ServiceSettings.ts"
 import { Watches } from "../src/Watches.ts"
 import { configLayer, journalLayer, NodeFileSystem, tempDir } from "./config.ts"
-import { cloud, type Connection, fakeSocket, settle } from "./fakeCloud.ts"
+import { cloud, type Connection, fakeSocket, settle, welcomeOf } from "./fakeCloud.ts"
 
 const movies = [{ id: 7, title: "Dune", year: 2021, tmdbId: 438631, hasFile: true, monitored: true, sizeOnDisk: 42 }]
 
@@ -31,8 +30,8 @@ const calls = Layer.sync(Calls, () => {
       Effect.sync(() => {
         called.push(`${call.service} ${call.method} ${call.path.split("?")[0]}`)
         return call.service === "radarr" && call.path === "/api/v3/movie"
-          ? HomeProtocol.CallResponse.make({ id: call.id, status: 200, body: JSON.stringify(movies) })
-          : HomeProtocol.CallResponse.make({ id: call.id, status: 404, body: "" })
+          ? { _tag: "Answered", status: 200, body: JSON.stringify(movies) }
+          : { _tag: "Answered", status: 404, body: "" }
       })
   }
 })
@@ -88,7 +87,7 @@ const linkedHome = <A, E>(
     return yield* Effect.gen(function*() {
       const connection = yield* Queue.take(fake.connections)
       yield* Queue.take(connection.sent)
-      yield* cloud(connection, { _tag: "Welcome", homeId: (yield* HomeKey).homeId, ...welcome })
+      yield* cloud(connection, welcomeOf((yield* HomeKey).homeId, welcome))
       yield* settle
       return yield* test(connection)
     }).pipe(Effect.provide(quaiHome(fake.socket)))

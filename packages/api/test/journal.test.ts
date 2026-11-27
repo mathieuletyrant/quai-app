@@ -1,6 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
-import { HomeProtocol, type JournalEntry, journalId, journalPage } from "../src/index.ts"
+import { type JournalEntry, journalId, journalPage } from "../src/index.ts"
 
 const entry = (index: number, overrides: Partial<JournalEntry> = {}): JournalEntry => ({
   id: journalId(1_000 + index, "c", index),
@@ -67,17 +66,5 @@ describe("journal pages", () => {
 
   it("clamp the limit", () => {
     expect(journalPage(all, { limit: 0 }).entries).toHaveLength(1)
-  })
-})
-
-describe("journal messages", () => {
-  it("travel both ways on the home link", () => {
-    const cloud = Schema.decodeUnknownSync(HomeProtocol.CloudMessage)
-    const home = Schema.decodeUnknownSync(HomeProtocol.HomeMessage)
-    expect(cloud({ _tag: "JournalAppend", entries: [entry(1)] })._tag).toBe("JournalAppend")
-    expect(cloud({ _tag: "JournalRead", id: "r1", query: { limit: 50, sources: ["radarr"] } })._tag).toBe("JournalRead")
-    expect(home({ _tag: "JournalPage", id: "r1", entries: [entry(2)], more: false })._tag).toBe("JournalPage")
-    expect(home({ _tag: "JournalNoted", entries: [entry(3, { source: "home" })] })._tag).toBe("JournalNoted")
-    expect(() => cloud({ _tag: "JournalAppend", entries: [{ ...entry(1), source: "plex" }] })).toThrow()
   })
 })

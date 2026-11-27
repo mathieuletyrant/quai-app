@@ -33,7 +33,7 @@ import {
  * waits, so it starts nothing and is never listed.
  *
  * Quai Home sets Seerr's webhook up when its one webhook agent is free (or already Quai's), so a
- * request comes at once. Quai Cloud also polls the pending requests every minute while a request
+ * request comes at once. Quai also polls the pending requests every minute while a request
  * flow is on: the only way in when the webhook is someone else's, and the safety net for a
  * notification missed while Quai Home was down.
  */
