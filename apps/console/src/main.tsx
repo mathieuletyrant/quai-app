@@ -1,4 +1,4 @@
-import type { HomeOverview } from "@quai/api"
+import { type CloudLink, type HomeOverview, isHostedCloud } from "@quai/api"
 import { type ReactNode, StrictMode, useEffect, useState } from "react"
 import { createRoot } from "react-dom/client"
 import { callHome, type LinkStatus, probeLink, refreshSession, useLink, useLinkProbe, useSession } from "./client.ts"
@@ -8,8 +8,9 @@ import { FlowsPage } from "./pages/flows/FlowsPage.tsx"
 import { IphonesPage } from "./pages/Iphones.tsx"
 import { JournalPage } from "./pages/journal/JournalPage.tsx"
 import { ServicesPage } from "./pages/Services.tsx"
-import { SettingsPage } from "./pages/Settings.tsx"
-import { loadOverview } from "./pages/setup.tsx"
+import { HostedPushWarning, SettingsPage } from "./pages/Settings.tsx"
+import { CloudChanged, loadOverview, SetupChecklist } from "./pages/setup.tsx"
+import { cloudStateOf, needsSettings, versionLabel } from "./pages/shell.ts"
 import { LockedPage, SignInPage } from "./pages/SignIn.tsx"
 import {
   Button,
@@ -42,30 +43,15 @@ const fromHash = (): Page => {
   return hash in pages ? (hash as Page) : "settings"
 }
 
-/** Quai Home's link to Quai Cloud, as the console last saw it. */
-const cloudLabel: Record<LinkStatus, { readonly tone: Tone; readonly text: string }> = {
-  checking: { tone: "neutral", text: "Checking…" },
-  online: { tone: "ok", text: "Connected" },
-  offline: { tone: "danger", text: "Not connected" }
-}
-
-/** Where Quai Cloud stands: not set at all, or the link's state. */
-const cloudState = (status: LinkStatus, overview: HomeOverview | null) =>
-  overview !== null && !overview.cloud.configured ? { tone: "warn" as const, text: "Not set" } : cloudLabel[status]
-
-/** What the phone top bar's dot says to screen readers: "Quai Cloud: connected". */
+/** What the phone top bar's dot says to screen readers: "Quai Cloud: v2.5.0". */
 const cloudDotLabel = (status: LinkStatus, overview: HomeOverview | null) =>
-  `Quai Cloud: ${cloudState(status, overview).text.toLowerCase()}`
+  `Quai Cloud: ${cloudStateOf(status, overview?.cloud ?? null).text}`
 
-/** Every destination, in the order Quai is set up. */
-const navItems: ReadonlyArray<NavItem> = (Object.keys(pages) as Array<Page>).map((id) => ({
-  id,
-  label: pages[id].label,
-  icon: pages[id].icon
-}))
-
-/** "v0.12.1" for a release, the version as is otherwise ("dev"). */
-const versionLabel = (version: string) => /^\d/.test(version) ? `v${version}` : version
+/** Every destination, in the order Quai is set up; Settings only while there is something to set. */
+const navItemsFor = (overview: HomeOverview | null): ReadonlyArray<NavItem> =>
+  (Object.keys(pages) as Array<Page>)
+    .filter((id) => id !== "settings" || needsSettings(overview?.cloud ?? null))
+    .map((id) => ({ id, label: pages[id].label, icon: pages[id].icon }))
 
 /** Quai Home serves this console, so it runs: its version once it answered. */
 const homeVersion = (overview: HomeOverview | null) =>
@@ -100,12 +86,15 @@ function Part(
 /** Where Quai Home and Quai Cloud stand, at the foot of the sidebar. */
 function Connection({ overview }: { overview: HomeOverview | null }) {
   const { status } = useLink()
-  const cloud = cloudState(status, overview)
+  const cloud = cloudStateOf(status, overview?.cloud ?? null)
+  const text = status === "online" && overview?.cloud.version !== undefined
+    ? <span className="font-mono text-mini">{cloud.text}</span>
+    : cloud.text
   return (
     <div className="flex flex-col gap-2.5 rounded-card border border-line bg-panel p-3">
       <Part icon="home" name="Quai Home" tone="ok">{homeVersion(overview)}</Part>
       <div className="border-t border-line pt-2.5">
-        <Part icon="cloud" name="Quai Cloud" tone={cloud.tone} pulse={status === "online"}>{cloud.text}</Part>
+        <Part icon="cloud" name="Quai Cloud" tone={cloud.tone} pulse={status === "online"}>{text}</Part>
       </div>
     </div>
   )
@@ -118,7 +107,7 @@ function Wordmark() {
 /** The head of the sidebar and the phone menu: the logo, the name, and what this is for. */
 function Brand() {
   return (
-    <a href="#settings" className="flex items-center gap-2.5 rounded-control px-2 py-1">
+    <a href="#" className="flex items-center gap-2.5 rounded-control px-2 py-1">
       <Logo />
       <Wordmark />
       <span className="ml-auto rounded-md border border-line-strong px-1.5 py-0.5 text-micro font-semibold tracking-tag text-muted uppercase">
@@ -160,10 +149,24 @@ function OfflineBanner() {
   )
 }
 
+/**
+ * What needs doing, above every page, and only then: the first steps until Quai is set up, the
+ * iPhones to pair again after a change of Cloud, notifications off on Quai's Cloud.
+ */
+function Notices({ cloud, onDone }: { cloud: CloudLink; onDone: () => void }) {
+  return (
+    <div className="flex flex-col gap-3 px-4 pt-4 empty:hidden md:px-8 md:pt-6">
+      <SetupChecklist />
+      <CloudChanged cloud={cloud} onDone={onDone} />
+      {isHostedCloud(cloud) && <HostedPushWarning />}
+    </div>
+  )
+}
+
 /** The phone top bar's logo, back to the first page. */
 function HomeLink() {
   return (
-    <a href="#settings" aria-label="Quai, Settings" className="rounded-logo">
+    <a href="#" aria-label="Quai, the first page" className="rounded-logo">
       <Logo size={26} />
     </a>
   )
@@ -183,8 +186,11 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash)
   }, [])
 
+  const navItems = navItemsFor(overview.data)
+  // The hosted Cloud has no Settings page: whoever lands there is taken to the first page there is.
+  const shown = navItems.some((item) => item.id === page) ? page : navItems[0]!.id as Page
   const nav = (onNavigate?: () => void) => (
-    <NavList label="Console" items={navItems} current={page} onNavigate={onNavigate} />
+    <NavList label="Console" items={navItems} current={shown} onNavigate={onNavigate} />
   )
   const footer = (
     <div className="flex flex-col gap-3">
@@ -197,9 +203,12 @@ function App() {
       <Sidebar brand={<Brand />} footer={footer}>{nav()}</Sidebar>
       <TopBar
         logo={<HomeLink />}
-        title={pages[page].label}
+        title={pages[shown].label}
         status={
-          <StatusDot tone={cloudState(status, overview.data).tone} label={cloudDotLabel(status, overview.data)} />
+          <StatusDot
+            tone={cloudStateOf(status, overview.data?.cloud ?? null).tone}
+            label={cloudDotLabel(status, overview.data)}
+          />
         }
         menuOpen={menuOpen}
         onMenu={() => setMenuOpen(true)}
@@ -210,7 +219,8 @@ function App() {
 
       <main className="flex min-w-0 flex-1 flex-col">
         {status === "offline" && overview.data?.cloud.configured === true && <OfflineBanner />}
-        <div key={page} className="flex min-w-0 flex-1 flex-col">{pages[page].render()}</div>
+        {overview.data !== null && <Notices cloud={overview.data.cloud} onDone={overview.refresh} />}
+        <div key={shown} className="flex min-w-0 flex-1 flex-col">{pages[shown].render()}</div>
       </main>
     </div>
   )

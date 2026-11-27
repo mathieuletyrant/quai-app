@@ -1,4 +1,4 @@
-import { type CloudLink, type ConnectionSettings, isHostedCloud, type PushSettings } from "@quai/api"
+import type { CloudLink, ConnectionSettings, PushSettings } from "@quai/api"
 import type { ReactNode } from "react"
 import { call, type LinkStatus, useLink } from "../client.ts"
 import { useLoad } from "../load.ts"
@@ -17,7 +17,7 @@ import {
   Skeleton,
   Status
 } from "../ui"
-import { CloudChanged, loadOverview, SetupChecklist } from "./setup.tsx"
+import { loadOverview } from "./setup.tsx"
 
 function LoadingRows({ labels }: { labels: ReadonlyArray<string> }) {
   return (
@@ -53,13 +53,6 @@ function LinkAdvice({ cloud, status }: { cloud: CloudLink; status: LinkStatus })
     )
   }
   if (status !== "offline") return null
-  if (isHostedCloud(cloud)) {
-    return (
-      <Callout icon="info">
-        Quai Home will reconnect on its own. If it stays like this, check that your server can reach the internet.
-      </Callout>
-    )
-  }
   return (
     <Callout icon="info">
       Check that Quai Cloud is running at this address, and that Quai Home's <Code>QUAI_CLOUD_URL</Code> points at its
@@ -72,7 +65,7 @@ function LinkAdvice({ cloud, status }: { cloud: CloudLink; status: LinkStatus })
 const pushOffline = "Without an Apple push key, your iPhones get no Live Activity and no alert."
 
 /** The hosted Cloud says nothing about its key, unless pushes can't go out. */
-function HostedPushWarning() {
+export function HostedPushWarning() {
   const { epoch } = useLink()
   const push = useLoad<PushSettings>(() => call((api) => api.push.pushSettings()), [epoch])
   if (push.data === null || push.data.configured) return null
@@ -85,23 +78,6 @@ function HostedPushWarning() {
 
 /** The Cloud's version, as it said when it last welcomed this home. */
 const cloudVersion = (cloud: CloudLink) => cloud.version === undefined ? notSet : <Mono>{cloud.version}</Mono>
-
-const hostedDescription =
-  "How the app reaches this home from anywhere, and what sends its Live Activities and alerts to your iPhones. Nothing to set up: it keeps nothing, and your services' keys stay here."
-
-/** Quai's hosted Cloud: is it linked, and which version. */
-function HostedCloud({ cloud, status }: { cloud: CloudLink; status: LinkStatus }) {
-  return (
-    <div className="flex flex-col gap-4">
-      <Rows>
-        <Row label="Link">{linkStatus[status]}</Row>
-        <Row label="Version">{cloudVersion(cloud)}</Row>
-      </Rows>
-      <LinkAdvice cloud={cloud} status={status} />
-      <HostedPushWarning />
-    </div>
-  )
-}
 
 /** A Cloud of one's own: where it is, the link, its version. */
 function OwnCloud({ cloud, status }: { cloud: CloudLink; status: LinkStatus }) {
@@ -121,7 +97,10 @@ const ownDescription = <>
   How the app reaches this home, and what sends its pushes. Quai Home links to it at <Code>QUAI_CLOUD_URL</Code>.
 </>
 
-/** The Quai Cloud this home links to: Quai's, with nothing to show but the link, or one's own. */
+/**
+ * The Quai Cloud this home links to, when it is one's own or none is set yet. Quai's hosted Cloud
+ * has no Settings page (`needsSettings`).
+ */
 function CloudPanel() {
   const { status, epoch } = useLink()
   const overview = useLoad(loadOverview, [epoch])
@@ -135,22 +114,14 @@ function CloudPanel() {
       }
       failed={failed}
     >
-      {(home) => {
-        const hosted = isHostedCloud(home.cloud)
-        return (
-          <>
-            <Panel title="Quai Cloud" description={hosted ? hostedDescription : ownDescription}>
-              <div className="flex flex-col gap-4">
-                {hosted
-                  ? <HostedCloud cloud={home.cloud} status={status} />
-                  : <OwnCloud cloud={home.cloud} status={status} />}
-                <CloudChanged cloud={home.cloud} onDone={overview.refresh} />
-              </div>
-            </Panel>
-            {!hosted && home.cloud.configured && <OwnCloudSettingsPanel />}
-          </>
-        )
-      }}
+      {(home) => (
+        <>
+          <Panel title="Quai Cloud" description={ownDescription}>
+            <OwnCloud cloud={home.cloud} status={status} />
+          </Panel>
+          {home.cloud.configured && <OwnCloudSettingsPanel />}
+        </>
+      )}
     </Async>
   )
 }
@@ -252,9 +223,8 @@ function OwnCloudSettingsPanel() {
 export function SettingsPage() {
   return (
     <>
-      <PageBar title="Settings" subtitle="The Quai Cloud this home links to." />
+      <PageBar title="Settings" subtitle="Your own Quai Cloud, as Quai Home links to it." />
       <PageBody>
-        <SetupChecklist />
         <div className="grid items-start gap-6 lg:grid-cols-2">
           <CloudPanel />
         </div>
