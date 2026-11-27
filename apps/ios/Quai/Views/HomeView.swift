@@ -165,7 +165,8 @@ struct HomeView: View {
     }
 
     @ViewBuilder private var upcomingTile: some View {
-        if let upcoming, !upcoming.items.isEmpty {
+        // Only undated cleanups (by ratio) would leave the tile empty: Upcoming still lists them.
+        if let upcoming, upcoming.items.contains(where: { $0.at != nil }) {
             NavigationLink { UpcomingView() } label: { UpcomingTile(upcoming: upcoming) }
                 .buttonStyle(.plain)
         }

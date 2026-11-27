@@ -142,11 +142,9 @@ struct UpcomingSchedule {
             .map { PeriodRows(period: $0.key, items: $0.value) }
     }
 
-    /// After today, the first that comes and the first that goes (a cleanup waiting on a ratio has no date: left out).
-    func nextComingAndGoing(_ items: [UpcomingItem]) -> [UpcomingItem] {
-        let dated = items.filter { $0.at != nil && period($0) != .today }
-        let first = { (rows: [UpcomingItem]) in rows.min { ($0.at ?? 0) < ($1.at ?? 0) } }
-        return [first(dated.filter(\.isComing)), first(dated.filter { !$0.isComing })].compactMap(\.self)
+    /// The first `count` items by date, today's included (a cleanup waiting on a ratio has no date: left out).
+    func soonest(_ items: [UpcomingItem], count: Int) -> [UpcomingItem] {
+        Array(items.filter { $0.at != nil }.sorted { ($0.at ?? 0) < ($1.at ?? 0) }.prefix(count))
     }
 
     /// What goes in the next 7 days, in a few words: "1 Reclaimerr deletion this week", "3 going this week".
@@ -341,14 +339,13 @@ struct UpcomingRow: View {
     }
 }
 
-/// The Home's Upcoming tile: today's rows (four at most), or when nothing happens today the next
-/// that comes and the next that goes, and what goes this week. Hidden when nothing is planned.
+/// The Home's Upcoming tile: the three soonest rows, whatever their day, and what goes this week.
+/// Hidden when nothing is planned.
 struct UpcomingTile: View {
     let upcoming: Components.Schemas.Upcoming
 
     private var schedule: UpcomingSchedule { UpcomingSchedule(timeZone: upcoming.timeZone) }
-    private var today: [UpcomingItem] { upcoming.items.filter { schedule.period($0) == .today } }
-    private var next: [UpcomingItem] { schedule.nextComingAndGoing(upcoming.items) }
+    private var soonest: [UpcomingItem] { schedule.soonest(upcoming.items, count: 3) }
 
     var body: some View {
         Tile {
@@ -359,26 +356,9 @@ struct UpcomingTile: View {
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Palette.tertiaryText)
             }
-            if today.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(next.isEmpty ? "Nothing today" : "Nothing today. Next:")
-                        .font(QuaiFont.subheadline)
-                        .foregroundStyle(Palette.secondaryText)
-                    ForEach(next) { item in
-                        UpcomingRow(item: item, when: schedule.when(item), compact: true)
-                    }
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(today.prefix(4)) { item in
-                        UpcomingRow(item: item, when: schedule.when(item), compact: true)
-                    }
-                    if today.count > 4 {
-                        Text("and \(today.count - 4) more")
-                            .font(QuaiFont.caption)
-                            .foregroundStyle(Palette.secondaryText)
-                            .padding(.leading, 44)
-                    }
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(soonest) { item in
+                    UpcomingRow(item: item, when: schedule.when(item), compact: true)
                 }
             }
             if let going = schedule.goingThisWeek(upcoming.items) {
