@@ -29,8 +29,8 @@ first one's time. Seerr requests: later.
 
 - **Reclaimerr**: deletions in state `scheduled`, `eligible` or `postponed`, at the run of its deletion
   task (`GET /api/v1/tasks/delete_cleanup_candidates`, its next run and its cron or interval) from
-  `auto_delete_eligible_at` on: "today 03:00", not the day the delay ends. Not `disabled`, `protected` or
-  `canceled`, and none while the task is off. Without the task (a key lacking `tasks:read`) or a schedule Quai can't follow, "earliest" the day the delay ends.
+  `auto_delete_eligible_at` on: "today 03:00", not the day the delay ends. Not `disabled`, `protected`,
+  `canceled` or `blocked` (Reclaimerr 0.6.19 and later: held by a protection or a pending request), and none while the task is off. Without the task (a key lacking `tasks:read`) or a schedule Quai can't follow, "earliest" the day the delay ends.
 - **Cleanuparr**, stuck removals: one row per download, "Earliest 14:30", since it goes only if still stuck.
 - **Cleanuparr**, seed cleanups (download cleaner): one row per week ("14 torrents"). Due at completion +
   the rule's max seed time, then the job's next run. Public torrents removed at once are not shown;

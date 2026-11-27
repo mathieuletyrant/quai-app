@@ -44,7 +44,11 @@ const Candidate = Schema.Struct({
   reason: Schema.String,
   delete_operation: Schema.optional(Schema.String),
   created_at: Schema.optional(Schema.String),
-  /** disabled (no rule deletes it on its own), scheduled, eligible (goes at the next run), postponed, canceled. */
+  /**
+   * disabled (no rule deletes it on its own), scheduled, eligible (goes at the next run), postponed,
+   * canceled, blocked (since 0.6.19: a protection or a pending request holds it, even one of another
+   * season of its series when the candidate is the whole series).
+   */
   auto_delete_state: Schema.String,
   auto_delete_eligible_at: Schema.optional(Schema.String),
   /** "protected", "pending_protection_request", "pending_delete_request". */
