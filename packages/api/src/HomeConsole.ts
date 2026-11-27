@@ -56,6 +56,8 @@ export const CloudLink = Schema.Struct({
   configured: Schema.Boolean,
   /** Whether the Cloud welcomed this home on the current connection. */
   linked: Schema.Boolean,
+  /** The Cloud's version, as it said when it last welcomed this home. Absent until then, and from an older Cloud. */
+  version: Schema.optionalKey(Schema.String),
   /**
    * Where the iPhone app reaches the Cloud at home, put in the pairing QR code:
    * `QUAI_CLOUD_APP_URL`, else `QUAI_CLOUD_URL` in http(s) without its `/home`.

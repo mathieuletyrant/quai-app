@@ -99,6 +99,7 @@ describe("a Quai Home that runs Quai", () => {
       expect(welcomeOf(home)).toEqual({
         _tag: "Welcome",
         homeId: home.homeId,
+        version: "test",
         push: apnsSettings,
         publicAccess: { url: publicUrl, headers: [{ name: "CF-Access-Client-Id", value: "abc.access" }] }
       })

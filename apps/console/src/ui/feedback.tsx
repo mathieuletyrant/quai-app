@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect } from "react"
-import { isCloudOffline } from "../client.ts"
+import { isNotReady } from "../client.ts"
 import { cx } from "./cx.ts"
 import { Icon, type IconName } from "./icons.tsx"
 
@@ -37,12 +37,12 @@ export function Callout({ tone = "neutral", icon, title, children, action }: {
 
 /**
  * A call that failed, as a danger callout; nothing without an error. With `unlessOffline`, an
- * unreachable Quai Cloud isn't shown either: the page says so in place of what it couldn't read.
+ * Quai Home that is still starting isn't shown either: the page says so in place of what it couldn't read.
  */
 export function ErrorCallout(
   { error, title, unlessOffline }: { error: unknown; title?: ReactNode; unlessOffline?: boolean }
 ) {
-  if (error === null || error === undefined || (unlessOffline && isCloudOffline(error))) return null
+  if (error === null || error === undefined || (unlessOffline && isNotReady(error))) return null
   return <Callout tone="danger" icon="alert" title={title}>{errorText(error)}</Callout>
 }
 
@@ -79,12 +79,11 @@ export function EmptyState({ icon, title, children, action, compact }: {
   )
 }
 
-/** In place of what a page couldn't read because Quai Home isn't linked to Quai Cloud. */
-export function CloudOfflineState({ what }: { what: string }) {
+/** In place of what a page couldn't read because Quai Home was still starting: it reads again in a moment. */
+export function NotReadyState({ what }: { what: string }) {
   return (
-    <EmptyState icon="unlink" title="Quai Cloud isn't reachable">
-      {what}{" "}
-      are kept at home, but read and changed through Quai Cloud. They come back here as soon as Quai Home links to it.
+    <EmptyState icon="refresh" title="Quai Home is starting">
+      {what} will be here in a moment.
     </EmptyState>
   )
 }

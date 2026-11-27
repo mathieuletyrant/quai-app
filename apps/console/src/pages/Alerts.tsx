@@ -4,7 +4,6 @@ import { call } from "../client.ts"
 import { useLoad } from "../load.ts"
 import {
   Async,
-  CloudOfflineState,
   cx,
   ErrorCallout,
   errorText,
@@ -12,6 +11,7 @@ import {
   type IconName,
   Input,
   type Notice,
+  NotReadyState,
   PageBar,
   PageBody,
   Panel,
@@ -233,7 +233,7 @@ export function AlertsPage() {
           <Async
             state={settings}
             loading={<LoadingList />}
-            offline={<CloudOfflineState what="Alert settings" />}
+            offline={<NotReadyState what="Alert settings" />}
             failed={(error) => <ErrorCallout error={error} />}
           >
             {(data) => <AlertList settings={data} onSave={save} />}

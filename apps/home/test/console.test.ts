@@ -1,5 +1,6 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
+import type { HomeProtocol } from "@quai/api"
 import { type ConsoleRequest, HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Effect, FileSystem, Layer, Redacted } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
@@ -31,6 +32,8 @@ const consoleServer = (options: {
   readonly password?: string
   /** What the domain's routes answer the console; without it, they aren't up yet. */
   readonly domain?: (request: ConsoleRequest) => { status: number; body: string }
+  /** What Quai Cloud said when it welcomed this home; without it, the link is down. */
+  readonly welcomed?: HomeProtocol.Welcome
 }) => {
   const relayed: Array<ConsoleRequest> = []
   const config = configLayer({
@@ -41,7 +44,12 @@ const consoleServer = (options: {
     password: options.password === undefined ? null : Redacted.make(options.password)
   })
   const link = Layer.mergeAll(
-    Link.unlinked,
+    Layer.succeed(Link, {
+      linked: Effect.succeed(options.welcomed !== undefined),
+      welcome: () => options.welcomed ?? null,
+      push: () => Effect.die(new Error("not in this test")),
+      answerApp: () => Effect.void
+    }),
     Layer.succeed(LocalHome, {
       link: HomeLink.offline,
       webhook: () => Effect.void,
@@ -194,6 +202,35 @@ describe("console relay", () => {
       })
       expect((yield* request("GET", "/console-api/../api/library", { cookie })).status).toBe(404)
       expect(relayed).toEqual([{ method: "GET", path: "/console-api/devices" }])
+    }).pipe(Effect.provide(layer))
+  })
+})
+
+describe("where the home stands", () => {
+  it.effect("says the link to Quai Cloud is down, and no version of a Cloud that never welcomed it", () => {
+    const { layer } = consoleServer({ password: "pw" })
+    return Effect.gen(function*() {
+      const cookie = yield* signIn("pw")
+      const overview = yield* request("GET", "/home-api/home", { cookie })
+      expect(overview.json.cloud).toEqual({ configured: true, linked: false, url: "http://cloud" })
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect("says the Cloud's version once it welcomed this home, as the Cloud said it", () => {
+    const { layer } = consoleServer({ password: "pw", welcomed: { _tag: "Welcome", homeId: "h", version: "2.5.0" } })
+    return Effect.gen(function*() {
+      const cookie = yield* signIn("pw")
+      const overview = yield* request("GET", "/home-api/home", { cookie })
+      expect(overview.json.cloud).toEqual({ configured: true, linked: true, version: "2.5.0", url: "http://cloud" })
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect("an older Cloud says no version: linked all the same", () => {
+    const { layer } = consoleServer({ password: "pw", welcomed: { _tag: "Welcome", homeId: "h" } })
+    return Effect.gen(function*() {
+      const cookie = yield* signIn("pw")
+      const overview = yield* request("GET", "/home-api/home", { cookie })
+      expect(overview.json.cloud).toEqual({ configured: true, linked: true, url: "http://cloud" })
     }).pipe(Effect.provide(layer))
   })
 })

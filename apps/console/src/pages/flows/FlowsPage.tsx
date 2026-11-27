@@ -3,10 +3,10 @@ import { type ReactNode, useCallback, useEffect, useState } from "react"
 import { call, useLink } from "../../client.ts"
 import {
   Async,
-  CloudOfflineState,
   ErrorCallout,
   errorText,
   type Notice,
+  NotReadyState,
   PageBar,
   PageBody,
   Panel,
@@ -161,7 +161,7 @@ export function FlowsPage() {
         offline={
           <Unreadable>
             <Panel>
-              <CloudOfflineState what="Flows" />
+              <NotReadyState what="Flows" />
             </Panel>
           </Unreadable>
         }

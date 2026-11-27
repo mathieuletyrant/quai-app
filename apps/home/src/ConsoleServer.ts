@@ -65,12 +65,15 @@ const HomeHandlers = HttpApiBuilder.group(HomeConsoleApi, "home", (handlers) =>
       .handle("overview", () =>
         Effect.gen(function*() {
           const previous = yield* cloudSeen.previous
+          const linked = yield* link.linked
+          const welcomed = link.welcome()
           return {
             homeId: key.homeId,
             version: homeVersion,
             cloud: {
               configured: config.cloudUrl !== null,
-              linked: yield* link.linked,
+              linked,
+              ...(linked && welcomed?.version !== undefined ? { version: welcomed.version } : {}),
               ...(appUrl === null ? {} : { url: appUrl }),
               ...Option.match(previous, { onNone: () => ({}), onSome: (previousUrl) => ({ previousUrl }) })
             },

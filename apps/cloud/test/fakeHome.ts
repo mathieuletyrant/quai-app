@@ -16,6 +16,7 @@ import { PublicAccess } from "@quai/domain/PublicAccess.ts"
 import { Apns } from "@quai/domain/push/Apns.ts"
 import { Notifier } from "@quai/domain/push/Notifier.ts"
 import { DiskReadings } from "@quai/domain/storage/DiskReadings.ts"
+import { ServerInfo } from "@quai/domain/Version.ts"
 import { Effect, Layer, Option, Queue, type Scope } from "effect"
 import { Socket } from "effect/socket"
 import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto"
@@ -69,6 +70,7 @@ export const testHomeId = HomeId.homeId(publicKeyOf(testHomeKey))
 /** Links for Quai Homes, and the link to the tests' home (`testHomeId`). */
 /** What the links tell a home that runs Quai, in tests that don't look at it: no APNs key, no public address. */
 export const noKeyNoAddress = Layer.mergeAll(
+  Layer.succeed(ServerInfo, { version: "test", startedAt: 0 }),
   Layer.effect(Apns, makeApns(null)),
   Layer.succeed(PublicAccess, PublicAccess.make(Option.none(), []))
 )

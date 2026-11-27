@@ -266,10 +266,11 @@ export const AccessHeader = Schema.Struct({ name: Schema.String, value: Schema.S
  * The Cloud accepted the Home, under the home id it computed from the Hello's public key. To a Home
  * that runs Quai it also says what that Home can't know alone: whether it has an APNs key (`push`,
  * what the console's Settings page shows, never the key) and how the app reaches it from outside
- * (`publicAccess`), for the pairing QR code.
+ * (`publicAccess`), for the pairing QR code, and its own `version`, for the console.
  */
 export const Welcome = Schema.TaggedStruct("Welcome", {
   homeId: Schema.String,
+  version: Schema.optionalKey(Schema.String),
   push: Schema.optionalKey(Schema.Struct({
     configured: Schema.Boolean,
     keyId: Schema.optionalKey(Schema.String),
