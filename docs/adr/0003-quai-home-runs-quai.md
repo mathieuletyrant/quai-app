@@ -1,6 +1,6 @@
 # 3. Quai Home runs Quai; Quai Cloud is the public address and the push sender
 
-Nov 27, 2026 · Proposed
+Nov 27, 2026 · Accepted
 
 ## Context
 
@@ -53,9 +53,16 @@ Two things only a hosted Cloud can give, and they are why it exists:
   It still keeps nothing. It is small enough for the smallest instance, whatever the number of
   homes, and could later be a Worker with a Durable Object per home if APNs' HTTP/2 allows it.
 - **The same code, moved, not rewritten.** A home's services are already built for one home on
-  top of its link (`HomeServices` in `apps/cloud/src/App.ts`). They move to a package both images
-  use; in Quai Home the link's calls, watches and documents are answered in place instead of over
-  the WebSocket.
+  top of its link (`HomeServices` in `apps/cloud/src/App.ts`). They move to one package both
+  images use, the **domain** (`@quai/domain`); in Quai Home the link's calls, watches and
+  documents are answered in place instead of over the WebSocket.
+- **The app's requests are signed by the iPhone.** At pairing the iPhone makes a **device key**;
+  the private key never leaves it, Quai Home keeps the public one. Each request carries its time
+  and a signature, and Quai Home answers only what one of its iPhones signed, once, within a
+  short window. The Cloud carries the requests and can neither make one nor play one again: it
+  only exposes the home. The device token stays, to name the home and the iPhone.
+- **The Cloud guards its APNs key.** It pushes only to the Quai app's topic, only for homes that
+  proved their home key, within `QUAI_MAX_HOMES`, and within a limit of pushes per home.
 - **No home is left behind.** `Hello` says what a Quai Home runs. For a Quai Home from before this
   ADR the Cloud keeps computing as today, until that code is removed at a major version.
 
@@ -69,10 +76,12 @@ Two things only a hosted Cloud can give, and they are why it exists:
   moving versions" spec v2 wanted gone. The contract (`packages/api`) stays additive, and the app
   already says when a Quai Home is outdated (`homeOutdated`).
 - The allowlist, the watches sent by the Cloud and the documents handed over the link disappear
-  with the old path. What protects a home from a compromised Cloud becomes: the Cloud can only
-  relay requests, and Quai Home answers only those with a paired iPhone's token. The Cloud still
-  sees those tokens and the answers in transit; signing or encrypting the app's requests end to
-  end is possible later and not part of this ADR.
+  with the old path: the Cloud no longer asks a home for anything. A compromised Cloud can drop
+  or delay requests and read the answers in transit; it can't act on a home. Encrypting the
+  requests and answers end to end is possible later and not part of this ADR (the pushes would
+  stay readable: Apple and the widget must read them).
+- **The iPhones pair again** when their Quai Home moves to the signed requests: an iPhone paired
+  before has no device key.
 - **Privacy gets better, not perfect.** The Cloud no longer reads the services' lists; it carries
   the app's pages and the pushes' content, in transit only. The privacy page and
   `apps/site/public/llms.txt` say so when the move is done.
@@ -89,15 +98,18 @@ One pull request each, the app working after every one:
 
 1. **The home's services in a shared package**, the Cloud using it as today. No behaviour changes.
 2. **Quai Home runs them** behind a link answered in place, next to the old path; the relay of the
-   app's requests and the push request, on a new protocol version; the Cloud relays to a Quai Home
-   that runs Quai and computes for the others.
+   app's requests and the push request, on a new protocol version; the device key at pairing and
+   the signed requests in the app; the Cloud relays to a Quai Home that runs Quai and computes for
+   the others.
 3. **The pages, then the flows and pushes, move over**, each checked on a real home before the next.
 4. **One route for the Home tab**, computed by Quai Home.
 5. **The spec, the glossary, the privacy page and `llms.txt`** follow; the Cloud's old path goes at
    the next major version.
 
-## Open
+## Decided with it
 
-- The names of the two new messages and of the shared package: to be added to `GLOSSARY.md` first.
-- Whether the Cloud keeps a home's iPhones' tokens in memory to route a request, or reads the home
-  id from the token alone, as today.
+- The names: the **domain** (`@quai/domain`), the **app relay** (`AppRequest`, `AppResponse`), the
+  **push request** (`PushRequest`, `PushResponse`), the **device key** (GLOSSARY).
+- The Cloud finds a request's home from the home id its device token starts with, as today, and
+  checks nothing else: no list of iPhones in the Cloud.
+- Signed requests, not end-to-end encryption, for now.
