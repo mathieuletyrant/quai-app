@@ -75,10 +75,10 @@ describe("an iPhone paired with a device key", () => {
       yield* iPhone.devices.update({ payload: { name: "Renamed", timeZone: "Europe/Paris" } })
       expect(yield* iPhone.devices.activities()).toEqual([])
       const devices = yield* api.console.devices()
-      expect(devices.map((device) => [device.name, device.signsRequests])).toEqual([
-        ["Renamed", true],
-        ["From before", false]
-      ])
+      // In no order of their own: the list follows the iPhones' ids.
+      expect(new Map(devices.map((device) => [device.name, device.signsRequests]))).toEqual(
+        new Map([["Renamed", true], ["From before", false]])
+      )
     }).pipe(Effect.provide(TestApp)))
 
   it.effect("isn't answered for its token alone: whoever carries the request can't make one", () =>
