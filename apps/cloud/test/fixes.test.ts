@@ -7,6 +7,7 @@ import { TestClock } from "effect/testing"
 import { noSourceAfterMs } from "../src/fixes/Detected.ts"
 import { blockedMovie, moviesWithoutSource } from "../src/fixes/movies.ts"
 import { blockedEpisodes, episodesWithoutSource } from "../src/fixes/series.ts"
+import { answerKeptMs } from "../src/home/HomeReads.ts"
 import { isImportBlocked, QueuePage } from "../src/integrations/arr.ts"
 import { RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
 import {
@@ -414,6 +415,8 @@ describe("ignore and wait, let go", () => {
       })
       yield* api.ignoreAndWait({ params: { id: "missing-season-3-2" }, payload: {} })
       down = true
+      // Past what the reads keep: the queue is asked again, and Sonarr doesn't answer.
+      yield* TestClock.adjust(answerKeptMs)
       expect((yield* api.list()).unavailable).toEqual(["sonarr"])
       expect(home.documents.has("fixes/snoozed/missing-season-3-2")).toBe(true)
     }).pipe(Effect.provide(TestApp)))
