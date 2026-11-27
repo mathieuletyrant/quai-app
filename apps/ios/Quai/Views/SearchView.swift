@@ -321,7 +321,7 @@ struct SearchResultDetail: View {
                     GlassIconButton(systemImage: "xmark", label: "Close") { dismiss() }
                 }
                 HStack(alignment: .bottom, spacing: 16) {
-                    Poster(url: PosterSize.large.url(result.posterUrl), title: result.title, cornerRadius: 14)
+                    Poster(url: PosterSize.grid.url(result.posterUrl), title: result.title, cornerRadius: 14)
                         .frame(width: 104)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(result.title)

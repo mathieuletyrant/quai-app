@@ -27,27 +27,46 @@ final class ImageStore: @unchecked Sendable {
     /// the view that asked went away: it asks again when it comes back.
     func image(for url: URL) async throws -> UIImage {
         if let image = cached(url) { return image }
-        var lastError: Error = URLError(.unknown)
-        // One retry: a dropped connection on the mobile network shouldn't leave a blank tile.
-        for attempt in 0..<2 {
+        do {
+            let (data, response) = try await session.data(from: url)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw URLError(.badServerResponse)
+            }
+            guard let decoded = UIImage(data: data) else { throw URLError(.cannotDecodeContentData) }
+            let image = await decoded.byPreparingForDisplay() ?? decoded
+            memory.setObject(image, forKey: url as NSURL)
+            return image
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        }
+    }
+
+    /// The waits between a poster's tries while its view is on screen; the last one repeats.
+    static let retryDelays: [Duration] = [.milliseconds(400), .seconds(2), .seconds(5), .seconds(15), .seconds(30)]
+
+    /// Tries `attempt` until it answers or the task is cancelled, waiting `delays` between tries
+    /// (the last one repeats) and calling `failed` after each failure. A phone back from the
+    /// background, or out of a tunnel, loses its loads in flight: a poster that failed once must
+    /// load again on its own, not stay a plain tile until its view is made again.
+    @MainActor static func keepTrying<Value>(
+        after delays: [Duration],
+        _ attempt: () async throws -> Value,
+        failed: () -> Void = {}
+    ) async throws -> Value {
+        var tries = 0
+        while true {
             try Task.checkCancellation()
             do {
-                let (data, response) = try await session.data(from: url)
-                if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-                    throw URLError(.badServerResponse)
-                }
-                guard let decoded = UIImage(data: data) else { throw URLError(.cannotDecodeContentData) }
-                let image = await decoded.byPreparingForDisplay() ?? decoded
-                memory.setObject(image, forKey: url as NSURL)
-                return image
-            } catch let error as URLError where error.code == .cancelled {
+                return try await attempt()
+            } catch is CancellationError {
                 throw CancellationError()
             } catch {
-                lastError = error
-                if attempt == 0 { try await Task.sleep(for: .milliseconds(400)) }
+                failed()
+                let delay = delays.isEmpty ? .zero : delays[min(tries, delays.count - 1)]
+                tries += 1
+                try await Task.sleep(for: delay)
             }
         }
-        throw lastError
     }
 }
 
@@ -59,10 +78,12 @@ enum RemoteImagePhase {
 }
 
 /// An image from a public URL, through `ImageStore`. A load cancelled because the view left is
-/// started again when it comes back, never shown as a failure.
+/// started again when it comes back, never shown as a failure; a failed one is tried again while
+/// the view is on screen, and at once when the app comes back to the foreground.
 struct RemoteImage<Content: View>: View {
     let url: URL?
     @ViewBuilder var content: (RemoteImagePhase) -> Content
+    @Environment(\.scenePhase) private var scenePhase
     @State private var loaded: (url: URL, image: UIImage)?
     @State private var failed: URL?
 
@@ -84,16 +105,25 @@ struct RemoteImage<Content: View>: View {
 
     var body: some View {
         content(phase)
-            .task(id: url) {
+            .task(id: Load(url: url, active: scenePhase == .active)) {
                 guard let url, loaded?.url != url else { return }
                 do {
-                    let image = try await ImageStore.shared.image(for: url)
+                    let image = try await ImageStore.keepTrying(after: ImageStore.retryDelays) {
+                        try await ImageStore.shared.image(for: url)
+                    } failed: {
+                        failed = url
+                    }
                     loaded = (url, image)
-                } catch is CancellationError {
-                    // The view left: it loads again if it comes back.
                 } catch {
-                    failed = url
+                    // Cancelled: the view left, or the app went to the background. It loads again
+                    // when it comes back.
                 }
             }
+    }
+
+    /// What starts a load again: another URL, or the app back in the foreground.
+    private struct Load: Hashable {
+        let url: URL?
+        let active: Bool
     }
 }

@@ -49,7 +49,7 @@ struct TitleDetailView: View {
                     GlassIconButton(systemImage: "xmark", label: "Close") { dismiss() }
                 }
                 HStack(alignment: .bottom, spacing: 16) {
-                    Poster(url: item.posterLarge, title: item.title, cornerRadius: 14)
+                    Poster(url: item.posterThumbnail, title: item.title, cornerRadius: 14)
                         .frame(width: 104)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(item.title)

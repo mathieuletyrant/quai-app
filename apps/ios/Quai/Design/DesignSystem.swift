@@ -326,10 +326,8 @@ struct Badge: View {
 enum PosterSize: String {
     /// A row's thumbnail.
     case small = "w185"
-    /// The Library grid.
+    /// The Library grid and a title's detail (104 pt wide, 312 px at 3x).
     case grid = "w342"
-    /// A title's detail.
-    case large = "w500"
 
     func url(_ poster: String?) -> URL? {
         poster.flatMap { URL(string: $0.replacingOccurrences(of: "/t/p/original/", with: "/t/p/\(rawValue)/")) }
