@@ -47,10 +47,22 @@ export class HomeRequired extends HttpApiMiddleware.Service<HomeRequired>()("qua
   error: HomeOffline
 }) {}
 
-/** Every iPhone route: `Authorization: Bearer <device token>`, the token the pairing returned. */
+/**
+ * A request from an iPhone that has a device key wasn't signed with it, was signed too long ago (or
+ * by a clock that is off), or was already answered. Not `Unauthorized`: the iPhone is still paired,
+ * and `message` says what to do.
+ */
+export class InvalidSignature extends Schema.TaggedError<InvalidSignature>()("InvalidSignature", {
+  message: Schema.String
+}, { httpApiStatus: 403 }) {}
+
+/**
+ * Every iPhone route: `Authorization: Bearer <device token>`, the token the pairing returned, and,
+ * from an iPhone paired with a device key, the request's signature (`RequestSignature.ts`).
+ */
 export class DeviceAuth
   extends HttpApiMiddleware.Service<DeviceAuth, { provides: CurrentDevice }>()("quai/DeviceAuth", {
-    error: [HttpApiError.Unauthorized, HomeOffline],
+    error: [HttpApiError.Unauthorized, InvalidSignature, HomeOffline],
     security: { bearer: HttpApiSecurity.bearer }
   })
 {}
@@ -66,7 +78,12 @@ export const PairDevice = Schema.Struct({
   /** Left out until the iPhone allows Live Activities. */
   pushToStartToken: Schema.optionalKey(Schema.String),
   /** The iPhone's time zone (IANA, "Europe/Paris"): the home's day and evening follow it. */
-  timeZone: Schema.optionalKey(Schema.String)
+  timeZone: Schema.optionalKey(Schema.String),
+  /**
+   * The iPhone's device key: its Ed25519 public key (the 32 raw bytes, base64). With it, the home
+   * answers only the requests this iPhone signed. Left out by an app from before: its token alone.
+   */
+  deviceKey: Schema.optionalKey(Schema.String.check(Schema.isPattern(/^[A-Za-z0-9+/]{43}=$/)))
 }).annotate({ identifier: "PairDevice" })
 
 export const PairedDevice = Schema.Struct({
@@ -239,6 +256,8 @@ export const DeviceSummary = Schema.Struct({
   name: Schema.String,
   apnsEnvironment: ApnsEnvironment,
   canStartActivities: Schema.Boolean,
+  /** Paired with a device key: the home answers only what this iPhone signed. */
+  signsRequests: Schema.optionalKey(Schema.Boolean),
   pairedAt: Schema.DateTimeUtcFromString,
   lastSeenAt: Schema.optionalKey(Schema.DateTimeUtcFromString)
 }).annotate({ identifier: "DeviceSummary" })

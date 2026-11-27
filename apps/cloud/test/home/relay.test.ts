@@ -129,15 +129,30 @@ describe("the app relay", () => {
       const answer = yield* request("POST", "/api/requests/12/approve?season=2", {
         token,
         body: { note: "ok" },
-        headers: { "accept-language": "fr-FR", "x-forwarded-for": "203.0.113.7", cookie: "session=1" }
+        headers: {
+          "accept-language": "fr-FR",
+          "x-forwarded-for": "203.0.113.7",
+          cookie: "session=1",
+          "x-quai-time": "1795780000000",
+          "x-quai-nonce": "n-1",
+          "x-quai-signature": "c2lnbmVk"
+        }
       })
       expect(answer.status).toBe(200)
       expect(answer.contentType).toBe("application/json")
       expect(json(answer.text)).toEqual({
         method: "POST",
         path: "/api/requests/12/approve?season=2",
-        // The token, the body's type and the language: nothing else of the app's request reaches the home.
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json", "accept-language": "fr-FR" },
+        // The token, the body's type, the language and the request's signature: nothing else of the
+        // app's request reaches the home.
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          "accept-language": "fr-FR",
+          "x-quai-time": "1795780000000",
+          "x-quai-nonce": "n-1",
+          "x-quai-signature": "c2lnbmVk"
+        },
         body: "{\"note\":\"ok\"}"
       })
       expect(other.appRequests).toEqual([])

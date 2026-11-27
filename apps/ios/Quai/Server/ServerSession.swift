@@ -13,9 +13,13 @@ struct ServerSession: Sendable, Equatable {
     var accessHeaders: [AccessHeader] = []
     /// Quai Home's console: where the pairing code was shown, then its public address.
     var consoleURLs: [URL] = []
+    /// This iPhone's device key, made at pairing: it signs every request. Nil for a pairing from
+    /// before, known by its token alone until this iPhone is paired again.
+    var deviceKey: DeviceKey?
 
     private static let tokenAccount = "deviceToken"
     private static let accessHeadersAccount = "accessHeaders"
+    private static let deviceKeyAccount = "deviceKey"
     private static let urlsKey = "serverURLs"
     private static let consoleKey = "consoleURLs"
 
@@ -25,7 +29,9 @@ struct ServerSession: Sendable, Equatable {
         let headers = Keychain.read(accessHeadersAccount)
             .flatMap { try? JSONDecoder().decode([AccessHeader].self, from: Data($0.utf8)) } ?? []
         let console = (UserDefaults.standard.stringArray(forKey: consoleKey) ?? []).compactMap(URL.init(string:))
-        return urls.isEmpty ? nil : ServerSession(token: token, urls: urls, accessHeaders: headers, consoleURLs: console)
+        let key = Keychain.read(deviceKeyAccount).flatMap { Data(base64Encoded: $0) }.flatMap(DeviceKey.init(seed:))
+        guard !urls.isEmpty else { return nil }
+        return ServerSession(token: token, urls: urls, accessHeaders: headers, consoleURLs: console, deviceKey: key)
     }
 
     func save() {
@@ -35,6 +41,11 @@ struct ServerSession: Sendable, Equatable {
         } else if let data = try? JSONEncoder().encode(accessHeaders), let json = String(data: data, encoding: .utf8) {
             Keychain.write(json, for: Self.accessHeadersAccount)
         }
+        if let deviceKey {
+            Keychain.write(deviceKey.seed.base64EncodedString(), for: Self.deviceKeyAccount, thisDeviceOnly: true)
+        } else {
+            Keychain.delete(Self.deviceKeyAccount)
+        }
         UserDefaults.standard.set(urls.map(\.absoluteString), forKey: Self.urlsKey)
         UserDefaults.standard.set(consoleURLs.map(\.absoluteString), forKey: Self.consoleKey)
     }
@@ -42,6 +53,7 @@ struct ServerSession: Sendable, Equatable {
     static func clear() {
         Keychain.delete(tokenAccount)
         Keychain.delete(accessHeadersAccount)
+        Keychain.delete(deviceKeyAccount)
         UserDefaults.standard.removeObject(forKey: urlsKey)
         UserDefaults.standard.removeObject(forKey: consoleKey)
     }
@@ -50,11 +62,12 @@ struct ServerSession: Sendable, Equatable {
     /// `ConnectionError.blockedByProxy` when only a proxy answered, `.unreachable` otherwise.
     func connect() async throws -> (url: URL, client: Client) {
         let url = try await Self.firstReachable(urls, accessHeaders: accessHeaders)
-        let middlewares: [any ClientMiddleware] = [
+        var middlewares: [any ClientMiddleware] = [
             QuaiErrorsMiddleware(),
             AccessHeadersMiddleware(headers: accessHeaders),
             BearerMiddleware(token: token),
         ]
+        if let deviceKey { middlewares.append(SigningMiddleware(key: deviceKey)) }
         return (url, Client(serverURL: url, transport: URLSessionTransport(), middlewares: middlewares))
     }
 

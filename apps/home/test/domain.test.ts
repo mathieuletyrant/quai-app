@@ -2,9 +2,11 @@ import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
 import { HomeProtocol } from "@quai/api"
 import { pairingHash } from "@quai/domain/home/Devices.ts"
-import { Effect, Layer, Queue } from "effect"
+import { deviceKeyOf, signatureHeadersOf } from "@quai/domain/home/RequestSignature.ts"
+import { Clock, Effect, Layer, Queue } from "effect"
 import { Socket } from "effect/socket"
 import { TestClock } from "effect/testing"
+import type { KeyObject } from "node:crypto"
 import { join } from "node:path"
 import { Calls } from "../src/Calls.ts"
 import { CloudSeen } from "../src/CloudSeen.ts"
@@ -98,7 +100,11 @@ const app = (
   connection: Connection,
   method: string,
   path: string,
-  options: { readonly token?: string; readonly body?: unknown } = {}
+  options: {
+    readonly token?: string
+    readonly body?: unknown
+    readonly headers?: Readonly<Record<string, string>>
+  } = {}
 ) =>
   Effect.gen(function*() {
     const id = `a${++requests}`
@@ -109,7 +115,8 @@ const app = (
       path,
       headers: {
         ...(options.token === undefined ? {} : { authorization: `Bearer ${options.token}` }),
-        ...(options.body === undefined ? {} : { "content-type": "application/json" })
+        ...(options.body === undefined ? {} : { "content-type": "application/json" }),
+        ...options.headers
       },
       ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) })
     })
@@ -185,6 +192,40 @@ describe("Quai, run by Quai Home", () => {
         expect(preferences.status).toBe(200)
         expect(preferences.json).toHaveProperty("flows")
         expect((yield* app(connection, "GET", "/api/health")).json).toMatchObject({ status: "ok" })
+      })
+    ))
+
+  it.effect("answers an iPhone paired with a device key only what it signed: the Cloud that carries can't ask", () =>
+    linkedHome((connection) =>
+      Effect.gen(function*() {
+        const key = deviceKeyOf(Uint8Array.from({ length: 32 }, (_, index) => index + 1))
+        const code = (yield* console_("POST", "/console-api/pairing-codes", { serverUrls: [] })).json.code as string
+        const paired = yield* app(connection, "POST", "/api/devices", {
+          body: { code, name: "iPhone", apnsEnvironment: "production", deviceKey: key.publicKey }
+        })
+        const token = paired.json.token as string
+        const now = yield* Clock.currentTimeMillis
+        const signedBy = (privateKey: KeyObject, method: string, path: string, body?: unknown) =>
+          app(connection, method, path, {
+            token,
+            body,
+            headers: signatureHeadersOf(privateKey, {
+              method,
+              path,
+              body: body === undefined ? "" : JSON.stringify(body),
+              time: now,
+              nonce: `n${++requests}`
+            })
+          })
+        expect((yield* signedBy(key.privateKey, "GET", "/api/devices/me/preferences")).status).toBe(200)
+        expect((yield* signedBy(key.privateKey, "PATCH", "/api/devices/me", { name: "Renamed" })).status).toBe(204)
+        // The token alone, as the Cloud sees it pass: not enough.
+        const unsigned = yield* app(connection, "PATCH", "/api/devices/me", { token, body: { name: "Taken over" } })
+        expect(unsigned).toMatchObject({ status: 403, json: { _tag: "InvalidSignature" } })
+        const stranger = deviceKeyOf(Uint8Array.from({ length: 32 }, () => 9))
+        expect((yield* signedBy(stranger.privateKey, "GET", "/api/library")).status).toBe(403)
+        const devices = yield* console_("GET", "/console-api/devices")
+        expect(devices.json).toMatchObject([{ name: "Renamed", signsRequests: true }])
       })
     ))
 

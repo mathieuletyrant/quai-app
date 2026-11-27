@@ -105,6 +105,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -154,6 +164,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -199,6 +219,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -259,6 +289,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -299,6 +339,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -362,6 +412,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -407,6 +467,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -480,6 +550,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -522,6 +602,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -581,6 +671,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -623,6 +723,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -681,6 +791,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -780,6 +900,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "404": {
             "description": "NotFound",
             "content": {
@@ -852,6 +982,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -944,6 +1084,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "404": {
             "description": "NotFound",
             "content": {
@@ -1022,6 +1172,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "404": {
             "description": "NotFound",
             "content": {
@@ -1096,6 +1256,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -1195,6 +1365,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "404": {
             "description": "NotFound",
             "content": {
@@ -1269,6 +1449,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -1349,6 +1539,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -1389,6 +1589,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -1471,6 +1681,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "404": {
             "description": "NotFound",
             "content": {
@@ -1535,6 +1755,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -1605,6 +1835,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -1660,6 +1900,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -1711,6 +1961,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -1777,6 +2037,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -2446,6 +2716,16 @@
               }
             }
           },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
+                }
+              }
+            }
+          },
           "503": {
             "description": "HomeOffline",
             "content": {
@@ -2488,6 +2768,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/effect_HttpApiError_UnauthorizedEncoded"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "InvalidSignature",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidSignatureEncoded"
                 }
               }
             }
@@ -2676,6 +2966,25 @@
           "diskLow",
           "arrHealth",
           "plannedDeletion"
+        ],
+        "additionalProperties": false
+      },
+      "InvalidSignatureEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "InvalidSignature"
+            ]
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "_tag",
+          "message"
         ],
         "additionalProperties": false
       },
@@ -3253,6 +3562,9 @@
             "$ref": "#/components/schemas/ApnsEnvironment"
           },
           "canStartActivities": {
+            "type": "boolean"
+          },
+          "signsRequests": {
             "type": "boolean"
           },
           "pairedAt": {
@@ -4953,6 +5265,9 @@
             "type": "string"
           },
           "timeZone": {
+            "type": "string"
+          },
+          "deviceKey": {
             "type": "string"
           }
         },

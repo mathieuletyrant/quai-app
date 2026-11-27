@@ -45,6 +45,7 @@ export const ConsoleHandlers = HttpApiBuilder.group(QuaiApi, "console", (handler
             name: device.name,
             apnsEnvironment: device.apnsEnvironment,
             canStartActivities: device.pushToStartToken !== null,
+            signsRequests: device.deviceKey !== null,
             pairedAt: DateTime.makeUnsafe(device.pairedAt),
             ...(device.lastSeenAt === null ? {} : { lastSeenAt: DateTime.makeUnsafe(device.lastSeenAt) })
           }))))

@@ -134,5 +134,17 @@ Nov 27, 2026, with step 2:
 - **`QUAI_TZ` is read where Quai runs**: by Quai Home now, by the Cloud for an older one.
 - **A Cloud older than its Quai Home refuses it** (its protocol is unknown to it): update the
   Cloud first. The hosted one follows each release.
-- **Signed requests come next**, in their own pull request, with the app: until then a request is
-  what it was, the iPhone's token alone.
+- **Signed requests** came in their own pull request, with the app
+  (`packages/api/src/RequestSignature.ts`). Two things differ from what was decided above:
+  - **An iPhone paired before isn't forced to pair again.** It has no device key, so its home
+    knows it by its token alone, as before, and the console's iPhones page says "Pair again to
+    sign them". Forcing it would lock every iPhone out at the update, App Review's included, for
+    a protection each can get by pairing again when its owner chooses.
+  - **The window is 5 minutes each way**, for the iPhone's clock against its home's, and a nonce
+    is remembered for twice that. A request refused for its signature says why (`InvalidSignature`)
+    and leaves the iPhone paired.
+- **What signing doesn't cover: the pairing itself.** The pairing request carries the code and no
+  signature, since there is no key yet. A Cloud taken over at that very moment could spend the
+  code in the iPhone's place: the iPhone would be refused, and the console would list an iPhone
+  that isn't the user's. A longer secret in the QR code, never sent, would close it; not done
+  here.

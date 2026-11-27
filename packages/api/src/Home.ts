@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 import { JournalEntry, JournalQuery } from "./Journal.ts"
+import { signatureHeaders } from "./RequestSignature.ts"
 import { Service } from "./Service.ts"
 import type { TitleKind } from "./Title.ts"
 
@@ -371,8 +372,16 @@ export const isConsolePath = (path: string) => {
   return !route.includes("..") && (route.startsWith("/console-api/") || route === "/api/health")
 }
 
-/** The headers of the app's request the Cloud passes on with it; any other stays at the Cloud. */
-export const relayedHeaders: ReadonlyArray<string> = ["authorization", "content-type", "accept-language"]
+/**
+ * The headers of the app's request the Cloud passes on with it; any other stays at the Cloud: the
+ * iPhone's token, the body's type, the language, and the request's signature.
+ */
+export const relayedHeaders: ReadonlyArray<string> = [
+  "authorization",
+  "content-type",
+  "accept-language",
+  ...Object.values(signatureHeaders)
+]
 
 /** What the Cloud relays of the app: the API's routes, never the console's. */
 export const isAppPath = (path: string) => {
