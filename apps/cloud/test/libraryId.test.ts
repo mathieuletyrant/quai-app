@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as LibraryId from "../src/library/LibraryId.ts"
+import * as LibraryId from "@quai/domain/library/LibraryId.ts"
 
 describe("library ids", () => {
   it("are made and read back the same", () => {

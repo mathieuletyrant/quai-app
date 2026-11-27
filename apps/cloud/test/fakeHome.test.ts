@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
+import { HomeLink } from "@quai/domain/home/HomeLink.ts"
 import { Cause, Effect, Exit } from "effect"
-import { HomeLink } from "../src/home/HomeLink.ts"
 import { makeFakeHome, recordedHome, settle, testLink } from "./fakeHome.ts"
 
 describe("the fake Quai Home", () => {

@@ -1,5 +1,6 @@
 import type { ApnsEnvironment, PushSettings } from "@quai/api"
-import { Clock, Config, Context, Data, Effect, Layer, Option, Redacted, Ref } from "effect"
+import { Apns, ApnsError, type ApnsRequest } from "@quai/domain/push/Apns.ts"
+import { Clock, Config, Effect, Layer, Option, Redacted, Ref, type Scope } from "effect"
 import { existsSync, readFileSync } from "node:fs"
 import * as http2 from "node:http2"
 import { signApnsJwt } from "./ApnsJwt.ts"
@@ -15,22 +16,6 @@ export interface ApnsCredentials {
   readonly teamId: string
   /** The app's bundle id: notifications go to it, Live Activity pushes to `<topic>.push-type.liveactivity`. */
   readonly topic: string
-}
-
-export class ApnsError extends Data.TaggedError("ApnsError")<{
-  readonly status: number | null
-  readonly reason: string
-  /** APNs says the token is gone for good: stop sending to it. */
-  readonly tokenGone: boolean
-}> {}
-
-export interface ApnsRequest {
-  /** A Live Activity's update, or a plain notification (an alert). Absent: a Live Activity. */
-  readonly pushType?: "liveactivity" | "alert"
-  readonly environment: ApnsEnvironment
-  readonly deviceToken: string
-  readonly body: object
-  readonly priority: 5 | 10
 }
 
 /** Refresh the provider token every 50 minutes (APNs rejects tokens older than an hour). */
@@ -77,38 +62,31 @@ export const credentialsFromEnvironment = Effect.gen(function*() {
   return { credentials, topic }
 })
 
-export class Apns extends Context.Service<Apns, {
-  readonly configured: Effect.Effect<boolean>
-  /** What the console's Settings page shows: never the key itself. */
-  readonly settings: PushSettings
-  readonly send: (request: ApnsRequest) => Effect.Effect<void, ApnsError>
-}>()("quai/Apns") {
-  /** `hosts` is overridable so tests can point it at a local fake. */
-  static readonly make = (
-    credentials: ApnsCredentials | null,
-    hosts: Record<ApnsEnvironment, string> = apnsHosts,
-    topic = defaultTopic
-  ) =>
-    Effect.gen(function*() {
-      const client = yield* makeClient(credentials, hosts)
-      const settings: PushSettings = credentials === null
-        ? { configured: false, topic }
-        : { configured: true, keyId: credentials.keyId, teamId: credentials.teamId, topic: credentials.topic }
-      return { configured: Effect.succeed(client.configured), settings, send: client.send }
-    })
+/** Quai Cloud's pushes to APNs, with this key (none: nothing is pushed). `hosts` is overridable so tests can point it at a local fake. */
+export const makeApns = (
+  credentials: ApnsCredentials | null,
+  hosts: Record<ApnsEnvironment, string> = apnsHosts,
+  topic = defaultTopic
+): Effect.Effect<Apns["Service"], never, Scope.Scope> =>
+  Effect.gen(function*() {
+    const client = yield* makeClient(credentials, hosts)
+    const settings: PushSettings = credentials === null
+      ? { configured: false, topic }
+      : { configured: true, keyId: credentials.keyId, teamId: credentials.teamId, topic: credentials.topic }
+    return { configured: Effect.succeed(client.configured), settings, send: client.send }
+  })
 
-  /** The key from the environment. */
-  static readonly layer = Layer.effect(
-    Apns,
-    Effect.gen(function*() {
-      const { credentials, topic } = yield* credentialsFromEnvironment.pipe(Effect.orDie)
-      yield* Effect.logInfo(
-        credentials === null ? "No APNs key: Live Activities won't be pushed" : `APNs key ${credentials.keyId}`
-      )
-      return yield* Apns.make(credentials, apnsHosts, topic)
-    })
-  )
-}
+/** The key from the environment. */
+export const ApnsLive = Layer.effect(
+  Apns,
+  Effect.gen(function*() {
+    const { credentials, topic } = yield* credentialsFromEnvironment.pipe(Effect.orDie)
+    yield* Effect.logInfo(
+      credentials === null ? "No APNs key: Live Activities won't be pushed" : `APNs key ${credentials.keyId}`
+    )
+    return yield* makeApns(credentials, apnsHosts, topic)
+  })
+)
 
 /** One HTTP/2 session per APNs server, opened on first use and reopened when it drops; closed with the scope. */
 const makeClient = (credentials: ApnsCredentials | null, hosts: Record<ApnsEnvironment, string>) =>

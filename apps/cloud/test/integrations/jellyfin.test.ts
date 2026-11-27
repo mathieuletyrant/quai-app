@@ -1,10 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
 import { defaultAlertSettings } from "@quai/api"
-import { Effect, Layer } from "effect"
-import type { Activity } from "../../src/flows/Engine.ts"
-import { HomeLink } from "../../src/home/HomeLink.ts"
-import { HomeReads } from "../../src/home/HomeReads.ts"
-import type { WatchContext } from "../../src/integrations/Integration.ts"
+import type { Activity } from "@quai/domain/flows/Engine.ts"
+import { HomeLink } from "@quai/domain/home/HomeLink.ts"
+import { HomeReads } from "@quai/domain/home/HomeReads.ts"
+import type { WatchContext } from "@quai/domain/integrations/Integration.ts"
 import {
   jellyfin,
   libraryUser,
@@ -13,8 +12,9 @@ import {
   playingFrom,
   sessionOf,
   watchIds
-} from "../../src/integrations/jellyfin.ts"
-import { Journal } from "../../src/journal/Journal.ts"
+} from "@quai/domain/integrations/jellyfin.ts"
+import { Journal } from "@quai/domain/journal/Journal.ts"
+import { Effect, Layer } from "effect"
 import { makeFakeHome, recordedHome, testLink } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { download, playback } from "../flows/helpers.ts"

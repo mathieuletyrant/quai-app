@@ -87,7 +87,7 @@ Next in the catalog: "Other release" and "Retry" for downloads (spec v1, Live Ac
 
 ## Integrations
 
-In Quai Cloud, each service is one module in `apps/cloud/src/integrations/`: everything Quai
+In Quai Cloud, each service is one module in `packages/domain/src/integrations/`: everything Quai
 knows about it sits together, so its events and actions are readable at a glance. The Cloud never
 reaches a service itself: Quai Home forwards the webhooks, polls the watches and runs the calls.
 

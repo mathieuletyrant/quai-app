@@ -1,12 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
 import type { DeviceId, GoneKind } from "@quai/api"
-import { Effect, Layer, Redacted, Schema } from "effect"
-import { TestClock } from "effect/testing"
-import { generateKeyPairSync } from "node:crypto"
-import { goneItem, goneTitle, isFresh, sizeText, spaceBackText } from "../src/gone/Gone.ts"
-import { Devices } from "../src/home/Devices.ts"
-import { HomeDocuments } from "../src/home/HomeLink.ts"
-import { IntegrationsLive } from "../src/integrations/All.ts"
+import { goneItem, goneTitle, isFresh, sizeText, spaceBackText } from "@quai/domain/gone/Gone.ts"
+import { Devices } from "@quai/domain/home/Devices.ts"
+import { HomeDocuments } from "@quai/domain/home/HomeLink.ts"
+import { IntegrationsLive } from "@quai/domain/integrations/All.ts"
 import {
   cleanedGone,
   cleanedNote,
@@ -15,19 +12,23 @@ import {
   removalGone,
   removalsRead,
   removalsWatchId
-} from "../src/integrations/cleanuparr.ts"
-import { unseenSince } from "../src/integrations/EventFeed.ts"
-import { Hub } from "../src/integrations/Hub.ts"
+} from "@quai/domain/integrations/cleanuparr.ts"
+import { unseenSince } from "@quai/domain/integrations/EventFeed.ts"
+import { Hub } from "@quai/domain/integrations/Hub.ts"
 import {
   carriedOutDetail,
   carriedOutNote,
   deletionsWatchId,
   fileEventsWatchId
-} from "../src/integrations/plannedDeletionAlert.ts"
-import { carriedOut, type FileEvent, fileEventsRead, fileEventTitle } from "../src/integrations/reclaimerr.ts"
-import { Journal } from "../src/journal/Journal.ts"
-import { Apns } from "../src/push/Apns.ts"
-import { DiskReadings } from "../src/storage/DiskReadings.ts"
+} from "@quai/domain/integrations/plannedDeletionAlert.ts"
+import { carriedOut, type FileEvent, fileEventsRead, fileEventTitle } from "@quai/domain/integrations/reclaimerr.ts"
+import { Journal } from "@quai/domain/journal/Journal.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { DiskReadings } from "@quai/domain/storage/DiskReadings.ts"
+import { Effect, Layer, Redacted, Schema } from "effect"
+import { TestClock } from "effect/testing"
+import { generateKeyPairSync } from "node:crypto"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { cloud, makeFakeHome, recordedHome, type Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -144,7 +145,7 @@ describe("gone: who wants it", () => {
       expect(yield* devices.goneWanted).toEqual(["plannedDeletion", "seedCleanup"])
       expect((yield* devices.goneRecipients("plannedDeletion")).map((recipient) => recipient.name)).toEqual(["Julie"])
       expect(yield* devices.goneRecipients("stuckRemoval")).toEqual([])
-    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, Apns.make(null)))))))
+    }).pipe(Effect.provide(cloud(IntegrationsLive).pipe(Layer.provide(Layer.effect(Apns, makeApns(null)))))))
 })
 
 const paired = (name: string, notificationToken: string | undefined, gone?: ReadonlyArray<GoneKind>) =>
@@ -164,7 +165,7 @@ const withApple = <A, E, R>(
 ) =>
   Effect.gen(function*() {
     const apple = yield* fakeApns
-    const apns = yield* Apns.make({
+    const apns = yield* makeApns({
       keyPem: Redacted.make(keyPem),
       keyId: "KEY123",
       teamId: "TEAM456",

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
 import { defaultAlertSettings } from "@quai/api"
+import { health, makeHealthState } from "@quai/domain/integrations/health.ts"
+import type { WatchContext } from "@quai/domain/integrations/Integration.ts"
 import { Effect } from "effect"
 import { TestClock } from "effect/testing"
-import { health, makeHealthState } from "../../src/integrations/health.ts"
-import type { WatchContext } from "../../src/integrations/Integration.ts"
 
 const context = (alerts = defaultAlertSettings): WatchContext => ({
   flows: [],

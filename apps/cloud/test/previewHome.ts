@@ -1,5 +1,5 @@
+import { torrentsWatchId } from "@quai/domain/integrations/qbittorrent.ts"
 import { Effect } from "effect"
-import { torrentsWatchId } from "../src/integrations/qbittorrent.ts"
 import type { FakeHome, Recording } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 

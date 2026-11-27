@@ -1,12 +1,12 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
 import {
   CandidatePage,
   deletionRun,
   type DeletionTask,
   deletionTaskRead,
   plannedDeletions
-} from "../../src/integrations/reclaimerr.ts"
+} from "@quai/domain/integrations/reclaimerr.ts"
+import { Schema } from "effect"
 import { fixture } from "../fixtures.ts"
 
 const at = (iso: string) => Date.parse(iso) / 1000

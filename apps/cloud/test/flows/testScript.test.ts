@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { builtInFlows } from "@quai/api"
-import { testScript } from "../../src/flows/TestScript.ts"
+import { testScript } from "@quai/domain/flows/TestScript.ts"
 import { download, playback } from "./helpers.ts"
 
 describe("test script", () => {

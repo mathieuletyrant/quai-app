@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
 import { DeviceAuth, QuaiApi } from "@quai/api"
+import { Activities } from "@quai/domain/flows/Activities.ts"
 import { Effect, Exit } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { createHash } from "node:crypto"
-import { Activities } from "../../src/flows/Activities.ts"
 import { makeFakeHome } from "../fakeHome.ts"
 import { TestApp } from "../testApp.ts"
 

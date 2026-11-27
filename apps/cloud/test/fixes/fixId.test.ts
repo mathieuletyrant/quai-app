@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import * as FixId from "../../src/fixes/FixId.ts"
+import * as FixId from "@quai/domain/fixes/FixId.ts"
 
 describe("fix ids", () => {
   it("reads back what it makes", () => {

@@ -1,10 +1,16 @@
 import { describe, expect, it } from "@effect/vitest"
 import { DeviceAuth, QuaiApi } from "@quai/api"
+import {
+  searchPath,
+  searchResults,
+  seasonChoices,
+  SeerrSearchPage,
+  SeerrSeries
+} from "@quai/domain/integrations/seerr.ts"
 import { Effect, Schema } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
-import { searchPath, searchResults, seasonChoices, SeerrSearchPage, SeerrSeries } from "../../src/integrations/seerr.ts"
 import { type FakeHomeOptions, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp } from "../testApp.ts"

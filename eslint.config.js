@@ -86,7 +86,12 @@ export default tseslint.config(
     }
   },
   {
-    files: ["apps/cloud/src/**/*.ts", "apps/home/src/**/*.ts", "packages/api/src/**/*.ts"],
+    files: [
+      "apps/cloud/src/**/*.ts",
+      "apps/home/src/**/*.ts",
+      "packages/api/src/**/*.ts",
+      "packages/domain/src/**/*.ts"
+    ],
     // AGENTS.md, Effect: everything is an Effect, errors are tagged, time goes through Clock.
     rules: {
       "no-restricted-syntax": [

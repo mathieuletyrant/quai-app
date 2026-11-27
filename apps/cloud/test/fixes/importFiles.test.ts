@@ -1,9 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
+import { importFiles, type ImportInput } from "@quai/domain/fixes/MediaFixes.ts"
+import { movies, type MovieTarget } from "@quai/domain/fixes/movies.ts"
+import { series, type SeriesTarget } from "@quai/domain/fixes/series.ts"
+import { ManualImportRows } from "@quai/domain/integrations/arr.ts"
 import { Result, Schema } from "effect"
-import { importFiles, type ImportInput } from "../../src/fixes/MediaFixes.ts"
-import { movies, type MovieTarget } from "../../src/fixes/movies.ts"
-import { series, type SeriesTarget } from "../../src/fixes/series.ts"
-import { ManualImportRows } from "../../src/integrations/arr.ts"
 import { fixture } from "../fixtures.ts"
 
 const rows = (path: string) => Schema.decodeUnknownSync(ManualImportRows)(fixture(path))

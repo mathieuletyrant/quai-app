@@ -68,11 +68,11 @@ Covered, at the sync commit:
 
 | Code | Model |
 | --- | --- |
-| `apps/cloud/src/flows/Activities.ts`: `run` (permit around compute and `send`) | `Compute`, `lock` |
-| `apps/cloud/src/integrations/Hub.ts`: `apply`, `beat`, `layerFed`, `layer` | the two fibers, `EventChange`/`TickChange` |
-| `apps/cloud/src/push/Notifier.ts`: `one` (deliveryFor, `shown.add`/`delete`, `apns.send`) | `Deliver`, `shown` |
-| `apps/cloud/src/flows/Targeting.ts`: `deliveryFor`, no swipe, tokens known | `Deliver`'s branches |
-| `apps/cloud/src/flows/Engine.ts`: which pushes `onEvent`/`onTick` can make | `EventChange`, `TickChange` |
+| `packages/domain/src/flows/Activities.ts`: `run` (permit around compute and `send`) | `Compute`, `lock` |
+| `packages/domain/src/integrations/Hub.ts`: `apply`, `beat`, `layerFed`, `layer` | the two fibers, `EventChange`/`TickChange` |
+| `packages/domain/src/push/Notifier.ts`: `one` (deliveryFor, `shown.add`/`delete`, `apns.send`) | `Deliver`, `shown` |
+| `packages/domain/src/flows/Targeting.ts`: `deliveryFor`, no swipe, tokens known | `Deliver`'s branches |
+| `packages/domain/src/flows/Engine.ts`: which pushes `onEvent`/`onTick` can make | `EventChange`, `TickChange` |
 
 Bounds and assumptions: one activity key, one iPhone with its push-to-start and activity tokens
 known, no swipe (`dismissed`), at most 7 engine runs for the code as it is and 5 for the design
@@ -86,7 +86,7 @@ iPhone's own play/pause shown at once (`PendingPlayback`).
 
 **Sync commit: `4b199b0`.** The verification describes the files above as they are at this
 commit. Before trusting a pass, run
-`git diff 4b199b0 -- apps/cloud/src/flows/Activities.ts apps/cloud/src/push/Notifier.ts apps/cloud/src/integrations/Hub.ts apps/cloud/src/flows/Targeting.ts apps/cloud/src/flows/Engine.ts`.
+`git diff 4b199b0 -- packages/domain/src/flows/Activities.ts packages/domain/src/push/Notifier.ts packages/domain/src/integrations/Hub.ts packages/domain/src/flows/Targeting.ts packages/domain/src/flows/Engine.ts`.
 If one of those diffs touches what the table maps, update the model, then move this commit
 forward only after checking the model describes the code at the new commit.
 

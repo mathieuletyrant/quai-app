@@ -1,14 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
 import { QuaiApi } from "@quai/api"
+import { parseAccessHeaders, PublicAccess } from "@quai/domain/PublicAccess.ts"
 import { ConfigProvider, Effect, Layer, Redacted } from "effect"
 import { HttpApiTest } from "effect/http-api"
-import { parseAccessHeaders, PublicAccess } from "../src/PublicAccess.ts"
+import { PublicAccessLive } from "../src/PublicAccess.ts"
 import { connectedHome, TestApp, testAppWith } from "./testApp.ts"
 
 const cloudflare = "CF-Access-Client-Id: abc123.access; CF-Access-Client-Secret: s3cr3t+/=="
 
 const fromEnv = (env: Record<string, string>) =>
-  PublicAccess.layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))))
+  PublicAccessLive.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))))
 
 const failure = (text: string) => Effect.flip(parseAccessHeaders(text)).pipe(Effect.map((error) => error.message))
 

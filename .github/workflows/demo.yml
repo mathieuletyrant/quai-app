@@ -9,6 +9,7 @@ on:
       - "deploy/cloudflare-demo/**"
       - "apps/cloud/**"
       - "packages/api/**"
+      - "packages/domain/**"
       - ".github/workflows/demo.yml"
   workflow_dispatch:
   pull_request:

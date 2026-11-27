@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
 import type { Flow } from "@quai/api"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import { emptyState, movedOn, onEvent, onTick, type Push } from "@quai/domain/flows/Engine.ts"
+import { type Subject, widenLookup } from "@quai/domain/flows/Events.ts"
 import { Deferred, Effect, Fiber } from "effect"
 import { TestClock } from "effect/testing"
-import { Activities } from "../../src/flows/Activities.ts"
-import { emptyState, movedOn, onEvent, onTick, type Push } from "../../src/flows/Engine.ts"
-import { type Subject, widenLookup } from "../../src/flows/Events.ts"
 import { settle } from "../fakeHome.ts"
 import { download, dune, engineWith, ev, playback, requestFlow } from "./helpers.ts"
 

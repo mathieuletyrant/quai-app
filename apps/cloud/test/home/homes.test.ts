@@ -1,16 +1,17 @@
 import { NodeHttpServer } from "@effect/platform-node"
 import { describe, expect, it } from "@effect/vitest"
+import { HomeApp } from "@quai/domain/App.ts"
+import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
+import { PublicAccess } from "@quai/domain/PublicAccess.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { ServerInfo } from "@quai/domain/Version.ts"
 import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpClientRequest, HttpRouter } from "effect/http"
 import { TestClock } from "effect/testing"
 import { createHash, generateKeyPairSync } from "node:crypto"
-import { HomeApp } from "../../src/App.ts"
-import * as DeviceToken from "../../src/home/DeviceToken.ts"
-import { HomeLinks, HomeRoute } from "../../src/home/HomeLink.ts"
+import { HomeLinks, HomeRoute } from "../../src/home/HomeLinks.ts"
 import { Homes, HomesRoute, Timing } from "../../src/home/Homes.ts"
-import { PublicAccess } from "../../src/PublicAccess.ts"
-import { Apns } from "../../src/push/Apns.ts"
-import { ServerInfo } from "../../src/Version.ts"
+import { makeApns } from "../../src/push/ApnsClient.ts"
 import { type FakeHome, makeFakeHome, settle } from "../fakeHome.ts"
 
 /** main.ts's composition: the links, a home app per home, and the routes that pick it. */
@@ -18,7 +19,7 @@ const Cloud = HttpRouter.serve(Layer.mergeAll(HomeRoute, HomesRoute), { disableL
   Layer.provideMerge(Homes.layer(HomeApp)),
   Layer.provideMerge(Layer.mergeAll(
     HomeLinks.layer,
-    Layer.effect(Apns, Apns.make(null)),
+    Layer.effect(Apns, makeApns(null)),
     Layer.succeed(PublicAccess, PublicAccess.make(Option.none(), [])),
     Layer.succeed(ServerInfo, { version: "test", startedAt: 0 })
   )),

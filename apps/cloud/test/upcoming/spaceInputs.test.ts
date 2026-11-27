@@ -1,16 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
-import { epochSeconds, seasonOfRelease } from "../../src/integrations/arr.ts"
-import type { SeedCleanup } from "../../src/integrations/cleanuparr.ts"
-import type { FinishedTorrent } from "../../src/integrations/qbittorrent.ts"
-import { RadarrMovies } from "../../src/integrations/radarr.ts"
+import { epochSeconds, seasonOfRelease } from "@quai/domain/integrations/arr.ts"
+import type { SeedCleanup } from "@quai/domain/integrations/cleanuparr.ts"
+import type { FinishedTorrent } from "@quai/domain/integrations/qbittorrent.ts"
+import { RadarrMovies } from "@quai/domain/integrations/radarr.ts"
 import {
   type Candidate,
   CandidatePage,
   candidateTitleKey,
   type PlannedCandidate
-} from "../../src/integrations/reclaimerr.ts"
-import { SonarrSeries } from "../../src/integrations/sonarr.ts"
+} from "@quai/domain/integrations/reclaimerr.ts"
+import { SonarrSeries } from "@quai/domain/integrations/sonarr.ts"
 import {
   grabKey,
   grabsByHash,
@@ -18,8 +17,9 @@ import {
   releasesOf,
   spaceInputs,
   type SpaceReads
-} from "../../src/upcoming/SpaceInputs.ts"
-import { grabsSince, maxGrabLookbackMs } from "../../src/upcoming/Upcoming.ts"
+} from "@quai/domain/upcoming/SpaceInputs.ts"
+import { grabsSince, maxGrabLookbackMs } from "@quai/domain/upcoming/Upcoming.ts"
+import { Schema } from "effect"
 import { fixture } from "../fixtures.ts"
 
 const now = Date.parse("2026-11-24T21:00:00Z")

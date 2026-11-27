@@ -11,19 +11,25 @@
  * The recorded candidates are titles cut from the recorded library: each copy's candidates are tied,
  * in turn, to that copy's movies and series by TMDB id, so the joins find something.
  */
-import { Schema } from "effect"
-import { QueuePage } from "../src/integrations/arr.ts"
+import { QueuePage } from "@quai/domain/integrations/arr.ts"
 import {
   DownloadCleanerSettings,
   settingsRead,
   slowRulesRead,
   stallRulesRead,
   strikesRead
-} from "../src/integrations/cleanuparr.ts"
-import { finishedTorrentsRead } from "../src/integrations/qbittorrent.ts"
-import { RadarrCalendar, RadarrGrabs, RadarrMissing, RadarrMovies } from "../src/integrations/radarr.ts"
-import { candidatesRead } from "../src/integrations/reclaimerr.ts"
-import { SonarrCalendar, SonarrEpisodes, SonarrGrabs, SonarrMissing, SonarrSeries } from "../src/integrations/sonarr.ts"
+} from "@quai/domain/integrations/cleanuparr.ts"
+import { finishedTorrentsRead } from "@quai/domain/integrations/qbittorrent.ts"
+import { RadarrCalendar, RadarrGrabs, RadarrMissing, RadarrMovies } from "@quai/domain/integrations/radarr.ts"
+import { candidatesRead } from "@quai/domain/integrations/reclaimerr.ts"
+import {
+  SonarrCalendar,
+  SonarrEpisodes,
+  SonarrGrabs,
+  SonarrMissing,
+  SonarrSeries
+} from "@quai/domain/integrations/sonarr.ts"
+import { Schema } from "effect"
 import { fixture } from "./fixtures.ts"
 
 type Json = Record<string, any>

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "@effect/vitest"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import { Devices } from "@quai/domain/home/Devices.ts"
+import { watchIds } from "@quai/domain/integrations/jellyfin.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
 import { Effect, Layer, Redacted } from "effect"
 import { TestClock } from "effect/testing"
 import { generateKeyPairSync } from "node:crypto"
-import { Activities } from "../src/flows/Activities.ts"
-import { Devices } from "../src/home/Devices.ts"
-import { watchIds } from "../src/integrations/jellyfin.ts"
-import { Apns } from "../src/push/Apns.ts"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { cloudLive, makeFakeHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { fakeApns } from "./push/fakeApns.ts"
@@ -31,7 +32,7 @@ describe("end to end, a series", () => {
   it.effect("a season pack blocked, imported one episode at a time, named otherwise in Jellyfin, reaches \"ready\"", () =>
     Effect.gen(function*() {
       const apnsServer = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: apnsServer.url, production: apnsServer.url }
       )
@@ -88,7 +89,7 @@ describe("end to end, a series", () => {
   it.effect("an activity left on \"Importing\" by an older Quai Cloud ends once Jellyfin has it, after a restart", () =>
     Effect.gen(function*() {
       const apnsServer = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: apnsServer.url, production: apnsServer.url }
       )

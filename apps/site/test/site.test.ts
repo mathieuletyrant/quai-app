@@ -70,7 +70,9 @@ describe("site", () => {
 
   it("documents in llms.txt every QUAI_* variable Quai Home and Quai Cloud read", () => {
     const text = read("llms.txt")
-    const sources = ["home", "cloud"].flatMap((app) => sourcesOf(join(import.meta.dirname, "..", "..", app, "src")))
+    const repo = join(import.meta.dirname, "..", "..", "..")
+    // The domain is what both run for a home: its variables are theirs.
+    const sources = ["apps/home", "apps/cloud", "packages/domain"].flatMap((dir) => sourcesOf(join(repo, dir, "src")))
     const variables = new Set(
       sources.flatMap((file) =>
         [...readFileSync(file, "utf8").matchAll(/"(QUAI_[A-Z_]+)"/g)].map((match) => match[1] ?? "")

@@ -1,14 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import { FlowStore } from "@quai/domain/flows/FlowStore.ts"
+import { HomeReads } from "@quai/domain/home/HomeReads.ts"
+import { Hub } from "@quai/domain/integrations/Hub.ts"
+import { type Integration, Integrations } from "@quai/domain/integrations/Integration.ts"
+import { qbittorrent } from "@quai/domain/integrations/qbittorrent.ts"
+import { radarr } from "@quai/domain/integrations/radarr.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { DiskReadings } from "@quai/domain/storage/DiskReadings.ts"
 import { Effect, Layer } from "effect"
-import { Activities } from "../../src/flows/Activities.ts"
-import { FlowStore } from "../../src/flows/FlowStore.ts"
-import { HomeReads } from "../../src/home/HomeReads.ts"
-import { Hub } from "../../src/integrations/Hub.ts"
-import { type Integration, Integrations } from "../../src/integrations/Integration.ts"
-import { qbittorrent } from "../../src/integrations/qbittorrent.ts"
-import { radarr } from "../../src/integrations/radarr.ts"
-import { Apns } from "../../src/push/Apns.ts"
-import { DiskReadings } from "../../src/storage/DiskReadings.ts"
+import { makeApns } from "../../src/push/ApnsClient.ts"
 import { cloud, makeFakeHome, settle } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
@@ -39,7 +40,7 @@ const layer = (
       )
     )
   )
-    .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
+    .pipe(Layer.provide(Layer.effect(Apns, makeApns(null))))
 
 const setWatches = (home: { readonly received: ReadonlyArray<{ readonly _tag: string }> }) =>
   home.received.filter((message) => message._tag === "SetWatches").length

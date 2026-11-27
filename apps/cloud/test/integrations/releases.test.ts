@@ -1,21 +1,22 @@
 import { describe, expect, it } from "@effect/vitest"
 import { builtInFlows, defaultAlertSettings } from "@quai/api"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import type { Activity } from "@quai/domain/flows/Engine.ts"
+import { FlowStore } from "@quai/domain/flows/FlowStore.ts"
+import { attributesFor, contentFor } from "@quai/domain/flows/Targeting.ts"
+import { dayOf, dayRange, instantOf, minuteOfDay } from "@quai/domain/home/Day.ts"
+import { Devices } from "@quai/domain/home/Devices.ts"
+import { QueuePage } from "@quai/domain/integrations/arr.ts"
+import { Hub } from "@quai/domain/integrations/Hub.ts"
+import { RadarrCalendar } from "@quai/domain/integrations/radarr.ts"
+import { calendarWatches, calendarWatchIds, dayEvents, pollSeconds } from "@quai/domain/integrations/releases.ts"
+import { SonarrCalendar } from "@quai/domain/integrations/sonarr.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { apnsBody } from "@quai/domain/push/ApnsPayload.ts"
+import { activityItems, dayReads, dayReleases, startsAt } from "@quai/domain/releases/ReleaseDays.ts"
 import { Effect, Layer, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import { Activities } from "../../src/flows/Activities.ts"
-import type { Activity } from "../../src/flows/Engine.ts"
-import { FlowStore } from "../../src/flows/FlowStore.ts"
-import { attributesFor, contentFor } from "../../src/flows/Targeting.ts"
-import { dayOf, dayRange, instantOf, minuteOfDay } from "../../src/home/Day.ts"
-import { Devices } from "../../src/home/Devices.ts"
-import { QueuePage } from "../../src/integrations/arr.ts"
-import { Hub } from "../../src/integrations/Hub.ts"
-import { RadarrCalendar } from "../../src/integrations/radarr.ts"
-import { calendarWatches, calendarWatchIds, dayEvents, pollSeconds } from "../../src/integrations/releases.ts"
-import { SonarrCalendar } from "../../src/integrations/sonarr.ts"
-import { Apns } from "../../src/push/Apns.ts"
-import { apnsBody } from "../../src/push/ApnsPayload.ts"
-import { activityItems, dayReads, dayReleases, startsAt } from "../../src/releases/ReleaseDays.ts"
+import { makeApns } from "../../src/push/ApnsClient.ts"
 import { cloudLive, makeFakeHome, recordedHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 import { TestApp } from "../testApp.ts"
@@ -188,7 +189,7 @@ describe("today's releases", () => {
 describe("Today's releases flow", () => {
   const services = ["radarr", "sonarr"] as const
   const answer = () => recordedHome(calendars)
-  const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
+  const engine = cloudLive.pipe(Layer.provide(Layer.effect(Apns, makeApns(null))))
   const day = Effect.gen(function*() {
     return [...(yield* (yield* Activities).snapshot).activities.values()].filter((activity) =>
       activity.flowId === "today"

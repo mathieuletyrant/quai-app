@@ -1,8 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Schema } from "effect"
-import type { Detected } from "../../src/fixes/Detected.ts"
-import { DownloadCleanerSettings, type SeedCleanup, type SeedingTorrent } from "../../src/integrations/cleanuparr.ts"
-import type { DayRelease } from "../../src/releases/ReleaseDays.ts"
+import type { Detected } from "@quai/domain/fixes/Detected.ts"
+import { DownloadCleanerSettings, type SeedCleanup, type SeedingTorrent } from "@quai/domain/integrations/cleanuparr.ts"
+import type { DayRelease } from "@quai/domain/releases/ReleaseDays.ts"
 import {
   episodeRange,
   mondayOf,
@@ -10,7 +9,8 @@ import {
   releaseItems,
   seedItems,
   stuckRemovalItems
-} from "../../src/upcoming/Rows.ts"
+} from "@quai/domain/upcoming/Rows.ts"
+import { Schema } from "effect"
 import { fixture } from "../fixtures.ts"
 
 const paris = "Europe/Paris"

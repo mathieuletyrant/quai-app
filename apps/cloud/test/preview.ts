@@ -1,13 +1,14 @@
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node"
+import { HomeRoutes } from "@quai/domain/App.ts"
+import { torrentsWatchId } from "@quai/domain/integrations/qbittorrent.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { ServerInfo } from "@quai/domain/Version.ts"
 import { Config, Effect, Layer } from "effect"
 import { HttpRouter } from "effect/http"
 import { createServer } from "node:http"
-import { HomeRoutes } from "../src/App.ts"
-import { HomeLinks } from "../src/home/HomeLink.ts"
-import { torrentsWatchId } from "../src/integrations/qbittorrent.ts"
-import { PublicAccess } from "../src/PublicAccess.ts"
-import { Apns } from "../src/push/Apns.ts"
-import { ServerInfo } from "../src/Version.ts"
+import { HomeLinks } from "../src/home/HomeLinks.ts"
+import { PublicAccessLive } from "../src/PublicAccess.ts"
+import { makeApns } from "../src/push/ApnsClient.ts"
 import { makeFakeHome, recordedHome, testHomeId } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { dayMs, downloading, previewRoutes, recordedDay, storageHistory } from "./previewHome.ts"
@@ -56,7 +57,7 @@ const HttpLive = Layer.unwrap(
 
 // One home's routes, as main.ts builds them for each home, on the fake Quai Home linked in memory.
 // The console's routes answer on the public port here: the preview has no Quai Home to relay them.
-const Shared = Layer.mergeAll(HomeLinks.linkOf(testHomeId), Layer.effect(Apns, Apns.make(null)), PublicAccess.layer)
+const Shared = Layer.mergeAll(HomeLinks.linkOf(testHomeId), Layer.effect(Apns, makeApns(null)), PublicAccessLive)
 
 HttpRouter.serve(Layer.mergeAll(HomeRoutes, FakeHomeLinked)).pipe(
   Layer.provide(Shared),

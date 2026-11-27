@@ -1,15 +1,11 @@
 import { describe, expect, it } from "@effect/vitest"
 import { DeviceAuth, QuaiApi } from "@quai/api"
-import { Effect, Exit, Layer } from "effect"
-import { HttpClientRequest } from "effect/http"
-import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
-import { TestClock } from "effect/testing"
-import { goneItem } from "../src/gone/Gone.ts"
-import { HomeDocuments } from "../src/home/HomeLink.ts"
-import { HomeTime } from "../src/home/HomeTime.ts"
-import { mountsWatchId, rootsWatchId } from "../src/integrations/disk.ts"
-import { radarrArrival } from "../src/integrations/radarr.ts"
-import { sonarrArrival } from "../src/integrations/sonarr.ts"
+import { goneItem } from "@quai/domain/gone/Gone.ts"
+import { HomeDocuments } from "@quai/domain/home/HomeLink.ts"
+import { HomeTime } from "@quai/domain/home/HomeTime.ts"
+import { mountsWatchId, rootsWatchId } from "@quai/domain/integrations/disk.ts"
+import { radarrArrival } from "@quai/domain/integrations/radarr.ts"
+import { sonarrArrival } from "@quai/domain/integrations/sonarr.ts"
 import {
   arrivedMark,
   departureOf,
@@ -19,9 +15,13 @@ import {
   periodStart,
   resolution,
   withReading
-} from "../src/storage/DiskReadings.ts"
-import { type DiskView, mediaDisks, mountOf } from "../src/storage/MediaDisks.ts"
-import { isLow, storageDisk } from "../src/storage/Storage.ts"
+} from "@quai/domain/storage/DiskReadings.ts"
+import { type DiskView, mediaDisks, mountOf } from "@quai/domain/storage/MediaDisks.ts"
+import { isLow, storageDisk } from "@quai/domain/storage/Storage.ts"
+import { Effect, Exit, Layer } from "effect"
+import { HttpClientRequest } from "effect/http"
+import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
+import { TestClock } from "effect/testing"
 import { type FakeHomeOptions, makeFakeHome, recordedHome } from "./fakeHome.ts"
 import { fixture } from "./fixtures.ts"
 import { TestApp } from "./testApp.ts"

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import { HomeProtocol } from "@quai/api"
-import { Effect, Layer, Option, Schema } from "effect"
-import { TestClock } from "effect/testing"
-import { queuedMovie } from "../../src/fixes/movies.ts"
-import { QueuePage } from "../../src/integrations/arr.ts"
+import { queuedMovie } from "@quai/domain/fixes/movies.ts"
+import { QueuePage } from "@quai/domain/integrations/arr.ts"
 import {
   cleanuparr,
   completion,
@@ -21,10 +19,13 @@ import {
   strikesRead,
   type StruckDownload,
   stuckRemovals
-} from "../../src/integrations/cleanuparr.ts"
-import { Integrations } from "../../src/integrations/Integration.ts"
-import { Journal } from "../../src/journal/Journal.ts"
-import { Apns } from "../../src/push/Apns.ts"
+} from "@quai/domain/integrations/cleanuparr.ts"
+import { Integrations } from "@quai/domain/integrations/Integration.ts"
+import { Journal } from "@quai/domain/journal/Journal.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { Effect, Layer, Option, Schema } from "effect"
+import { TestClock } from "effect/testing"
+import { makeApns } from "../../src/push/ApnsClient.ts"
 import { cloud, makeFakeHome } from "../fakeHome.ts"
 import { fixture } from "../fixtures.ts"
 
@@ -236,7 +237,7 @@ describe("Cleanuparr: the journal of its removals", () => {
   const layer = cloud(
     Layer.effect(Integrations, Effect.map(Effect.service(Journal), (journal) => [cleanuparr(journal)]))
   )
-    .pipe(Layer.provide(Layer.effect(Apns, Apns.make(null))))
+    .pipe(Layer.provide(Layer.effect(Apns, makeApns(null))))
   const removedLines = Effect.map(
     Effect.flatMap(Effect.service(Journal), (journal) => journal.since(undefined)),
     (tail) => tail.entries.filter((entry) => entry.kind === "cleanuparr.removed").map((entry) => entry.title)

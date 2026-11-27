@@ -1,12 +1,13 @@
 import { describe, expect, it } from "@effect/vitest"
+import { Activities } from "@quai/domain/flows/Activities.ts"
+import { Devices } from "@quai/domain/home/Devices.ts"
+import { Integrations } from "@quai/domain/integrations/Integration.ts"
+import { Apns } from "@quai/domain/push/Apns.ts"
+import { Notifier } from "@quai/domain/push/Notifier.ts"
 import { Effect, Fiber, Layer, Redacted } from "effect"
 import { TestClock } from "effect/testing"
 import { createPublicKey, generateKeyPairSync, verify } from "node:crypto"
-import { Activities } from "../../src/flows/Activities.ts"
-import { Devices } from "../../src/home/Devices.ts"
-import { Integrations } from "../../src/integrations/Integration.ts"
-import { Apns } from "../../src/push/Apns.ts"
-import { Notifier } from "../../src/push/Notifier.ts"
+import { makeApns } from "../../src/push/ApnsClient.ts"
 import { cloud, makeFakeHome } from "../fakeHome.ts"
 import { ev } from "../flows/helpers.ts"
 import { fakeApns } from "./fakeApns.ts"
@@ -32,7 +33,7 @@ describe("push to APNs", () => {
     Effect.gen(function*() {
       const dev = yield* fakeApns
       const prod = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "KEY123", teamId: "TEAM456", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: prod.url }
       )
@@ -90,7 +91,7 @@ describe("push to APNs", () => {
   it.live("forgets a token APNs says is gone", () =>
     Effect.gen(function*() {
       const dev = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: dev.url }
       )
@@ -107,7 +108,7 @@ describe("push to APNs", () => {
   it.effect("tries a push APNs never answers once more on a new connection, then gives up and reconnects for the next one", () =>
     Effect.gen(function*() {
       const dev = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: dev.url }
       )
@@ -131,7 +132,7 @@ describe("push to APNs", () => {
   it.effect("opens a new connection for a push after 5 idle minutes, and reuses a busy one", () =>
     Effect.gen(function*() {
       const dev = yield* fakeApns
-      const apns = yield* Apns.make(
+      const apns = yield* makeApns(
         { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
         { development: dev.url, production: dev.url }
       )
