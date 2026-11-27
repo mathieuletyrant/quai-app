@@ -118,21 +118,6 @@ describe("upcoming route", () => {
       expect(new Set(home.calls.slice(before).map((call) => call.service))).toEqual(new Set(everything))
     }).pipe(Effect.provide(TestApp)))
 
-  it.effect("an older Quai Home gets no seed cleanup and no space, and is asked nothing it would refuse", () =>
-    Effect.gen(function*() {
-      yield* TestClock.setTime(now)
-      const home = yield* makeFakeHome({ services: [...everything], answer: recordedHome(realHome), protocol: 8 })
-      yield* home.connect
-      const upcoming = yield* (yield* pairedApi).upcoming.list()
-      expect(upcoming.homeOutdated).toBe(true)
-      expect(upcoming.items.filter((item) => item.kind === "seedCleanup")).toEqual([])
-      expect(upcoming.items.filter((item) => item.freesBytes !== undefined)).toEqual([])
-      // Its deletion task isn't asked for (protocol 11): the end of the delay, at the earliest.
-      const deletion = upcoming.items.find((item) => item.kind === "plannedDeletion" && item.title === "Runner")!
-      expect(deletion).toMatchObject({ at: Date.parse("2026-11-30T10:00:05Z") / 1000, timed: false, earliest: true })
-      expect(upcoming.unavailable).toEqual([])
-    }).pipe(Effect.provide(TestApp)))
-
   it.effect("a service that didn't answer is unavailable, the rest still shows", () =>
     Effect.gen(function*() {
       yield* TestClock.setTime(now)

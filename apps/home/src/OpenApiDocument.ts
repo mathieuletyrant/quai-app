@@ -1,5 +1,6 @@
 import { HomeConsoleApi, HomeProtocol, QuaiApi } from "@quai/api"
 import { OpenApi } from "effect/http-api"
+import { webhookServices } from "./Webhooks.ts"
 
 type Spec = OpenApi.OpenAPISpec
 type PathItem = Spec["paths"][string]
@@ -73,7 +74,7 @@ const ownPaths: Spec["paths"] = {
           name: "service",
           in: "path",
           required: true,
-          schema: { type: "string", enum: [...HomeProtocol.webhookServices] }
+          schema: { type: "string", enum: [...webhookServices] }
         },
         {
           name: "token",

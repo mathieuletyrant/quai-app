@@ -171,16 +171,6 @@ describe("search and request routes", () => {
       })
     }).pipe(Effect.provide(TestApp)))
 
-  it.effect("a Quai Home before protocol 8: says to update it, and asks it nothing", () =>
-    Effect.gen(function*() {
-      const { home, api } = yield* setUp({ services, protocol: 7, answer: seerrAnswers() })
-      expect(yield* api.search({ query: { query: "dune" } })).toEqual({ items: [], status: "outdated" })
-      expect(yield* api.users()).toEqual({ items: [], status: "outdated" })
-      const refused = yield* Effect.flip(api.create({ payload: { kind: "movie", tmdbId: 841 } }))
-      expect(refused).toMatchObject({ _tag: "RequestFailed", message: "Update Quai Home to request from the app." })
-      expect(home.calls.filter((call) => call.service === "seerr")).toEqual([])
-    }).pipe(Effect.provide(TestApp)))
-
   it.effect("without Seerr: not configured, and nothing to request", () =>
     Effect.gen(function*() {
       const { api } = yield* setUp({ services: ["radarr"] })

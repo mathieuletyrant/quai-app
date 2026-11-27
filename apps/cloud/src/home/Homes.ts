@@ -1,33 +1,12 @@
 import { HomeProtocol } from "@quai/api"
-import { Devices } from "@quai/domain/home/Devices.ts"
 import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
-import { HomeLink } from "@quai/domain/home/HomeLink.ts"
-import { Clock, Context, Effect, Exit, Layer, Option, Schedule, Scope, Semaphore } from "effect"
+import { offlineMessage } from "@quai/domain/home/HomeLink.ts"
+import { ServerInfo } from "@quai/domain/Version.ts"
+import { Clock, Context, Effect, Layer, Option } from "effect"
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { type AppRelay, HomeLinks } from "./HomeLinks.ts"
 
-export const Timing = {
-  /** A home gone this long is forgotten: its services stop, and come back if it links again. */
-  forgetAfterMs: 60 * 60_000,
-  /** How often the homes gone are looked at. */
-  sweepMs: 60_000
-} as const
-
-type HomeHttp = Effect.Effect<
-  HttpServerResponse.HttpServerResponse,
-  unknown,
-  HttpServerRequest.HttpServerRequest | Scope.Scope
->
-
-/** One home's services and routes, built for it alone. */
-interface HomeApp {
-  readonly link: HomeLink["Service"]
-  readonly devices: Devices["Service"]
-  readonly http: HomeHttp
-  readonly scope: Scope.Closeable
-  /** When its Quai Home was last seen gone; null while it is linked. */
-  goneSince: number | null
-}
+type HomeHttp = Effect.Effect<HttpServerResponse.HttpServerResponse, never, HttpServerRequest.HttpServerRequest>
 
 const bearerOf = (request: HttpServerRequest.HttpServerRequest): Option.Option<string> => {
   const header = request.headers["authorization"]
@@ -62,8 +41,8 @@ const homeOffline = (message: string) =>
   HttpServerResponse.jsonUnsafe({ _tag: "HomeOffline", message }, { status: 503 })
 
 /**
- * The app's request, passed to the home that runs Quai and answered with what it answered. The
- * Cloud reads the path, to relay the API's routes only, and nothing else.
+ * The app's request, passed to its home and answered with what it answered. The Cloud reads the
+ * path, to relay the API's routes only, and nothing else.
  */
 export const relayed = (relay: AppRelay): HomeHttp =>
   Effect.gen(function*() {
@@ -87,157 +66,74 @@ export const relayed = (relay: AppRelay): HomeHttp =>
           })
       ),
       Effect.catchTag("HomeError", (error) =>
-        Effect.succeed(
-          homeOffline(error.reason === "offline" ? "Quai Home is not connected" : `Quai Home: ${error.message}`)
-        ))
+        Effect.succeed(homeOffline(error.reason === "offline" ? offlineMessage : `Quai Home: ${error.message}`)))
     )
   })
 
 /**
- * The homes this Cloud serves. Each home gets its own services and routes (its home app: the
- * engine, the Hub, the stores, the whole API, on its own link), built when its Quai Home first
- * links and forgotten an hour after it went away. A request goes to its home's app: an iPhone's
- * by its token, a pairing by its code, the console's by the link it came over. What no home
- * claims goes to an app on no home, which answers what needs none (`/api/health`) and 503 for the
- * rest.
- *
- * A home whose Quai Home runs Quai itself (ADR 3) has no app here: its requests are relayed to it
- * (`relayed`), found the same way, by the token's home id or by the pairing code it said is open.
+ * Where each request of the app goes: to the home it is for, relayed (`relayed`). An iPhone's by
+ * its token's home id, a pairing by the home that said its code is open. A token from before
+ * several homes, or a request that names none, goes to the only home connected, when there is
+ * exactly one. With no home to send it to, the app is told its home is offline (503); the Cloud's
+ * own health (`/api/health` naming no home) answers here.
  */
 export class Homes extends Context.Service<Homes, {
   /** The routes that answer this request. */
   readonly appFor: (request: HttpServerRequest.HttpServerRequest) => Effect.Effect<HomeHttp>
-  /** The homes with an app now, linked or gone for less than an hour. */
-  readonly homeIds: Effect.Effect<ReadonlyArray<string>>
 }>()("quai/Homes") {
-  /**
-   * `app` is one home's routes and services, on the `HomeLink` it is given: built once per home,
-   * with what every home shares (`R`) from here.
-   */
-  static readonly make = <E, R>(app: Layer.Layer<Devices, E, R | HomeLink | HttpRouter.HttpRouter>) =>
-    Effect.gen(function*() {
-      const links = yield* HomeLinks
-      const shared = yield* Effect.context<Exclude<R, HomeLink | HttpRouter.HttpRouter>>()
-      const apps = new Map<string, HomeApp>()
-      // A home's app is built, or dropped, one at a time.
-      const lock = yield* Semaphore.make(1)
+  static readonly make = Effect.gen(function*() {
+    const links = yield* HomeLinks
+    const info = yield* ServerInfo
 
-      const build = (link: HomeLink["Service"]) =>
-        Effect.gen(function*() {
-          const scope = yield* Scope.make()
-          const memoMap = yield* Layer.makeMemoMap
-          const layer = app.pipe(
-            Layer.provideMerge(HttpRouter.layer),
-            Layer.provide(Layer.succeed(HomeLink, link)),
-            Layer.provide(Layer.succeedContext(shared as Context.Context<R>))
-          )
-          const context = yield* Layer.buildWithMemoMap(layer, memoMap, scope).pipe(Effect.orDie)
-          const built: HomeApp = {
-            link,
-            devices: Context.get(context, Devices),
-            http: Context.get(context, HttpRouter.HttpRouter).asHttpEffect(),
-            scope,
-            goneSince: null
-          }
-          return built
-        })
+    const offline: HomeHttp = Effect.succeed(homeOffline(offlineMessage))
+    const notFound: HomeHttp = Effect.succeed(HttpServerResponse.empty({ status: 404 }))
 
-      const nowhere = yield* build(HomeLink.offline)
-      yield* Effect.addFinalizer(() =>
-        Effect.forEach([nowhere, ...apps.values()], (home) => Scope.close(home.scope, Exit.void), { discard: true })
-      )
-
-      const ensure = (homeId: string) =>
-        Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
-          const existing = apps.get(homeId)
-          if (existing !== undefined) {
-            existing.goneSince = null
-            return
-          }
-          apps.set(homeId, yield* build(yield* links.link(homeId)))
-          yield* Effect.logInfo(`home ${homeId}: services started`)
-        }))
-
-      /** Forgets the homes gone for an hour, unless one linked again meanwhile. */
-      const sweep = Semaphore.withPermits(lock, 1)(Effect.gen(function*() {
-        const now = yield* Clock.currentTimeMillis
-        for (const [homeId, home] of apps) {
-          if (Option.isSome(yield* home.link.home)) {
-            home.goneSince = null
-            continue
-          }
-          if (home.goneSince === null) {
-            home.goneSince = now
-            continue
-          }
-          if (now - home.goneSince < Timing.forgetAfterMs || !(yield* links.forget(homeId))) continue
-          apps.delete(homeId)
-          yield* Scope.close(home.scope, Exit.void)
-          yield* Effect.logInfo(`home ${homeId}: gone for an hour, services stopped`)
-        }
+    /** The Cloud's own health: it is up, whatever home is connected. */
+    const health: HomeHttp = Effect.map(Clock.currentTimeMillis, (now) =>
+      HttpServerResponse.jsonUnsafe({
+        status: "ok",
+        version: info.version,
+        uptimeSeconds: Math.max(0, Math.floor((now - info.startedAt) / 1000))
       }))
 
-      yield* Effect.forkScoped(Effect.forever(Effect.flatMap(links.nextReady, ensure)))
-      yield* Effect.forkScoped(sweep.pipe(Effect.repeat(Schedule.spaced(Timing.sweepMs))))
+    const relayedTo = (relay: Option.Option<AppRelay>) =>
+      Option.match(relay, { onNone: () => offline, onSome: relayed })
 
-      const linked = Effect.suspend(() =>
-        Effect.filter([...apps.values()], (home) => Effect.map(home.link.home, Option.isSome))
-      )
-
-      /** The routes of the home a token names: relayed when its Quai Home runs Quai, else its app here. */
-      const namedHome = (homeId: string) =>
-        Effect.map(
-          links.relayOf(homeId),
-          (relay) => Option.match(relay, { onNone: () => (apps.get(homeId) ?? nowhere).http, onSome: relayed })
-        )
-
-      /** The only home that runs Quai, when there is exactly one: where what names no home may go. */
-      const onlyRelay = Effect.gen(function*() {
-        const homes = yield* links.relayHomes
-        return homes.length === 1 ? yield* links.relayOf(homes[0]!) : Option.none<AppRelay>()
-      })
-
-      /** A token from before several homes: the linked home that holds it, else the only home that runs Quai. */
-      const legacyHome = (token: string) =>
-        Effect.gen(function*() {
-          const holder = yield* Effect.findFirst(yield* linked, (home) => home.devices.holdsToken(token))
-          if (Option.isSome(holder)) return holder.value.http
-          return Option.match(yield* onlyRelay, { onNone: () => nowhere.http, onSome: relayed })
-        })
-
-      /** A pairing: the home that holds the code, here or as its Quai Home said. */
-      const pairingHome = (code: string) =>
-        Effect.gen(function*() {
-          const homes = yield* linked
-          const holder = yield* Effect.findFirst(homes, (home) => home.devices.holdsPairingCode(code))
-          if (Option.isSome(holder)) return holder.value.http
-          const announced = yield* links.pairingHome(code)
-          if (Option.isSome(announced)) return yield* namedHome(announced.value)
-          // A code no home holds is refused by a linked home, as unknown; with none linked, offline.
-          const fallback = homes[0]?.http
-          if (fallback !== undefined) return fallback
-          return Option.match(yield* onlyRelay, { onNone: () => nowhere.http, onSome: relayed })
-        })
-
-      const appFor = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<HomeHttp> =>
-        Effect.gen(function*() {
-          const token = bearerOf(request)
-          if (Option.isSome(token)) {
-            const named = DeviceToken.homeOf(token.value)
-            return yield* Option.isSome(named) ? namedHome(named.value) : legacyHome(token.value)
-          }
-          const code = yield* pairingCodeOf(request)
-          return Option.isSome(code) ? yield* pairingHome(code.value) : nowhere.http
-        })
-
-      return { appFor, homeIds: Effect.sync(() => [...apps.keys()]) } satisfies Homes["Service"]
+    /** The only home connected, when there is exactly one: where what names no home may go. */
+    const onlyHome = Effect.gen(function*() {
+      const homes = yield* links.homeIds
+      return homes.length === 1 ? yield* links.relayOf(homes[0]!) : Option.none<AppRelay>()
     })
 
-  static readonly layer = <E, R>(app: Layer.Layer<Devices, E, R | HomeLink | HttpRouter.HttpRouter>) =>
-    Layer.effect(Homes, Homes.make(app))
+    /** A pairing: the home that said its code is open, else the only home, which refuses a code it doesn't hold. */
+    const pairingHome = (code: string) =>
+      Effect.gen(function*() {
+        const announced = yield* links.pairingHome(code)
+        return yield* Option.isSome(announced) ? links.relayOf(announced.value) : onlyHome
+      })
+
+    const appFor = (request: HttpServerRequest.HttpServerRequest): Effect.Effect<HomeHttp> =>
+      Effect.gen(function*() {
+        // The console is Quai Home's alone: nothing but the API's routes is answered here.
+        if (!HomeProtocol.isAppPath(request.url)) return notFound
+        const token = bearerOf(request)
+        if (Option.isSome(token)) {
+          const named = DeviceToken.homeOf(token.value)
+          return relayedTo(yield* Option.isSome(named) ? links.relayOf(named.value) : onlyHome)
+        }
+        const code = yield* pairingCodeOf(request)
+        if (Option.isSome(code)) return relayedTo(yield* pairingHome(code.value))
+        if (request.method === "GET" && pathOf(request.url) === "/api/health") return health
+        return relayedTo(yield* onlyHome)
+      })
+
+    return { appFor } satisfies Homes["Service"]
+  })
+
+  static readonly layer = Layer.effect(Homes, Homes.make)
 }
 
-/** What isn't Quai Home's WebSocket goes to the routes of the home it is for. The console only through Quai Home. */
+/** What isn't Quai Home's WebSocket goes to the home it is for. The console only through Quai Home. */
 export const HomesRoute = HttpRouter.use((router) =>
   Effect.gen(function*() {
     const homes = yield* Homes

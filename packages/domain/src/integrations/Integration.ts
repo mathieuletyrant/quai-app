@@ -12,7 +12,7 @@ import type { AlertState } from "../alerts/Alerts.ts"
 import type { Activity } from "../flows/Engine.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import type { GoneItem } from "../gone/Gone.ts"
-import type { CallRequest } from "../home/HomeLink.ts"
+import type { CallRequest, Watch } from "../home/HomeLink.ts"
 import type { HomeReads, Read } from "../home/HomeReads.ts"
 
 /** What an integration sees to decide what to watch, and to read what comes back. */
@@ -30,8 +30,6 @@ export interface WatchContext {
   readonly alerts: AlertSettings
   /** The kinds of gone an iPhone turned on: only those are notified. */
   readonly gone: ReadonlyArray<GoneKind>
-  /** The linked Home's protocol version; absent: the current one. */
-  readonly protocol?: number
 }
 
 /** What a reading means: catalog events for the flows, the state of an alert, or something gone. */
@@ -43,7 +41,7 @@ export const isGone = (signal: Signal): signal is GoneItem => "_tag" in signal &
 
 /** What Quai Home read for one watch, sent because it changed (or is the first read). */
 export interface Snapshot {
-  readonly watch: HomeProtocol.Watch
+  readonly watch: Watch
   readonly status: number
   readonly body: string
 }
@@ -57,12 +55,12 @@ export interface Watcher<S extends Signal = FlowEvent> {
    * The watches needed now. Ids are unique across integrations (prefix them with the service) and
    * stable while the watch is the same: the Hub sends a new list only when it changes.
    */
-  readonly watches: (context: WatchContext) => ReadonlyArray<HomeProtocol.Watch>
+  readonly watches: (context: WatchContext) => ReadonlyArray<Watch>
   /** A snapshot of one of its watches, as catalog events. Logs and skips what it can't read. */
   readonly read: (snapshot: Snapshot, context: WatchContext) => Effect.Effect<ReadonlyArray<S>>
   /** Quai Home couldn't read one of its watches (unreachable, refused). Once per failure streak. */
   readonly failed?: (
-    watch: HomeProtocol.Watch,
+    watch: Watch,
     reason: string,
     context: WatchContext
   ) => Effect.Effect<ReadonlyArray<S>>
@@ -131,8 +129,8 @@ export const anyEnabledFlow = (context: Pick<WatchContext, "flows">, subject: Fl
 export const readJson = <A, I>(schema: Schema.Codec<A, I>, body: string) =>
   Schema.decodeUnknownOption(Schema.fromJsonString(schema))(body)
 
-/** A read watched: Quai Home polls the same GET the Cloud reads once, so both are defined once. */
-export const watchOf = (id: string, read: Read<unknown>, everySeconds: number): HomeProtocol.Watch => ({
+/** A read watched: Quai Home polls the same GET the domain reads once, so both are defined once. */
+export const watchOf = (id: string, read: Read<unknown>, everySeconds: number): Watch => ({
   id,
   service: read.service,
   path: read.path,

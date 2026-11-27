@@ -88,7 +88,7 @@ export const gatheredOf = (home: BigHome): Gathered => {
   }
   const hardlinks = Option.some({ copyUsingHardlinks: true })
   return {
-    reach: reachOf({ services: everything, protocol: HomeProtocol.upcomingProtocolVersion }),
+    reach: reachOf({ services: everything }),
     zone,
     today: recordedDay,
     now,

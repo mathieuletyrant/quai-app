@@ -97,7 +97,7 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `sonarr` | same, for episodes | — | — |
 | `qbittorrent` | — | download progress and downloads gone before their import, every 5 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
-| `reclaimerr` | — | its candidates, every 60 s, while the Planned deletion alert is on or an iPhone wants Gone · Planned deletion; its event feed (`candidate.deleted`, `candidate.moved`), every 60 s, while an iPhone wants Gone · Planned deletion (Quai Home protocol 10): each one journal line and *gone*, no flow event | — (and feeds the To fix list) |
+| `reclaimerr` | — | its candidates, every 60 s, while the Planned deletion alert is on or an iPhone wants Gone · Planned deletion; its event feed (`candidate.deleted`, `candidate.moved`), every 60 s, while an iPhone wants Gone · Planned deletion: each one journal line and *gone*, no flow event | — (and feeds the To fix list) |
 | `cleanuparr` | — | its `QueueItemDeleted` and `DownloadCleaned` events, every 5 min each, while Quai Home reaches it: each removal or cleanup one journal line and *gone* (stuck removal, seed cleanup), no flow event | — (and feeds the To fix list) |
 | `releases` | — | Sonarr's and Radarr's calendars and queues for the home's day, every 5 min while the day's activity runs, every 30 min otherwise, while a day flow is on | — |
 | `seerr` | `request.*` (when Quai Home could set the webhook up) | pending requests, every 60 s, while a request flow is on | `request.approve`, `request.decline` |
@@ -121,7 +121,7 @@ push nothing and write nothing.
 
 **Time zone.** A home has no clock of its own and Quai Cloud may serve homes anywhere, so the day
 follows the iPhones: each reports its time zone (IANA) when it pairs and whenever the app comes to
-the front; the most recently seen iPhone's wins. Before any did, `QUAI_TZ` (Quai Home's; Quai Cloud's for a Quai Home it still runs Quai for), else UTC.
+the front; the most recently seen iPhone's wins. Before any did, Quai Home's `QUAI_TZ`, else UTC.
 The app writes air times in its own time. The day's releases are computed once for this flow and
 the app's Upcoming screen (`rangeReleases`: one day here, 14 there; docs/upcoming.md).
 
@@ -143,8 +143,7 @@ Either way, the Cloud polls the
 pending requests every minute while a request flow is on: the way in without the webhook, and the
 safety net for a notification missed while Quai Home was down. A request that leaves the pending
 list is read once (`GET /api/v1/request/{id}`) to tell approved from declined. The webhook settings
-are Quai Home's own write, like the Radarr and Sonarr webhooks: they are not in the Cloud's
-allowlist.
+are Quai Home's own write, like the Radarr and Sonarr webhooks.
 
 The app's Home tab shows a Requests tile (count, first posters) opening a Requests screen with
 Approve and Decline (Decline asks first). It reads `GET /api/requests` when shown: titles and posters come from Seerr's
@@ -167,10 +166,10 @@ deletions and Cleanuparr's removals; each adapter also names a download in its q
 | Import blocked | A queue item at `importBlocked`, or `importPending` with a warning | Remove (`DELETE /api/v3/queue/{id}`, optionally blocklisted, never searched again); Import anyway (`ManualImport` of the files as matched, or to the episode chosen, never over a file) |
 | No source | Monitored, available (aired), no file, nothing in the queue, no grab since, for 2 hours (since it was added or came out; grabs read 30 days back) | Search releases (interactive search; for a season, only releases covering nothing but missing episodes) and Grab; Ignore and wait (until a release is grabbed, or some days) |
 | Planned deletion | A Reclaimerr candidate `scheduled`, `eligible` or `postponed`, not protected | Keep (Reclaimerr's `protect`); Let it go (hidden in Quai) |
-| Stuck removal | A download Cleanuparr struck (`GET /api/strikes`, dry-run strikes left out), still in Radarr's or Sonarr's queue, one strike short of its limit for a reason (or at it and marked for removal), while the queue cleaner is on and doesn't ignore it. Limits: the queue cleaner's settings for failed imports, metadata and errors; for stalled and slow, the lowest of the enabled rules covering how far it got. When: the queue cleaner's next run | Keep, for a torrent hash or a SABnzbd job (its download id added to the queue cleaner's `ignoredDownloads`: the settings are sent back exactly as Cleanuparr answered them, and Quai Home, reading them again, checks that only that list grew; such writes go one at a time, read and write within 12 s); Let it go (hidden in Quai) |
+| Stuck removal | A download Cleanuparr struck (`GET /api/strikes`, dry-run strikes left out), still in Radarr's or Sonarr's queue, one strike short of its limit for a reason (or at it and marked for removal), while the queue cleaner is on and doesn't ignore it. Limits: the queue cleaner's settings for failed imports, metadata and errors; for stalled and slow, the lowest of the enabled rules covering how far it got. When: the queue cleaner's next run | Keep, for a torrent hash or a SABnzbd job (its download id added to the queue cleaner's `ignoredDownloads`: the settings are sent back exactly as Cleanuparr answered them, only that list grown; two Keeps go one at a time, so the second reads what the first wrote); Let it go (hidden in Quai) |
 
 An integration is a plain value (`Integration` in `Integration.ts`): an optional `webhook` that
-reads payloads into catalog events, an optional `watcher` (`watches(context)`: the allowlisted
+reads payloads into catalog events, an optional `watcher` (`watches(context)`: the
 GETs it needs polled now; `read(snapshot, context)`: what a snapshot means; `failed` and `tick`
 for health), an optional `alertWatcher` whose readings are alert states, an optional `goneWatcher`
 whose readings are what is *gone* (logged by the integration, notified by `Gone`, see

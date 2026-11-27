@@ -1,4 +1,5 @@
 import { HomeProtocol } from "@quai/api"
+import type { WebUrls } from "@quai/domain/home/HomeLink.ts"
 import { Config, Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 
 export interface ServiceEndpoint {
@@ -50,7 +51,7 @@ export class HomeConfig extends Context.Service<HomeConfig, {
   /** Prowlarr: read for the alerts only (is it up, what its System > Status reports). */
   readonly prowlarr: ServiceEndpoint | null
   /** Where an iPhone opens Radarr and Sonarr: at home, then from outside. Sent in Hello. */
-  readonly webUrls: HomeProtocol.WebUrls
+  readonly webUrls: WebUrls
   /**
    * A service's address set without its key (`QUAI_RADARR_URL` alone): not configured, but what the
    * console's Services page fills in, so only the key is pasted.

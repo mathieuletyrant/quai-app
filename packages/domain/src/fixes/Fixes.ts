@@ -8,7 +8,7 @@ import {
   InvalidFix,
   type Releases
 } from "@quai/api"
-import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
+import { Clock, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { HttpApiError } from "effect/http-api"
 import { type CallRequest, HomeDocuments, toOffline } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
@@ -52,7 +52,7 @@ export const letGoKey = (id: string) => `fixes/dismissed/${id}`
 const Hidden = Schema.Struct({ at: Schema.Number, until: Schema.optional(Schema.Number) })
 const decodeHidden = Schema.decodeUnknownOption(Hidden)
 
-/** The Cloud waits a little longer than Quai Home waits for the indexers. */
+/** A release search asks every indexer: it may take this long, much longer than a read. */
 const releaseSearchTimeoutMs = 55_000
 
 type FixError = HomeOffline | HttpApiError.NotFound | InvalidFix | FixFailed
@@ -112,17 +112,20 @@ export class Fixes extends Context.Service<Fixes, {
       const write = (call: CallRequest, options?: { readonly timeoutMs?: number }) =>
         reads.write(call, (message) => new FixFailed({ message }), options)
 
+      // Cleanuparr takes its settings whole: two Keeps that read at once would both write, the second undoing the first.
+      const oneKeepAtATime = yield* Semaphore.make(1)
+
       /** Keep: Cleanuparr's queue cleaner leaves the download alone, its other settings as they are. */
       const exclude = (target: RemovalTarget) =>
         Effect.gen(function*() {
-          // As Cleanuparr answered, not as decoded: Quai Home compares the two exactly.
+          // As Cleanuparr answered, not as decoded: every setting goes back as it holds it.
           const answered = yield* write({ service: "cleanuparr", method: "GET", path: settingsRead.path })
           const body = excluding(answered, target.downloadId)
           if (Option.isNone(body)) {
             return yield* Effect.fail(new FixFailed({ message: "Cleanuparr answered something Quai can't read" }))
           }
           yield* write({ service: "cleanuparr", method: "PUT", path: settingsRead.path, body: body.value })
-        })
+        }).pipe(Semaphore.withPermit(oneKeepAtATime))
 
       /** Runs the rules on the services asked (those Quai Home reaches). */
       const detect = (only?: FixService) =>

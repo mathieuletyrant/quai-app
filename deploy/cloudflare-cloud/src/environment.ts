@@ -3,7 +3,6 @@ export interface CloudSettings {
   readonly QUAI_CLOUD_PUBLIC_URL?: string
   readonly QUAI_MAX_HOMES?: string
   readonly QUAI_HOME_ID?: string
-  readonly QUAI_TZ?: string
   readonly QUAI_APNS_TOPIC?: string
   readonly QUAI_APNS_KEY?: string
   readonly QUAI_APNS_KEY_ID?: string
@@ -18,7 +17,6 @@ const names = [
   "QUAI_CLOUD_PUBLIC_URL",
   "QUAI_MAX_HOMES",
   "QUAI_HOME_ID",
-  "QUAI_TZ",
   "QUAI_APNS_TOPIC",
   "QUAI_APNS_KEY",
   "QUAI_APNS_KEY_ID",

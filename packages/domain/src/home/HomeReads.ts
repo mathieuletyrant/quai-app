@@ -2,7 +2,7 @@ import { HomeOffline, type HomeProtocol, journalSourceNames } from "@quai/api"
 import { Clock, Context, Deferred, Effect, Exit, Layer, Option, Schema } from "effect"
 import { readJson } from "../integrations/Integration.ts"
 import { Journal } from "../journal/Journal.ts"
-import { type CallRequest, HomeLink, offlineMessage, toOffline } from "./HomeLink.ts"
+import { type CallRequest, HomeLink, offlineMessage, toOffline, type WebUrls } from "./HomeLink.ts"
 
 /** One GET to a service through Quai Home, and the schema of its body. */
 export interface Read<A> {
@@ -153,10 +153,8 @@ const countsAgainstService = (outcome: Outcome) =>
 export class HomeReads extends Context.Service<HomeReads, {
   /** The services the connected Quai Home reaches. */
   readonly services: Effect.Effect<ReadonlyArray<HomeProtocol.HomeService>, HomeOffline>
-  /** The protocol the connected Quai Home speaks: which calls it lets through. */
-  readonly protocol: Effect.Effect<number, HomeOffline>
   /** Where an iPhone opens Radarr and Sonarr, as the connected Quai Home gave them. */
-  readonly webUrls: Effect.Effect<HomeProtocol.WebUrls, HomeOffline>
+  readonly webUrls: Effect.Effect<WebUrls, HomeOffline>
   /**
    * A GET's body. None when Quai Home didn't get an answer in time or refused the call, when the
    * service answered other than 2xx, or with a body that doesn't decode.
@@ -263,13 +261,6 @@ export class HomeReads extends Context.Service<HomeReads, {
             : Effect.fail(new HomeOffline({ message: offlineMessage }))
       )
 
-      const protocol = Effect.flatMap(
-        link.home,
-        (home) =>
-          Option.isSome(home)
-            ? Effect.succeed(home.value.protocol)
-            : Effect.fail(new HomeOffline({ message: offlineMessage }))
-      )
       const webUrls = Effect.flatMap(
         link.home,
         (home) =>
@@ -344,7 +335,7 @@ export class HomeReads extends Context.Service<HomeReads, {
 
       const forget = (service: HomeProtocol.HomeService) => Effect.sync(() => gets.forget(service))
 
-      return { services, protocol, webUrls, read, all, write, forget } satisfies HomeReads["Service"]
+      return { services, webUrls, read, all, write, forget } satisfies HomeReads["Service"]
     })
   )
 }

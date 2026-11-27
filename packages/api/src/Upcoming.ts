@@ -63,7 +63,7 @@ export const Upcoming = Schema.Struct({
   items: Schema.Array(UpcomingItem),
   /** Services Quai Home reaches that couldn't be read this time: what they plan is missing. */
   unavailable: Schema.Array(UpcomingService),
-  /** Quai Home is too old to read seed cleanups and the space that comes back: update it to see them. */
+  /** Always false now (a Quai Home too old to read seed cleanups no longer links); kept for the apps that read it. */
   homeOutdated: Schema.Boolean
 }).annotate({ identifier: "Upcoming" })
 export type Upcoming = typeof Upcoming.Type

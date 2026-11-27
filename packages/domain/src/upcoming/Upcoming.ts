@@ -47,20 +47,16 @@ const known = <A>(reached: boolean, value: Option.Option<A>): A | null | undefin
 
 const nothingBack: SpaceBack = { deletions: new Map<number, number>(), torrents: new Map<string, number>() }
 
-/** What the linked Quai Home lets Upcoming read. */
+/** The services Upcoming reads. */
 export interface Reach {
   readonly has: (service: HomeProtocol.HomeService) => boolean
-  /** A Quai Home recent enough to read the download cleaner and the media management setting. */
-  readonly recent: boolean
-  /** Seed cleanups can be planned: Cleanuparr and qBittorrent reached by a recent Quai Home. */
+  /** Seed cleanups can be planned: Cleanuparr and qBittorrent are reached. */
   readonly cleaning: boolean
 }
 
-export const reachOf = (home: Pick<LinkedHome, "services" | "protocol">): Reach => {
+export const reachOf = (home: Pick<LinkedHome, "services">): Reach => {
   const has = (service: HomeProtocol.HomeService) => home.services.includes(service)
-  // An older Quai Home refuses the download cleaner and the media management setting.
-  const recent = home.protocol >= HomeProtocol.upcomingProtocolVersion
-  return { has, recent, cleaning: recent && has("cleanuparr") && has("qbittorrent") }
+  return { has, cleaning: has("cleanuparr") && has("qbittorrent") }
 }
 
 /** The reads Upcoming always makes, at once: the calendars, and what each service plans to remove. */
@@ -86,8 +82,8 @@ const readLibrary = (reads: HomeReads["Service"], reach: Reach, since: number) =
     series: reach.has("sonarr") ? sonarrSeriesRead : null,
     radarrGrabs: reach.has("radarr") ? radarrGrabsRead(since) : null,
     sonarrGrabs: reach.has("sonarr") ? sonarrGrabsRead(since) : null,
-    radarrSettings: reach.recent && reach.has("radarr") ? mediaManagementRead("radarr") : null,
-    sonarrSettings: reach.recent && reach.has("sonarr") ? mediaManagementRead("sonarr") : null
+    radarrSettings: reach.has("radarr") ? mediaManagementRead("radarr") : null,
+    sonarrSettings: reach.has("sonarr") ? mediaManagementRead("sonarr") : null
   }, { optional: ["movies", "series", "radarrGrabs", "sonarrGrabs", "radarrSettings", "sonarrSettings"] }).pipe(
     Effect.map(({ values }) => values)
   )
@@ -196,7 +192,7 @@ export const unavailableOf = ({ reach, stack }: Pick<Gathered, "reach" | "stack"
 
 /** Upcoming's rows, by date, from what was read. Pure. */
 export const upcomingOf = (gathered: Gathered): UpcomingList => {
-  const { library, now, plans, reach, stack, today, zone } = gathered
+  const { library, now, plans, stack, today, zone } = gathered
   const frees = spaceFreed(gathered)
   const releases = rangeReleases(today, upcomingReleaseDays, zone, {
     episodes: Option.getOrUndefined(stack.calendars.values.episodes),
@@ -211,7 +207,7 @@ export const upcomingOf = (gathered: Gathered): UpcomingList => {
       ...seedItems(plans.cleanups, zone, frees.torrents)
     ].sort(byDate),
     unavailable: unavailableOf(gathered),
-    homeOutdated: !reach.recent && (reach.has("cleanuparr") || reach.has("reclaimerr"))
+    homeOutdated: false
   }
 }
 

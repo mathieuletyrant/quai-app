@@ -1,7 +1,7 @@
-import type { HomeProtocol } from "@quai/api"
 import { Effect, Option } from "effect"
 import type { FlowEvent, Subject } from "../flows/Events.ts"
 import { dayOf } from "../home/Day.ts"
+import type { Watch } from "../home/HomeLink.ts"
 import {
   activityItems,
   allAvailable,
@@ -45,7 +45,7 @@ const dayActivities = (context: WatchContext) => {
 const subjectOf = (day: string): Subject => ({ kind: "day", key: dayKey(day), title: "Today" })
 
 /** The watches of the day: its reads (`dayReads`), in the home's day. */
-export const calendarWatches = (context: WatchContext): ReadonlyArray<HomeProtocol.Watch> => {
+export const calendarWatches = (context: WatchContext): ReadonlyArray<Watch> => {
   if (!anyEnabledFlow(context, "day")) return []
   const today = dayOf(context.now, context.timeZone)
   const everySeconds = dayActivities(context).some((activity) => activity.subjectKey === dayKey(today))

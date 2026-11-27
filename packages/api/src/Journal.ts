@@ -4,10 +4,9 @@ import { DeviceAuth } from "./Devices.ts"
 import { Service } from "./Service.ts"
 
 /**
- * The journal: what Quai did, in plain words, one line per thing. Quai Cloud writes most of it,
- * Quai Home the rest (the webhooks it took in, what its allowlist refused); Quai Home keeps it on
- * its `/data`, so it outlives a Cloud restart. Never a secret or a token: titles, names and what
- * happened only, the home's own data, kept at home.
+ * The journal: what Quai did, in plain words, one line per thing (the webhooks it took in, the
+ * services it can't reach, what it notified). Quai Home writes it and keeps it on its `/data`.
+ * Never a secret or a token: titles, names and what happened only, the home's own data, kept at home.
  */
 
 export const JournalLevel = Schema.Literals(["info", "warn", "error"]).annotate({ identifier: "JournalLevel" })

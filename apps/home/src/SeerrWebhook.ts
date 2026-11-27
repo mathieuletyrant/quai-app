@@ -67,7 +67,7 @@ export const seerrWebhookPlan = (settings: SeerrWebhookSettings, token: string):
 
 /**
  * Makes sure Seerr posts its request notifications to Quai Home, when its webhook agent is free or
- * already Quai's. Quai Home's own write to Seerr, outside the Cloud's allowlist.
+ * already Quai's.
  */
 export const ensureSeerrWebhook = (url: string, token: string) =>
   Effect.gen(function*() {

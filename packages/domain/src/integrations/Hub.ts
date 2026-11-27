@@ -1,11 +1,11 @@
-import { defaultAlertSettings, HomeProtocol, journalSourceNames, type ServiceName } from "@quai/api"
+import { defaultAlertSettings, journalSourceNames, type ServiceName } from "@quai/api"
 import { Clock, Context, Effect, Layer, Option, Schedule } from "effect"
 import { Alerts } from "../alerts/Alerts.ts"
 import { Activities } from "../flows/Activities.ts"
 import type { FlowEvent } from "../flows/Events.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { Gone, type GoneItem } from "../gone/Gone.ts"
-import { type HomeEvent, HomeLink, type LinkedHome } from "../home/HomeLink.ts"
+import { type HomeEvent, HomeLink, type LinkedHome, type Watch } from "../home/HomeLink.ts"
 import { HomeReads } from "../home/HomeReads.ts"
 import { HomeTime } from "../home/HomeTime.ts"
 import { eventNote, type From } from "../journal/describe.ts"
@@ -36,16 +36,11 @@ export const offlineGraceMs = 60_000
 const servicesText = (services: LinkedHome["services"]) =>
   services.length === 0 ? "no service" : services.map((service) => journalSourceNames[service]).join(", ")
 
-/** What the journal says when Quai Home links. */
-const linkedNote = (home: LinkedHome) => {
-  const services = servicesText(home.services)
-  return home.protocol < HomeProtocol.journalProtocolVersion
-    ? {
-      level: "warn" as const,
-      text: `Quai Home linked (${services}); it is too old to keep the journal: update it to keep the history`
-    }
-    : { level: "info" as const, text: `Quai Home linked (${services})` }
-}
+/** What the journal says when the home is up. */
+const linkedNote = (home: LinkedHome) => ({
+  level: "info" as const,
+  text: `Quai Home linked (${servicesText(home.services)})`
+})
 
 /** The same event about the same title twice in a row (a poll that repeats it) is logged once. */
 const makeRepeats = () => {
@@ -66,7 +61,7 @@ type EventOf<Tag extends HomeEvent["_tag"]> = Extract<HomeEvent, { readonly _tag
 interface Owner {
   readonly integration: Integration
   readonly watcher: Watcher<Signal>
-  readonly watch: HomeProtocol.Watch
+  readonly watch: Watch
 }
 
 interface Sent {
@@ -91,8 +86,7 @@ const watchOwners = (integrations: ReadonlyArray<Integration>, ctx: WatchContext
   return owners
 }
 
-const byId = (left: HomeProtocol.Watch, right: HomeProtocol.Watch) =>
-  left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+const byId = (left: Watch, right: Watch) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0
 
 /**
  * Where what Quai Home sends meets the engine. Webhooks and watch snapshots go to their
@@ -187,8 +181,7 @@ export class Hub extends Context.Service<Hub, {
         now: yield* Clock.currentTimeMillis,
         timeZone: yield* time.zone,
         alerts: yield* alerts.settings.pipe(Effect.orElseSucceed(() => defaultAlertSettings)),
-        gone: yield* goneNotes.wanted.pipe(Effect.orElseSucceed(() => [])),
-        protocol: home.value.protocol
+        gone: yield* goneNotes.wanted.pipe(Effect.orElseSucceed(() => []))
       })
     }).pipe(Effect.orElseSucceed(() => Option.none()))
 

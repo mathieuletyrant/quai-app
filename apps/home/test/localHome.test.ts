@@ -1,9 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
-import { HomeProtocol, journalId } from "@quai/api"
+import { journalId } from "@quai/api"
+import type { CallRequest } from "@quai/domain/home/HomeLink.ts"
 import { Context, Effect, Fiber, Layer, Option, Queue } from "effect"
 import { TestClock } from "effect/testing"
 import { join } from "node:path"
-import { Calls } from "../src/Calls.ts"
+import { type CallAnswer, Calls } from "../src/Calls.ts"
 import { HomeKey } from "../src/HomeKey.ts"
 import { HomeStore } from "../src/HomeStore.ts"
 import { Journal } from "../src/Journal.ts"
@@ -17,12 +18,12 @@ import { settle } from "./fakeCloud.ts"
  * Every call the home made to a service, answered 200 with its path; Jellyfin's is unreachable, and
  * Seerr takes a second, to count the calls in flight.
  */
-const called: Array<HomeProtocol.Call> = []
+const called: Array<CallRequest> = []
 const inFlight = { now: 0, most: 0 }
-const answerOf = (call: HomeProtocol.Call) =>
+const answerOf = (call: CallRequest): CallAnswer =>
   call.service === "jellyfin"
-    ? HomeProtocol.Failed.make({ id: call.id, reason: "jellyfin is unreachable" })
-    : HomeProtocol.CallResponse.make({ id: call.id, status: 200, body: call.path })
+    ? { _tag: "Failed", reason: "jellyfin is unreachable" }
+    : { _tag: "Answered", status: 200, body: call.path }
 const calls = Layer.sync(Calls, () => {
   called.length = 0
   inFlight.now = 0
@@ -65,7 +66,6 @@ describe("the home, answered in place", () => {
       const home = {
         homeId: key.homeId,
         services: reached,
-        protocol: HomeProtocol.protocolVersion,
         webUrls: { radarr: ["http://umbrel.local:7878", "https://radarr.example.com"] }
       }
       expect(link.homeId).toBe(key.homeId)
@@ -97,7 +97,6 @@ describe("the home, answered in place", () => {
         "radarr GET /api/v3/movie",
         "jellyfin GET /Sessions"
       ])
-      expect(new Set(called.map((call) => call.id)).size).toBe(2)
     }).pipe(Effect.provide(local)))
 
   it.effect("makes its calls as they are asked, however many at once: a screen's reads leave together", () =>
@@ -137,16 +136,16 @@ describe("the home, answered in place", () => {
       ])
     }).pipe(Effect.provide(local)))
 
-  it.effect("polls the watches itself: a snapshot when the answer changed, a failure for a watch it refuses", () =>
+  it.effect("polls the watches itself: a snapshot when the answer changed, a failure for a watch it can't read", () =>
     Effect.gen(function*() {
       const { link } = yield* LocalHome
       yield* link.nextEvent
       yield* link.setWatches([
         { id: "sessions", service: "radarr", path: "/api/v3/queue", everySeconds: 15 },
-        { id: "config", service: "radarr", path: "/api/v3/config/host", everySeconds: 15 }
+        { id: "playing", service: "jellyfin", path: "/Sessions", everySeconds: 15 }
       ])
       const events = [yield* link.nextEvent, yield* link.nextEvent]
-      expect(events).toContainEqual({ _tag: "WatchFailed", watchId: "config", reason: "not allowed" })
+      expect(events).toContainEqual({ _tag: "WatchFailed", watchId: "playing", reason: "jellyfin is unreachable" })
       expect(events).toContainEqual({ _tag: "Snapshot", watchId: "sessions", status: 200, body: "/api/v3/queue" })
       // The same answer again is no event; no watch, no poll.
       yield* TestClock.adjust("15 seconds")
@@ -184,9 +183,9 @@ describe("the home, answered in place", () => {
       } as const
       yield* link.appendJournal([line])
       expect(yield* link.readJournal({ limit: 10 })).toEqual({ entries: [line], more: false })
-      yield* (yield* Journal).note({ level: "warn", source: "radarr", kind: "call.refused", text: "refused" })
+      yield* (yield* Journal).note({ level: "warn", source: "radarr", kind: "service.unreached", text: "unreached" })
       const event = yield* link.nextEvent
-      expect(event._tag === "Journal" ? event.entries.map((entry) => entry.text) : event).toEqual(["refused"])
+      expect(event._tag === "Journal" ? event.entries.map((entry) => entry.text) : event).toEqual(["unreached"])
     }).pipe(Effect.provide(local)))
 
   it.effect("the console's requests wait for the domain's routes: 503 until they answer", () =>

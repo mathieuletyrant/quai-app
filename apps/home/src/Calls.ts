@@ -1,43 +1,44 @@
-import { HomeProtocol, journalSourceNames } from "@quai/api"
-import { type Cause, Context, Effect, Layer, Option, Schema, Semaphore } from "effect"
+import { journalSourceNames, type Service } from "@quai/api"
+import type { CallRequest } from "@quai/domain/home/HomeLink.ts"
+import { type Cause, Context, Effect, Layer } from "effect"
 import { type HttpClientError, HttpClientRequest } from "effect/http"
 import type { ServiceError } from "./Errors.ts"
 import { Journal } from "./Journal.ts"
 import { ServiceAuth } from "./ServiceAuth.ts"
 
-type CallResponse = typeof HomeProtocol.CallResponse.Type
-type Failed = typeof HomeProtocol.Failed.Type
-
-/** What a checked write's read says: it may go, it may not (and why), or the service didn't answer. */
-type Verdict =
-  | { readonly _tag: "Allowed" }
-  | { readonly _tag: "Refused"; readonly why: string }
-  | { readonly _tag: "Unanswered"; readonly reason: string }
-
-const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
-const unreadable = "against what it holds, which it can't read"
+/** What a service answered a call, or why it didn't. */
+export type CallAnswer =
+  | { readonly _tag: "Answered"; readonly status: number; readonly body: string }
+  | { readonly _tag: "Failed"; readonly reason: string }
 
 /**
- * Runs the calls Quai makes to the services, within the allowlist (method, path and, for the writes that
- * need it, the body; for a write that replaces a whole document, the body against what the service
- * holds, read just before). Never fails: anything that goes wrong
- * is a `Failed` the caller can read. The journal gets each refusal, and a line when a service
- * stops answering (unreachable, a login refused, too slow) and when it answers again: once per
- * streak, not per call.
+ * Largest response body Quai reads; bigger ones come back as a failure. Sized for the library
+ * lists: Radarr's `/api/v3/movie` runs to a few kilobytes per title.
+ */
+export const maxBodyBytes = 16_000_000
+
+/** Quai Home waits this long for a service, unless the call says otherwise. */
+export const defaultCallTimeoutMs = 10_000
+
+const failed = (reason: string): CallAnswer => ({ _tag: "Failed", reason })
+
+/**
+ * Runs the calls Quai makes to the services, on the LAN, with their keys. Never fails: anything that
+ * goes wrong is a `Failed` the caller can read. The journal gets a line when a service stops
+ * answering (unreachable, a login refused, too slow) and when it answers again: once per streak,
+ * not per call.
  */
 export class Calls extends Context.Service<Calls, {
-  readonly run: (call: HomeProtocol.Call) => Effect.Effect<CallResponse | Failed>
+  readonly run: (call: CallRequest, options?: { readonly timeoutMs?: number }) => Effect.Effect<CallAnswer>
 }>()("quai-home/Calls") {
   static readonly layer = Layer.effect(
     Calls,
     Effect.gen(function*() {
       const auth = yield* ServiceAuth
       const journal = yield* Journal
-      const failed = (id: string, reason: string): Effect.Effect<Failed> =>
-        Effect.succeed(HomeProtocol.Failed.make({ id, reason }))
       /** Why each service doesn't answer, while it doesn't. */
-      const failing = new Map<HomeProtocol.HomeService, string>()
-      const reached = (service: HomeProtocol.HomeService) =>
+      const failing = new Map<Service, string>()
+      const reached = (service: Service) =>
         Effect.suspend(() => {
           if (!failing.delete(service)) return Effect.void
           return journal.note({
@@ -47,7 +48,7 @@ export class Calls extends Context.Service<Calls, {
             text: `Quai Home reaches ${journalSourceNames[service]} again`
           })
         })
-      const unreached = (service: HomeProtocol.HomeService, reason: string) =>
+      const unreached = (service: Service, reason: string) =>
         Effect.suspend(() => {
           if (failing.get(service) === reason) return Effect.void
           failing.set(service, reason)
@@ -59,20 +60,7 @@ export class Calls extends Context.Service<Calls, {
           })
         })
 
-      const refuse = (call: HomeProtocol.Call, why: string) =>
-        Effect.andThen(
-          journal.note({
-            level: "warn",
-            source: call.service,
-            kind: "call.refused",
-            text: `Quai Home refused a call ${why}: ${journalSourceNames[call.service]} ${call.method} ${
-              call.path.split("?")[0]
-            }`
-          }),
-          failed(call.id, "not allowed")
-        )
-
-      const requestOf = (call: HomeProtocol.Call) => {
+      const requestOf = (call: CallRequest) => {
         const request = call.method === "GET"
           ? HttpClientRequest.get(call.path)
           : call.method === "DELETE"
@@ -84,92 +72,40 @@ export class Calls extends Context.Service<Calls, {
       }
 
       /** A call's answer, or why there's none: a too-large body is a `Failed`; what didn't answer fails. */
-      const exchange = (call: HomeProtocol.Call) =>
+      const exchange = (call: CallRequest) =>
         Effect.flatMap(auth.execute(call.service, requestOf(call)), (response) => {
           const length = Number(response.headers["content-length"])
-          if (length > HomeProtocol.maxBodyBytes) return failed(call.id, "too large")
+          if (length > maxBodyBytes) return Effect.succeed(failed("too large"))
           return Effect.map(
             response.text,
-            (body): CallResponse | Failed =>
-              Buffer.byteLength(body) > HomeProtocol.maxBodyBytes
-                ? HomeProtocol.Failed.make({ id: call.id, reason: "too large" })
-                : HomeProtocol.CallResponse.make({ id: call.id, status: response.status, body })
+            (body): CallAnswer =>
+              Buffer.byteLength(body) > maxBodyBytes
+                ? failed("too large")
+                : { _tag: "Answered", status: response.status, body }
           )
         })
 
       /** The service didn't answer (unreachable, a login refused, too slow): the journal hears it once, the caller each time. */
       const notAnswered =
-        (call: HomeProtocol.Call) => (error: ServiceError | HttpClientError.HttpClientError | Cause.TimeoutError) => {
+        (call: CallRequest) => (error: ServiceError | HttpClientError.HttpClientError | Cause.TimeoutError) => {
           const reason = error._tag === "ServiceError"
             ? error.message
             : error._tag === "TimeoutError"
             ? "timed out"
             : "could not read the response"
-          return Effect.andThen(unreached(call.service, reason), failed(call.id, reason))
+          return Effect.as(unreached(call.service, reason), failed(reason))
         }
-
-      const send = (call: HomeProtocol.Call, rule: HomeProtocol.AllowRule) =>
-        exchange(call).pipe(
-          Effect.timeout(`${rule.timeoutSeconds ?? HomeProtocol.defaultCallTimeoutSeconds} seconds`),
-          Effect.tap(() => reached(call.service)),
-          Effect.catch(notAnswered(call))
-        )
-
-      /**
-       * What the service holds, read for a checked write, and the rule's verdict: `null` when the
-       * write may go, why not otherwise. What it read is never sent on. Not answering (a non-2xx
-       * included) is `unanswered`, not a refusal.
-       */
-      const verdict = (call: HomeProtocol.Call, against: NonNullable<HomeProtocol.AllowRule["against"]>) =>
-        Effect.flatMap(auth.execute(call.service, HttpClientRequest.get(against.path)), (response) => {
-          if (response.status < 200 || response.status >= 300) {
-            return Effect.succeed<Verdict>({ _tag: "Unanswered", reason: `HTTP ${response.status}` })
-          }
-          if (Number(response.headers["content-length"]) > HomeProtocol.maxBodyBytes) {
-            return Effect.succeed<Verdict>({ _tag: "Refused", why: unreadable })
-          }
-          return Effect.map(response.text, (body): Verdict => {
-            const current = Buffer.byteLength(body) > HomeProtocol.maxBodyBytes ? Option.none() : decodeJson(body)
-            if (Option.isNone(current)) return { _tag: "Refused", why: unreadable }
-            return against.check(current.value, call.body)
-              ? { _tag: "Allowed" }
-              : { _tag: "Refused", why: "that changes more than it may" }
-          })
-        })
-
-      /** Checked writes go one at a time: two read at once would both pass, and the second would undo the first. */
-      const oneAtATime = yield* Semaphore.make(1)
-
-      /**
-       * A write checked against what the service holds: its read, the rule's check, then the write,
-       * one at a time, within `checkedWriteTimeoutSeconds` from the wait to the answer.
-       */
-      const checked = (call: HomeProtocol.Call, against: NonNullable<HomeProtocol.AllowRule["against"]>) =>
-        Effect.gen(function*() {
-          const outcome = yield* verdict(call, against)
-          if (outcome._tag === "Unanswered") {
-            return yield* Effect.andThen(unreached(call.service, outcome.reason), failed(call.id, outcome.reason))
-          }
-          yield* reached(call.service)
-          if (outcome._tag === "Refused") return yield* refuse(call, outcome.why)
-          return yield* exchange(call)
-        }).pipe(
-          Semaphore.withPermit(oneAtATime),
-          Effect.timeout(`${HomeProtocol.checkedWriteTimeoutSeconds} seconds`),
-          Effect.catch(notAnswered(call))
-        )
 
       return {
-        run: (call) => {
-          const rule = HomeProtocol.allowRule(call)
-          if (rule === undefined) return refuse(call, "outside its allowlist")
-          return Effect.flatMap(auth.configured, (configured) =>
+        run: (call, options) =>
+          Effect.flatMap(auth.configured, (configured) =>
             !configured.includes(call.service)
-              ? failed(call.id, `${call.service} is not configured`)
-              : rule.against === undefined
-              ? send(call, rule)
-              : checked(call, rule.against))
-        }
+              ? Effect.succeed(failed(`${call.service} is not configured`))
+              : exchange(call).pipe(
+                Effect.timeout(options?.timeoutMs ?? defaultCallTimeoutMs),
+                Effect.tap(() => reached(call.service)),
+                Effect.catch(notAnswered(call))
+              ))
       }
     })
   )

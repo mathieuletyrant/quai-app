@@ -1,14 +1,12 @@
 import { HomeProtocol } from "@quai/api"
 import type { RelayedAnswer } from "@quai/domain/home/ConsoleRelay.ts"
 import { ApnsError, type ApnsRequest } from "@quai/domain/push/Apns.ts"
-import { Clock, Context, Deferred, Effect, Layer, PubSub, Ref, Schema, type Scope, Semaphore } from "effect"
+import { Clock, Context, Deferred, Effect, Layer, Ref, Schema, type Scope, Semaphore } from "effect"
 import { Socket } from "effect/socket"
 import { CloudSeen } from "./CloudSeen.ts"
-import { configuredServices, HomeConfig } from "./Config.ts"
 import { HomeKey } from "./HomeKey.ts"
 import { Journal } from "./Journal.ts"
 import { LocalHome, startingMessage } from "./LocalHome.ts"
-import { ServiceSettings } from "./ServiceSettings.ts"
 import { homeVersion } from "./Version.ts"
 
 type HomeMessage = HomeProtocol.HomeMessage
@@ -81,8 +79,6 @@ export class Link extends Context.Service<Link, {
   static readonly layer = Layer.effect(
     Link,
     Effect.gen(function*() {
-      const config = yield* HomeConfig
-      const settings = yield* ServiceSettings
       const cloudSeen = yield* CloudSeen
       const key = yield* HomeKey
       const local = yield* LocalHome
@@ -102,14 +98,11 @@ export class Link extends Context.Service<Link, {
       /** The pushes waiting for the Cloud's answer, on the current connection. */
       const pushes = new Map<string, Deferred.Deferred<HomeProtocol.PushResponse, ApnsError>>()
 
-      const hello = Effect.map(settings.current, (endpoints) =>
-        HomeProtocol.Hello.make({
-          protocol: HomeProtocol.protocolVersion,
-          homeVersion,
-          publicKey: key.publicKey,
-          services: configuredServices(endpoints),
-          webUrls: config.webUrls
-        }))
+      const hello = HomeProtocol.Hello.make({
+        protocol: HomeProtocol.protocolVersion,
+        homeVersion,
+        publicKey: key.publicKey
+      })
 
       const connection = Effect.gen(function*() {
         const pull = yield* Socket.readerString(socket)
@@ -122,7 +115,7 @@ export class Link extends Context.Service<Link, {
         const semaphore = yield* Semaphore.make(appConcurrency)
         const lastPing = yield* Ref.make(yield* Clock.currentTimeMillis)
 
-        yield* write(yield* hello)
+        yield* write(hello)
         yield* Ref.set(current, write)
         yield* Effect.addFinalizer(() =>
           Effect.gen(function*() {
@@ -132,14 +125,6 @@ export class Link extends Context.Service<Link, {
             pushes.clear()
           })
         )
-        // A service set or removed from the console: the Cloud hears which services this home reaches now.
-        const changes = yield* settings.changes
-        yield* Effect.forkScoped(Effect.forever(Effect.gen(function*() {
-          yield* PubSub.take(changes)
-          if (!(yield* Ref.get(linked))) return
-          yield* write(HomeProtocol.ServicesChanged.make({ services: configuredServices(yield* settings.current) }))
-        })))
-
         /** What this connection last told the Cloud of the pairing codes: said again only when it changed. */
         let told: string | null = null
         const pairingCodes = Effect.flatMap(local.pairingHashes, (open) => {
@@ -207,17 +192,6 @@ export class Link extends Context.Service<Link, {
               return Effect.asVoid(Effect.forkScoped(semaphore.withPermit(answerApp(message))))
             case "PushResponse":
               return pushed(message)
-            // What a Cloud asks a Quai Home that doesn't run Quai: this one does, and answers none of it.
-            case "Call":
-            case "StoreList":
-            case "StorePut":
-            case "StoreDelete":
-            case "JournalRead":
-              return write(HomeProtocol.Failed.make({ id: message.id, reason: "this Quai Home runs Quai itself" }))
-            case "SetWatches":
-            case "JournalAppend":
-            case "ConsoleResponse":
-              return Effect.void
           }
         }
 

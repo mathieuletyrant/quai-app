@@ -117,21 +117,6 @@ describe("Cloud journal", () => {
       }).pipe(Effect.scoped, Effect.provide(journalOnly))
     }))
 
-  it.effect("a Home too old for a journal gets no journal message: the memory answers", () =>
-    Effect.gen(function*() {
-      const home = yield* makeFakeHome({ protocol: 3 })
-      yield* home.connect
-      const journal = yield* Journal
-      yield* journal.log({ level: "info", source: "radarr", kind: "a", text: "one" })
-      yield* TestClock.adjust(Timing.batchMs)
-      const page = yield* journal.history({ limit: 10 })
-      expect(page).toMatchObject({ kept: "memory", more: false })
-      expect(page.entries.map((entry) => entry.text)).toEqual(["one"])
-      expect(home.received.some((message) => message._tag === "JournalAppend" || message._tag === "JournalRead")).toBe(
-        false
-      )
-    }).pipe(Effect.provide(journalOnly)))
-
   it.effect("the live tail: what came after a cursor, Quai Home's own lines too; a cursor from another run starts over", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome()

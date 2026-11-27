@@ -59,8 +59,8 @@ Quai has two parts.
 - 🏠 **Quai Home** runs next to your services, on your server, and runs Quai: it follows your
   downloads and playbacks, works out the Live Activities and every screen of the app, and serves
   the console. It holds your services' API keys and your data (paired iPhones, flows, preferences).
-  It sets up the Radarr and Sonarr webhooks, polls only what's needed, and makes only the calls on
-  a fixed allowlist. It connects out: no port to open.
+  It sets up the Radarr and Sonarr webhooks and polls only what's needed. It connects out: no port
+  to open.
 - ☁️ **Quai Cloud** is how the app reaches your Quai Home from anywhere, and what sends its pushes
   through Apple, signed with the push key. It relays, computes nothing and stores nothing
   ([why](docs/adr/0003-quai-home-runs-quai.md)). Each iPhone signs its requests with a key made at
@@ -160,7 +160,6 @@ Signed in to the console, `/home-api/openapi.json` lists everything Quai Home an
 | `QUAI_APNS_TOPIC` | `com.mathieuletyrant.quai` | The app's bundle id |
 | `QUAI_CLOUD_PUBLIC_URL` | | Address from outside, added to the pairing QR code |
 | `QUAI_CLOUD_PUBLIC_HEADERS` | | Headers your reverse proxy requires from the app ([docs](docs/proxy.md)) |
-| `QUAI_TZ` | `UTC` | Only for a Quai Home older than 2.4, whose flows the Cloud still runs; a newer one reads its own |
 | `QUAI_HOME_ID` | | The only Quai Homes served, comma-separated (the id each logs as `linked as home …`); any other is refused ([docs](docs/proxy.md#quai_home_id)) |
 | `QUAI_MAX_HOMES` | | How many Quai Homes may be linked at once; past it, a new one is refused |
 

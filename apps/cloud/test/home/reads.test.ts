@@ -27,12 +27,11 @@ const reads = HomeReads.layer.pipe(
   Layer.provideMerge(captured)
 )
 
-/** A home whose status route answers `answer`; not strict, so a refusal can be the answer. */
+/** A home whose status route answers `answer`. */
 const homeAnswering = (answer: Exclude<Recording, string>) =>
   Effect.gen(function*() {
     logs.length = 0
     const home = yield* makeFakeHome({
-      strict: false,
       services: ["radarr", "sonarr"],
       answer: recordedHome({ [route]: answer })
     })
@@ -79,14 +78,6 @@ describe("HomeReads.read", () => {
         expect(logs).toEqual([log])
       }).pipe(Effect.provide(reads)))
   }
-
-  it.effect("is None on a call the allowlist refuses", () =>
-    Effect.gen(function*() {
-      const home = yield* homeAnswering({ json: {} })
-      expect(yield* (yield* HomeReads).read({ ...status, path: "/api/v3/config/host" })).toEqual(Option.none())
-      expect(home.notAllowed).toEqual(["radarr GET /api/v3/config/host"])
-      expect(logs).toEqual(["radarr /api/v3/config/host: not allowed"])
-    }).pipe(Effect.provide(reads)))
 
   it.effect("is None when Quai Home doesn't answer in time", () =>
     Effect.gen(function*() {
@@ -213,7 +204,6 @@ describe("HomeReads, the same GET read again", () => {
   it.effect("forgets a service's answers when it says something changed, and only that service's", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome({
-        strict: false,
         services: ["radarr", "sonarr"],
         answer: () => ({ json: { version: "5" } })
       })

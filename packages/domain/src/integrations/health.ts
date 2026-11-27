@@ -3,7 +3,7 @@ import { Clock, Effect } from "effect"
 import { type AlertState, alertState } from "../alerts/Alerts.ts"
 import type { Integration } from "./Integration.ts"
 
-/** How to ask each service whether it's up: an allowlisted status endpoint, every minute. */
+/** How to ask each service whether it's up: a status endpoint that needs its key, every minute. */
 export const probes: Record<HomeProtocol.HomeService, { readonly title: string; readonly path: string }> = {
   radarr: { title: "Radarr", path: "/api/v3/system/status" },
   sonarr: { title: "Sonarr", path: "/api/v3/system/status" },

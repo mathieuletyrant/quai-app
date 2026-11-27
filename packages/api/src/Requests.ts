@@ -51,7 +51,7 @@ export class RequestFailed extends Schema.TaggedError<RequestFailed>()("RequestF
  * - `ok`: Seerr answered;
  * - `unavailable`: Quai Home reaches Seerr but it didn't answer this time;
  * - `notConfigured`: Quai Home has no Seerr;
- * - `outdated`: Quai Home is too old to search or request (before protocol 8): update it.
+ * - `outdated`: no longer sent (a Quai Home too old to search no longer links); kept for the apps that read it.
  */
 export const SearchStatus = Schema.Literals(["ok", "unavailable", "notConfigured", "outdated"]).annotate({
   identifier: "SearchStatus"

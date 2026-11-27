@@ -148,3 +148,20 @@ Nov 27, 2026, with step 2:
   code in the iPhone's place: the iPhone would be refused, and the console would list an iPhone
   that isn't the user's. A longer secret in the QR code, never sent, would close it; not done
   here.
+
+Nov 27, 2026, the old path removed (protocol 14):
+
+- **Quai Cloud serves only Quai Homes that run Quai** (`minProtocolVersion` 13). Step 5 said "at
+  the next major version"; with one home using Quai, it went now: that release is the major one. The
+  Cloud no longer builds a home app, asks a home for documents, calls or watches, or keeps a
+  journal for one; an older Quai Home is refused at the handshake and told to update.
+- **The allowlist is gone.** It limited what the Cloud could ask a Quai Home to call; Quai Home
+  now refuses every such request, and the only caller left is the domain in the same image, so
+  the list only restricted Quai's own code. The protection that matters stays: the Cloud calls no
+  service, and the app's requests can only ask for what the app's routes do. What the list also
+  carried moved to the domain: the release search's longer wait (`HomeLink.call`'s `timeoutMs`),
+  and Cleanuparr's whole-settings write, read and written one at a time (`Fixes`).
+- **The protocol carries the app relay and the push requests only**: `Hello` no longer lists the
+  services (protocol 14); a protocol 13 Quai Home is still served, and what it still sends of its
+  services is left unread.
+- `QUAI_TZ` is read by Quai Home only.

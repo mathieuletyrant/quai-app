@@ -1,10 +1,9 @@
 import { describe, expect, it } from "@effect/vitest"
-import { HomeProtocol } from "@quai/api"
+import type { CallRequest } from "@quai/domain/home/HomeLink.ts"
 import { Effect, Fiber, Layer } from "effect"
 import { HttpClient } from "effect/http"
 import { TestClock } from "effect/testing"
-import { Calls } from "../src/Calls.ts"
-import { Journal } from "../src/Journal.ts"
+import { Calls, maxBodyBytes } from "../src/Calls.ts"
 import { ServiceAuth, sessionCookie } from "../src/ServiceAuth.ts"
 import { configLayer, journalLayer } from "./config.ts"
 import { fakeHttp, type Seen } from "./fakeHttp.ts"
@@ -18,38 +17,16 @@ const callsWith = (route: Route, seen: Array<Seen>, config = configLayer()) =>
     Layer.provide([config, fakeHttp(route, seen)])
   )
 
-const request = (fields: Omit<HomeProtocol.Call, "_tag" | "id">): HomeProtocol.Call => ({
-  _tag: "Call",
-  id: "r1",
-  ...fields
-})
+const request = (call: CallRequest): CallRequest => call
 
-describe("calls allowlist", () => {
-  it.effect("refuses what the allowlist doesn't list, without calling the service", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      const calls = yield* Calls
-      const refused = [
-        request({ service: "radarr", method: "GET", path: "/api/v3/config/host" }),
-        request({ service: "radarr", method: "POST", path: "/api/v3/system/status" }),
-        request({ service: "radarr", method: "GET", path: "/api/v3/system/status/../../config" }),
-        request({ service: "jellyfin", method: "POST", path: "/Sessions/abc/Playing/../../Users" }),
-        request({ service: "qbittorrent", method: "POST", path: "/api/v2/torrents/delete" })
-      ]
-      for (const call of refused) {
-        expect(yield* calls.run(call)).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      }
-      expect(seen).toHaveLength(0)
-    }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
-  })
-
+describe("calls", () => {
   it.effect("a service that isn't configured is a failure", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
       const result = yield* (yield* Calls).run(
         request({ service: "sonarr", method: "GET", path: "/api/v3/system/status" })
       )
-      expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "sonarr is not configured" })
+      expect(result).toEqual({ _tag: "Failed", reason: "sonarr is not configured" })
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen, configLayer({ sonarr: null }))))
   })
 
@@ -58,7 +35,7 @@ describe("calls allowlist", () => {
     return Effect.gen(function*() {
       const calls = yield* Calls
       const radarr = yield* calls.run(request({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))
-      expect(radarr).toEqual({ _tag: "CallResponse", id: "r1", status: 200, body: "{\"version\":\"5.0\"}" })
+      expect(radarr).toEqual({ _tag: "Answered", status: 200, body: "{\"version\":\"5.0\"}" })
       expect(seen[0]!.url.href).toBe("http://radarr:7878/api/v3/system/status")
       expect(seen[0]!.headers["x-api-key"]).toBe("masked")
 
@@ -88,7 +65,7 @@ describe("calls allowlist", () => {
         ]] as const
       ) {
         expect(yield* calls.run(request({ service, method: "GET", path }))).toMatchObject({
-          _tag: "CallResponse",
+          _tag: "Answered",
           status: 200
         })
       }
@@ -106,7 +83,7 @@ describe("calls allowlist", () => {
       const result = yield* (yield* Calls).run(
         request({ service: "radarr", method: "GET", path: "/api/v3/system/status" })
       )
-      expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "unreachable" })
+      expect(result).toEqual({ _tag: "Failed", reason: "unreachable" })
     }).pipe(Effect.provide(callsWith(() => ({ unreachable: true }), []))))
 })
 
@@ -118,7 +95,7 @@ describe("To fix calls", () => {
       const removed = yield* calls.run(
         request({ service: "radarr", method: "DELETE", path: "/api/v3/queue/41?removeFromClient=true&blocklist=true" })
       )
-      expect(removed).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(removed).toMatchObject({ _tag: "Answered", status: 200 })
       expect(seen[0]!.method).toBe("DELETE")
       expect(seen[0]!.url.href).toBe("http://radarr:7878/api/v3/queue/41?removeFromClient=true&blocklist=true")
 
@@ -137,81 +114,42 @@ describe("To fix calls", () => {
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 
-  it.effect("approves a Seerr request with its API key, and creates one only as the allowlist says", () => {
+  it.effect("approves and creates a Seerr request with its API key", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
       const calls = yield* Calls
       const approved = yield* calls.run(
         request({ service: "seerr", method: "POST", path: "/api/v1/request/12/approve" })
       )
-      expect(approved).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(approved).toMatchObject({ _tag: "Answered", status: 200 })
       expect(seen[0]!.url.href).toBe("http://seerr:5055/api/v1/request/12/approve")
       expect(seen[0]!.headers["x-api-key"]).toBe("masked")
       expect(seen[0]!.body).toBeNull()
       const created = yield* calls.run(
         request({ service: "seerr", method: "POST", path: "/api/v1/request", body: { mediaType: "movie", mediaId: 1 } })
       )
-      expect(created).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(created).toMatchObject({ _tag: "Answered", status: 200 })
       expect(JSON.parse(seen[1]!.body!)).toEqual({ mediaType: "movie", mediaId: 1 })
-      const in4k = yield* calls.run(
-        request({
-          service: "seerr",
-          method: "POST",
-          path: "/api/v1/request",
-          body: { mediaType: "movie", mediaId: 1, is4k: true }
-        })
-      )
-      expect(in4k).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      expect(seen).toHaveLength(2)
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 
-  it.effect("refuses a command other than ManualImport without calling Radarr", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      const calls = yield* Calls
-      for (const name of ["RescanMovie", "Backup", "MissingMoviesSearch"]) {
-        const result = yield* calls.run(
-          request({
-            service: "radarr",
-            method: "POST",
-            path: "/api/v3/command",
-            body: { name, importMode: "auto", files: [] }
-          })
-        )
-        expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      }
-      expect(seen).toHaveLength(0)
-      const ok = yield* calls.run(request({
-        service: "radarr",
-        method: "POST",
-        path: "/api/v3/command",
-        body: {
-          name: "ManualImport",
-          importMode: "auto",
-          files: [{ path: "/downloads/a.mkv", movieId: 12, downloadId: "X" }]
-        }
-      }))
-      expect(ok).toMatchObject({ _tag: "CallResponse" })
-      expect(JSON.parse(seen[0]!.body!).name).toBe("ManualImport")
-    }).pipe(Effect.provide(callsWith(() => ({ json: { id: 1 } }), seen)))
-  })
-
-  it.effect("a release search may take 50 s, a read only 10", () =>
+  it.effect("a call given a longer wait (a release search) may take it; a read takes 10 s", () =>
     Effect.gen(function*() {
       const calls = yield* Calls
       const search = yield* Effect.forkChild(
-        calls.run(request({ service: "radarr", method: "GET", path: "/api/v3/release?movieId=12" }))
+        calls.run(request({ service: "radarr", method: "GET", path: "/api/v3/release?movieId=12" }), {
+          timeoutMs: 50_000
+        })
       )
       const read = yield* Effect.forkChild(
         calls.run(request({ service: "radarr", method: "GET", path: "/api/v3/queue" }))
       )
       yield* TestClock.adjust("10 seconds")
-      expect(yield* Fiber.join(read)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
+      expect(yield* Fiber.join(read)).toEqual({ _tag: "Failed", reason: "timed out" })
       yield* TestClock.adjust("39 seconds")
       expect(search.pollUnsafe()).toBeUndefined()
       yield* TestClock.adjust("1 second")
-      expect(yield* Fiber.join(search)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
+      expect(yield* Fiber.join(search)).toEqual({ _tag: "Failed", reason: "timed out" })
     }).pipe(Effect.provide(Calls.layer.pipe(
       Layer.provide(ServiceAuth.fromConfig),
       Layer.provide([
@@ -226,7 +164,7 @@ describe("To fix calls", () => {
       const result = yield* (yield* Calls).run(
         request({ service: "reclaimerr", method: "GET", path: "/api/v1/candidates" })
       )
-      expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "reclaimerr is not configured" })
+      expect(result).toEqual({ _tag: "Failed", reason: "reclaimerr is not configured" })
     }).pipe(Effect.provide(callsWith(() => ({ json: {} }), [], configLayer({ reclaimerr: null })))))
 })
 
@@ -265,176 +203,23 @@ describe("Cleanuparr calls", () => {
       const result = yield* (yield* Calls).run(
         request({ service: "cleanuparr", method: "GET", path: "/api/strikes?page=1&pageSize=500" })
       )
-      expect(result).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(result).toMatchObject({ _tag: "Answered", status: 200 })
       expect(seen[0]!.url.href).toBe("http://cleanuparr:11011/api/strikes?page=1&pageSize=500")
       expect(seen[0]!.headers["x-api-key"]).toBe("masked")
     }).pipe(Effect.provide(callsWith(() => ({ json: { items: [] } }), seen)))
   })
 
-  it.effect("excludes a download: reads the settings, then PUTs them back with one more download id", () => {
+  it.effect("writes its queue cleaner's settings with its API key, as they are given", () => {
     const seen: Array<Seen> = []
     return Effect.gen(function*() {
       const result = yield* (yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] }))
-      expect(result).toMatchObject({ _tag: "CallResponse", status: 200 })
+      expect(result).toMatchObject({ _tag: "Answered", status: 200 })
       expect(seen.map((recorded) => `${recorded.method} ${recorded.url.pathname}`)).toEqual([
-        "GET /api/configuration/queue_cleaner",
         "PUT /api/configuration/queue_cleaner"
       ])
-      expect(seen.every((recorded) => recorded.headers["x-api-key"] === "masked")).toBe(true)
-      expect(JSON.parse(seen[1]!.body!).ignoredDownloads).toEqual([hash])
+      expect(seen[0]!.headers["x-api-key"]).toBe("masked")
+      expect(JSON.parse(seen[0]!.body!).ignoredDownloads).toEqual([hash])
     }).pipe(Effect.provide(callsWith(holding(settings), seen)))
-  })
-
-  it.effect("refuses, without writing, settings that change anything else, or what it can't read first", () =>
-    Effect.gen(function*() {
-      for (
-        const [current, body] of [
-          [settings, { ...settings, enabled: false, ignoredDownloads: [hash] }],
-          [settings, { ...settings, ignoredDownloads: ["movies"] }],
-          [settings, settings],
-          [{ ...settings, ignoredDownloads: [hash] }, { ...settings, ignoredDownloads: [] }],
-          ["<html>login</html>", { ...settings, ignoredDownloads: [hash] }]
-        ] as const
-      ) {
-        const seen: Array<Seen> = []
-        const journal: Array<string> = []
-        const result = yield* Effect.gen(function*() {
-          const outcome = yield* (yield* Calls).run(exclude(body))
-          journal.push(...(yield* (yield* Journal).read({ limit: 10 })).entries.map((entry) => entry.text))
-          return outcome
-        }).pipe(
-          Effect.provide(
-            callsWith((recorded) => typeof current === "string" ? { text: current } : holding(current)(recorded), seen)
-          )
-        )
-        expect(result).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-        expect(seen.map((recorded) => recorded.method)).toEqual(["GET"])
-        expect(journal[0]).toMatch(/^Quai Home refused a call .*: Cleanuparr PUT \/api\/configuration\/queue_cleaner$/)
-      }
-    }))
-
-  it.effect("two Keeps at once: one after the other, so the second doesn't undo the first", () => {
-    const held = { ...settings, ignoredDownloads: [] as Array<string> }
-    const other = "B2C3D4E5F60718293A4B5C6D7E8F901234567890"
-    // A Cleanuparr that applies the PUTs, and answers its reads a second later.
-    const cleanuparr = (recorded: Seen) => {
-      if (recorded.method === "GET") return { json: structuredClone(held), delay: "1 second" as const }
-      held.ignoredDownloads = JSON.parse(recorded.body!).ignoredDownloads
-      return { json: { message: "QueueCleaner configuration updated successfully" } }
-    }
-    return Effect.gen(function*() {
-      const calls = yield* Calls
-      // Each Keep sends what the Cloud read before either went through.
-      const first = yield* Effect.forkChild(
-        calls.run({ ...exclude({ ...settings, ignoredDownloads: [hash] }), id: "a" })
-      )
-      const second = yield* Effect.forkChild(
-        calls.run({ ...exclude({ ...settings, ignoredDownloads: [other] }), id: "b" })
-      )
-      for (let tick = 0; tick < 3; tick++) yield* TestClock.adjust("1 second")
-      expect(yield* Fiber.join(first)).toMatchObject({ _tag: "CallResponse", status: 200 })
-      // The second read sees the first write: its body no longer adds one id to what Cleanuparr holds.
-      expect(yield* Fiber.join(second)).toEqual({ _tag: "Failed", id: "b", reason: "not allowed" })
-      expect(held.ignoredDownloads).toEqual([hash])
-      // Sent again from a fresh read, as the Cloud does on the next Keep, it goes through.
-      const again = yield* Effect.forkChild(calls.run(exclude({ ...settings, ignoredDownloads: [hash, other] })))
-      yield* TestClock.adjust("1 second")
-      expect(yield* Fiber.join(again)).toMatchObject({ _tag: "CallResponse", status: 200 })
-      expect(held.ignoredDownloads).toEqual([hash, other])
-    }).pipe(Effect.provide(callsWith(cleanuparr, [])))
-  })
-
-  it.effect("its read not answering is the service not answering, not a refusal; nothing is written", () =>
-    Effect.gen(function*() {
-      for (
-        const [answer, reason] of [[{ unreachable: true } as const, "unreachable"], [
-          { status: 401, text: "" },
-          "HTTP 401"
-        ], [{ status: 503, text: "" }, "HTTP 503"]] as const
-      ) {
-        const seen: Array<Seen> = []
-        const lines = yield* Effect.gen(function*() {
-          expect(yield* (yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] }))).toEqual({
-            _tag: "Failed",
-            id: "r1",
-            reason
-          })
-          return (yield* (yield* Journal).read({ limit: 10 })).entries.map((entry) => entry.kind)
-        }).pipe(Effect.provide(callsWith(() => answer, seen)))
-        expect(seen.map((recorded) => recorded.method)).toEqual(["GET"])
-        expect(lines).toEqual(["service.unreached"])
-      }
-    }))
-
-  it.effect("its read over maxBodyBytes is unreadable: refused", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      expect(yield* (yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] }))).toEqual({
-        _tag: "Failed",
-        id: "r1",
-        reason: "not allowed"
-      })
-      expect(seen.map((recorded) => recorded.method)).toEqual(["GET"])
-    }).pipe(Effect.provide(callsWith(() => ({ text: " ".repeat(HomeProtocol.maxBodyBytes + 1) }), seen)))
-  })
-
-  it.effect("the read, the check and the write take at most 12 s together, under the Cloud's wait", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      const fiber = yield* Effect.forkChild((yield* Calls).run(exclude({ ...settings, ignoredDownloads: [hash] })))
-      yield* TestClock.adjust("11 seconds")
-      expect(fiber.pollUnsafe()).toBeUndefined()
-      yield* TestClock.adjust("1 second")
-      expect(yield* Fiber.join(fiber)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
-      expect(seen.map((recorded) => recorded.method)).toEqual(["GET", "PUT"])
-    }).pipe(
-      Effect.provide(
-        callsWith(
-          (recorded) =>
-            recorded.method === "GET" ? { json: settings, delay: "6 seconds" } : { json: {}, delay: "1 minute" },
-          seen
-        )
-      )
-    )
-  })
-
-  it.effect("a checked write with a query is refused", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      const call = {
-        ...exclude({ ...settings, ignoredDownloads: [hash] }),
-        path: "/api/configuration/queue_cleaner?apikey=x"
-      }
-      expect(yield* (yield* Calls).run(call)).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      expect(seen).toHaveLength(0)
-    }).pipe(Effect.provide(callsWith(holding(settings), seen)))
-  })
-
-  it.effect("its other writes are refused without calling it", () => {
-    const seen: Array<Seen> = []
-    return Effect.gen(function*() {
-      const calls = yield* Calls
-      for (
-        const call of [
-          request({
-            service: "cleanuparr",
-            method: "PUT",
-            path: "/api/configuration/general",
-            body: { ignoredDownloads: [hash] }
-          }),
-          request({ service: "cleanuparr", method: "POST", path: "/api/jobs/QueueCleaner/trigger" }),
-          request({
-            service: "cleanuparr",
-            method: "DELETE",
-            path: "/api/strikes/0195f0e2-7c1a-7d3e-9a10-2f5e8b3c4d01"
-          }),
-          request({ service: "cleanuparr", method: "GET", path: "/api/account/api-key" })
-        ]
-      ) {
-        expect(yield* calls.run(call)).toEqual({ _tag: "Failed", id: "r1", reason: "not allowed" })
-      }
-      expect(seen).toHaveLength(0)
-    }).pipe(Effect.provide(callsWith(() => ({ json: {} }), seen)))
   })
 })
 
@@ -443,16 +228,16 @@ describe("call bodies", () => {
     Effect.gen(function*() {
       const calls = yield* Calls
       const status = request({ service: "radarr", method: "GET", path: "/api/v3/system/status" })
-      expect(yield* calls.run(status)).toEqual({ _tag: "Failed", id: "r1", reason: "too large" })
-    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(HomeProtocol.maxBodyBytes + 1) }), []))))
+      expect(yield* calls.run(status)).toEqual({ _tag: "Failed", reason: "too large" })
+    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(maxBodyBytes + 1) }), []))))
 
   it.effect("a body of exactly maxBodyBytes goes through", () =>
     Effect.gen(function*() {
       const result = yield* (yield* Calls).run(
         request({ service: "radarr", method: "GET", path: "/api/v3/system/status" })
       )
-      expect(result).toMatchObject({ _tag: "CallResponse", status: 200 })
-    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(HomeProtocol.maxBodyBytes) }), []))))
+      expect(result).toMatchObject({ _tag: "Answered", status: 200 })
+    }).pipe(Effect.provide(callsWith(() => ({ text: "x".repeat(maxBodyBytes) }), []))))
 })
 
 describe("call timeout", () => {
@@ -462,7 +247,7 @@ describe("call timeout", () => {
         (yield* Calls).run(request({ service: "radarr", method: "GET", path: "/api/v3/system/status" }))
       )
       yield* TestClock.adjust("10 seconds")
-      expect(yield* Fiber.join(fiber)).toEqual({ _tag: "Failed", id: "r1", reason: "timed out" })
+      expect(yield* Fiber.join(fiber)).toEqual({ _tag: "Failed", reason: "timed out" })
     }).pipe(Effect.provide(Calls.layer.pipe(
       Layer.provide(ServiceAuth.fromConfig),
       Layer.provide([
@@ -494,7 +279,7 @@ describe("qBittorrent session", () => {
     }
     return Effect.gen(function*() {
       const result = yield* (yield* Calls).run(info)
-      expect(result).toEqual({ _tag: "CallResponse", id: "r1", status: 200, body: "[]" })
+      expect(result).toEqual({ _tag: "Answered", status: 200, body: "[]" })
       expect(seen.map((recorded) => recorded.url.pathname)).toEqual([
         "/api/v2/torrents/info",
         "/api/v2/auth/login",
@@ -518,7 +303,7 @@ describe("qBittorrent session", () => {
       const both = yield* Effect.forkChild(Effect.all([calls.run(info), calls.run(info)], { concurrency: "unbounded" }))
       yield* TestClock.adjust("1 second")
       const results = yield* Fiber.join(both)
-      expect(results.map((result) => result._tag)).toEqual(["CallResponse", "CallResponse"])
+      expect(results.map((result) => result._tag)).toEqual(["Answered", "Answered"])
       expect(seen.filter((recorded) => recorded.url.pathname === "/api/v2/auth/login")).toHaveLength(1)
     }).pipe(Effect.provide(callsWith(route, seen)))
   })
@@ -530,9 +315,9 @@ describe("qBittorrent session", () => {
     return Effect.gen(function*() {
       const calls = yield* Calls
       const logins = () => seen.filter((recorded) => recorded.url.pathname === "/api/v2/auth/login").length
-      expect(yield* calls.run(info)).toEqual({ _tag: "Failed", id: "r1", reason: "wrong username or password" })
+      expect(yield* calls.run(info)).toEqual({ _tag: "Failed", reason: "wrong username or password" })
       yield* TestClock.adjust("1 hour")
-      expect(yield* calls.run(info)).toEqual({ _tag: "Failed", id: "r1", reason: "wrong username or password" })
+      expect(yield* calls.run(info)).toEqual({ _tag: "Failed", reason: "wrong username or password" })
       expect(logins()).toBe(1)
     }).pipe(Effect.provide(callsWith(route, seen)))
   })

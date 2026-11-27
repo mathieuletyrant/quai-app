@@ -7,7 +7,7 @@ import {
 } from "@quai/api"
 import type { FlowEvent } from "../flows/Events.ts"
 
-/** The journal's source for an integration's service: Quai's own checks are the Cloud's. */
+/** The journal's source for an integration's service: Quai's own checks keep the `cloud` source they were logged under. */
 export type From = IntegrationSource
 
 export const sourceOf = (service: From): JournalSource => service === "quai" ? "cloud" : service

@@ -1,4 +1,4 @@
-import { HomeProtocol } from "@quai/api"
+import type { Service } from "@quai/api"
 import type { RelayedAnswer } from "@quai/domain/home/ConsoleRelay.ts"
 import {
   type ConsoleHandler,
@@ -34,7 +34,7 @@ export const openPairingHashes = (documents: ReadonlyMap<string, unknown>, now: 
 
 /**
  * The home, for the domain that runs in Quai Home (ADR 3): its home link answered in place. The
- * calls go to the services on the LAN (`Calls`, within the allowlist, as many at once as are asked), the watches are polled here
+ * calls go to the services on the LAN (`Calls`, as many at once as are asked), the watches are polled here
  * (`Watches`), the documents are the home store's, the journal is Quai Home's own. Nothing crosses
  * a WebSocket: this home is never offline.
  */
@@ -42,7 +42,7 @@ export class LocalHome extends Context.Service<LocalHome, {
   /** The link the domain's services use. */
   readonly link: HomeLink["Service"]
   /** A webhook a service sent: an event for the domain. */
-  readonly webhook: (service: HomeProtocol.HomeService, receivedAt: number, body: unknown) => Effect.Effect<void>
+  readonly webhook: (service: Service, receivedAt: number, body: unknown) => Effect.Effect<void>
   /** One of the console's requests, answered by the domain's routes; 503 until they are up. */
   readonly console: (request: ConsoleRequest) => Effect.Effect<RelayedAnswer>
   /** The hashes of the pairing codes open now. */
@@ -64,7 +64,6 @@ export class LocalHome extends Context.Service<LocalHome, {
       const events = yield* Queue.unbounded<HomeEvent>()
       const pairingChanges = yield* Queue.sliding<void>(1)
       const consoleHandler = yield* Ref.make<ConsoleHandler | null>(null)
-      const callCount = yield* Ref.make(0)
 
       const failed = (error: { readonly message: string }) =>
         new HomeError({ reason: "failed", message: error.message })
@@ -86,24 +85,11 @@ export class LocalHome extends Context.Service<LocalHome, {
       const home = Effect.map(settings.current, (endpoints): LinkedHome => ({
         homeId: key.homeId,
         services: configuredServices(endpoints),
-        protocol: HomeProtocol.protocolVersion,
         webUrls: config.webUrls
       }))
 
       // What the watches read becomes the domain's events: a snapshot, or why a watch can't be.
-      const watcher = yield* watches.make((message) => {
-        if (message._tag === "WatchSnapshot") {
-          return Queue.offer(events, {
-            _tag: "Snapshot",
-            watchId: message.watchId,
-            status: message.status,
-            body: message.body
-          })
-        }
-        return message._tag === "Failed"
-          ? Queue.offer(events, { _tag: "WatchFailed", watchId: message.id, reason: message.reason })
-          : Effect.void
-      })
+      const watcher = yield* watches.make((event) => Queue.offer(events, event))
 
       yield* Queue.offer(events, { _tag: "Ready", home: yield* home })
       // A service set or removed from the console: the domain hears which services this home reaches now.
@@ -124,14 +110,11 @@ export class LocalHome extends Context.Service<LocalHome, {
       const link: HomeLink["Service"] = {
         homeId: key.homeId,
         home: Effect.map(home, Option.some),
-        call: (request) =>
-          Effect.gen(function*() {
-            const id = `l${yield* Ref.updateAndGet(callCount, (count) => count + 1)}`
-            const answer = yield* calls.run(HomeProtocol.Call.make({ ...request, id }))
-            return answer._tag === "Failed"
-              ? yield* Effect.fail(new HomeError({ reason: "failed", message: answer.reason }))
-              : { status: answer.status, body: answer.body }
-          }),
+        call: (request, options) =>
+          Effect.flatMap(calls.run(request, options), (answer) =>
+            answer._tag === "Failed"
+              ? Effect.fail(new HomeError({ reason: "failed", message: answer.reason }))
+              : Effect.succeed({ status: answer.status, body: answer.body })),
         setWatches: (list) => watcher.set(list),
         appendJournal: (entries) => journal.append(entries),
         readJournal: (query) => journal.read(query),

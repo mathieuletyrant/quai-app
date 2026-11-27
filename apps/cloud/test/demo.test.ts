@@ -40,7 +40,6 @@ describe("the demo home", () => {
   it.effect("fills the app's screens, every service read", () =>
     Effect.gen(function*() {
       const home = yield* makeFakeHome({
-        strict: false,
         services: ["radarr", "sonarr", "qbittorrent", "jellyfin", "seerr", "reclaimerr", "cleanuparr"],
         answer: recordedHome(previewRoutes(0))
       })

@@ -1,4 +1,4 @@
-import { type DiskHolds, type DiskSpace, HomeProtocol, type LibraryService } from "@quai/api"
+import { type DiskHolds, type DiskSpace, type LibraryService } from "@quai/api"
 import { Effect, Option, Schema } from "effect"
 import type { LinkedHome } from "../home/HomeLink.ts"
 import type { HomeReads, Read } from "../home/HomeReads.ts"
@@ -26,8 +26,8 @@ const readsOf = (service: LibraryService) => ({
 export const diskReads = { radarr: readsOf("radarr"), sonarr: readsOf("sonarr") } as const
 
 /**
- * What one service sees of the disks: its mounts, and its root folders when Quai Home allows them
- * (`storageProtocolVersion`) and the service answered.
+ * What one service sees of the disks: its mounts, and its root folders when the service answered
+ * them.
  */
 export interface DiskView {
   readonly service: LibraryService
@@ -138,20 +138,17 @@ export const mediaDisks = (views: ReadonlyArray<DiskView>): ReadonlyArray<MediaD
   }).sort((left, right) => freeShare(left) - freeShare(right))
 }
 
-/** Quai Home allows the root folders. */
-export const readsRoots = (home: Pick<LinkedHome, "protocol">) => home.protocol >= HomeProtocol.storageProtocolVersion
-
 /**
  * The media disks now, read through Quai Home: each service's disks and root folders. A service
  * that didn't answer is listed as unavailable and left out; the others still count.
  */
-export const readMediaDisks = (reads: HomeReads["Service"], home: Pick<LinkedHome, "services" | "protocol">) =>
+export const readMediaDisks = (reads: HomeReads["Service"], home: Pick<LinkedHome, "services">) =>
   Effect.gen(function*() {
     const reached = arrServices.filter((service) => home.services.includes(service))
     const views = yield* Effect.forEach(reached, (service) =>
       Effect.all({
         mounts: reads.read(diskReads[service].mounts),
-        roots: readsRoots(home) ? reads.read(diskReads[service].roots) : Effect.succeed(Option.none())
+        roots: reads.read(diskReads[service].roots)
       }).pipe(Effect.map(({ mounts, roots }) =>
         Option.map(mounts, (list): DiskView => ({
           service,

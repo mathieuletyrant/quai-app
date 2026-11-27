@@ -1,6 +1,5 @@
 import {
   CurrentDevice,
-  HomeProtocol,
   type JournalEntry,
   journalId,
   type JournalNote,
@@ -32,9 +31,7 @@ const reasonOf = (error: unknown): string => {
 
 /**
  * What Quai did, for the console's Journal: every line is in memory for the live view (the last
- * 200), and handed to Quai Home in batches, which keeps 7 days of it on its disk. Quai Cloud keeps
- * nothing: a restarted Cloud reads the history back from Quai Home. A Home too old for a journal
- * (protocol 3 and before) leaves only the memory.
+ * 200), and handed to Quai Home's own journal in batches, which keeps 7 days of it on its disk.
  */
 export class Journal extends Context.Service<Journal, {
   /** One line, now. Never fails. */
@@ -88,19 +85,15 @@ export class Journal extends Context.Service<Journal, {
         )
       })
 
-    const keepsJournal = Effect.map(
-      link.home,
-      (home) => Option.isSome(home) && home.value.protocol >= HomeProtocol.journalProtocolVersion
-    )
+    const keepsJournal = Effect.map(link.home, Option.isSome)
 
     const flush: Effect.Effect<void> = Effect.gen(function*() {
       if (waiting.length === 0) return
       const home = yield* link.home
-      // Offline: kept for when it's back. Too old: it can't keep them, the memory does.
+      // Offline: kept for when it's back.
       if (Option.isNone(home)) return
       const batch = waiting
       waiting = []
-      if (home.value.protocol < HomeProtocol.journalProtocolVersion) return
       yield* link.appendJournal(batch).pipe(
         Effect.catchTag("HomeError", () =>
           Effect.sync(() => {
