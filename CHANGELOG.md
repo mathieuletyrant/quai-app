@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.0](https://github.com/mathieuletyrant/quai-app/compare/v2.5.0...v3.0.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* Quai Cloud refuses a Quai Home older than 2.4 (protocol 13): update Quai Home.
+
+### ✨ Features
+
+* drop the allowlist and the Cloud's old path; the Cloud only relays and pushes ([#182](https://github.com/mathieuletyrant/quai-app/issues/182)) ([1f5bc16](https://github.com/mathieuletyrant/quai-app/commit/1f5bc1637099b2e3de3e158c4cf8d335508db219))
+* **ios:** the Upcoming tile shows the three soonest rows, and Decline and Remove ask next to their button ([#180](https://github.com/mathieuletyrant/quai-app/issues/180)) ([36e7e66](https://github.com/mathieuletyrant/quai-app/commit/36e7e667ddb494dd19f6b38f6b69215baa3bd98c))
+
 ## [2.5.0](https://github.com/mathieuletyrant/quai-app/compare/v2.4.0...v2.5.0) (2026-11-27)
 
 
