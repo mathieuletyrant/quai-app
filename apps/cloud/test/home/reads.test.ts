@@ -3,9 +3,9 @@ import { HomeOffline } from "@quai/api"
 import { Effect, Fiber, Layer, Logger, Option, Schema } from "effect"
 import { TestClock } from "effect/testing"
 import { offlineMessage } from "../../src/home/HomeLink.ts"
-import { HomeReads } from "../../src/home/HomeReads.ts"
+import { answerKeptMs, HomeReads } from "../../src/home/HomeReads.ts"
 import { Journal } from "../../src/journal/Journal.ts"
-import { type Answer, makeFakeHome, recordedHome, settle, testLink } from "../fakeHome.ts"
+import { type Answer, makeFakeHome, recordedHome, type Recording, settle, testLink } from "../fakeHome.ts"
 
 const Status = Schema.Struct({ version: Schema.String })
 const status = { service: "radarr", path: "/api/v3/system/status?secret=x", schema: Status } as const
@@ -22,7 +22,7 @@ const reads = HomeReads.layer.pipe(
 )
 
 /** A home whose status route answers `answer`; not strict, so a refusal can be the answer. */
-const homeAnswering = (answer: Answer) =>
+const homeAnswering = (answer: Exclude<Recording, string>) =>
   Effect.gen(function*() {
     logs.length = 0
     const home = yield* makeFakeHome({
@@ -108,6 +108,108 @@ describe("HomeReads.read", () => {
       expect(yield* Effect.flip(homeReads.read(status))).toEqual(offline)
       expect(yield* Effect.flip(homeReads.read(status))).toEqual(offline)
       expect(yield* Effect.flip(homeReads.all({ status }))).toEqual(offline)
+    }).pipe(Effect.provide(reads)))
+})
+
+describe("HomeReads, the same GET read again", () => {
+  /** The GETs of the status route the home was asked. */
+  const statusCalls = (home: { readonly calls: ReadonlyArray<{ readonly path: string }> }) =>
+    home.calls.filter((call) => call.path === status.path).length
+
+  it.effect("read at once, it's one call that answers every read", () =>
+    Effect.gen(function*() {
+      const home = yield* homeAnswering({ json: { version: "5.2" } })
+      const homeReads = yield* HomeReads
+      const values = yield* Effect.all([homeReads.read(status), homeReads.read(status), homeReads.read(status)], {
+        concurrency: "unbounded"
+      })
+      expect(values).toEqual([
+        Option.some({ version: "5.2" }),
+        Option.some({ version: "5.2" }),
+        Option.some({ version: "5.2" })
+      ])
+      expect(statusCalls(home)).toBe(1)
+    }).pipe(Effect.provide(reads)))
+
+  it.effect("its 2xx answer serves the reads for a few seconds, then it's asked again", () =>
+    Effect.gen(function*() {
+      let version = "5.2"
+      const home = yield* homeAnswering(() => ({ json: { version } }))
+      const homeReads = yield* HomeReads
+      expect(yield* homeReads.read(status)).toEqual(Option.some({ version: "5.2" }))
+      version = "5.3"
+      yield* TestClock.adjust(answerKeptMs - 1)
+      expect(yield* homeReads.read(status)).toEqual(Option.some({ version: "5.2" }))
+      expect(statusCalls(home)).toBe(1)
+      yield* TestClock.adjust(1)
+      expect(yield* homeReads.read(status)).toEqual(Option.some({ version: "5.3" }))
+      expect(statusCalls(home)).toBe(2)
+    }).pipe(Effect.provide(reads)))
+
+  it.effect("another query is another GET", () =>
+    Effect.gen(function*() {
+      const home = yield* homeAnswering({ json: { version: "5.2" } })
+      const homeReads = yield* HomeReads
+      yield* homeReads.read(status)
+      yield* homeReads.read({ ...status, path: "/api/v3/system/status?secret=y" })
+      expect(home.calls).toHaveLength(2)
+    }).pipe(Effect.provide(reads)))
+
+  const unkept: ReadonlyArray<readonly [string, Answer]> = [
+    ["a 500", { status: 500, body: "" }],
+    ["a 404", { status: 404, body: "" }],
+    ["a call Quai Home couldn't make", { failed: "radarr is unreachable" }]
+  ]
+  for (const [what, answer] of unkept) {
+    it.effect(`${what} isn't kept: the next read asks again`, () =>
+      Effect.gen(function*() {
+        const home = yield* homeAnswering(answer)
+        const homeReads = yield* HomeReads
+        yield* homeReads.read(status)
+        yield* homeReads.read(status)
+        expect(statusCalls(home)).toBe(2)
+      }).pipe(Effect.provide(reads)))
+  }
+
+  it.effect("Quai Home gone isn't kept: back, it's asked again", () =>
+    Effect.gen(function*() {
+      let answer: Answer = { drop: true }
+      const home = yield* homeAnswering(() => answer)
+      const homeReads = yield* HomeReads
+      expect((yield* Effect.flip(homeReads.read(status)))._tag).toBe("HomeOffline")
+      answer = { json: { version: "5.2" } }
+      yield* home.connect
+      expect(yield* homeReads.read(status)).toEqual(Option.some({ version: "5.2" }))
+    }).pipe(Effect.provide(reads)))
+
+  it.effect("a write forgets what was kept: what it changed is read again", () =>
+    Effect.gen(function*() {
+      const home = yield* homeAnswering({ json: { version: "5.2" } })
+      const homeReads = yield* HomeReads
+      yield* homeReads.read(status)
+      const grab = {
+        service: "radarr",
+        method: "POST",
+        path: "/api/v3/release",
+        body: { guid: "g", indexerId: 1 }
+      } as const
+      yield* Effect.ignore(homeReads.write(grab, (message) => message))
+      yield* homeReads.read(status)
+      expect(statusCalls(home)).toBe(2)
+    }).pipe(Effect.provide(reads)))
+
+  it.effect("a read given up leaves the call to the others", () =>
+    Effect.gen(function*() {
+      const home = yield* homeAnswering({ silent: true })
+      const homeReads = yield* HomeReads
+      const given = yield* Effect.forkChild(homeReads.read(status))
+      const waiting = yield* Effect.forkChild(homeReads.read(status))
+      yield* settle
+      yield* Fiber.interrupt(given)
+      yield* TestClock.adjust("15 seconds")
+      expect(yield* Fiber.join(waiting)).toEqual(Option.none())
+      expect(logs).toEqual(["radarr /api/v3/system/status: Quai Home didn't answer in time"])
+      expect(statusCalls(home)).toBe(1)
     }).pipe(Effect.provide(reads)))
 })
 

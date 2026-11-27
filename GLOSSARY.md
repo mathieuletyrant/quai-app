@@ -59,7 +59,9 @@ over. What no home claims gets an app on no home: `/api/health`, and 503 for the
 **Home read** (`HomeReads`). A call the Cloud has Quai Home make to a service when it needs the
 answer now: a GET (`read`, `all`) or a write (`write`). One policy for all of them: Quai Home gone
 is *offline*; a service that didn't answer as expected is *unavailable* (None, logged with its
-service and path, never what it answered), or a refusal in words for a write.
+service and path, never what it answered), or a refusal in words for a write. Reads of the same
+GET at once share one call, and its 2xx answer serves them for a few seconds (`answerKeptMs`): a
+screen's routes, asked together, read the same lists once. A write forgets what was kept.
 
 **Watch**. A GET Quai Home polls on its own, every few seconds to an hour, while a flow needs it
 (or the journal: Cleanuparr's removals, while Quai Home reaches it), sending a snapshot when the

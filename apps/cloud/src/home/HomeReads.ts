@@ -1,5 +1,5 @@
 import { HomeOffline, type HomeProtocol, journalSourceNames } from "@quai/api"
-import { Context, Effect, Layer, Option, Schema } from "effect"
+import { Clock, Context, Deferred, Effect, Exit, Layer, Option, Schema } from "effect"
 import { readJson } from "../integrations/Integration.ts"
 import { Journal } from "../journal/Journal.ts"
 import { type CallRequest, HomeLink, offlineMessage, toOffline } from "./HomeLink.ts"
@@ -56,6 +56,18 @@ type Outcome =
 
 const isSuccess = (status: number) => status >= 200 && status < 300
 
+/**
+ * How long a GET's 2xx answer serves the reads that ask for it again. A screen's routes are asked
+ * together and read the same lists (the movies, the queues, the strikes): one call answers them all.
+ */
+export const answerKeptMs = 5_000
+
+/** A GET on its way, or answered and kept `until` then. */
+interface SharedGet {
+  readonly answer: Deferred.Deferred<Outcome, HomeOffline>
+  until: number
+}
+
 /** What a read's outcome holds: its value, the read's `notFound` for a 404 that has one, else None. */
 const valueOf = <A>(spec: Read<A>, outcome: Outcome): Option.Option<A> => {
   if (outcome._tag === "Failed") return Option.none()
@@ -78,7 +90,9 @@ const countsAgainstService = (outcome: Outcome) =>
  * Home gone, or never there, is `HomeOffline` (503); a service that didn't answer as expected is
  * None for a read, logged once with its service and path (never what it answered), and a refusal
  * in words for a write. The journal gets a line when a service stops answering the reads (no
- * answer, a 5xx, a body Quai can't read; not a 404) and one when it answers again.
+ * answer, a 5xx, a body Quai can't read; not a 404) and one when it answers again. Reads of the
+ * same GET at once share one call, and its 2xx answer serves them for `answerKeptMs`; a write
+ * forgets every answer kept, so what it changed is read again.
  */
 export class HomeReads extends Context.Service<HomeReads, {
   /** The services the connected Quai Home reaches. */
@@ -156,6 +170,37 @@ export class HomeReads extends Context.Service<HomeReads, {
               : Effect.succeed<Outcome>({ _tag: "Failed", message: error.message }))
         )
 
+      const scope = yield* Effect.scope
+      const gets = new Map<string, SharedGet>()
+
+      /** Settles a shared GET: a 2xx answer is kept a while, anything else is forgotten. */
+      const settle = (key: string, get: SharedGet, exit: Exit.Exit<Outcome, HomeOffline>) =>
+        Effect.gen(function*() {
+          const kept = Exit.isSuccess(exit) && exit.value._tag === "Answered" && isSuccess(exit.value.status)
+          if (kept) get.until = (yield* Clock.currentTimeMillis) + answerKeptMs
+          else if (gets.get(key) === get) gets.delete(key)
+          yield* Deferred.done(get.answer, exit)
+        })
+
+      /**
+       * A GET's outcome, from the call already on its way or answered moments ago when there is one.
+       * The call runs on its own: a read given up (an iPhone that stopped waiting) leaves it to the others.
+       */
+      const get = (service: HomeProtocol.HomeService, path: string) =>
+        Effect.gen(function*() {
+          const key = `${service} ${path}`
+          const now = yield* Clock.currentTimeMillis
+          const found = gets.get(key)
+          if (found !== undefined && now < found.until) return yield* Deferred.await(found.answer)
+          const shared: SharedGet = { answer: yield* Deferred.make<Outcome, HomeOffline>(), until: Infinity }
+          gets.set(key, shared)
+          yield* Effect.forkIn(
+            Effect.flatMap(Effect.exit(call({ service, method: "GET", path })), (exit) => settle(key, shared, exit)),
+            scope
+          )
+          return yield* Deferred.await(shared.answer)
+        })
+
       const services = Effect.flatMap(
         link.home,
         (home) =>
@@ -181,7 +226,7 @@ export class HomeReads extends Context.Service<HomeReads, {
 
       const read = <A>(spec: Read<A>) =>
         Effect.gen(function*() {
-          const answer = yield* call({ service: spec.service, method: "GET", path: spec.path })
+          const answer = yield* get(spec.service, spec.path)
           const value = valueOf(spec, answer)
           if (Option.isSome(value)) {
             yield* observed(spec.service, null)
@@ -221,17 +266,27 @@ export class HomeReads extends Context.Service<HomeReads, {
           return { values: values as Values<R>, unavailable }
         })
 
+      /** A write: what was kept before it, or read while it ran, may be what it changes. */
+      const forgetting = <A, E>(effect: Effect.Effect<A, E>) =>
+        Effect.suspend(() => {
+          gets.clear()
+          return Effect.ensuring(effect, Effect.sync(() => gets.clear()))
+        })
+
       const write = <E>(
         request: CallRequest,
         refused: (message: string) => E,
         options?: { readonly timeoutMs?: number }
       ) =>
-        Effect.flatMap(call(request, options), (answer): Effect.Effect<string, E> =>
-          answer._tag === "Failed"
-            ? Effect.fail(refused(`Quai Home: ${answer.message}`))
-            : answer.status >= 200 && answer.status < 300
-            ? Effect.succeed(answer.body)
-            : Effect.fail(refused(serviceError(answer.status, answer.body))))
+        Effect.flatMap(
+          forgetting(call(request, options)),
+          (answer): Effect.Effect<string, E> =>
+            answer._tag === "Failed"
+              ? Effect.fail(refused(`Quai Home: ${answer.message}`))
+              : answer.status >= 200 && answer.status < 300
+              ? Effect.succeed(answer.body)
+              : Effect.fail(refused(serviceError(answer.status, answer.body)))
+        )
 
       return { services, protocol, webUrls, read, all, write } satisfies HomeReads["Service"]
     })
