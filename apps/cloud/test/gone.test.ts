@@ -235,6 +235,9 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
           everySeconds: 60
         })
         expect(home.watch(fileEventsWatchId("candidate.moved"))?.service).toBe("reclaimerr")
+        expect(home.watch(fileEventsWatchId("candidate.unmonitored"))?.service).toBe("reclaimerr")
+        // An unmonitor that keeps the files gives nothing back: not watched.
+        expect(home.watch("reclaimerr:candidate.unmonitored_only")).toBeUndefined()
       })
     ))
 
