@@ -18,7 +18,7 @@ struct LiveActivitySettingsView: View {
                 if !loaded {
                     ProgressView().frame(maxWidth: .infinity).padding(.vertical, 24)
                 } else if !flows.isEmpty {
-                    GroupedSection(footer: "Which Live Activities this iPhone shows, and which of their steps. These settings are only for this iPhone: flows are made, and tested, in Quai's console.") {
+                    GroupedSection(footer: "Which Live Activities this iPhone shows, and which of their steps. These settings are only for this iPhone: flows are made, and tested, in Quai's console.\n\nQuiet at night: in iPhone Settings → Focus, add Quai's filter to Sleep and turn on Notify only when ready. While that Focus is on, a download starts no Live Activity: you get a notification once it's ready to watch.") {
                         ForEach(flows, id: \.id) { flow in
                             FlowSection(
                                 flow: flow,

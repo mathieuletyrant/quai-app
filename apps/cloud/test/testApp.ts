@@ -21,7 +21,7 @@ import { IntegrationsLive } from "@quai/domain/integrations/All.ts"
 import { Seerr } from "@quai/domain/integrations/seerr.ts"
 import { Library } from "@quai/domain/library/Library.ts"
 import { PublicAccess } from "@quai/domain/PublicAccess.ts"
-import { Apns } from "@quai/domain/push/Apns.ts"
+import { Apns, type ApnsRequest } from "@quai/domain/push/Apns.ts"
 import { Requests } from "@quai/domain/requests/Requests.ts"
 import { Storage } from "@quai/domain/storage/Storage.ts"
 import { Upcoming } from "@quai/domain/upcoming/Upcoming.ts"
@@ -34,7 +34,8 @@ import { cloud, type FakeLinks, linkDroppingOn, makeFakeHome, testLink } from ".
 /** Everything the domain's routes need, on a fake Quai Home and an in-memory HTTP server. No APNs key. */
 export const testAppWith = <E>(
   publicAccess: Layer.Layer<PublicAccess, E>,
-  link: Layer.Layer<HomeLink | FakeLinks> = testLink
+  link: Layer.Layer<HomeLink | FakeLinks> = testLink,
+  apns: Layer.Layer<Apns> = Layer.effect(Apns, makeApns(null))
 ) =>
   Layer.mergeAll(
     SystemHandlers,
@@ -67,7 +68,7 @@ export const testAppWith = <E>(
     // Actions have their own tests (flows/actions.test.ts); the routes here don't need Jellyfin.
     Layer.provideMerge(Layer.succeed(ActionRunner, { run: () => Effect.fail(new HttpApiError.NotFound()) })),
     Layer.provideMerge(cloud(IntegrationsLive, link)),
-    Layer.provideMerge(Layer.effect(Apns, makeApns(null))),
+    Layer.provideMerge(apns),
     Layer.provideMerge(publicAccess),
     Layer.provideMerge(Layer.succeed(ServerInfo, { version: "test", startedAt: 0 })),
     Layer.provideMerge(NodeHttpServer.layerTest)
@@ -81,6 +82,18 @@ export const TestApp = testAppWith(noPublicAccess)
 /** The routes, on a link that finds Quai Home gone for these calls (`linkDroppingOn`). */
 export const testAppDroppingOn = (...routes: ReadonlyArray<string>) =>
   testAppWith(noPublicAccess, linkDroppingOn(...routes))
+
+/** The routes, with an APNs key whose pushes land in `sent` instead of Apple. */
+export const testAppPushingTo = (sent: Array<ApnsRequest>) =>
+  testAppWith(
+    noPublicAccess,
+    testLink,
+    Layer.succeed(Apns, {
+      configured: Effect.succeed(true),
+      settings: { configured: true, topic: "com.mathieuletyrant.quai" },
+      send: (request) => Effect.sync(() => void sent.push(request))
+    })
+  )
 
 /** A fake Quai Home, connected. */
 export const connectedHome = Effect.tap(makeFakeHome(), (home) => home.connect)

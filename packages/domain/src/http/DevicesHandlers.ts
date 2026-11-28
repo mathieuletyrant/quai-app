@@ -46,6 +46,9 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
               ? null
               : { stepIndex: activity.stepIndex, paused: activity.values.paused ?? null }
           })
+          // Still on screen though the engine forgot it: it ends now, with the token the iPhone gave.
+          const forgotten = payload.keys.filter((key) => !running.has(key))
+          yield* Effect.forEach(forgotten, (key) => notifier.catchUp(device.id, key, undefined), { discard: true })
         }))
       .handle("preferences", () =>
         Effect.gen(function*() {

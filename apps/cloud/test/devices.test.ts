@@ -4,12 +4,13 @@ import { Activities } from "@quai/domain/flows/Activities.ts"
 import { Devices } from "@quai/domain/home/Devices.ts"
 import * as DeviceToken from "@quai/domain/home/DeviceToken.ts"
 import { HomeLink } from "@quai/domain/home/HomeLink.ts"
+import type { ApnsRequest } from "@quai/domain/push/Apns.ts"
 import { Effect, Exit, Option } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { HttpApiMiddleware, HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { testHomeId } from "./fakeHome.ts"
-import { connectedHome, TestApp } from "./testApp.ts"
+import { connectedHome, TestApp, testAppPushingTo } from "./testApp.ts"
 
 /** The iPhone's side of DeviceAuth: send the token the pairing returned. */
 const signedIn = (token: string) =>
@@ -257,4 +258,43 @@ describe("quiet", () => {
       yield* phone.devices.update({ payload: { quiet: false } })
       expect(yield* quiet).toBe(false)
     }).pipe(Effect.provide(TestApp)))
+})
+
+describe("a Live Activity the engine forgot", () => {
+  const sent: Array<ApnsRequest> = []
+  const key = "download|movie:tmdb:1"
+  const pairedPhone = Effect.gen(function*() {
+    yield* connectedHome
+    const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+      payload: { serverUrls: [] }
+    })
+    const { token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+      payload: { ...iphone, code: qr.code }
+    })
+    return yield* signedIn(token)
+  })
+  const ends = () => sent.filter((request) => (request.body as any).aps.event === "end")
+
+  it.effect("ends when its token comes, and again when the app says it's still on screen", () =>
+    Effect.gen(function*() {
+      sent.length = 0
+      const phone = yield* pairedPhone
+
+      // Its token comes long after the engine forgot it: it ends at once.
+      yield* phone.devices.activityToken({ payload: { mediaKey: key, pushToken: "act-1" } })
+      expect(ends().map((request) => request.deviceToken)).toEqual(["act-1"])
+
+      // The app comes to the front with it still shown: the token it gave ends it.
+      yield* phone.devices.shownActivities({ payload: { keys: [key] } })
+      expect(ends().map((request) => request.deviceToken)).toEqual(["act-1", "act-1"])
+
+      // One the engine runs is left alone.
+      yield* (yield* Activities).handle({
+        type: "media.added",
+        subject: { kind: "media", key: "movie:tmdb:2", title: "Heat", mediaType: "movie" }
+      })
+      yield* phone.devices.activityToken({ payload: { mediaKey: "download|movie:tmdb:2", pushToken: "act-2" } })
+      yield* phone.devices.shownActivities({ payload: { keys: ["download|movie:tmdb:2"] } })
+      expect(ends()).toHaveLength(2)
+    }).pipe(Effect.provide(testAppPushingTo(sent))))
 })

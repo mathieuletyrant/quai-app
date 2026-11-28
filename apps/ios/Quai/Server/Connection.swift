@@ -521,7 +521,8 @@ final class Connection {
         }
     }
 
-    /// The push token of every Quai activity, including the ones the server started remotely.
+    /// Every Quai activity, including the ones the server started remotely, to report it once
+    /// swiped away. Their tokens are `ActivityTokens`'.
     func watchActivities() async {
         for activity in Activity<QuaiActivityAttributes>.activities {
             watch(activity)
@@ -559,18 +560,7 @@ final class Connection {
     }
 
     private func watch(_ activity: Activity<QuaiActivityAttributes>) {
-        Task { await reportTokens(of: activity) }
         Task { await reportWhenGone(activity) }
-    }
-
-    private func reportTokens(of activity: Activity<QuaiActivityAttributes>) async {
-        let mediaKey = activity.attributes.key
-        for await data in activity.pushTokenUpdates {
-            let hex = data.hexString
-            await send { client in
-                _ = try await client.reportActivityToken(body: .json(.init(mediaKey: mediaKey, pushToken: hex)))
-            }
-        }
     }
 
     /// Swiped away (or ended) while the app runs: report it at once.
