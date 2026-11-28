@@ -53,6 +53,12 @@ export interface Result {
 
 export const activityKey = (flowId: string, subjectKey: string) => `${flowId}|${subjectKey}`
 
+/** An activity key's flow and subject; null for a key `activityKey` didn't make. */
+export const parseActivityKey = (key: string): { readonly flowId: string; readonly subjectKey: string } | null => {
+  const bar = key.indexOf("|")
+  return bar <= 0 ? null : { flowId: key.slice(0, bar), subjectKey: key.slice(bar + 1) }
+}
+
 /**
  * What a push would change on screen. Times are rounded to 10 s: a playback's end time drifts by
  * milliseconds between polls, and the iPhone animates the bar itself, so only a seek is news.

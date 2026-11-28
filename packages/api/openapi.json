@@ -5210,6 +5210,9 @@
           },
           "notificationToken": {
             "type": "string"
+          },
+          "quiet": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

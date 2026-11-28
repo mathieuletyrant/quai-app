@@ -34,7 +34,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
           const device = yield* CurrentDevice
           yield* devices.setActivityToken(device.id, payload.mediaKey, payload.pushToken)
           const activity = (yield* activities.snapshot).activities.get(payload.mediaKey)
-          if (activity !== undefined) yield* notifier.catchUp(device.id, activity)
+          yield* notifier.catchUp(device.id, payload.mediaKey, activity)
         }))
       .handle("shownActivities", ({ payload }) =>
         Effect.gen(function*() {

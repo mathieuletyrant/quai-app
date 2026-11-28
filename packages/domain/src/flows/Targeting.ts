@@ -111,6 +111,8 @@ interface Target {
   readonly shown: boolean
   /** Where the activity was when this iPhone's user swiped it away, if they did. */
   readonly dismissed?: Dismissed | null
+  /** A Focus with Quai's filter is on. */
+  readonly quiet?: boolean
 }
 
 const none: Delivery = { _tag: "None" }
@@ -139,7 +141,7 @@ const endDelivery = (target: Target, content: ActivityContent, dismissAt: number
     : { _tag: "End", token: target.activityToken, content, dismissAt }
 
 /** An ended activity on a step this iPhone hides shows as its last shown step, done. */
-const lastStepDone = (flow: Flow, preference: FlowPreference): ActivityContent => ({
+export const lastStepDone = (flow: Flow, preference: FlowPreference): ActivityContent => ({
   step: visibleSteps(flow, preference).length - 1,
   tone: "done"
 })
@@ -153,14 +155,30 @@ export const deliveryFor = (push: Push, flow: Flow, target: Target, now: number)
   if (!preference.enabled) return none
   const content = contentFor(flow, push.activity, preference)
   const dismissed = target.dismissed ?? null
+  const startToken = startsQuietly(flow, target) ? null : target.pushToStartToken
   if (dismissed !== null) {
     if (staysSwipedAway(push, dismissed)) return none
-    return startDelivery(target.pushToStartToken, attributesFor(flow, push.activity, preference), content)
+    return startDelivery(startToken, attributesFor(flow, push.activity, preference), content)
   }
   if (push._tag === "End") {
     return endDelivery(target, content ?? lastStepDone(flow, preference), now + flow.lingerMinutes * 60_000)
   }
   if (content === null) return none
   if (target.shown) return updateDelivery(target.activityToken, content)
-  return startDelivery(target.pushToStartToken, attributesFor(flow, push.activity, preference), content)
+  return startDelivery(startToken, attributesFor(flow, push.activity, preference), content)
 }
+
+/**
+ * A quiet iPhone starts no download Live Activity: it gets the ready notification instead. One
+ * already on screen goes on to its end.
+ */
+const startsQuietly = (flow: Flow, target: Target) => target.quiet === true && flow.subject === "media"
+
+/**
+ * Whether a download that ended ready becomes this iPhone's notification: its Live Activity can't
+ * say so (quiet, never started, or its token never came) and its user didn't swipe it away.
+ */
+export const notifiesReady = (push: Push, flow: Flow, target: Target, delivery: Delivery): boolean =>
+  push._tag === "End" && delivery._tag === "None" && flow.subject === "media" &&
+  push.activity.tone === "done" && push.activity.stepIndex === flow.steps.length - 1 &&
+  (target.dismissed ?? null) === null && preferenceFor(target.preferences, flow.id).enabled

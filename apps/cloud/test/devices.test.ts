@@ -231,3 +231,30 @@ describe("flows from the console", () => {
       expect(yield* target()).toMatchObject({ activityToken: "act-2", dismissed: null })
     }).pipe(Effect.provide(TestApp)))
 })
+
+describe("quiet", () => {
+  it.effect("the iPhone says when its Focus filter turns quiet on and off", () =>
+    Effect.gen(function*() {
+      yield* connectedHome
+      const qr = yield* (yield* HttpApiTest.groups(QuaiApi, ["console"])).console.createPairingCode({
+        payload: { serverUrls: [] }
+      })
+      const { deviceId, token } = yield* (yield* HttpApiTest.groups(QuaiApi, ["devices"])).devices.pair({
+        payload: { ...iphone, code: qr.code }
+      })
+      const phone = yield* signedIn(token)
+      const quiet = Effect.map(
+        (yield* Devices).targets("download|movie:tmdb:1"),
+        (all) => all.find((target) => target.deviceId === deviceId)!.quiet
+      )
+      expect(yield* quiet).toBe(false)
+
+      yield* phone.devices.update({ payload: { quiet: true } })
+      expect(yield* quiet).toBe(true)
+      // Another change leaves it as it is.
+      yield* phone.devices.update({ payload: { name: "iPhone 17" } })
+      expect(yield* quiet).toBe(true)
+      yield* phone.devices.update({ payload: { quiet: false } })
+      expect(yield* quiet).toBe(false)
+    }).pipe(Effect.provide(TestApp)))
+})

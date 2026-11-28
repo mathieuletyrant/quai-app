@@ -97,7 +97,12 @@ export const UpdateDevice = Schema.Struct({
   pushToStartToken: Schema.optionalKey(Schema.String),
   timeZone: Schema.optionalKey(Schema.String),
   /** The APNs device token for notifications (alerts), once the user allowed them. */
-  notificationToken: Schema.optionalKey(Schema.String)
+  notificationToken: Schema.optionalKey(Schema.String),
+  /**
+   * Quiet: a Focus with Quai's filter is on. A download starts no Live Activity on a quiet iPhone;
+   * it gets a notification once ready instead.
+   */
+  quiet: Schema.optionalKey(Schema.Boolean)
 }).annotate({ identifier: "UpdateDevice" })
 
 export const ActivityToken = Schema.Struct({
