@@ -1,6 +1,6 @@
 import type { DeviceId, Flow } from "@quai/api"
 import { Clock, Context, Effect, Layer } from "effect"
-import type { Push } from "../flows/Engine.ts"
+import type { Activity, Push } from "../flows/Engine.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { deliveryFor } from "../flows/Targeting.ts"
 import { Devices, type PushTarget } from "../home/Devices.ts"
@@ -60,6 +60,11 @@ export class Notifier extends Context.Service<Notifier, {
   readonly send: (pushes: ReadonlyArray<Push>) => Effect.Effect<void>
   /** Sends to one iPhone only, or every iPhone with `null` (test buttons). */
   readonly sendTo: (deviceId: DeviceId | null, pushes: ReadonlyArray<Push>) => Effect.Effect<void>
+  /**
+   * Sends one iPhone where an activity is now, once it reported the activity's token: what changed
+   * before (an import seconds after the grab) had no token to go to. Not journaled: nothing changed.
+   */
+  readonly catchUp: (deviceId: DeviceId, activity: Activity) => Effect.Effect<void>
 }>()("quai/Notifier") {
   static readonly layer = Layer.effect(
     Notifier,
@@ -84,11 +89,13 @@ export class Notifier extends Context.Service<Notifier, {
           return note === null ? Effect.void : journal.log(note)
         })
 
-      const one = (push: Push, only: DeviceId | null) =>
+      const one = (push: Push, only: DeviceId | null, journaled = true) =>
         Effect.gen(function*() {
           const flow = (yield* flowStore.all).find((candidate) => candidate.id === push.activity.flowId)
           if (flow === undefined) return
-          if (!(yield* apns.configured)) return yield* logged(push, flow, { pushed: 0, configured: false })
+          if (!(yield* apns.configured)) {
+            return journaled ? yield* logged(push, flow, { pushed: 0, configured: false }) : undefined
+          }
           const activityKey = push.activity.key
           const now = yield* Clock.currentTimeMillis
           const targets = (yield* devices.targets(activityKey)).filter((target) =>
@@ -104,7 +111,7 @@ export class Notifier extends Context.Service<Notifier, {
                 activityToken: target.activityToken,
                 shown: shown.has(shownKey) || target.activityToken !== null,
                 dismissed: target.dismissed
-              }, now)
+              }, push._tag === "End" ? push.activity.endedAt ?? now : now)
               // The activity is over: nothing left to show again.
               if (push._tag === "End" && target.dismissed !== null) {
                 yield* devices.clearDismissed(target.deviceId, activityKey)
@@ -153,7 +160,7 @@ export class Notifier extends Context.Service<Notifier, {
                   }))
               )
             }), { concurrency: 4, discard: true })
-          yield* logged(push, flow, { pushed, configured: true })
+          if (journaled) yield* logged(push, flow, { pushed, configured: true })
         }).pipe(
           // No home, no iPhone to push to: the activities live there too.
           Effect.catchTag("HomeOffline", (error) => Effect.logDebug(`push skipped: ${error.message}`))
@@ -161,7 +168,9 @@ export class Notifier extends Context.Service<Notifier, {
 
       return {
         send: (pushes) => Effect.forEach(pushes, (push) => one(push, null), { discard: true }),
-        sendTo: (deviceId, pushes) => Effect.forEach(pushes, (push) => one(push, deviceId), { discard: true })
+        sendTo: (deviceId, pushes) => Effect.forEach(pushes, (push) => one(push, deviceId), { discard: true }),
+        catchUp: (deviceId, activity) =>
+          one({ _tag: activity.endedAt === null ? "Update" : "End", activity }, deviceId, false)
       }
     })
   )

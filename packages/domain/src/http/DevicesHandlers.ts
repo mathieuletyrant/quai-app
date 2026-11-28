@@ -6,6 +6,7 @@ import { Activities } from "../flows/Activities.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { attributesFor, contentFor, preferenceFor, visibleSteps } from "../flows/Targeting.ts"
 import { Devices } from "../home/Devices.ts"
+import { Notifier } from "../push/Notifier.ts"
 
 export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handlers) =>
   Effect.gen(function*() {
@@ -13,6 +14,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
     const activities = yield* Activities
     const flowStore = yield* FlowStore
     const actions = yield* ActionRunner
+    const notifier = yield* Notifier
     return handlers
       .handle("pair", ({ payload }) =>
         Effect.flatMap(
@@ -31,6 +33,8 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
         Effect.gen(function*() {
           const device = yield* CurrentDevice
           yield* devices.setActivityToken(device.id, payload.mediaKey, payload.pushToken)
+          const activity = (yield* activities.snapshot).activities.get(payload.mediaKey)
+          if (activity !== undefined) yield* notifier.catchUp(device.id, activity)
         }))
       .handle("shownActivities", ({ payload }) =>
         Effect.gen(function*() {

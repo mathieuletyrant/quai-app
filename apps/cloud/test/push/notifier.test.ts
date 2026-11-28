@@ -88,6 +88,54 @@ describe("push to APNs", () => {
       }).pipe(Effect.provide(onHome(apns)))
     }).pipe(Effect.scoped))
 
+  // A grab imported 34 s later: the iPhone hadn't reported the activity's token yet, so the
+  // update and the end had nowhere to go, and the activity stayed on "Downloading".
+  it.effect("catches up an iPhone whose activity token came after the changes it missed", () =>
+    Effect.gen(function*() {
+      const dev = yield* fakeApns
+      const apns = yield* makeApns(
+        { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
+        { development: dev.url, production: dev.url }
+      )
+      yield* Effect.gen(function*() {
+        yield* Effect.flatMap(makeFakeHome(), (home) => home.connect)
+        const phone = yield* pairPhone("Mathieu", "development", "pts-1")
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+        const devices = yield* Devices
+        const catchUp = (key: string, token: string) =>
+          Effect.gen(function*() {
+            yield* devices.setActivityToken(phone, key, token)
+            yield* notifier.catchUp(phone, (yield* engine.snapshot).activities.get(key)!)
+          })
+
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        yield* notifier.send(yield* engine.handle(ev.imported()))
+        expect(dev.hits.map((hit) => hit.body.aps.event)).toEqual(["start"])
+
+        // Running: the token brings the step it is on now.
+        yield* catchUp("download|movie:tmdb:1", "act-1")
+        expect(dev.hits[1]!.path).toBe("/3/device/act-1")
+        expect(dev.hits[1]!.body.aps).toMatchObject({ event: "update", "content-state": { step: 2, tone: "active" } })
+
+        // Ended before its token came: it ends on the iPhone, gone when the flow's linger is over.
+        const severance = {
+          kind: "media" as const,
+          key: "series:tvdb:2",
+          title: "Severance",
+          mediaType: "series" as const
+        }
+        yield* notifier.send(yield* engine.handle(ev.grabbed("s", severance)))
+        yield* notifier.send(yield* engine.handle(ev.available(severance)))
+        expect(dev.hits).toHaveLength(3)
+        yield* TestClock.adjust("5 minutes")
+        yield* catchUp("download|series:tvdb:2", "act-2")
+        expect(dev.hits[3]!.path).toBe("/3/device/act-2")
+        expect(dev.hits[3]!.body.aps).toMatchObject({ event: "end", "content-state": { step: 3, tone: "done" } })
+        expect(dev.hits[3]!.body.aps["dismissal-date"] - dev.hits[3]!.body.aps.timestamp).toBe(10 * 60)
+      }).pipe(Effect.provide(onHome(apns)))
+    }).pipe(Effect.scoped))
+
   it.live("forgets a token APNs says is gone", () =>
     Effect.gen(function*() {
       const dev = yield* fakeApns
