@@ -235,6 +235,9 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
           everySeconds: 60
         })
         expect(home.watch(fileEventsWatchId("candidate.moved"))?.service).toBe("reclaimerr")
+        expect(home.watch(fileEventsWatchId("candidate.unmonitored"))?.service).toBe("reclaimerr")
+        // An unmonitor that keeps the files gives nothing back: not watched.
+        expect(home.watch("reclaimerr:candidate.unmonitored_only")).toBeUndefined()
       })
     ))
 
@@ -315,6 +318,45 @@ describe("gone: a planned deletion Reclaimerr carried out", () => {
         expect(pushed(apple)).toEqual([])
         const marks = (yield* (yield* DiskReadings).marks).map((mark) => [mark.kind, mark.title, mark.holds])
         expect(marks).toEqual([["gone", "Up", "movies"], ["gone", "Severance S01", "shows"]])
+      })
+    ))
+
+  it.effect("a season a rule unmonitored with its files deleted is gone: notified, logged and marked", () =>
+    withApple((apple) =>
+      Effect.gen(function*() {
+        yield* TestClock.setTime(now)
+        const home = yield* makeFakeHome({ services: ["reclaimerr"] })
+        yield* home.connect
+        yield* paired("Mathieu", "note-mathieu", ["plannedDeletion"])
+        yield* (yield* Hub).sync
+        const unmonitoredWatch = fileEventsWatchId("candidate.unmonitored")
+        expect(home.watch(unmonitoredWatch)?.path).toBe(
+          "/api/v1/events?event_type=candidate.unmonitored&limit=200&occurred_after=2026-11-25T09%3A00%3A00.000Z"
+        )
+        // What Reclaimerr 0.6.18 sent for the real home's Vampire Diaries: each season its own candidate.
+        const season = (id: string, candidateId: number, seasonNumber: number) => ({
+          ...vampireDeleted.items[0]!,
+          id,
+          type: "candidate.unmonitored",
+          payload: {
+            ...vampireDeleted.items[0]!.payload,
+            action: "unmonitored",
+            candidate_id: candidateId,
+            season_number: seasonNumber
+          }
+        })
+        yield* home.snapshot(unmonitoredWatch, { items: [season("u6", 7, 6), season("u7", 8, 7)] })
+        expect(pushed(apple)).toEqual([
+          ["The Vampire Diaries S06 is gone", "Deleted by Reclaimerr", "gone.plannedDeletion"],
+          ["The Vampire Diaries S07 is gone", "Deleted by Reclaimerr", "gone.plannedDeletion"]
+        ])
+        expect(yield* journalLines("reclaimerr.deleted")).toEqual([
+          "Reclaimerr deleted The Vampire Diaries S06",
+          "Reclaimerr deleted The Vampire Diaries S07"
+        ])
+        const marks = (yield* (yield* DiskReadings).marks).map((mark) => [mark.kind, mark.title, mark.holds])
+        expect(marks).toContainEqual(["gone", "The Vampire Diaries S06", "shows"])
+        expect(marks).toContainEqual(["gone", "The Vampire Diaries S07", "shows"])
       })
     ))
 

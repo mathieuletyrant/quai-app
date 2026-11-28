@@ -20,7 +20,8 @@ user let go has no alert at all, so its deletion would go unseen.
   the app's Home. Something gone is neither wrong nor lasting: one notification, one journal line,
   nothing on the Home.
 - It is **read from what the service says it did**, never inferred from something disappearing:
-  Reclaimerr's event feed (`GET /api/v1/events`, `candidate.deleted` and `candidate.moved`, which
+  Reclaimerr's event feed (`GET /api/v1/events`, `candidate.deleted`, `candidate.unmonitored` (unmonitored in its *arr with its files deleted) and
+  `candidate.moved`, which
   needs the `events:read` scope on its token) and Cleanuparr's events (`QueueItemDeleted`,
   `DownloadCleaned`). Reclaimerr's webhooks were ruled out: no token scope can create them.
 - It is **turned on per iPhone and per kind** (`DevicePreferences.gone`), off by default: it is a

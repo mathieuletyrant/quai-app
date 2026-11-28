@@ -364,8 +364,12 @@ export const plannedDeletionFixes = (
 
 // Gone: what Reclaimerr carried out, from its event feed.
 
-/** The feed's file events Gone reads: a title deleted, or moved elsewhere. */
-export const fileEventTypes = ["candidate.deleted", "candidate.moved"] as const
+/**
+ * The feed's file events Gone reads: a title deleted, unmonitored in its *arr with its files deleted
+ * (a rule's "unmonitor and delete": `candidate.unmonitored`), or moved elsewhere. An unmonitor that
+ * keeps the files (`candidate.unmonitored_only`) gives nothing back: it isn't gone.
+ */
+export const fileEventTypes = ["candidate.deleted", "candidate.unmonitored", "candidate.moved"] as const
 export type FileEventType = typeof fileEventTypes[number]
 
 /**
