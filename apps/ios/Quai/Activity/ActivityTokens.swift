@@ -4,7 +4,9 @@ import Foundation
 /// The push token of every Quai Live Activity, reported to the server as soon as iOS gives it.
 /// Watched from launch, not from a screen: when a push starts a Live Activity, iOS runs the app in
 /// the background just long enough to hand over its token, and builds no window. Until the server
-/// has the token, the activity's updates and end can't reach this iPhone.
+/// has the token, the activity's updates and end can't reach this iPhone. On the main actor, where
+/// the app delegate starts it: a Live Activity isn't Sendable.
+@MainActor
 enum ActivityTokens {
     static func watch() {
         Task {
