@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.2.0](https://github.com/mathieuletyrant/quai-app/compare/v3.1.0...v3.2.0) (2026-11-28)
+
+
+### ✨ Features
+
+* Live Activities reach their end when the token comes late; Quiet and the ready notification ([#187](https://github.com/mathieuletyrant/quai-app/issues/187)) ([fa7e5fe](https://github.com/mathieuletyrant/quai-app/commit/fa7e5fe9c5ab52281e37a94985a4ac4d7292e258))
+
+
+### 🐛 Fixes
+
+* a season Reclaimerr unmonitored with its files deleted is gone ([#188](https://github.com/mathieuletyrant/quai-app/issues/188)) ([97251a5](https://github.com/mathieuletyrant/quai-app/commit/97251a56262668ba257626f82ebd8a2475ca85a6))
+
 ## [3.1.0](https://github.com/mathieuletyrant/quai-app/compare/v3.0.0...v3.1.0) (2026-11-27)
 
 
