@@ -6,6 +6,7 @@ import { Activities } from "../flows/Activities.ts"
 import { FlowStore } from "../flows/FlowStore.ts"
 import { attributesFor, contentFor, preferenceFor, visibleSteps } from "../flows/Targeting.ts"
 import { Devices } from "../home/Devices.ts"
+import { Notifier } from "../push/Notifier.ts"
 
 export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handlers) =>
   Effect.gen(function*() {
@@ -13,6 +14,7 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
     const activities = yield* Activities
     const flowStore = yield* FlowStore
     const actions = yield* ActionRunner
+    const notifier = yield* Notifier
     return handlers
       .handle("pair", ({ payload }) =>
         Effect.flatMap(
@@ -31,6 +33,8 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
         Effect.gen(function*() {
           const device = yield* CurrentDevice
           yield* devices.setActivityToken(device.id, payload.mediaKey, payload.pushToken)
+          const activity = (yield* activities.snapshot).activities.get(payload.mediaKey)
+          yield* notifier.catchUp(device.id, payload.mediaKey, activity)
         }))
       .handle("shownActivities", ({ payload }) =>
         Effect.gen(function*() {
@@ -42,6 +46,9 @@ export const DevicesHandlers = HttpApiBuilder.group(QuaiApi, "devices", (handler
               ? null
               : { stepIndex: activity.stepIndex, paused: activity.values.paused ?? null }
           })
+          // Still on screen though the engine forgot it: it ends now, with the token the iPhone gave.
+          const forgotten = payload.keys.filter((key) => !running.has(key))
+          yield* Effect.forEach(forgotten, (key) => notifier.catchUp(device.id, key, undefined), { discard: true })
         }))
       .handle("preferences", () =>
         Effect.gen(function*() {

@@ -39,8 +39,14 @@ const sampleValues = (flow: Flow, step: Flow["steps"][number], at: number, last:
   return {}
 }
 
+/** A flow test's subject: no engine activity ever has it. */
+const testSubjectKey = (id: string) => `test:${id}`
+
+/** Whether a subject is a flow test's, which runs on the iPhones without the engine. */
+export const isTestSubject = (subjectKey: string) => subjectKey.startsWith(testSubjectKey(""))
+
 export const testScript = (flow: Flow, now: number, id: string): ReadonlyArray<Beat> => {
-  const subjectKey = `test:${id}`
+  const subjectKey = testSubjectKey(id)
   let activity: Activity = {
     key: activityKey(flow.id, subjectKey),
     flowId: flow.id,

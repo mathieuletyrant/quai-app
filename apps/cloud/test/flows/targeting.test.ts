@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@effect/vitest"
 import type { DevicePreferences } from "@quai/api"
 import type { Activity, Push } from "@quai/domain/flows/Engine.ts"
-import { deliveryFor } from "@quai/domain/flows/Targeting.ts"
+import { deliveryFor, notifiesReady } from "@quai/domain/flows/Targeting.ts"
 import { download, playback } from "./helpers.ts"
 
 const activity = (over: Partial<Activity> = {}): Activity => ({
@@ -190,5 +190,58 @@ describe("per-iPhone steps", () => {
       startsAt: 20,
       paused: false
     })
+  })
+})
+
+describe("quiet", () => {
+  const quiet = { ...fresh, quiet: true, preferences: prefs() }
+  const swipedAway = { ...quiet, dismissed: { stepIndex: 0, paused: null } }
+
+  it("starts no download Live Activity, not even one swiped away that changed", () => {
+    expect(deliveryFor(push("Start"), download, quiet, 0)._tag).toBe("None")
+    expect(deliveryFor(push("Update", { stepIndex: 1 }), download, quiet, 0)._tag).toBe("None")
+    expect(deliveryFor(push("Update", { stepIndex: 1 }), download, swipedAway, 0)._tag).toBe("None")
+  })
+
+  it("updates and ends one already on screen", () => {
+    const showing = { ...quiet, shown: true, activityToken: "act" }
+    expect(deliveryFor(push("Update", { stepIndex: 2 }), download, showing, 0)._tag).toBe("Update")
+    expect(deliveryFor(push("End", { stepIndex: 3, endedAt: 0, tone: "done" }), download, showing, 0)._tag).toBe("End")
+  })
+
+  it("leaves playbacks alone", () => {
+    const playing = push("Start", { key: "playback|p", flowId: "playback", values: { paused: false } })
+    expect(deliveryFor(playing, playback, { ...quiet, preferences: { flows: {} } }, 0)._tag).toBe("Start")
+  })
+})
+
+describe("ready notification", () => {
+  const ready = push("End", { stepIndex: 3, endedAt: 0, tone: "done" })
+  const none = { _tag: "None" } as const
+  const target = { ...fresh, preferences: prefs() }
+
+  it("for a download that ended ready where its Live Activity can't say so", () => {
+    expect(notifiesReady(ready, download, target, none)).toBe(true)
+    expect(notifiesReady(ready, download, { ...target, shown: true }, none)).toBe(true)
+  })
+
+  it("not when the end reaches the Live Activity", () => {
+    const end = deliveryFor(ready, download, { ...target, shown: true, activityToken: "act" }, 0)
+    expect(notifiesReady(ready, download, target, end)).toBe(false)
+  })
+
+  it("not for an end that isn't ready: expired, removed, or before the last step", () => {
+    expect(notifiesReady(push("End", { stepIndex: 1, endedAt: 0, tone: "stalled" }), download, target, none)).toBe(
+      false
+    )
+    expect(notifiesReady(push("End", { stepIndex: 1, endedAt: 0, tone: "active" }), download, target, none)).toBe(false)
+    expect(notifiesReady(push("Update", { stepIndex: 3, tone: "done" }), download, target, none)).toBe(false)
+  })
+
+  it("not when swiped away, the flow is off on this iPhone, or the flow isn't a download", () => {
+    expect(notifiesReady(ready, download, { ...target, dismissed: { stepIndex: 1, paused: null } }, none)).toBe(false)
+    expect(notifiesReady(ready, download, { ...target, preferences: prefs([], false) }, none)).toBe(false)
+    const ended = push("End", { key: "playback|p", flowId: "playback", endedAt: 0, tone: "done" })
+    expect(notifiesReady(ended, playback, { ...target, preferences: { flows: {} } }, none)).toBe(false)
   })
 })

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "@effect/vitest"
+import type { DeviceId } from "@quai/api"
 import { Activities } from "@quai/domain/flows/Activities.ts"
+import { testScript } from "@quai/domain/flows/TestScript.ts"
 import { Devices } from "@quai/domain/home/Devices.ts"
 import { Integrations } from "@quai/domain/integrations/Integration.ts"
+import { Journal } from "@quai/domain/journal/Journal.ts"
 import { Apns } from "@quai/domain/push/Apns.ts"
 import { Notifier } from "@quai/domain/push/Notifier.ts"
 import { Effect, Fiber, Layer, Redacted } from "effect"
@@ -9,7 +12,7 @@ import { TestClock } from "effect/testing"
 import { createPublicKey, generateKeyPairSync, verify } from "node:crypto"
 import { makeApns } from "../../src/push/ApnsClient.ts"
 import { cloud, makeFakeHome } from "../fakeHome.ts"
-import { ev } from "../flows/helpers.ts"
+import { download, ev } from "../flows/helpers.ts"
 import { fakeApns } from "./fakeApns.ts"
 
 /** The Cloud on a connected fake home, pushing through `apns`. */
@@ -27,6 +30,40 @@ const pairPhone = (name: string, apnsEnvironment: "development" | "production", 
     if (paired._tag === "None") return yield* Effect.die("pairing failed")
     return paired.value.deviceId
   })
+
+const severance = { kind: "media" as const, key: "series:tvdb:2", title: "Severance", mediaType: "series" as const }
+const alien = { kind: "media" as const, key: "movie:tmdb:3", title: "Alien", mediaType: "movie" as const }
+const heat = { kind: "media" as const, key: "movie:tmdb:4", title: "Heat", mediaType: "movie" as const }
+const tv = { kind: "playback" as const, key: "playback:s1:i1", title: "Dune", device: "TV Salon" }
+
+/** A flow test's activity, as the console's Test button plays it. */
+const testActivity = testScript(download, 0, "1")[0]!.push.activity
+
+/** Runs `body` on a connected fake home whose pushes go to a fake APNs, at time 0. */
+const withApns = <A, E, R>(body: (dev: Effect.Success<typeof fakeApns>) => Effect.Effect<A, E, R>) =>
+  Effect.gen(function*() {
+    const dev = yield* fakeApns
+    const apns = yield* makeApns(
+      { keyPem: Redacted.make(keyPem), keyId: "K", teamId: "T", topic: "com.mathieuletyrant.quai" },
+      { development: dev.url, production: dev.url }
+    )
+    return yield* Effect.gen(function*() {
+      yield* Effect.flatMap(makeFakeHome(), (home) => home.connect)
+      return yield* body(dev)
+    }).pipe(Effect.provide(onHome(apns)))
+  }).pipe(Effect.scoped)
+
+/** The iPhone reports an activity's token, and the route catches it up. */
+const tokenCameFor = (phone: DeviceId) => (key: string, token: string) =>
+  Effect.gen(function*() {
+    yield* (yield* Devices).setActivityToken(phone, key, token)
+    yield* (yield* Notifier).catchUp(phone, key, (yield* (yield* Activities).snapshot).activities.get(key))
+  })
+
+const journalTexts = Effect.map(
+  Effect.flatMap(Effect.service(Journal), (journal) => journal.since(undefined)),
+  (tail) => tail.entries.map((entry) => entry.text)
+)
 
 describe("push to APNs", () => {
   it.effect("start goes to every push-to-start token, updates to the activity's token, on each iPhone's server", () =>
@@ -87,6 +124,203 @@ describe("push to APNs", () => {
         expect(dev.hits[3]!.body.aps["dismissal-date"] - dev.hits[3]!.body.aps.timestamp).toBe(15 * 60)
       }).pipe(Effect.provide(onHome(apns)))
     }).pipe(Effect.scoped))
+
+  // A grab imported 34 s later: the iPhone hadn't reported the activity's token yet, so the
+  // update and the end had nowhere to go, and the activity stayed on "Downloading".
+  it.effect("catches up an iPhone whose activity token came after the changes it missed", () =>
+    withApns((dev) =>
+      Effect.gen(function*() {
+        const phone = yield* pairPhone("Mathieu", "development", "pts-1")
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+        const catchUp = tokenCameFor(phone)
+
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        yield* TestClock.adjust("34 seconds")
+        yield* notifier.send(yield* engine.handle(ev.imported()))
+        expect(dev.hits.map((hit) => hit.body.aps.event)).toEqual(["start"])
+        expect(yield* journalTexts).toContain(
+          "Download: Dune is now “Importing” · not pushed to 1 iPhone: no activity token yet"
+        )
+
+        // Running: the token brings the step it is on now, stamped with when it got there, so a
+        // newer push sent meanwhile wins on the iPhone.
+        yield* TestClock.adjust("10 seconds")
+        yield* catchUp("download|movie:tmdb:1", "act-1")
+        expect(dev.hits[1]!.path).toBe("/3/device/act-1")
+        expect(dev.hits[1]!.body.aps).toMatchObject({
+          event: "update",
+          timestamp: 34,
+          "content-state": { step: 2, tone: "active" }
+        })
+
+        // Ended before its token came: it ends on the iPhone, gone when the flow's linger is over.
+        yield* notifier.send(yield* engine.handle(ev.grabbed("s", severance)))
+        yield* notifier.send(yield* engine.handle(ev.available(severance)))
+        expect(dev.hits).toHaveLength(3)
+        yield* TestClock.adjust("5 minutes")
+        yield* catchUp("download|series:tvdb:2", "act-2")
+        expect(dev.hits[3]!.path).toBe("/3/device/act-2")
+        expect(dev.hits[3]!.body.aps).toMatchObject({
+          event: "end",
+          timestamp: 44,
+          "dismissal-date": 44 + 15 * 60,
+          "content-state": { step: 3, tone: "done" }
+        })
+      })
+    ))
+
+  // The incident: the token came when the app opened, two hours after the end. The engine had
+  // forgotten the activity; the iPhone still showed "Downloading".
+  it.effect("ends at once an activity whose token came after the engine forgot it", () =>
+    withApns((dev) =>
+      Effect.gen(function*() {
+        const phone = yield* pairPhone("Mathieu", "development", "pts-1")
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+        const catchUp = tokenCameFor(phone)
+
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        yield* notifier.send(yield* engine.handle(ev.available()))
+        yield* TestClock.adjust("2 hours")
+        yield* notifier.send(yield* engine.tick())
+        expect((yield* engine.snapshot).activities.size).toBe(0)
+
+        yield* catchUp("download|movie:tmdb:1", "act-late")
+        expect(dev.hits[1]!.path).toBe("/3/device/act-late")
+        expect(dev.hits[1]!.body.aps).toMatchObject({
+          event: "end",
+          timestamp: 7200,
+          "dismissal-date": 7200,
+          "content-state": { step: 3, tone: "done" }
+        })
+        expect(yield* journalTexts).toContain(
+          "Download: an activity already over ended on Mathieu, its token came late"
+        )
+
+        // A flow test's activity is never the engine's; an unknown flow, or no flow at all, ends nothing.
+        yield* catchUp("download|test:123", "act-test")
+        yield* catchUp("gone-flow|movie:tmdb:1", "act-gone")
+        yield* catchUp("no-bar", "act-bar")
+        expect(dev.hits).toHaveLength(2)
+      })
+    ))
+
+  it.effect("a quiet iPhone starts no download Live Activity: it's notified once ready", () =>
+    withApns((dev) =>
+      Effect.gen(function*() {
+        const quiet = yield* pairPhone("Mathieu", "development", "pts-quiet")
+        const awake = yield* pairPhone("Julie", "development", "pts-awake")
+        const devices = yield* Devices
+        yield* devices.update(quiet, { quiet: true, notificationToken: "note-quiet" })
+        yield* devices.update(awake, { notificationToken: "note-awake" })
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        expect(dev.hits.map((hit) => hit.path)).toEqual(["/3/device/pts-awake"])
+        yield* devices.setActivityToken(awake, "download|movie:tmdb:1", "act-awake")
+        yield* notifier.send(yield* engine.handle(ev.imported()))
+        yield* notifier.send(yield* engine.handle(ev.available()))
+
+        const to = (token: string) => dev.hits.filter((hit) => hit.path === `/3/device/${token}`)
+        expect(to("act-awake").map((hit) => hit.body.aps.event)).toEqual(["update", "end"])
+        const [ready] = to("note-quiet")
+        expect(ready!.headers["apns-push-type"]).toBe("alert")
+        expect(ready!.body.aps).toMatchObject({
+          alert: { title: "Dune", body: "Ready to watch" },
+          "thread-id": "ready.download"
+        })
+        expect(dev.hits).toHaveLength(4)
+        expect(yield* journalTexts).toEqual(expect.arrayContaining([
+          "Download: Dune started, “Downloading” · pushed to 1 iPhone · 1 iPhone quiet",
+          "Download: Dune ended, “Ready to watch” · pushed to 1 iPhone · 1 iPhone notified it's ready"
+        ]))
+
+        // Quiet is for downloads: a playback still shows.
+        yield* notifier.send(yield* engine.handle({ type: "playback.started", subject: tv, values: { paused: false } }))
+        expect(dev.hits.slice(4).map((hit) => hit.path).sort()).toEqual(["/3/device/pts-awake", "/3/device/pts-quiet"])
+
+        // A flow test shows on a quiet iPhone: its user asked for it.
+        const before = dev.hits.length
+        yield* notifier.sendTo(quiet, [{ _tag: "Start", activity: testActivity }])
+        expect(dev.hits[before]!.path).toBe("/3/device/pts-quiet")
+      })
+    ))
+
+  it.effect("an activity shown before the iPhone went quiet goes on to its end", () =>
+    withApns((dev) =>
+      Effect.gen(function*() {
+        const phone = yield* pairPhone("Mathieu", "development", "pts-1")
+        const devices = yield* Devices
+        yield* devices.update(phone, { notificationToken: "note-1" })
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        yield* devices.setActivityToken(phone, "download|movie:tmdb:1", "act-1")
+        yield* devices.update(phone, { quiet: true })
+        yield* notifier.send(yield* engine.handle(ev.imported()))
+        yield* notifier.send(yield* engine.handle(ev.available()))
+        expect(dev.hits.map((hit) => [hit.path, hit.body.aps.event])).toEqual([
+          ["/3/device/pts-1", "start"],
+          ["/3/device/act-1", "update"],
+          ["/3/device/act-1", "end"]
+        ])
+      })
+    ))
+
+  // Whatever kept the end from the iPhone, the download being ready still reaches it.
+  it.effect("a download ready on an iPhone whose Live Activity can't end is notified", () =>
+    withApns((dev) =>
+      Effect.gen(function*() {
+        const phone = yield* pairPhone("Mathieu", "development", "pts-1")
+        const devices = yield* Devices
+        yield* devices.update(phone, { notificationToken: "note-1" })
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        yield* notifier.send(yield* engine.handle(ev.available()))
+        expect(dev.hits.map((hit) => hit.path)).toEqual(["/3/device/pts-1", "/3/device/note-1"])
+      })
+    ))
+
+  it.effect("no ready notification for an end the iPhone got, one swiped away, a flow turned off, or a download that didn't finish", () =>
+    withApns((dev) =>
+      Effect.gen(function*() {
+        const phone = yield* pairPhone("Mathieu", "development", "pts-1")
+        const devices = yield* Devices
+        yield* devices.update(phone, { notificationToken: "note-1" })
+        const engine = yield* Activities
+        const notifier = yield* Notifier
+        const notified = () => dev.hits.filter((hit) => hit.path === "/3/device/note-1").length
+
+        // The end reached its Live Activity.
+        yield* notifier.send(yield* engine.handle(ev.grabbed("h")))
+        yield* devices.setActivityToken(phone, "download|movie:tmdb:1", "act-1")
+        yield* notifier.send(yield* engine.handle(ev.available()))
+        expect(notified()).toBe(0)
+
+        // Swiped away: its user doesn't want to hear about it.
+        yield* notifier.send(yield* engine.handle(ev.grabbed("s", severance)))
+        yield* devices.setActivityToken(phone, "download|series:tvdb:2", "act-2")
+        yield* devices.reconcile(phone, [], () => ({ stepIndex: 1, paused: null }))
+        yield* notifier.send(yield* engine.handle(ev.available(severance)))
+        expect(notified()).toBe(0)
+
+        // The release left the client before its import: not ready.
+        yield* notifier.send(yield* engine.handle(ev.grabbed("x", alien)))
+        yield* notifier.send(yield* engine.handle({ type: "download.removed", downloadId: "x" }))
+        expect(notified()).toBe(0)
+
+        // The download flow turned off on this iPhone.
+        yield* devices.setPreferences(phone, { flows: { download: { enabled: false, hiddenSteps: [] } } })
+        yield* notifier.send(yield* engine.handle(ev.grabbed("y", heat)))
+        yield* notifier.send(yield* engine.handle(ev.available(heat)))
+        expect(notified()).toBe(0)
+      })
+    ))
 
   it.live("forgets a token APNs says is gone", () =>
     Effect.gen(function*() {

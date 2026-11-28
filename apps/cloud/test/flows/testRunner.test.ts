@@ -12,7 +12,8 @@ describe("flow tests", () => {
     fixedFlows(),
     Layer.succeed(Notifier, {
       send: () => Effect.void,
-      sendTo: (deviceId, pushes) => Effect.sync(() => pushes.forEach((push) => sent.push(`${deviceId}:${push._tag}`)))
+      sendTo: (deviceId, pushes) => Effect.sync(() => pushes.forEach((push) => sent.push(`${deviceId}:${push._tag}`))),
+      catchUp: () => Effect.void
     })
   ]))
   const phone = "phone" as DeviceId

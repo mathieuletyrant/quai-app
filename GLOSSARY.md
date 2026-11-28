@@ -168,6 +168,19 @@ its step, its values, its tone (*active*, *stalled*, *done*). At most one per fl
 Island, kept up to date by pushes. One activity can be several Live Activities, one per iPhone, each
 with only the steps that iPhone shows.
 
+**Activity token** (`activityTokens`, `catchUp`). The push token of one Live Activity on one iPhone,
+which the app reports once iOS gives it. Until then the activity's updates and end can't reach that
+iPhone. When it comes, the iPhone is caught up: sent where the activity is now, or ended at once if
+the engine has already forgotten it.
+
+**Quiet** (`quiet`, `QuietFilter.swift`). An iPhone on which a Focus with Quai's Focus filter is on
+(Sleep, say). A download starts no Live Activity on it; one already on screen goes on to its end.
+Other flows are unchanged.
+
+**Ready notification** (`notifiesReady`). The plain notification "<title> · Ready to watch" for a
+download that ended ready on an iPhone whose Live Activity can't say so: quiet, never started there,
+or whose activity token never came. Not sent when it was swiped away, or the flow is off there.
+
 **Stalled**. An activity whose progress hasn't moved for the flow's time, or whose import is
 blocked: drawn grey until it moves again.
 

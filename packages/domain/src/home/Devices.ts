@@ -50,6 +50,10 @@ export interface PushTarget {
   readonly pushToStartToken: string | null
   /** The token of this activity on this iPhone, once the iPhone reported it. */
   readonly activityToken: string | null
+  /** Its APNs token for notifications, once its user allowed them. */
+  readonly notificationToken: string | null
+  /** A Focus with Quai's filter is on: no new download Live Activity, a notification once ready. */
+  readonly quiet: boolean
   readonly preferences: DevicePreferences
   /** Where the activity was when this iPhone's user swiped it away, if they did. */
   readonly dismissed: Dismissed | null
@@ -94,6 +98,8 @@ export const DeviceDocument = Schema.Struct({
   notificationToken: Schema.optional(Schema.String),
   /** The device key's public half (Ed25519, raw, base64); absent on iPhones paired without one. */
   deviceKey: Schema.optional(Schema.String),
+  /** Quiet, as its Focus filter last said; absent: not quiet. */
+  quiet: Schema.optional(Schema.Boolean),
   /** Activity key → where it was when swiped away. */
   dismissed: Schema.Record(
     Schema.String,
@@ -178,6 +184,7 @@ export class Devices extends Context.Service<Devices, {
       readonly pushToStartToken?: string | undefined
       readonly timeZone?: string | undefined
       readonly notificationToken?: string | undefined
+      readonly quiet?: boolean | undefined
     }
   ) => Effect.Effect<void, HomeOffline>
   /** The time zone of the most recently seen iPhone that reported a valid one. */
@@ -326,7 +333,8 @@ export class Devices extends Context.Service<Devices, {
             ...(patch.name === undefined ? {} : { name: patch.name }),
             ...(patch.pushToStartToken === undefined ? {} : { pushToStartToken: patch.pushToStartToken }),
             ...(patch.timeZone === undefined || !isTimeZone(patch.timeZone) ? {} : { timeZone: patch.timeZone }),
-            ...(patch.notificationToken === undefined ? {} : { notificationToken: patch.notificationToken })
+            ...(patch.notificationToken === undefined ? {} : { notificationToken: patch.notificationToken }),
+            ...(patch.quiet === undefined ? {} : { quiet: patch.quiet })
           })),
 
         timeZone: Effect.map(all, (devices) =>
@@ -377,6 +385,8 @@ export class Devices extends Context.Service<Devices, {
               apnsEnvironment: device.apnsEnvironment,
               pushToStartToken: device.pushToStartToken,
               activityToken: device.activityTokens[activityKey] ?? null,
+              notificationToken: device.notificationToken ?? null,
+              quiet: device.quiet === true,
               preferences: device.preferences,
               dismissed: device.dismissed[activityKey] ?? null
             }))),
