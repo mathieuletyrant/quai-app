@@ -97,7 +97,7 @@ reaches a service itself: Quai Home forwards the webhooks, polls the watches and
 | `sonarr` | same, for episodes | — | — |
 | `qbittorrent` | — | download progress and downloads gone before their import, every 5 s, while a download runs | — |
 | `jellyfin` | — | `media.available`, every 15 s, while an activity awaits it; `playback.*`, every 15 s, while a playback flow is on | `playback.playPause`, `playback.stop` |
-| `reclaimerr` | — | its candidates, every 60 s, while the Planned deletion alert is on or an iPhone wants Gone · Planned deletion; its event feed (`candidate.deleted`, `candidate.moved`), every 60 s, while an iPhone wants Gone · Planned deletion: each one journal line and *gone*, no flow event | — (and feeds the To fix list) |
+| `reclaimerr` | — | its candidates, every 60 s, while the Planned deletion alert is on or an iPhone wants Gone · Planned deletion; its event feed (`candidate.deleted`, `candidate.unmonitored`: unmonitored with its files deleted, `candidate.moved`), every 60 s, while Quai Home reaches it: each one journal line and *gone*, no flow event | — (and feeds the To fix list) |
 | `cleanuparr` | — | its `QueueItemDeleted` and `DownloadCleaned` events, every 5 min each, while Quai Home reaches it: each removal or cleanup one journal line and *gone* (stuck removal, seed cleanup), no flow event | — (and feeds the To fix list) |
 | `releases` | — | Sonarr's and Radarr's calendars and queues for the home's day, every 5 min while the day's activity runs, every 30 min otherwise, while a day flow is on | — |
 | `seerr` | `request.*` (when Quai Home could set the webhook up) | pending requests, every 60 s, while a request flow is on | `request.approve`, `request.decline` |
